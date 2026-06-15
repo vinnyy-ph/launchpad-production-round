@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
 
@@ -14,6 +14,11 @@
 
 # production
 /build
+dist/
+
+# tsc -b emits these next to the source config (composite project)
+frontend/vite.config.js
+frontend/vite.config.d.ts
 
 # misc
 .DS_Store
