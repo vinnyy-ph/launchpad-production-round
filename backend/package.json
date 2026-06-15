@@ -18,12 +18,21 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "firebase-admin": "^14.0.0",
-    "openai": "^6.42.0"
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.11.0",
+    "openai": "^6.42.0",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
     "@types/node": "^22.9.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "prisma": "^7.0.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.6.0"
