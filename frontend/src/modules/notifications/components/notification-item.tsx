@@ -11,7 +11,9 @@ export function NotificationItem({ notification, onRead }: Props) {
 
   const handleClick = () => {
     if (!notification.isRead) onRead(notification.id);
-    if (notification.linkUrl) navigate(notification.linkUrl);
+    if (notification.linkUrl && notification.linkUrl.startsWith("/")) {
+      navigate(notification.linkUrl);
+    }
   };
 
   return (

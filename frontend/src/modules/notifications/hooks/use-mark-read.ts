@@ -2,8 +2,12 @@ import { markNotificationRead } from "../services/notifications.service";
 
 export function useMarkRead(onSuccess?: (id: string) => void) {
   const markRead = async (id: string) => {
-    await markNotificationRead(id);
-    onSuccess?.(id);
+    try {
+      await markNotificationRead(id);
+      onSuccess?.(id);
+    } catch {
+      // fire-and-forget — swallow errors
+    }
   };
   return { markRead };
 }

@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/use-auth";
 
 interface RequireAuthProps {
@@ -13,7 +14,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
   }
 
   if (!appUser) {
-    return <div>Not authenticated</div>;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
