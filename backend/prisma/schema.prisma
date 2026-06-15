@@ -1,9 +1,7 @@
-// Prisma schema — datasource + generator only.
-// Models are intentionally empty in the base skeleton; they are added by the
-// shared-core and per-module skills. In Prisma 7 the datasource has no inline
-// URL: the runtime client connects via the Neon driver adapter (pooled
-// DATABASE_URL, see src/lib/db.ts) and the CLI/migrations use the direct URL
-// (DIRECT_URL, see prisma.config.ts).
+// =============================================================
+//  Prisma Schema — People & Performance Management
+//  Target: PostgreSQL
+// =============================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -11,17 +9,4 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-}
-
-// --- models ---
-
-model User {
-  id          String   @id @default(cuid())
-  firebaseUid String   @unique
-  email       String   @unique
-  name        String?
-  role        String   @default("member")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }

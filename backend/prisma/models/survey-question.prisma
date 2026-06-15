@@ -1,0 +1,13 @@
+model SurveyQuestion {
+  id           String       @id @default(uuid())
+  surveyId     String
+  survey       PulseSurvey  @relation(fields: [surveyId], references: [id])
+  type         QuestionType
+  questionText String
+  options      Json?        // for MULTIPLE_CHOICE / CHECKBOX / LINEAR_SCALE config
+  orderIndex   Int
+
+  answers SurveyAnswer[]
+
+  @@map("survey_questions")
+}
