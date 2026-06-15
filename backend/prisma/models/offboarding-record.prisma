@@ -1,0 +1,16 @@
+model OffboardingRecord {
+  id                  String            @id @default(uuid())
+  employeeId          String            @unique
+  employee            Employee          @relation(fields: [employeeId], references: [id])
+  clearanceTemplateId String
+  clearanceTemplate   ClearanceTemplate @relation(fields: [clearanceTemplateId], references: [id])
+  tenderDate          DateTime
+  effectiveDate       DateTime
+  attachmentUrl       String?
+  status              OffboardingStatus @default(PENDING)
+  createdAt           DateTime          @default(now())
+
+  signatureRequests ClearanceSignatureRequest[]
+
+  @@map("offboarding_records")
+}

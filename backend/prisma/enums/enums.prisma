@@ -1,0 +1,88 @@
+enum Role {
+  ADMIN
+  HR
+  SUPERVISOR
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ONBOARDING
+  ACTIVE
+  OFFBOARDING
+  INACTIVE
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  FAILED_DELIVERY
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OffboardingStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETE
+}
+
+enum SignatoryStatus {
+  PENDING
+  SIGNED
+  REJECTED
+}
+
+enum BulkJobStatus {
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum RecurringType {
+  ONE_TIME
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+}
+
+enum AudienceType {
+  EVERYONE
+  SUPERVISOR_BASED
+  TEAM_BASED
+}
+
+enum SurveyVisibility {
+  EVERYONE
+  SUPERVISOR_BASED
+  TEAM_BASED
+  HR_ROOT_ONLY
+  SPECIFIC_TEAMS
+}
+
+enum QuestionType {
+  SHORT_ANSWER
+  LONG_ANSWER
+  LINEAR_SCALE
+  MULTIPLE_CHOICE
+  CHECKBOX
+}
+
+enum ReminderFrequency {
+  DAILY
+  EVERY_X_DAYS
+  WEEKLY
+}
+
+enum NotificationType {
+  EMAIL
+  IN_APP
+}

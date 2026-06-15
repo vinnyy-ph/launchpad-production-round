@@ -1,0 +1,13 @@
+model ClearanceSignatureRequest {
+  id              String           @id @default(uuid())
+  offboardingId   String
+  offboarding     OffboardingRecord @relation(fields: [offboardingId], references: [id])
+  signatoryId     String
+  signatory       Employee          @relation(fields: [signatoryId], references: [id])
+  status          SignatoryStatus   @default(PENDING)
+  note            String?
+  actionAt        DateTime?
+
+  @@unique([offboardingId, signatoryId])
+  @@map("clearance_signature_requests")
+}
