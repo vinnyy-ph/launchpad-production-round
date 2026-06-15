@@ -1,0 +1,35 @@
+/* Swift Work login — layout via Tailwind in login.page.tsx.
+   The Google button's own styles live with the GoogleSignInButton component. */
+
+.sw-poster {
+  background: var(--gradient-jia); /* already 135deg peach→pink→lilac→blue in jia-tokens.css */
+  position: relative;
+  overflow: hidden;
+}
+/* faint glow from beneath, never on top */
+.sw-poster::after {
+  content: "";
+  position: absolute;
+  left: -10%;
+  bottom: -30%;
+  width: 70%;
+  height: 70%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.35), transparent);
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.sw-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--color-error-50);
+  border: 1px solid var(--color-error-200);
+  border-radius: var(--radius-lg, 10px);
+  padding: 12px 14px;
+  color: var(--color-error-600);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.sw-alert svg { flex: none; margin-top: 1px; }
