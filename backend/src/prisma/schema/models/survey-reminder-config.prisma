@@ -3,7 +3,7 @@ model SurveyReminderConfig {
   surveyId   String            @unique
   survey     PulseSurvey       @relation(fields: [surveyId], references: [id])
   frequency  ReminderFrequency @default(DAILY)
-  everyXDays Int?              // only when frequency = EVERY_X_DAYS
+  everyXDays Int? // only when frequency = EVERY_X_DAYS
 
   @@map("survey_reminder_configs")
 }

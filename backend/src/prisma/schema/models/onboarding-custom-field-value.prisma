@@ -1,10 +1,10 @@
 model OnboardingCustomFieldValue {
-  id        String                @id @default(uuid())
-  recordId  String
-  record    OnboardingRecord      @relation(fields: [recordId], references: [id])
-  fieldId   String
-  field     OnboardingCustomField @relation(fields: [fieldId], references: [id])
-  value     String
+  id       String                @id @default(uuid())
+  recordId String
+  record   OnboardingRecord      @relation(fields: [recordId], references: [id])
+  fieldId  String
+  field    OnboardingCustomField @relation(fields: [fieldId], references: [id])
+  value    String
 
   @@unique([recordId, fieldId])
   @@map("onboarding_custom_field_values")

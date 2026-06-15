@@ -4,8 +4,8 @@ model SurveyAnswer {
   response   SurveyResponse @relation(fields: [responseId], references: [id])
   questionId String
   question   SurveyQuestion @relation(fields: [questionId], references: [id])
-  answerText String?        // for SHORT/LONG_ANSWER
-  answerData Json?          // for LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX
+  answerText String? // for SHORT/LONG_ANSWER
+  answerData Json? // for LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX
 
   @@map("survey_answers")
 }

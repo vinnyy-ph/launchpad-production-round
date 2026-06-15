@@ -1,13 +1,16 @@
 model SurveyOccurrence {
-  id          String      @id @default(uuid())
-  surveyId    String
-  survey      PulseSurvey @relation(fields: [surveyId], references: [id])
-  releaseDate DateTime
-  deadline    DateTime
-  isClosed    Boolean     @default(false)
-  createdAt   DateTime    @default(now())
+  id               String      @id @default(uuid())
+  surveyId         String
+  survey           PulseSurvey @relation(fields: [surveyId], references: [id])
+  occurrenceNumber Int         @default(1)
+  releaseDate      DateTime
+  deadline         DateTime
+  isClosed         Boolean     @default(false)
+  createdAt        DateTime    @default(now())
 
-  responses SurveyResponse[]
+  responses       SurveyResponse[]
+  completions     SurveyCompletion[]
+  audienceMembers SurveyAudienceMember[]
 
   @@map("survey_occurrences")
 }
