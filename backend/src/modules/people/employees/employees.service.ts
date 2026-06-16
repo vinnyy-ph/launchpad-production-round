@@ -1,13 +1,20 @@
 import type { EmployeeStatus } from "@prisma/client";
+import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EmployeesRepository } from "./employees.repository";
 import type {
+  EmployeeProfileResponseDto,
   EmployeeListItemResponseDto,
   EmployeeStatusDto,
+  GetEmployeeProfileParamsDto,
   ListEmployeesQueryDto,
   ListEmployeesResponseDto,
+  UpdateEmployeeProfileParamsDto,
+  UpdateEmployeeProfileRequestDto,
+  UpdateEmployeeProfileResponseDto,
 } from "./dto";
 
 type RepositoryEmployee = Awaited<ReturnType<EmployeesRepository["findMany"]>>["employees"][number];
+type RepositoryEmployeeProfile = Awaited<ReturnType<EmployeesRepository["findById"]>>;
 
 /**
  * Coordinates employee list behavior and maps database records into response DTOs.
@@ -30,6 +37,62 @@ export class EmployeesService {
         total,
         totalPages: Math.ceil(total / filters.limit),
       },
+    };
+  }
+
+  /**
+   * Returns an unredacted employee profile for HR directory views.
+   */
+  async getEmployeeProfile(
+    params: GetEmployeeProfileParamsDto,
+  ): Promise<EmployeeProfileResponseDto> {
+    const employee = await this.employeesRepository.findById(params.employeeId);
+
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.EMPLOYEE_RETRIEVED,
+      data: this.toProfileResponse(employee),
+    };
+  }
+
+  /**
+   * Updates another employee profile for HR and returns the refreshed unredacted profile.
+   */
+  async updateEmployeeProfile(
+    params: UpdateEmployeeProfileParamsDto,
+    update: UpdateEmployeeProfileRequestDto,
+    updatedBy = "hr-profile-edit",
+  ): Promise<UpdateEmployeeProfileResponseDto> {
+    if (update.supervisorId === params.employeeId) {
+      throw new Error("Employee cannot supervise themselves");
+    }
+
+    if (update.supervisorId) {
+      const supervisor = await this.employeesRepository.findById(update.supervisorId);
+
+      if (!supervisor) {
+        throw new Error("Supervisor not found");
+      }
+    }
+
+    const employee = await this.employeesRepository.updateProfile(
+      params.employeeId,
+      update,
+      updatedBy,
+    );
+
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.EMPLOYEE_PROFILE_UPDATED,
+      data: this.toProfileResponse(employee),
     };
   }
 
@@ -67,6 +130,70 @@ export class EmployeesService {
             jobTitle: employee.supervisor.jobTitle,
           }
         : null,
+    };
+  }
+
+  /**
+   * Converts a Prisma employee profile into the HR-facing response DTO.
+   * No HR redaction is applied here because this endpoint is intended for HR profile access.
+   */
+  private toProfileResponse(employee: NonNullable<RepositoryEmployeeProfile>) {
+    return {
+      id: employee.id,
+      userId: employee.userId,
+      user: {
+        id: employee.user.id,
+        email: employee.user.email,
+        role: employee.user.role,
+        isActive: employee.user.isActive,
+      },
+      companyEmail: employee.companyEmail,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      middleName: employee.middleName,
+      fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
+      personalEmail: employee.personalEmail,
+      birthday: employee.birthday,
+      address: employee.address,
+      emergencyContact: employee.emergencyContact,
+      jobTitle: employee.jobTitle,
+      department: employee.department,
+      status: this.toStatusDto(employee.status),
+      teams: employee.teamMemberships.map((membership) => ({
+        id: membership.team.id,
+        name: membership.team.name,
+      })),
+      ledTeams: employee.ledTeams.map((team) => ({
+        id: team.id,
+        name: team.name,
+      })),
+      supervisor: employee.supervisor
+        ? {
+            id: employee.supervisor.id,
+            firstName: employee.supervisor.firstName,
+            lastName: employee.supervisor.lastName,
+            companyEmail: employee.supervisor.companyEmail,
+            fullName: this.buildFullName(
+              employee.supervisor.firstName,
+              null,
+              employee.supervisor.lastName,
+            ),
+            jobTitle: employee.supervisor.jobTitle,
+          }
+        : null,
+      directReports: employee.directReports.map((directReport) => ({
+        id: directReport.id,
+        firstName: directReport.firstName,
+        lastName: directReport.lastName,
+        companyEmail: directReport.companyEmail,
+        fullName: this.buildFullName(directReport.firstName, null, directReport.lastName),
+        jobTitle: directReport.jobTitle,
+        status: this.toStatusDto(directReport.status),
+      })),
+      createdAt: employee.createdAt,
+      createdBy: employee.createdBy,
+      updatedAt: employee.updatedAt,
+      updatedBy: employee.updatedBy,
     };
   }
 

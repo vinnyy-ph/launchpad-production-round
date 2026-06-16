@@ -2,6 +2,10 @@
  * Query field names supported by the employee list endpoint.
  */
 export const EMPLOYEE_QUERY_FIELDS = {
+  BODY: "body",
+  BIRTHDAY: "birthday",
+  EMPLOYEE_ID: "employeeId",
+  SUPERVISOR_ID: "supervisorId",
   STATUS: "status",
 } as const;
 

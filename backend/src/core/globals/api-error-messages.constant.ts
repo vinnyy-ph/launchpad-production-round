@@ -9,7 +9,10 @@ export const API_ERROR_MESSAGES = {
   NOT_FOUND: "Resource not found",
   VALIDATION_FAILED: "Validation failed",
   INTERNAL_SERVER_ERROR: "Internal server error",
+  EMPLOYEE_NOT_FOUND: "Employee not found",
+  INVALID_EMPLOYEE_PROFILE_UPDATE: "Invalid employee profile update",
   INVALID_EMPLOYEE_STATUS: "Invalid employee status",
+  SUPERVISOR_NOT_FOUND: "Supervisor not found",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];

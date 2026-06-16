@@ -13,6 +13,8 @@ jest.mock("../../core/database/prisma.service", () => ({
     employee: {
       findMany: jest.fn(),
       count: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));

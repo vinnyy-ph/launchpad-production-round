@@ -1,6 +1,55 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
-import type { ListEmployeesQueryDto } from "./dto";
+import type { ListEmployeesQueryDto, UpdateEmployeeProfileRequestDto } from "./dto";
+
+const employeeProfileInclude = {
+  user: {
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isActive: true,
+    },
+  },
+  supervisor: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+    },
+  },
+  directReports: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+      status: true,
+    },
+  },
+  ledTeams: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  teamMemberships: {
+    where: { deletedAt: null },
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.EmployeeInclude;
 
 /**
  * Handles employee persistence queries and keeps Prisma-specific filtering out of controllers.
@@ -46,6 +95,69 @@ export class EmployeesRepository {
     ]);
 
     return { employees, total };
+  }
+
+  /**
+   * Finds one unredacted employee profile for HR views.
+   * Soft-deleted employees and related records are excluded from the profile response.
+   */
+  async findById(employeeId: string) {
+    return prisma.employee.findFirst({
+      where: {
+        id: employeeId,
+        deletedAt: null,
+      },
+      include: employeeProfileInclude,
+    });
+  }
+
+  /**
+   * Updates HR-editable employee profile fields and returns the refreshed unredacted profile.
+   */
+  async updateProfile(employeeId: string, update: UpdateEmployeeProfileRequestDto, updatedBy: string) {
+    const existingEmployee = await this.findById(employeeId);
+
+    if (!existingEmployee) {
+      return null;
+    }
+
+    const data: Prisma.EmployeeUpdateInput = {
+      companyEmail: update.companyEmail,
+      firstName: update.firstName,
+      lastName: update.lastName,
+      middleName: update.middleName,
+      personalEmail: update.personalEmail,
+      birthday: update.birthday,
+      address: update.address,
+      emergencyContact: update.emergencyContact,
+      jobTitle: update.jobTitle,
+      department: update.department,
+      status: update.status,
+      updatedBy,
+      ...(update.supervisorId !== undefined
+        ? {
+            supervisor: update.supervisorId
+              ? { connect: { id: update.supervisorId } }
+              : { disconnect: true },
+          }
+        : {}),
+      ...(update.companyEmail
+        ? {
+            user: {
+              update: {
+                email: update.companyEmail,
+                updatedBy,
+              },
+            },
+          }
+        : {}),
+    };
+
+    return prisma.employee.update({
+      where: { id: employeeId },
+      data,
+      include: employeeProfileInclude,
+    });
   }
 
   /**
