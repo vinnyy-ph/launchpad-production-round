@@ -7,6 +7,8 @@ export function useNotifications(limit = 10) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: [...NOTIFICATIONS_KEY, limit],
     queryFn: () => fetchNotifications(limit),
+    // TODO: re-enable when /api/notifications route exists (Darben's backend module)
+    enabled: false,
   });
 
   const notifications = data ?? [];
