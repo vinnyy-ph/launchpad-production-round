@@ -271,7 +271,7 @@
  *     summary: Update a user's role
  *     description: |
  *       Changes a user's stored role between HR and Employee.
- *       Admin accounts cannot be changed through this endpoint.
+ *       The last remaining admin cannot be demoted (lockout protection).
  *       The role takes effect on the user's next authenticated request.
  *     security:
  *       - bearerAuth: []
@@ -299,9 +299,11 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not an admin, attempted self-change, or target is an admin
+ *         description: Caller is not an admin or attempted self-change
  *       404:
  *         description: User not found
  *       409:
  *         description: User is deactivated
+ *       422:
+ *         description: Cannot demote the last remaining admin
  */
