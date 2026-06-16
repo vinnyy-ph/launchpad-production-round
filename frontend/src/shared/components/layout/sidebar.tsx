@@ -87,17 +87,17 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex h-full flex-shrink-0 flex-col transition-all duration-200"
-      style={{ width: expanded ? 220 : 52, background: "#0a0a0a" }}
+      className="flex h-full flex-shrink-0 flex-col border-r border-[color:var(--border-primary)] transition-all duration-200"
+      style={{ width: expanded ? 220 : 52, background: "var(--bg-secondary)" }}
     >
       {/* Logo */}
-      <div className="flex h-14 items-center px-3 border-b border-white/10">
+      <div className="flex h-14 items-center px-3 border-b border-[color:var(--border-primary)]">
         {expanded ? (
-          <SwiftWorkLogo tone="light" size={28} />
+          <SwiftWorkLogo tone="dark" size={28} />
         ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white flex-shrink-0">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--gray-neutral-900)] flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 40 40" aria-hidden="true">
-              <g fill="#0a0a0a">
+              <g fill="#FFFFFF">
                 <rect x="12" y="22" width="4.2" height="8" rx="2.1" />
                 <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1" />
                 <rect x="23.8" y="11" width="4.2" height="19" rx="2.1" />
@@ -115,7 +115,7 @@ export function Sidebar() {
           return (
             <div key={section.title || "home"} className="mb-1">
               {expanded && section.title && (
-                <span className="block px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                <span className="block px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--text-tertiary)]">
                   {section.title}
                 </span>
               )}
@@ -130,8 +130,8 @@ export function Sidebar() {
                     className={[
                       "mx-1 flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors",
                       active
-                        ? "bg-white/10 font-medium text-white"
-                        : "text-white/50 hover:bg-white/5 hover:text-white/90",
+                        ? "bg-white font-medium text-[color:var(--text-primary)] shadow-[var(--shadow-xs)]"
+                        : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-primary)]",
                     ].join(" ")}
                   >
                     <Icon size={16} className="flex-shrink-0" />
@@ -147,7 +147,7 @@ export function Sidebar() {
       {/* Expand/collapse toggle */}
       <button
         onClick={toggle}
-        className="flex h-10 w-full items-center justify-center border-t border-white/10 text-white/30 transition-colors hover:text-white/70"
+        className="flex h-10 w-full items-center justify-center border-t border-[color:var(--border-primary)] text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-secondary)]"
         aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
       >
         {expanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}

@@ -45,7 +45,7 @@ export function Topbar() {
           aria-expanded={menuOpen}
           aria-haspopup="menu"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0a0a0a] text-[11px] font-bold text-white">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[11px] font-bold text-white">
             {initials}
           </span>
           <span className="hidden max-w-[120px] truncate text-xs font-medium text-[color:var(--text-primary)] sm:block">
