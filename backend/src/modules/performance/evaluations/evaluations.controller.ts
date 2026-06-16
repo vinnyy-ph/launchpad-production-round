@@ -7,10 +7,33 @@ import {
   HTTP_STATUS_CODES,
 } from "../../../core/globals";
 import { EVAL_ERROR_MESSAGES } from "./evaluations.constants";
-import { handleCreateEvaluation, handleDeleteEvaluation, handleUpdateEvaluation } from "./evaluations.service";
-import { validateCreateEvaluation, validateUpdateEvaluation } from "./evaluations.validation";
+import { handleCreateEvaluation, handleDeleteEvaluation, handleListEvaluations, handleUpdateEvaluation } from "./evaluations.service";
+import { validateCreateEvaluation, validateListEvaluationsQuery, validateUpdateEvaluation } from "./evaluations.validation";
 
 export class EvaluationsController {
+  listEvaluations = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const query = validateListEvaluationsQuery(req.query as Record<string, unknown>);
+      const { evaluations, meta } = await handleListEvaluations(query, req.user.id);
+
+      return res.json({
+        success: true,
+        message: API_SUCCESS_MESSAGES.EVALUATIONS_RETRIEVED,
+        data: evaluations,
+        meta,
+      });
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
   createEvaluation = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {

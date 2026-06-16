@@ -1,4 +1,32 @@
-import type { CreateEvaluationInput, UpdateEvaluationInput } from "./evaluations.types";
+import type { CreateEvaluationInput, ListEvaluationsQuery, UpdateEvaluationInput } from "./evaluations.types";
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+export function validateListEvaluationsQuery(query: Record<string, unknown>): ListEvaluationsQuery {
+  const rawPage = query.page;
+  const rawLimit = query.limit;
+  const rawStatus = query.status;
+
+  const page =
+    typeof rawPage === "string" && Number.isInteger(Number(rawPage)) && Number(rawPage) > 0
+      ? Number(rawPage)
+      : DEFAULT_PAGE;
+
+  const limit = Math.min(
+    typeof rawLimit === "string" && Number.isInteger(Number(rawLimit)) && Number(rawLimit) > 0
+      ? Number(rawLimit)
+      : DEFAULT_LIMIT,
+    MAX_LIMIT,
+  );
+
+  if (rawStatus !== undefined && rawStatus !== "draft" && rawStatus !== "sent") {
+    throw new Error("status must be 'draft' or 'sent'");
+  }
+
+  return { page, limit, ...(rawStatus && { status: rawStatus as "draft" | "sent" }) };
+}
 
 export function validateCreateEvaluation(body: unknown): CreateEvaluationInput {
   if (!body || typeof body !== "object") {

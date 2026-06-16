@@ -4,6 +4,7 @@ import { EvaluationsController } from "./evaluations.controller";
 const router = Router();
 const controller = new EvaluationsController();
 
+router.get("/", controller.listEvaluations);
 router.post("/", controller.createEvaluation);
 router.patch("/:evaluationId", controller.updateEvaluation);
 router.delete("/:evaluationId", controller.deleteEvaluation);

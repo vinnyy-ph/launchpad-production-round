@@ -1,5 +1,5 @@
 import { prisma } from "../../../core/database/prisma.service";
-import type { CreateEvaluationData, UpdateEvaluationData } from "./evaluations.types";
+import type { CreateEvaluationData, ListEvaluationsQuery, UpdateEvaluationData } from "./evaluations.types";
 
 export async function createEvaluation(data: CreateEvaluationData) {
   return prisma.performanceEvaluation.create({
@@ -18,6 +18,27 @@ export async function createEvaluation(data: CreateEvaluationData) {
       ackDeadline: data.ackDeadline ?? null,
     },
   });
+}
+
+export async function findEvaluationsByReviewer(reviewerId: string, query: ListEvaluationsQuery) {
+  const where = {
+    reviewerId,
+    deletedAt: null,
+    ...(query.status === "draft" && { isSent: false }),
+    ...(query.status === "sent" && { isSent: true }),
+  };
+
+  const [evaluations, total] = await Promise.all([
+    prisma.performanceEvaluation.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
+    }),
+    prisma.performanceEvaluation.count({ where }),
+  ]);
+
+  return { evaluations, total };
 }
 
 export async function findEvaluationById(id: string) {

@@ -1,13 +1,30 @@
 import { prisma } from "../../../core/database/prisma.service";
 import {
   createEvaluation,
+  findEvaluationsByReviewer,
   findEvaluationById,
   softDeleteEvaluation,
   updateEvaluation,
 } from "./evaluations.repository";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
-import type { CreateEvaluationInput, UpdateEvaluationInput } from "./evaluations.types";
+import type { CreateEvaluationInput, ListEvaluationsQuery, UpdateEvaluationInput } from "./evaluations.types";
 
+export async function handleListEvaluations(query: ListEvaluationsQuery, userId: string) {
+  const reviewer = await prisma.employee.findUnique({ where: { userId } });
+  if (!reviewer) throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
+
+  const { evaluations, total } = await findEvaluationsByReviewer(reviewer.id, query);
+
+  return {
+    evaluations,
+    meta: {
+      page: query.page,
+      limit: query.limit,
+      total,
+      totalPages: Math.ceil(total / query.limit),
+    },
+  };
+}
 
 export async function handleCreateEvaluation(input: CreateEvaluationInput, userId: string) {
   const reviewer = await prisma.employee.findUnique({ where: { userId } });

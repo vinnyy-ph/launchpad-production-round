@@ -25,6 +25,12 @@ export interface CreateEvaluationData {
   ackDeadline?: Date;
 }
 
+export interface ListEvaluationsQuery {
+  page: number;
+  limit: number;
+  status?: "draft" | "sent";
+}
+
 export interface UpdateEvaluationInput {
   revieweeId?: string;
   evaluationPeriod?: string;
