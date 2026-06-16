@@ -24,3 +24,29 @@ export interface CreateEvaluationData {
   sentAt?: Date;
   ackDeadline?: Date;
 }
+
+export interface UpdateEvaluationInput {
+  revieweeId?: string;
+  evaluationPeriod?: string;
+  grade?: number;
+  highlights?: string;
+  lowlights?: string;
+  evaluation?: string;
+  recommendation?: string;
+  supportingDocUrl?: string;
+  send?: boolean;
+}
+
+export interface UpdateEvaluationData {
+  revieweeId?: string;
+  evaluationPeriod?: string;
+  grade?: number;
+  highlights?: string;
+  lowlights?: string;
+  evaluation?: string;
+  recommendation?: string;
+  supportingDocUrl?: string;
+  isSent?: boolean;
+  sentAt?: Date;
+  ackDeadline?: Date;
+}

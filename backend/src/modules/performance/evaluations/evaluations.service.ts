@@ -1,7 +1,11 @@
 import { prisma } from "../../../core/database/prisma.service";
-import { createEvaluation } from "./evaluations.repository";
+import {
+  createEvaluation,
+  findEvaluationById,
+  updateEvaluation,
+} from "./evaluations.repository";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
-import type { CreateEvaluationInput } from "./evaluations.types";
+import type { CreateEvaluationInput, UpdateEvaluationInput } from "./evaluations.types";
 
 export async function handleCreateEvaluation(input: CreateEvaluationInput, userId: string) {
   const reviewer = await prisma.employee.findUnique({ where: { userId } });
@@ -35,4 +39,37 @@ export async function handleCreateEvaluation(input: CreateEvaluationInput, userI
     supportingDocUrl: input.supportingDocUrl,
     ...sendFields,
   });
+}
+
+export async function handleUpdateEvaluation(
+  evaluationId: string,
+  input: UpdateEvaluationInput,
+  userId: string,
+) {
+  const evaluation = await findEvaluationById(evaluationId);
+  if (!evaluation) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND);
+
+  const reviewer = await prisma.employee.findUnique({ where: { userId } });
+  if (!reviewer) throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
+
+  if (evaluation.reviewerId !== reviewer.id) throw new Error(EVAL_ERROR_MESSAGES.NOT_REVIEWER);
+  if (evaluation.isSent) throw new Error(EVAL_ERROR_MESSAGES.ALREADY_SENT);
+
+  if (input.revieweeId && input.revieweeId !== evaluation.revieweeId) {
+    const newReviewee = await prisma.employee.findUnique({ where: { id: input.revieweeId } });
+    if (!newReviewee) throw new Error(EVAL_ERROR_MESSAGES.REVIEWEE_NOT_FOUND);
+    if (newReviewee.supervisorId !== reviewer.id) throw new Error(EVAL_ERROR_MESSAGES.NOT_DIRECT_SUPERVISOR);
+  }
+
+  const now = new Date();
+  const sendFields = input.send
+    ? {
+        isSent: true,
+        sentAt: now,
+        ackDeadline: new Date(now.getTime() + EVAL_ACK_DEADLINE_DAYS * 24 * 60 * 60 * 1000),
+      }
+    : {};
+
+  const { send: _, ...fields } = input;
+  return updateEvaluation(evaluationId, { ...fields, ...sendFields });
 }

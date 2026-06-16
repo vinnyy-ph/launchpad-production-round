@@ -7,8 +7,8 @@ import {
   HTTP_STATUS_CODES,
 } from "../../../core/globals";
 import { EVAL_ERROR_MESSAGES } from "./evaluations.constants";
-import { handleCreateEvaluation } from "./evaluations.service";
-import { validateCreateEvaluation } from "./evaluations.validation";
+import { handleCreateEvaluation, handleUpdateEvaluation } from "./evaluations.service";
+import { validateCreateEvaluation, validateUpdateEvaluation } from "./evaluations.validation";
 
 export class EvaluationsController {
   createEvaluation = async (req: Request, res: Response, next: NextFunction) => {
@@ -33,6 +33,29 @@ export class EvaluationsController {
     }
   };
 
+  updateEvaluation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { evaluationId } = req.params;
+      const input = validateUpdateEvaluation(req.body);
+      const evaluation = await handleUpdateEvaluation(evaluationId, input, req.user.id);
+
+      return res.json({
+        success: true,
+        message: API_SUCCESS_MESSAGES.EVALUATION_UPDATED,
+        data: evaluation,
+      });
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
   private handleError(
     error: unknown,
     res: Response<ApiErrorResponseDto>,
@@ -40,7 +63,14 @@ export class EvaluationsController {
   ) {
     if (!(error instanceof Error)) return next(error);
 
-    if (error.message.endsWith("is required") || error.message.startsWith("grade must") || error.message.startsWith("send must") || error.message === "Request body is required") {
+    if (
+      error.message.endsWith("is required") ||
+      error.message.startsWith("grade must") ||
+      error.message.startsWith("send must") ||
+      error.message.endsWith("must be a string") ||
+      error.message === "Request body is required" ||
+      error.message === "No fields provided to update"
+    ) {
       return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: API_ERROR_MESSAGES.VALIDATION_FAILED,
@@ -70,6 +100,30 @@ export class EvaluationsController {
         success: false,
         message: API_ERROR_MESSAGES.NOT_SUPERVISOR,
         errorCode: API_ERROR_CODES.NOT_SUPERVISOR,
+      });
+    }
+
+    if (error.message === EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND) {
+      return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+        success: false,
+        message: API_ERROR_MESSAGES.EVALUATION_NOT_FOUND,
+        errorCode: API_ERROR_CODES.EVALUATION_NOT_FOUND,
+      });
+    }
+
+    if (error.message === EVAL_ERROR_MESSAGES.NOT_REVIEWER) {
+      return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: API_ERROR_MESSAGES.NOT_EVALUATION_REVIEWER,
+        errorCode: API_ERROR_CODES.NOT_EVALUATION_REVIEWER,
+      });
+    }
+
+    if (error.message === EVAL_ERROR_MESSAGES.ALREADY_SENT) {
+      return res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
+        success: false,
+        message: API_ERROR_MESSAGES.EVALUATION_ALREADY_SENT,
+        errorCode: API_ERROR_CODES.EVALUATION_ALREADY_SENT,
       });
     }
 
