@@ -12,5 +12,12 @@ model OnboardingRecord {
   customFieldValues   OnboardingCustomFieldValue[]
   invitations         OnboardingInvitation[]
 
+  // ── Audit ──
+  createdBy String?
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+  deletedBy String?
+
   @@map("onboarding_records")
 }

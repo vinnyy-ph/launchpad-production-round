@@ -10,5 +10,11 @@ model User {
 
   employee Employee?
 
+  // ── Audit ──
+  createdBy String?
+  updatedBy String?
+  deletedAt DateTime?
+  deletedBy String?
+
   @@map("users")
 }

@@ -9,5 +9,12 @@ model BulkOnboardingJob {
   status       BulkJobStatus @default(PROCESSING)
   createdAt    DateTime      @default(now())
 
+  // ── Audit ──
+  createdBy String?
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+  deletedBy String?
+
   @@map("bulk_onboarding_jobs")
 }
