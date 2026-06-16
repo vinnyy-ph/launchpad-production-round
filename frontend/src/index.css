@@ -3,34 +3,33 @@
 @tailwind utilities;
 
 /*
-  shadcn/ui design tokens (slate base). These are sensible defaults.
-
-  === JIA BRANDBOOK ===
-  Replace the values below with the Jia brand palette/radius. Keep the variable
-  NAMES; only change the values so every shadcn component re-themes at once.
+  shadcn/ui design tokens — Jia brandbook applied.
+  Values map to the Jia palette/radius (frontend-swiftwork jia-design-system reference);
+  variable NAMES are kept so every shadcn component re-themes at once.
+  Source palette: src/shared/styles/jia-tokens.css.
 */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 100%;            /* #FFFFFF */
+    --foreground: 228 27% 9%;           /* #181D27 — gray-neutral-900 */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 228 27% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --popover-foreground: 228 27% 9%;
+    --primary: 228 27% 9%;              /* #181D27 — primary button / text */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 13% 95%;           /* #EFF1F5 — gray-cool-100 */
+    --secondary-foreground: 228 27% 9%;
+    --muted: 220 13% 95%;
+    --muted-foreground: 220 9% 46%;     /* #717680 — tertiary text */
+    --accent: 220 13% 95%;
+    --accent-foreground: 228 27% 9%;
+    --destructive: 4 86% 58%;           /* #F04438 — error-500 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 7% 92%;               /* #E9EAEB — neutral-200 */
+    --input: 220 5% 84%;                /* #D5D7DA — neutral-300 */
+    --ring: 228 27% 9%;                 /* #181D27 */
+    --radius: 0.5rem;                   /* 8px base */
   }
 
   .dark {

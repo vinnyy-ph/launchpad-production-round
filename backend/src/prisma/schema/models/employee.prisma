@@ -1,10 +1,10 @@
 /// HR/People data for a user
 model Employee {
-  id               String         @id @default(uuid())
-  userId           String         @unique
-  user             User           @relation(fields: [userId], references: [id])
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
 
-  companyEmail     String         @unique
+  companyEmail     String      @unique
   firstName        String
   lastName         String
   middleName       String?
@@ -13,37 +13,39 @@ model Employee {
   address          String?
   emergencyContact String?
   jobTitle         String?
-  department       String?
+  departmentId     String?
+  department       Department? @relation(fields: [departmentId], references: [id])
 
   /// Self-referential supervisor tree
-  supervisorId     String?
-  supervisor       Employee?      @relation("SupervisorTree", fields: [supervisorId], references: [id])
-  directReports    Employee[]     @relation("SupervisorTree")
+  supervisorId  String?
+  supervisor    Employee?  @relation("SupervisorTree", fields: [supervisorId], references: [id])
+  directReports Employee[] @relation("SupervisorTree")
 
-  status           EmployeeStatus @default(ONBOARDING)
-  createdAt        DateTime       @default(now())
-  createdBy        String?
-  updatedAt        DateTime       @updatedAt
-  updatedBy        String?
-  deletedAt        DateTime?
-  deletedBy        String?
+  status    EmployeeStatus @default(ONBOARDING)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   // ── Relations ──
-  teamMemberships        TeamMember[]
-  ledTeams               Team[]                      @relation("TeamLeader")
-  editsPerformed         ActivityLog[]               @relation("Editor")
-  editsReceived          ActivityLog[]               @relation("Target")
-  onboardingRecord       OnboardingRecord?
-  bulkOnboardingJobs     BulkOnboardingJob[]
-  offboardingRecord      OffboardingRecord?
-  clearanceSignatories   ClearanceSignatory[]
-  clearanceSignatures    ClearanceSignatureRequest[]
-  evaluationsGiven       PerformanceEvaluation[]     @relation("Reviewer")
-  evaluationsReceived    PerformanceEvaluation[]     @relation("Reviewee")
+  teamMemberships            TeamMember[]
+  ledTeams                   Team[]                         @relation("TeamLeader")
+  editsPerformed             ActivityLog[]                  @relation("Editor")
+  editsReceived              ActivityLog[]                  @relation("Target")
+  onboardingRecord           OnboardingRecord?
+  bulkOnboardingJobs         BulkOnboardingJob[]
+  reviewedDocuments          OnboardingDocumentSubmission[]
+  offboardingRecord          OffboardingRecord?             @relation("OffboardingSubject")
+  offboardingsInitiated      OffboardingRecord[]            @relation("OffboardingInitiator")
+  clearanceSignatories       ClearanceSignatory[]
+  clearanceSignatures        ClearanceSignatureRequest[]
+  evaluationsGiven           PerformanceEvaluation[]        @relation("Reviewer")
+  evaluationsReceived        PerformanceEvaluation[]        @relation("Reviewee")
   evaluationAcknowledgements EvaluationAcknowledgement[]
-  surveysCreated         PulseSurvey[]
-  surveyResponses        SurveyResponse[]
-  notifications          Notification[]
+  surveysCreated             PulseSurvey[]
+  surveyResponses            SurveyResponse[]
+  surveyCompletions          SurveyCompletion[]
+  surveyAudienceMemberships  SurveyAudienceMember[]
+  surveyAudienceTargets      SurveyAudienceConfig[]
+  notifications              Notification[]
 
   @@map("employees")
 }

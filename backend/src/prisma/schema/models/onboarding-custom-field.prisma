@@ -5,13 +5,10 @@ model OnboardingCustomField {
   fieldLabel String
   isRequired Boolean            @default(false)
   createdAt  DateTime           @default(now())
-  createdBy  String?
-  updatedAt  DateTime           @updatedAt
-  updatedBy  String?
-  deletedAt  DateTime?
-  deletedBy  String?
 
   values OnboardingCustomFieldValue[]
+
+  updatedAt DateTime @updatedAt
 
   @@map("onboarding_custom_fields")
 }
