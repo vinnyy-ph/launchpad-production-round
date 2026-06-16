@@ -1,5 +1,5 @@
 import { EmployeeStatus } from "@prisma/client";
-import type { ListEmployeesQueryDto } from "./dto";
+import type { GetEmployeeProfileParamsDto, ListEmployeesQueryDto } from "./dto";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
@@ -24,6 +24,19 @@ export class EmployeesValidation {
       team: this.parseOptionalString(query.team),
       supervisorId: this.parseOptionalString(query.supervisorId),
     };
+  }
+
+  /**
+   * Converts employee profile route params into a typed DTO before service logic runs.
+   */
+  parseProfileParams(params: Record<string, unknown>): GetEmployeeProfileParamsDto {
+    const employeeId = this.parseOptionalString(params.employeeId);
+
+    if (!employeeId) {
+      throw new Error("Employee id is required");
+    }
+
+    return { employeeId };
   }
 
   /** Returns a trimmed string when present, otherwise leaves the optional filter unset. */

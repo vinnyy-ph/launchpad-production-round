@@ -49,6 +49,67 @@ export class EmployeesRepository {
   }
 
   /**
+   * Finds one unredacted employee profile for HR views.
+   * Soft-deleted employees and related records are excluded from the profile response.
+   */
+  async findById(employeeId: string) {
+    return prisma.employee.findFirst({
+      where: {
+        id: employeeId,
+        deletedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            isActive: true,
+          },
+        },
+        supervisor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            companyEmail: true,
+            jobTitle: true,
+          },
+        },
+        directReports: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            companyEmail: true,
+            jobTitle: true,
+            status: true,
+          },
+        },
+        ledTeams: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        teamMemberships: {
+          where: { deletedAt: null },
+          include: {
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
    * Builds a soft-delete-aware Prisma where clause for search and filter behavior.
    */
   private buildWhere(filters: ListEmployeesQueryDto): Prisma.EmployeeWhereInput {
