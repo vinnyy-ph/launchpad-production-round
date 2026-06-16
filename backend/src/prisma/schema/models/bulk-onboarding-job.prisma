@@ -1,0 +1,13 @@
+model BulkOnboardingJob {
+  id           String        @id @default(uuid())
+  initiatedBy  String
+  initiator    Employee      @relation(fields: [initiatedBy], references: [id])
+  fileUrl      String
+  totalRows    Int           @default(0)
+  successCount Int           @default(0)
+  failureCount Int           @default(0)
+  status       BulkJobStatus @default(PROCESSING)
+  createdAt    DateTime      @default(now())
+
+  @@map("bulk_onboarding_jobs")
+}

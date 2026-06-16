@@ -1,0 +1,11 @@
+/// Defines which supervisors/teams a survey targets (when not EVERYONE)
+model SurveyAudienceConfig {
+  id           String       @id @default(uuid())
+  surveyId     String
+  survey       PulseSurvey  @relation(fields: [surveyId], references: [id])
+  supervisorId String?
+  teamId       String?
+  team         Team?        @relation(fields: [teamId], references: [id])
+
+  @@map("survey_audience_configs")
+}

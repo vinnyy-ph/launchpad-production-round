@@ -1,0 +1,11 @@
+model OnboardingInvitation {
+  id          String           @id @default(uuid())
+  recordId    String
+  record      OnboardingRecord @relation(fields: [recordId], references: [id])
+  sentToEmail String
+  status      InviteStatus     @default(PENDING)
+  sentAt      DateTime         @default(now())
+  expiresAt   DateTime
+
+  @@map("onboarding_invitations")
+}

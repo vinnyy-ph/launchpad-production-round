@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { RequireAuth } from "@/modules/auth/components/require-auth";
 import { RequireRole } from "@/modules/auth/components/require-role";
+import { roleHome } from "@/modules/auth/role-home";
 import { AppShell } from "@/shared/components/layout/app-shell";
 import LoginPage from "@/pages/auth/login.page";
 import HomePage from "@/pages/home.page";
@@ -21,7 +22,7 @@ import ClearancePage from "@/pages/employee/clearance.page";
 import EmployeeSurveysPage from "@/pages/employee/surveys.page";
 
 export function AppRouter() {
-  const { user, loading } = useAuth();
+  const { appUser, loading } = useAuth();
 
   if (loading) {
     return <div className="min-h-screen bg-white" aria-busy="true" />;
@@ -29,10 +30,10 @@ export function AppRouter() {
 
   return (
     <Routes>
-      {/* Unauthenticated */}
+      {/* Unauthenticated — once signed in, land directly on the role's home */}
       <Route
         path="/login"
-        element={user ? <Navigate to="/" replace /> : <LoginPage />}
+        element={appUser ? <Navigate to={roleHome(appUser)} replace /> : <LoginPage />}
       />
 
       {/* Authenticated — all nested routes render inside AppShell via <Outlet /> */}

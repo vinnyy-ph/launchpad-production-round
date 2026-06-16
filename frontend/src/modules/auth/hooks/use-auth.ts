@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/shared/lib/firebase";
 import { apiFetch } from "@/shared/lib/api-client";
 import type { AppUser } from "../types/auth.types";
 

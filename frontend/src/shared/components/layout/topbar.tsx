@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, ChevronDown } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { signOutUser } from "@/lib/auth";
+import { signOutUser } from "@/modules/auth/services/auth.service";
 
 export function Topbar() {
   const { appUser } = useAuth();

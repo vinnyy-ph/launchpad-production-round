@@ -1,4 +1,4 @@
-import { auth } from "@/lib/firebase";
+import { auth } from "@/shared/lib/firebase";
 
 async function getAuthHeader(): Promise<Record<string, string>> {
   const user = auth.currentUser;

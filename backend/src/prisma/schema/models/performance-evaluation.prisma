@@ -1,0 +1,22 @@
+model PerformanceEvaluation {
+  id               String   @id @default(uuid())
+  reviewerId       String
+  reviewer         Employee @relation("Reviewer", fields: [reviewerId], references: [id])
+  revieweeId       String
+  reviewee         Employee @relation("Reviewee", fields: [revieweeId], references: [id])
+  evaluationPeriod String   // e.g. "Q2 2025"
+  grade            Int      // 1–5
+  highlights       String?
+  lowlights        String?
+  evaluation       String?
+  recommendation   String?
+  supportingDocUrl String?
+  isSent           Boolean  @default(false)
+  sentAt           DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  acknowledgement EvaluationAcknowledgement?
+
+  @@map("performance_evaluations")
+}

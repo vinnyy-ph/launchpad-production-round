@@ -1,0 +1,13 @@
+model SurveyResponse {
+  id           String           @id @default(uuid())
+  occurrenceId String
+  occurrence   SurveyOccurrence @relation(fields: [occurrenceId], references: [id])
+  /// Null when survey is anonymous
+  employeeId   String?
+  employee     Employee?        @relation(fields: [employeeId], references: [id])
+  submittedAt  DateTime         @default(now())
+
+  answers SurveyAnswer[]
+
+  @@map("survey_responses")
+}

@@ -1,39 +1,49 @@
+type Tone = "dark" | "light";
+
 interface SwiftWorkLogoProps {
-  /** "light" = white icon + white text, for use on dark backgrounds.
-   *  "dark"  = dark icon + dark text, for use on light backgrounds. */
-  tone?: "dark" | "light";
+  /** dark = dark tile/white bars (on white surfaces); light = inverted (on gradient/dark). */
+  tone?: Tone;
+  /** Mark size in px (square). Wordmark scales relative to this. */
   size?: number;
+  className?: string;
 }
 
-export function SwiftWorkLogo({ tone = "dark", size = 28 }: SwiftWorkLogoProps) {
-  const isLight = tone === "light";
-  // Icon: white square with dark bars (light) OR dark square with white bars (dark)
-  const iconBg = isLight ? "#ffffff" : "#0a0a0a";
-  const iconBars = isLight ? "#0a0a0a" : "#ffffff";
-  // Label text color
-  const labelColor = isLight ? "#ffffff" : "#0a0a0a";
+/**
+ * Swift Work brand lockup: rising-bars mark + "Swift Work" wordmark + ✦.
+ * Monochrome by design — the brand gradient is reserved for the login poster.
+ */
+export function SwiftWorkLogo({ tone = "dark", size = 38, className }: SwiftWorkLogoProps) {
+  const tile = tone === "dark" ? "#181D27" : "#FFFFFF";
+  const bars = tone === "dark" ? "#FFFFFF" : "#181D27";
+  const text = tone === "dark" ? "#181D27" : "#FFFFFF";
 
   return (
-    <div className="flex items-center gap-2" style={{ height: size }}>
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 40 40"
-        aria-hidden="true"
-        fill="none"
-      >
-        <rect width="40" height="40" rx="8" fill={iconBg} />
-        <g fill={iconBars}>
+    <div className={className} style={{ display: "flex", alignItems: "center", gap: 11 }}>
+      <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+        <rect width="40" height="40" rx="9" fill={tile} />
+        <g fill={bars}>
           <rect x="12" y="22" width="4.2" height="8" rx="2.1" />
           <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1" />
           <rect x="23.8" y="11" width="4.2" height="19" rx="2.1" />
         </g>
       </svg>
       <span
-        className="font-semibold tracking-tight whitespace-nowrap"
-        style={{ color: labelColor, fontSize: size * 0.6, lineHeight: 1 }}
+        style={{
+          fontFamily: '"Satoshi", sans-serif',
+          fontWeight: 700,
+          fontSize: Math.round(size * 0.56),
+          letterSpacing: "-0.02em",
+          color: text,
+          lineHeight: 1,
+        }}
       >
-        SwiftWork
+        Swift Work
+      </span>
+      <span
+        aria-hidden="true"
+        style={{ color: text, fontSize: Math.round(size * 0.32), alignSelf: "flex-start", marginTop: Math.round(size * 0.08) }}
+      >
+        {"✦"}
       </span>
     </div>
   );

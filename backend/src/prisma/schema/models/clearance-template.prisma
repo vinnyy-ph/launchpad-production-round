@@ -1,0 +1,11 @@
+model ClearanceTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  signatories       ClearanceSignatory[]
+  offboardingRecord OffboardingRecord[]
+
+  @@map("clearance_templates")
+}
