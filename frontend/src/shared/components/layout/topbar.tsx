@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, ChevronDown } from "lucide-react";
+import { LogOut, ChevronDown, Search } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
@@ -48,8 +48,20 @@ export function Topbar() {
         </span>
       </div>
 
-      {/* Placeholder for Center (Task 4) */}
-      <div className="flex-1 flex justify-center px-4" />
+      {/* Center: Search */}
+      <div className="flex-1 flex justify-center px-4">
+        <label className="relative flex items-center w-full max-w-[460px]">
+          <Search 
+            size={18} 
+            className="absolute left-3 text-[#717680] pointer-events-none" 
+          />
+          <input 
+            type="text" 
+            placeholder="Search people, teams, surveys…"
+            className="w-full h-10 pl-[38px] pr-3.5 text-[14px] font-medium text-[#181d27] bg-white border border-[#d5d7da] rounded-lg outline-none shadow-[inset_0_0_2px_0_rgba(0,16,53,0.16)] focus:border-[#181d27] focus:ring-[3px] focus:ring-[rgba(24,29,39,0.06)] transition-all"
+          />
+        </label>
+      </div>
 
       {/* Right: Controls (Existing logic, styled in Task 5) */}
       <div className="flex items-center gap-2 flex-shrink-0">
