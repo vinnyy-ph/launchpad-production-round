@@ -6,12 +6,9 @@ model EvaluationAcknowledgement {
   employee       Employee              @relation(fields: [employeeId], references: [id])
   isDeemedAck    Boolean               @default(false)
   acknowledgedAt DateTime              @default(now())
-  createdAt      DateTime              @default(now())
-  createdBy      String?
-  updatedAt      DateTime              @updatedAt
-  updatedBy      String?
-  deletedAt      DateTime?
-  deletedBy      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("evaluation_acknowledgements")
 }

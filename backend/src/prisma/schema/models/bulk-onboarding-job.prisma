@@ -8,11 +8,8 @@ model BulkOnboardingJob {
   failureCount Int           @default(0)
   status       BulkJobStatus @default(PROCESSING)
   createdAt    DateTime      @default(now())
-  createdBy    String?
-  updatedAt    DateTime      @updatedAt
-  updatedBy    String?
-  deletedAt    DateTime?
-  deletedBy    String?
+
+  updatedAt DateTime @updatedAt
 
   @@map("bulk_onboarding_jobs")
 }
