@@ -70,17 +70,14 @@ export function Topbar() {
         <div ref={menuRef} className="relative">
         <button
           onClick={() => setMenuOpen((p) => !p)}
-          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[color:var(--bg-secondary)]"
+          className="flex items-center gap-2 h-10 pl-1 pr-2 bg-transparent border border-transparent rounded-full cursor-pointer transition-colors duration-150 hover:bg-[color:var(--bg-secondary)]"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[11px] font-bold text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[13px] font-bold tracking-[0.01em] text-white flex-shrink-0">
             {initials}
           </span>
-          <span className="hidden max-w-[120px] truncate text-xs font-medium text-[color:var(--text-primary)] sm:block">
-            {appUser?.displayName ?? appUser?.email}
-          </span>
-          <ChevronDown size={12} className="text-[color:var(--text-tertiary)]" />
+          <ChevronDown size={16} className="text-[color:var(--text-tertiary)]" />
         </button>
         {menuOpen && (
           <div
