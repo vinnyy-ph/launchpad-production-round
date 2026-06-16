@@ -15,6 +15,7 @@ import { authRoutes } from "./modules/auth";
 import { dashboardRoutes } from "./modules/dashboard";
 import { evaluationsRouter } from "./modules/performance/evaluations";
 import { usersRouter } from "./modules/people/users";
+import { pulseSurveysRouter } from "./modules/performance/surveys";
 
 export const app = express();
 
@@ -65,3 +66,4 @@ app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
 );
 app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/pulse`, pulseSurveysRouter);

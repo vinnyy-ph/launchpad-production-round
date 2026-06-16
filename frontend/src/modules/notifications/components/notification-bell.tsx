@@ -7,8 +7,8 @@ import { useMarkRead } from "../hooks/use-mark-read";
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { notifications, loading, unreadCount, reload } = useNotifications(10);
-  const { markRead } = useMarkRead(() => void reload());
+  const { notifications, loading, unreadCount } = useNotifications(10);
+  const { markRead } = useMarkRead();
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
