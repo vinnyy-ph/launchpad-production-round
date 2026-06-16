@@ -105,18 +105,15 @@ export function Sidebar() {
 
       {/* Workspace Section */}
       {expanded && (
-        <div className="px-5 mb-6">
-          <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[color:var(--border-primary)] shadow-xs cursor-pointer hover:bg-[color:var(--gray-25)] transition-colors">
+        <div className="px-5 mt-4 mb-6">
+          <div className="flex items-center gap-2 p-3 bg-white rounded-xl shadow-[inset_0_0_0_1px_rgb(233,234,235)] cursor-pointer hover:bg-[color:var(--gray-25)] transition-colors">
             <div 
               className="w-10 h-10 rounded-lg flex-shrink-0" 
               style={{ background: "var(--gradient-jia)" }}
             />
-            <div className="flex-1 min-width-0">
+            <div className="flex-1 min-w-0">
               <p className="text-[14px] font-medium text-[color:var(--text-primary)] truncate leading-tight">
                 Blue Pixel Cloak
-              </p>
-              <p className="text-[12px] text-[color:var(--text-tertiary)] truncate">
-                SwiftWork ERP
               </p>
             </div>
             <ChevronsUpDown size={16} className="text-[color:var(--text-tertiary)] flex-shrink-0" />
