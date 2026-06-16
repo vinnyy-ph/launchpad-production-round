@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ApiErrorResponseDto } from "../../../core/dto";
 import { API_ERROR_CODES, API_ERROR_MESSAGES, HTTP_STATUS_CODES } from "../../../core/globals";
-import type { ListEmployeesResponseDto } from "./dto";
+import type { EmployeeProfileResponseDto, ListEmployeesResponseDto } from "./dto";
 import {
   EMPLOYEE_QUERY_FIELDS,
   EMPLOYEE_STATUS_FILTER_MESSAGE,
@@ -48,6 +48,41 @@ export class EmployeesController {
         };
 
         return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json(response);
+      }
+
+      return next(error);
+    }
+  };
+
+  /**
+   * Handles GET /api/employees/:employeeId for HR employee profile views.
+   */
+  getEmployeeProfile = async (
+    req: Request,
+    res: Response<EmployeeProfileResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const params = this.employeesValidation.parseProfileParams(req.params);
+      const result = await this.employeesService.getEmployeeProfile(params);
+
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Employee not found") {
+        const response: ApiErrorResponseDto = {
+          success: false,
+          message: API_ERROR_MESSAGES.EMPLOYEE_NOT_FOUND,
+          errorCode: API_ERROR_CODES.EMPLOYEE_NOT_FOUND,
+          errors: [
+            {
+              field: EMPLOYEE_QUERY_FIELDS.EMPLOYEE_ID,
+              message: API_ERROR_MESSAGES.EMPLOYEE_NOT_FOUND,
+              code: API_ERROR_CODES.EMPLOYEE_NOT_FOUND,
+            },
+          ],
+        };
+
+        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json(response);
       }
 
       return next(error);

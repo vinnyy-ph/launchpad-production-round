@@ -7,6 +7,7 @@ export const API_SUCCESS_MESSAGES = {
   RESOURCE_CREATED: "Resource created successfully",
   RESOURCE_UPDATED: "Resource updated successfully",
   RESOURCE_DELETED: "Resource deleted successfully",
+  EMPLOYEE_RETRIEVED: "Employee retrieved successfully",
   EMPLOYEES_RETRIEVED: "Employees retrieved successfully",
 } as const;
 
