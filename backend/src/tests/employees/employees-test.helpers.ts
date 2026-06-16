@@ -5,12 +5,14 @@ export const mockedPrisma = jest.mocked(prisma);
 export const findManyMock = mockedPrisma.employee.findMany as jest.Mock;
 export const countMock = mockedPrisma.employee.count as jest.Mock;
 export const findFirstMock = mockedPrisma.employee.findFirst as jest.Mock;
+export const updateMock = mockedPrisma.employee.update as jest.Mock;
 
 /** Clears employee Prisma mocks before each scenario so tests cannot leak state. */
 export function resetEmployeeMocks() {
   findManyMock.mockReset();
   countMock.mockReset();
   findFirstMock.mockReset();
+  updateMock.mockReset();
 }
 
 /**
