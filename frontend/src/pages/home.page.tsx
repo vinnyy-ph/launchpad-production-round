@@ -107,7 +107,7 @@ export default function HomePage() {
 
       {/* Stat cards */}
       <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
           At a glance
         </h2>
         {statsLoading ? (
@@ -136,7 +136,7 @@ export default function HomePage() {
 
       {/* Recent notifications */}
       <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
           Recent notifications
         </h2>
         <div

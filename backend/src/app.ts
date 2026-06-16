@@ -15,6 +15,7 @@ import { swaggerSpec } from "./docs/swagger.config";
 import { authRoutes } from "./modules/auth";
 import { dashboardRoutes } from "./modules/dashboard";
 import { evaluationsRouter } from "./modules/performance/evaluations";
+import { usersRouter } from "./modules/people/users";
 
 export const app = express();
 
@@ -60,4 +61,8 @@ app.get(API_ROUTES.ROOT, (_req, res) =>
 app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
   res.json({ user: req.user }),
 );
+app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
+  res.json({ user: req.user }),
+);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);

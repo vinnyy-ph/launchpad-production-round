@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, ChevronDown } from "lucide-react";
+import { LogOut, ChevronDown, Search } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
@@ -36,22 +36,48 @@ export function Topbar() {
   };
 
   return (
-    <header className="flex h-14 flex-shrink-0 items-center justify-end gap-1 border-b border-[color:var(--border-primary)] bg-white px-4">
-      <NotificationBell />
-      <div ref={menuRef} className="relative">
+    <header className="flex h-16 flex-shrink-0 items-center justify-between px-6 border-b border-[color:var(--border-primary)] bg-white">
+      {/* Left: Workspace Identity */}
+      <div className="flex items-center gap-2.5 flex-shrink-0">
+        <span 
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ background: "var(--gradient-jia)" }}
+        />
+        <span className="text-[16px] font-bold tracking-[-0.01em] text-[#181d27] whitespace-nowrap">
+          Swift Work
+        </span>
+      </div>
+
+      {/* Center: Search */}
+      <div className="flex-1 flex justify-center px-4">
+        <label className="relative flex items-center w-full max-w-[460px]">
+          <Search 
+            size={18} 
+            className="absolute left-3 text-[color:var(--text-tertiary)] pointer-events-none" 
+          />
+          <input 
+            type="text" 
+            placeholder="Search people, teams, surveys…"
+            aria-label="Search"
+            className="w-full h-10 pl-[38px] pr-3.5 text-[14px] font-medium text-[color:var(--text-primary)] bg-white border border-[color:var(--border-secondary)] rounded-lg outline-none shadow-[var(--shadow-inset-brand)] focus:border-[color:var(--border-strong)] focus:shadow-[var(--focus-ring-shadow)] transition-all"
+          />
+        </label>
+      </div>
+
+      {/* Right: Controls (Existing logic, styled in Task 5) */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <NotificationBell />
+        <div ref={menuRef} className="relative">
         <button
           onClick={() => setMenuOpen((p) => !p)}
-          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[color:var(--bg-secondary)]"
+          className="flex items-center gap-2 h-10 pl-1 pr-2 bg-transparent border border-transparent rounded-full cursor-pointer transition-colors duration-150 hover:bg-[color:var(--bg-secondary)]"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[11px] font-bold text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[13px] font-bold tracking-[0.01em] text-white flex-shrink-0">
             {initials}
           </span>
-          <span className="hidden max-w-[120px] truncate text-xs font-medium text-[color:var(--text-primary)] sm:block">
-            {appUser?.displayName ?? appUser?.email}
-          </span>
-          <ChevronDown size={12} className="text-[color:var(--text-tertiary)]" />
+          <ChevronDown size={16} className="text-[color:var(--text-tertiary)]" />
         </button>
         {menuOpen && (
           <div
@@ -69,6 +95,7 @@ export function Topbar() {
             </button>
           </div>
         )}
+      </div>
       </div>
     </header>
   );
