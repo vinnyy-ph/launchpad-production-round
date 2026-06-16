@@ -20,6 +20,7 @@ const options: swaggerJsdoc.Options = {
       { name: "System", description: "Health checks and API info" },
       { name: "Auth", description: "Authentication and session" },
       { name: "Dashboard", description: "Home screen stats" },
+      { name: "Employees", description: "Employee directory and profile records" },
     ],
     components: {
       securitySchemes: {
