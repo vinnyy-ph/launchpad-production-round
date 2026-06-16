@@ -3,11 +3,9 @@ import {
   Home, User, ClipboardList, CheckSquare, BarChart2,
   Users, UserPlus, UserMinus, LayoutGrid, Shield,
   FileText, Rss,
-  ChevronsUpDown,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { SwiftWorkLogo } from "@/shared/components/brand/swift-work-logo";
 import type { Role } from "@/modules/auth/types/auth.types";
 import { cn } from "@/shared/lib/utils";
 
@@ -81,24 +79,22 @@ export function Sidebar() {
       className="flex h-full w-[240px] flex-shrink-0 flex-col border-r border-[color:var(--border-primary)] z-20"
       style={{ background: "var(--gray-50)" }}
     >
-      {/* Logo Section */}
-      <div className="flex flex-shrink-0 pt-4 pb-0 justify-center">
-        <SwiftWorkLogo tone="dark" size={32} markOnly={true} />
-      </div>
-
-      {/* Workspace Section */}
-      <div className="px-5 mt-4 mb-6">
-        <div className="flex items-center gap-2 p-3 bg-white rounded-xl shadow-[inset_0_0_0_1px_rgb(233,234,235)] cursor-pointer hover:bg-[color:var(--gray-25)] transition-colors">
+      {/* Workspace Section (Logomark) */}
+      <div className="px-5 mt-[20px] mb-6">
+        <div className="flex items-center gap-2 p-3 bg-white rounded-xl shadow-[inset_0_0_0_1px_rgb(233,234,235)]">
           <div 
-            className="w-10 h-10 rounded-lg flex-shrink-0" 
+            className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center" 
             style={{ background: "var(--gradient-jia)" }}
-          />
+          >
+            <span className="text-white font-bold text-[15px] tracking-[0.01em] leading-none font-sans">
+              SW
+            </span>
+          </div>
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-medium text-[color:var(--text-primary)] truncate leading-tight">
-              Blue Pixel Cloak
+              Swift Work
             </p>
           </div>
-          <ChevronsUpDown size={16} className="text-[color:var(--text-tertiary)] flex-shrink-0" />
         </div>
       </div>
 
