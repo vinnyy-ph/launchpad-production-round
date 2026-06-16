@@ -12,12 +12,7 @@ model SurveyOccurrence {
   completions     SurveyCompletion[]
   audienceMembers SurveyAudienceMember[]
 
-  // ── Audit ──
-  createdBy String?
-  updatedAt DateTime  @updatedAt
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
+  updatedAt DateTime @updatedAt
 
   @@map("survey_occurrences")
 }

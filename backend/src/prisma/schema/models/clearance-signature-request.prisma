@@ -12,13 +12,8 @@ model ClearanceSignatureRequest {
   note          String? // optional on sign, required on reject
   actionAt      DateTime?
 
-  // ── Audit ──
-  createdAt DateTime  @default(now())
-  createdBy String?
-  updatedAt DateTime  @updatedAt
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([offboardingId, signatoryId])
   @@map("clearance_signature_requests")

@@ -7,13 +7,8 @@ model EvaluationAcknowledgement {
   isDeemedAck    Boolean               @default(false)
   acknowledgedAt DateTime              @default(now())
 
-  // ── Audit ──
-  createdAt DateTime  @default(now())
-  createdBy String?
-  updatedAt DateTime  @updatedAt
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("evaluation_acknowledgements")
 }

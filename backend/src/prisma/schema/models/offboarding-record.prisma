@@ -15,12 +15,7 @@ model OffboardingRecord {
 
   signatureRequests ClearanceSignatureRequest[]
 
-  // ── Audit ──
-  createdBy String?
-  updatedAt DateTime  @updatedAt
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
+  updatedAt DateTime @updatedAt
 
   @@map("offboarding_records")
 }

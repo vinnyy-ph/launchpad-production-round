@@ -7,12 +7,7 @@ model ClearanceTemplate {
   signatories       ClearanceSignatory[]
   offboardingRecord OffboardingRecord[]
 
-  // ── Audit ──
-  createdBy String?
-  updatedAt DateTime  @updatedAt
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
+  updatedAt DateTime @updatedAt
 
   @@map("clearance_templates")
 }

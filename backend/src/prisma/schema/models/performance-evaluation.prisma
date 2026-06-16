@@ -20,11 +20,5 @@ model PerformanceEvaluation {
 
   acknowledgement EvaluationAcknowledgement?
 
-  // ── Audit ──
-  createdBy String?
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
-
   @@map("performance_evaluations")
 }

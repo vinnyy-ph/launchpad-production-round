@@ -47,11 +47,5 @@ model Employee {
   surveyAudienceTargets      SurveyAudienceConfig[]
   notifications              Notification[]
 
-  // ── Audit ──
-  createdBy String?
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
-
   @@map("employees")
 }

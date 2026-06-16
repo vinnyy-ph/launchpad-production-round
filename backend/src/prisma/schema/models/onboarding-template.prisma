@@ -8,12 +8,7 @@ model OnboardingTemplate {
   customFields OnboardingCustomField[]
   records      OnboardingRecord[]
 
-  // ── Audit ──
-  createdBy String?
-  updatedAt DateTime  @updatedAt
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
+  updatedAt DateTime @updatedAt
 
   @@map("onboarding_templates")
 }

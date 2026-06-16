@@ -6,13 +6,8 @@ model OnboardingCustomFieldValue {
   field    OnboardingCustomField @relation(fields: [fieldId], references: [id])
   value    String
 
-  // ── Audit ──
-  createdAt DateTime  @default(now())
-  createdBy String?
-  updatedAt DateTime  @updatedAt
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([recordId, fieldId])
   @@map("onboarding_custom_field_values")

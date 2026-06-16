@@ -9,11 +9,5 @@ model Team {
   members              TeamMember[]
   surveyAudienceConfig SurveyAudienceConfig[]
 
-  // ── Audit ──
-  createdBy String?
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
-
   @@map("teams")
 }

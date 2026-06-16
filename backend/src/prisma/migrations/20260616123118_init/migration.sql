@@ -53,11 +53,7 @@ CREATE TABLE "activity_logs" (
     "newValue" TEXT,
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "activity_logs_pkey" PRIMARY KEY ("id")
 );
@@ -72,11 +68,7 @@ CREATE TABLE "bulk_onboarding_jobs" (
     "failureCount" INTEGER NOT NULL DEFAULT 0,
     "status" "BulkJobStatus" NOT NULL DEFAULT 'PROCESSING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "bulk_onboarding_jobs_pkey" PRIMARY KEY ("id")
 );
@@ -90,11 +82,7 @@ CREATE TABLE "clearance_signatories" (
     "requirements" TEXT NOT NULL,
     "order" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "clearance_signatories_pkey" PRIMARY KEY ("id")
 );
@@ -110,11 +98,7 @@ CREATE TABLE "clearance_signature_requests" (
     "note" TEXT,
     "actionAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "clearance_signature_requests_pkey" PRIMARY KEY ("id")
 );
@@ -125,11 +109,7 @@ CREATE TABLE "clearance_templates" (
     "name" TEXT NOT NULL,
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "clearance_templates_pkey" PRIMARY KEY ("id")
 );
@@ -139,11 +119,7 @@ CREATE TABLE "departments" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "departments_pkey" PRIMARY KEY ("id")
 );
@@ -166,10 +142,6 @@ CREATE TABLE "employees" (
     "status" "EmployeeStatus" NOT NULL DEFAULT 'ONBOARDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "createdBy" TEXT,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "employees_pkey" PRIMARY KEY ("id")
 );
@@ -182,11 +154,7 @@ CREATE TABLE "evaluation_acknowledgements" (
     "isDeemedAck" BOOLEAN NOT NULL DEFAULT false,
     "acknowledgedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "evaluation_acknowledgements_pkey" PRIMARY KEY ("id")
 );
@@ -205,11 +173,7 @@ CREATE TABLE "notifications" (
     "isRead" BOOLEAN NOT NULL DEFAULT false,
     "readAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
@@ -226,11 +190,7 @@ CREATE TABLE "offboarding_records" (
     "status" "OffboardingStatus" NOT NULL DEFAULT 'IN_PROGRESS',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "completedAt" TIMESTAMP(3),
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "offboarding_records_pkey" PRIMARY KEY ("id")
 );
@@ -242,11 +202,7 @@ CREATE TABLE "onboarding_custom_field_values" (
     "fieldId" TEXT NOT NULL,
     "value" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "onboarding_custom_field_values_pkey" PRIMARY KEY ("id")
 );
@@ -258,11 +214,7 @@ CREATE TABLE "onboarding_custom_fields" (
     "fieldLabel" TEXT NOT NULL,
     "isRequired" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "onboarding_custom_fields_pkey" PRIMARY KEY ("id")
 );
@@ -279,11 +231,7 @@ CREATE TABLE "onboarding_document_submissions" (
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "reviewedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "onboarding_document_submissions_pkey" PRIMARY KEY ("id")
 );
@@ -297,11 +245,7 @@ CREATE TABLE "onboarding_documents" (
     "allowedFileTypes" TEXT NOT NULL,
     "isRequired" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "onboarding_documents_pkey" PRIMARY KEY ("id")
 );
@@ -315,11 +259,7 @@ CREATE TABLE "onboarding_invitations" (
     "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "onboarding_invitations_pkey" PRIMARY KEY ("id")
 );
@@ -332,11 +272,7 @@ CREATE TABLE "onboarding_records" (
     "isComplete" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "onboarding_records_pkey" PRIMARY KEY ("id")
 );
@@ -347,11 +283,7 @@ CREATE TABLE "onboarding_templates" (
     "name" TEXT NOT NULL,
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "onboarding_templates_pkey" PRIMARY KEY ("id")
 );
@@ -373,10 +305,6 @@ CREATE TABLE "performance_evaluations" (
     "ackDeadline" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "createdBy" TEXT,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "performance_evaluations_pkey" PRIMARY KEY ("id")
 );
@@ -393,9 +321,6 @@ CREATE TABLE "pulse_surveys" (
     "isActive" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "pulse_surveys_pkey" PRIMARY KEY ("id")
 );
@@ -408,11 +333,7 @@ CREATE TABLE "survey_answers" (
     "answerText" TEXT,
     "answerData" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "survey_answers_pkey" PRIMARY KEY ("id")
 );
@@ -424,11 +345,7 @@ CREATE TABLE "survey_audience_configs" (
     "supervisorId" TEXT,
     "teamId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "survey_audience_configs_pkey" PRIMARY KEY ("id")
 );
@@ -459,11 +376,7 @@ CREATE TABLE "survey_occurrences" (
     "deadline" TIMESTAMP(3) NOT NULL,
     "isClosed" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "survey_occurrences_pkey" PRIMARY KEY ("id")
 );
@@ -482,11 +395,7 @@ CREATE TABLE "survey_questions" (
     "scaleMaxLabel" TEXT,
     "orderIndex" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "survey_questions_pkey" PRIMARY KEY ("id")
 );
@@ -498,11 +407,7 @@ CREATE TABLE "survey_reminder_configs" (
     "frequency" "ReminderFrequency" NOT NULL DEFAULT 'DAILY',
     "everyXDays" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "survey_reminder_configs_pkey" PRIMARY KEY ("id")
 );
@@ -516,11 +421,7 @@ CREATE TABLE "survey_responses" (
     "respondentTeamIds" TEXT[],
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "survey_responses_pkey" PRIMARY KEY ("id")
 );
@@ -532,11 +433,7 @@ CREATE TABLE "team_members" (
     "employeeId" TEXT NOT NULL,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" TEXT,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "team_members_pkey" PRIMARY KEY ("id")
 );
@@ -548,10 +445,6 @@ CREATE TABLE "teams" (
     "leaderId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "createdBy" TEXT,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "teams_pkey" PRIMARY KEY ("id")
 );
@@ -565,10 +458,6 @@ CREATE TABLE "users" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "createdBy" TEXT,
-    "updatedBy" TEXT,
-    "deletedAt" TIMESTAMP(3),
-    "deletedBy" TEXT,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );

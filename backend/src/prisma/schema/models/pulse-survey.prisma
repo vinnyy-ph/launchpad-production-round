@@ -16,10 +16,5 @@ model PulseSurvey {
   audienceConfigs SurveyAudienceConfig[]
   reminderConfig  SurveyReminderConfig?
 
-  // ── Audit ──
-  updatedBy String?
-  deletedAt DateTime?
-  deletedBy String?
-
   @@map("pulse_surveys")
 }
