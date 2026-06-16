@@ -36,9 +36,25 @@ export function Topbar() {
   };
 
   return (
-    <header className="flex h-14 flex-shrink-0 items-center justify-end gap-1 border-b border-[color:var(--border-primary)] bg-white px-4">
-      <NotificationBell />
-      <div ref={menuRef} className="relative">
+    <header className="flex h-16 flex-shrink-0 items-center justify-between px-6 border-b border-[color:var(--border-primary)] bg-white">
+      {/* Left: Workspace Identity */}
+      <div className="flex items-center gap-2.5 flex-shrink-0">
+        <span 
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ background: "var(--gradient-jia)" }}
+        />
+        <span className="text-[16px] font-bold tracking-[-0.01em] text-[#181d27] whitespace-nowrap">
+          Swift Work
+        </span>
+      </div>
+
+      {/* Placeholder for Center (Task 4) */}
+      <div className="flex-1 flex justify-center px-4" />
+
+      {/* Right: Controls (Existing logic, styled in Task 5) */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <NotificationBell />
+        <div ref={menuRef} className="relative">
         <button
           onClick={() => setMenuOpen((p) => !p)}
           className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[color:var(--bg-secondary)]"
@@ -69,6 +85,7 @@ export function Topbar() {
             </button>
           </div>
         )}
+      </div>
       </div>
     </header>
   );
