@@ -1,9 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  Home, User, ClipboardList, CheckSquare, BarChart2,
-  Users, UserPlus, UserMinus, LayoutGrid, Shield,
-  FileText, Rss,
-  type LucideIcon,
+  LayoutDashboard, TrendingUp, DoorOpen, LayoutGrid, ClipboardCheck,
+  Users, Network, ClipboardList, UserCog, type LucideIcon
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Role } from "@/modules/auth/types/auth.types";
@@ -20,41 +18,32 @@ interface NavItem {
 
 const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   {
-    title: "",
+    title: "General",
     items: [
-      { label: "Home", icon: Home, href: "/", roles: ["ALL"] },
+      { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ALL"] },
+      { label: "Performance", icon: TrendingUp, href: "/performance", roles: ["ALL"] },
+      { label: "Offboarding", icon: DoorOpen, href: "/offboarding", roles: ["ALL"] }, // Simplified condition for now
     ],
   },
   {
-    title: "My Work",
+    title: "My Team",
     items: [
-      { label: "My Profile", icon: User, href: "/employee/profile", roles: ["EMPLOYEE", "SUPERVISOR"] },
-      { label: "My Onboarding", icon: ClipboardList, href: "/employee/onboarding", roles: ["EMPLOYEE", "SUPERVISOR"] },
-      { label: "My Clearance", icon: CheckSquare, href: "/employee/clearance", roles: ["EMPLOYEE", "SUPERVISOR"] },
-      { label: "My Surveys", icon: BarChart2, href: "/employee/surveys", roles: ["ALL"] },
+      { label: "Overview", icon: LayoutGrid, href: "/supervisor/reports", roles: ["SUPERVISOR"] },
+      { label: "Evaluations", icon: ClipboardCheck, href: "/supervisor/evaluations", roles: ["SUPERVISOR"] },
     ],
   },
   {
-    title: "People",
+    title: "Organization",
     items: [
-      { label: "Directory", icon: Users, href: "/hr/directory", roles: ["HR", "ADMIN"] },
-      { label: "Onboarding", icon: UserPlus, href: "/hr/onboarding", roles: ["HR", "ADMIN"] },
-      { label: "Offboarding", icon: UserMinus, href: "/hr/offboarding", roles: ["HR", "ADMIN"] },
-      { label: "Teams", icon: LayoutGrid, href: "/hr/teams", roles: ["HR", "ADMIN"] },
+      { label: "People", icon: Users, href: "/hr/directory", roles: ["HR"] },
+      { label: "Structure", icon: Network, href: "/hr/teams", roles: ["HR"] },
+      { label: "Surveys", icon: ClipboardList, href: "/hr/surveys", roles: ["HR"] },
     ],
   },
   {
-    title: "Performance",
+    title: "Admin",
     items: [
-      { label: "Evaluations", icon: FileText, href: "/supervisor/evaluations", roles: ["SUPERVISOR", "ADMIN"] },
-      { label: "My Reports", icon: BarChart2, href: "/supervisor/reports", roles: ["SUPERVISOR", "ADMIN"] },
-      { label: "Surveys", icon: Rss, href: "/hr/surveys", roles: ["HR", "ADMIN"] },
-    ],
-  },
-  {
-    title: "System",
-    items: [
-      { label: "Users", icon: Shield, href: "/admin/users", roles: ["ADMIN"] },
+      { label: "Users", icon: UserCog, href: "/admin/users", roles: ["ADMIN"] },
     ],
   },
 ];
