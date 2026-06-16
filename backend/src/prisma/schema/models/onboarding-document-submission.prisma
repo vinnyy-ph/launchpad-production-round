@@ -1,14 +1,20 @@
 model OnboardingDocumentSubmission {
-  id             String             @id @default(uuid())
-  recordId       String
-  record         OnboardingRecord   @relation(fields: [recordId], references: [id])
-  documentId     String
-  document       OnboardingDocument @relation(fields: [documentId], references: [id])
-  fileUrl        String
-  status         DocumentStatus     @default(PENDING)
-  rejectionNote  String?
-  submittedAt    DateTime           @default(now())
-  reviewedAt     DateTime?
+  id            String             @id @default(uuid())
+  recordId      String
+  record        OnboardingRecord   @relation(fields: [recordId], references: [id])
+  documentId    String
+  document      OnboardingDocument @relation(fields: [documentId], references: [id])
+  fileUrl       String
+  status        DocumentStatus     @default(PENDING)
+  rejectionNote String? // required when REJECTED
+  /// Reviewer who approved/rejected — null until reviewed.
+  reviewerId    String?
+  reviewer      Employee?          @relation(fields: [reviewerId], references: [id])
+  submittedAt   DateTime           @default(now())
+  reviewedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("onboarding_document_submissions")
 }

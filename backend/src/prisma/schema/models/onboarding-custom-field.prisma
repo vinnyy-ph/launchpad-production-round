@@ -8,5 +8,7 @@ model OnboardingCustomField {
 
   values OnboardingCustomFieldValue[]
 
+  updatedAt DateTime @updatedAt
+
   @@map("onboarding_custom_fields")
 }
