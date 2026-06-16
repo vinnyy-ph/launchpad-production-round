@@ -6,6 +6,12 @@ model SurveyAudienceConfig {
   supervisorId String?
   teamId       String?
   team         Team?        @relation(fields: [teamId], references: [id])
+  createdAt    DateTime     @default(now())
+  createdBy    String?
+  updatedAt    DateTime     @updatedAt
+  updatedBy    String?
+  deletedAt    DateTime?
+  deletedBy    String?
 
   @@map("survey_audience_configs")
 }
