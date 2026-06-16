@@ -7,6 +7,12 @@ model ClearanceSignatureRequest {
   status          SignatoryStatus   @default(PENDING)
   note            String?
   actionAt        DateTime?
+  createdAt       DateTime          @default(now())
+  createdBy       String?
+  updatedAt       DateTime          @updatedAt
+  updatedBy       String?
+  deletedAt       DateTime?
+  deletedBy       String?
 
   @@unique([offboardingId, signatoryId])
   @@map("clearance_signature_requests")

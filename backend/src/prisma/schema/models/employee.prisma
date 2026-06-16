@@ -22,7 +22,11 @@ model Employee {
 
   status           EmployeeStatus @default(ONBOARDING)
   createdAt        DateTime       @default(now())
+  createdBy        String?
   updatedAt        DateTime       @updatedAt
+  updatedBy        String?
+  deletedAt        DateTime?
+  deletedBy        String?
 
   // ── Relations ──
   teamMemberships        TeamMember[]

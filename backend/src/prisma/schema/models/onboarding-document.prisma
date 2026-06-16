@@ -7,6 +7,11 @@ model OnboardingDocument {
   allowedFileTypes String             // e.g. "pdf,jpg,png"
   isRequired       Boolean            @default(true)
   createdAt        DateTime           @default(now())
+  createdBy        String?
+  updatedAt        DateTime           @updatedAt
+  updatedBy        String?
+  deletedAt        DateTime?
+  deletedBy        String?
 
   submissions OnboardingDocumentSubmission[]
 
