@@ -53,12 +53,13 @@ export function Topbar() {
         <label className="relative flex items-center w-full max-w-[460px]">
           <Search 
             size={18} 
-            className="absolute left-3 text-[#717680] pointer-events-none" 
+            className="absolute left-3 text-[color:var(--text-tertiary)] pointer-events-none" 
           />
           <input 
             type="text" 
             placeholder="Search people, teams, surveys…"
-            className="w-full h-10 pl-[38px] pr-3.5 text-[14px] font-medium text-[#181d27] bg-white border border-[#d5d7da] rounded-lg outline-none shadow-[inset_0_0_2px_0_rgba(0,16,53,0.16)] focus:border-[#181d27] focus:ring-[3px] focus:ring-[rgba(24,29,39,0.06)] transition-all"
+            aria-label="Search"
+            className="w-full h-10 pl-[38px] pr-3.5 text-[14px] font-medium text-[color:var(--text-primary)] bg-white border border-[color:var(--border-secondary)] rounded-lg outline-none shadow-[var(--shadow-inset-brand)] focus:border-[color:var(--border-strong)] focus:shadow-[var(--focus-ring-shadow)] transition-all"
           />
         </label>
       </div>
