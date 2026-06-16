@@ -21,6 +21,7 @@ const options: swaggerJsdoc.Options = {
       { name: "Auth", description: "Authentication and session" },
       { name: "Dashboard", description: "Home screen stats" },
       { name: "Employees", description: "Employee directory and profile records" },
+      { name: "Users", description: "Admin user management (add and deactivate accounts)" },
     ],
     components: {
       securitySchemes: {
