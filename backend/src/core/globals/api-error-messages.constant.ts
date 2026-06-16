@@ -17,6 +17,8 @@ export const API_ERROR_MESSAGES = {
   CANNOT_DEACTIVATE_LAST_ADMIN: "Cannot deactivate the last admin account",
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
   INVALID_USER_ROLE: "Role must be HR or Employee",
+  NOT_SUPERVISOR: "You are not the direct supervisor of this employee",
+  REVIEWER_NOT_EMPLOYEE: "Your account is not linked to an employee record",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];

@@ -12,6 +12,7 @@ export const API_SUCCESS_MESSAGES = {
   USER_CREATED: "User created successfully",
   USER_DEACTIVATED: "User deactivated successfully",
   USERS_RETRIEVED: "Users retrieved successfully",
+  EVALUATION_CREATED: "Evaluation created successfully",
 } as const;
 
 export type ApiSuccessMessage =

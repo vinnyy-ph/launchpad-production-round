@@ -1,10 +1,10 @@
 import { prisma } from "../../../core/database/prisma.service";
-import type { CreateEvaluationInput } from "./evaluations.types";
+import type { CreateEvaluationData } from "./evaluations.types";
 
-export async function createEvaluation(reviewerId: string, data: CreateEvaluationInput) {
+export async function createEvaluation(data: CreateEvaluationData) {
   return prisma.performanceEvaluation.create({
     data: {
-      reviewerId,
+      reviewerId: data.reviewerId,
       revieweeId: data.revieweeId,
       evaluationPeriod: data.evaluationPeriod,
       grade: data.grade,
@@ -13,6 +13,9 @@ export async function createEvaluation(reviewerId: string, data: CreateEvaluatio
       evaluation: data.evaluation ?? null,
       recommendation: data.recommendation ?? null,
       supportingDocUrl: data.supportingDocUrl ?? null,
+      isSent: data.isSent,
+      sentAt: data.sentAt ?? null,
+      ackDeadline: data.ackDeadline ?? null,
     },
   });
 }

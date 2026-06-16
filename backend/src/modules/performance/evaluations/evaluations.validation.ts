@@ -21,6 +21,9 @@ export function validateCreateEvaluation(body: unknown): CreateEvaluationInput {
   ) {
     throw new Error("grade must be an integer between 1 and 5");
   }
+  if (b.send !== undefined && typeof b.send !== "boolean") {
+    throw new Error("send must be a boolean");
+  }
 
   return {
     revieweeId: b.revieweeId,
@@ -31,5 +34,6 @@ export function validateCreateEvaluation(body: unknown): CreateEvaluationInput {
     ...(typeof b.evaluation === "string" && { evaluation: b.evaluation }),
     ...(typeof b.recommendation === "string" && { recommendation: b.recommendation }),
     ...(typeof b.supportingDocUrl === "string" && { supportingDocUrl: b.supportingDocUrl }),
+    ...(typeof b.send === "boolean" && { send: b.send }),
   };
 }

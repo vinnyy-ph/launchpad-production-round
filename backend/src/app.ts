@@ -2,7 +2,6 @@ import cors from "cors";
 import express from "express";
 import { authenticate } from "./core/middleware/auth.middleware";
 import { API_ROUTES } from "./core/globals";
-import { authenticate } from "./core/middleware/auth.middleware";
 import { employeesRouter } from "./modules/people/employees";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -49,7 +48,7 @@ app.use("/api/auth", authRoutes);
 
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/evaluations", evaluationsRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/evaluations`, authenticate, evaluationsRouter);
 
 app.get(API_ROUTES.ROOT, (_req, res) =>
   res.json({

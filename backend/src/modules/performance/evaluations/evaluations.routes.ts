@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { createEvaluation } from "./evaluations.controller";
+import { EvaluationsController } from "./evaluations.controller";
 
 const router = Router();
+const controller = new EvaluationsController();
 
-// TODO: add authenticate middleware once Firebase is set up
-router.post("/", createEvaluation);
+router.post("/", controller.createEvaluation);
 
 export { router as evaluationsRouter };
