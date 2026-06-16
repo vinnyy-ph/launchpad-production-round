@@ -122,18 +122,18 @@ export function Sidebar() {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 custom-scrollbar">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 custom-scrollbar">
         {NAV_SECTIONS.map((section) => {
           const visible = section.items.filter((item) => canSee(item.roles));
           if (visible.length === 0) return null;
           return (
             <div key={section.title || "home"} className="mb-4">
               {expanded && section.title && (
-                <span className="block px-4 pb-2 pt-2 text-[12px] font-bold uppercase tracking-widest text-[color:var(--text-quaternary)]">
+                <span className="block px-5 pb-1 text-[12px] font-bold uppercase tracking-[0.04em] text-[color:var(--text-quaternary)]">
                   {section.title}
                 </span>
               )}
-              <div className="space-y-0.5">
+              <div className={cn("flex flex-col", expanded ? "px-2 pb-4" : "items-center")}>
                 {visible.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);
@@ -141,20 +141,19 @@ export function Sidebar() {
                     <NavLink
                       key={item.href}
                       to={item.href}
-                      title={!expanded ? item.label : undefined}
                       className={cn(
                         "flex items-center h-[36px] px-3 rounded-sm transition-all duration-100 group",
-                        expanded ? "gap-3 mx-2" : "justify-center mx-1",
+                        expanded ? "gap-2" : "w-10 justify-center",
                         active
-                          ? "bg-[color:var(--gray-100)] text-[color:var(--text-primary)]"
-                          : "text-[color:var(--text-secondary)] hover:bg-[color:var(--gray-100)] hover:text-[color:var(--text-primary)]"
+                          ? "bg-[rgb(239,241,245)] text-[rgb(37,43,55)]"
+                          : "text-[rgb(65,70,81)] hover:bg-[rgb(239,241,245)]"
                       )}
                     >
                       <Icon 
                         size={20} 
                         className={cn(
                           "flex-shrink-0 transition-colors",
-                          active ? "text-[color:var(--text-primary)]" : "text-[color:var(--text-quaternary)] group-hover:text-[color:var(--text-primary)]"
+                          active ? "text-[rgb(37,43,55)]" : "text-[#A4A7AE] group-hover:text-[rgb(37,43,55)]"
                         )} 
                       />
                       {expanded && (
