@@ -115,7 +115,7 @@ export function Sidebar() {
           return (
             <div key={section.title || "home"} className="mb-1">
               {expanded && section.title && (
-                <span className="block px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--text-tertiary)]">
+                <span className="block px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--text-tertiary)]">
                   {section.title}
                 </span>
               )}

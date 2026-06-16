@@ -29,7 +29,7 @@ export function SwiftWorkLogo({ tone = "dark", size = 38, className }: SwiftWork
       </svg>
       <span
         style={{
-          fontFamily: '"Satoshi", sans-serif',
+          fontFamily: "var(--font-sans)",
           fontWeight: 700,
           fontSize: Math.round(size * 0.56),
           letterSpacing: "-0.02em",
