@@ -2,10 +2,12 @@ import { prisma } from "../../../core/database/prisma.service";
 import {
   createEvaluation,
   findEvaluationById,
+  softDeleteEvaluation,
   updateEvaluation,
 } from "./evaluations.repository";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
 import type { CreateEvaluationInput, UpdateEvaluationInput } from "./evaluations.types";
+
 
 export async function handleCreateEvaluation(input: CreateEvaluationInput, userId: string) {
   const reviewer = await prisma.employee.findUnique({ where: { userId } });
@@ -72,4 +74,17 @@ export async function handleUpdateEvaluation(
 
   const { send: _, ...fields } = input;
   return updateEvaluation(evaluationId, { ...fields, ...sendFields });
+}
+
+export async function handleDeleteEvaluation(evaluationId: string, userId: string) {
+  const evaluation = await findEvaluationById(evaluationId);
+  if (!evaluation) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND);
+
+  const reviewer = await prisma.employee.findUnique({ where: { userId } });
+  if (!reviewer) throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
+
+  if (evaluation.reviewerId !== reviewer.id) throw new Error(EVAL_ERROR_MESSAGES.NOT_REVIEWER);
+  if (evaluation.isSent) throw new Error(EVAL_ERROR_MESSAGES.ALREADY_SENT);
+
+  await softDeleteEvaluation(evaluationId);
 }

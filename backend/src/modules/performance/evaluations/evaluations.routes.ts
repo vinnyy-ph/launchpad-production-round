@@ -6,5 +6,6 @@ const controller = new EvaluationsController();
 
 router.post("/", controller.createEvaluation);
 router.patch("/:evaluationId", controller.updateEvaluation);
+router.delete("/:evaluationId", controller.deleteEvaluation);
 
 export { router as evaluationsRouter };

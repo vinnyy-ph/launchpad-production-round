@@ -21,7 +21,14 @@ export async function createEvaluation(data: CreateEvaluationData) {
 }
 
 export async function findEvaluationById(id: string) {
-  return prisma.performanceEvaluation.findUnique({ where: { id } });
+  return prisma.performanceEvaluation.findFirst({ where: { id, deletedAt: null } });
+}
+
+export async function softDeleteEvaluation(id: string) {
+  return prisma.performanceEvaluation.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
 }
 
 export async function updateEvaluation(id: string, data: UpdateEvaluationData) {
