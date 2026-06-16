@@ -1,19 +1,20 @@
 model SurveyResponse {
-  id           String           @id @default(uuid())
-  occurrenceId String
-  occurrence   SurveyOccurrence @relation(fields: [occurrenceId], references: [id])
+  id                     String           @id @default(uuid())
+  occurrenceId           String
+  occurrence             SurveyOccurrence @relation(fields: [occurrenceId], references: [id])
   /// Null when survey is anonymous
-  employeeId   String?
-  employee     Employee?        @relation(fields: [employeeId], references: [id])
-  submittedAt  DateTime         @default(now())
-  createdAt    DateTime         @default(now())
-  createdBy    String?
-  updatedAt    DateTime         @updatedAt
-  updatedBy    String?
-  deletedAt    DateTime?
-  deletedBy    String?
+  employeeId             String?
+  employee               Employee?        @relation(fields: [employeeId], references: [id])
+  /// Anonymity-safe grouping snapshots — populated even when anonymous so
+  /// results can be filtered by supervisor/team without re-identifying anyone.
+  respondentSupervisorId String?
+  respondentTeamIds      String[]
+  submittedAt            DateTime         @default(now())
 
   answers SurveyAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("survey_responses")
 }
