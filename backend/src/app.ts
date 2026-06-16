@@ -49,7 +49,11 @@ app.use("/api/auth", authRoutes);
 
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use(`${API_ROUTES.VERSIONED_ROOT}/evaluations`, authenticate, evaluationsRouter);
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/evaluations`,
+  authenticate,
+  evaluationsRouter,
+);
 
 app.get(API_ROUTES.ROOT, (_req, res) =>
   res.json({
@@ -61,9 +65,7 @@ app.get(API_ROUTES.ROOT, (_req, res) =>
 app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
   res.json({ user: req.user }),
 );
-app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
-  res.json({ user: req.user }),
-);
+
 app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/pulse`, pulseSurveysRouter);
