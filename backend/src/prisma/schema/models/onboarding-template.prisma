@@ -8,5 +8,7 @@ model OnboardingTemplate {
   customFields OnboardingCustomField[]
   records      OnboardingRecord[]
 
+  updatedAt DateTime @updatedAt
+
   @@map("onboarding_templates")
 }

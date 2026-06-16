@@ -1,9 +1,11 @@
 enum Role {
   ADMIN
   HR
-  SUPERVISOR
   EMPLOYEE
 }
+
+// NOTE: SUPERVISOR and Root Node are DERIVED from the org graph
+// (supervisorId edges), never stored. Do not add them here.
 
 enum EmployeeStatus {
   ONBOARDING
@@ -26,9 +28,9 @@ enum DocumentStatus {
 }
 
 enum OffboardingStatus {
-  PENDING
   IN_PROGRESS
-  COMPLETE
+  COMPLETED
+  CANCELLED
 }
 
 enum SignatoryStatus {
@@ -46,9 +48,9 @@ enum BulkJobStatus {
 enum RecurringType {
   ONE_TIME
   WEEKLY
-  BIWEEKLY
+  BI_WEEKLY
   MONTHLY
-  BIMONTHLY
+  BI_MONTHLY
   QUARTERLY
   SEMI_ANNUAL
   ANNUAL
@@ -57,7 +59,7 @@ enum RecurringType {
 enum AudienceType {
   EVERYONE
   SUPERVISOR_BASED
-  TEAM_BASED
+  SPECIFIC_TEAMS
 }
 
 enum SurveyVisibility {
@@ -82,7 +84,26 @@ enum ReminderFrequency {
   WEEKLY
 }
 
+// Event type — what happened. Drives the icon, copy, and click-to-land target.
 enum NotificationType {
-  EMAIL
+  // People Management
+  ONBOARDING_INVITE
+  ONBOARDING_COMPLETE
+  ONBOARDING_STATUS
+  OFFBOARDING_STARTED
+  OFFBOARDING_STATUS
+  CLEARANCE_SIGN_REQUEST
+  CLEARANCE_REJECTED
+  // Performance Management
+  NEW_PULSE
+  PULSE_REMINDER
+  NEW_EVALUATION
+  EVAL_ACK_REMINDER
+}
+
+// Delivery channel — how it is sent. Was previously (incorrectly) the NotificationType.
+enum NotificationChannel {
   IN_APP
+  EMAIL
+  BOTH
 }

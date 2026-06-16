@@ -1,12 +1,21 @@
 model Notification {
-  id          String           @id @default(uuid())
+  id          String              @id @default(uuid())
   recipientId String
-  recipient   Employee         @relation(fields: [recipientId], references: [id])
+  recipient   Employee            @relation(fields: [recipientId], references: [id])
   type        NotificationType
+  channel     NotificationChannel @default(IN_APP)
   subject     String
   body        String
-  isRead      Boolean          @default(false)
-  createdAt   DateTime         @default(now())
+  /// Click-to-land deep link (e.g. "/clearances/123"). Opens the exact item.
+  linkUrl     String?
+  /// Polymorphic source ref — lets the API rebuild/validate the link target.
+  sourceType  String?
+  sourceId    String?
+  isRead      Boolean             @default(false)
+  readAt      DateTime?
+  createdAt   DateTime            @default(now())
+
+  updatedAt DateTime @updatedAt
 
   @@map("notifications")
 }
