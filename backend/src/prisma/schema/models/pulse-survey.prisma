@@ -10,6 +10,9 @@ model PulseSurvey {
   isActive      Boolean          @default(false)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  updatedBy     String?
+  deletedAt     DateTime?
+  deletedBy     String?
 
   occurrences     SurveyOccurrence[]
   questions       SurveyQuestion[]

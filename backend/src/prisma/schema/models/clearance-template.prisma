@@ -3,6 +3,11 @@ model ClearanceTemplate {
   name      String
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+  deletedBy String?
 
   signatories       ClearanceSignatory[]
   offboardingRecord OffboardingRecord[]

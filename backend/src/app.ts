@@ -10,7 +10,7 @@ const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(",");
 app.use(cors({ origin: origins, credentials: true }));
 app.use(express.json());
 
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/health", (_req, res) => res.json({ status: "healthy" }));
 app.get("/api", (_req, res) => res.json({ message: "ERP API" }));
 
 app.use("/api/auth", authRoutes);
