@@ -220,11 +220,11 @@ export class UsersController {
       });
     }
 
-    if (error.message === "Cannot change admin role") {
-      return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+    if (error.message === "Cannot demote last admin") {
+      return res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
         success: false,
-        message: API_ERROR_MESSAGES.CANNOT_CHANGE_ADMIN_ROLE,
-        errorCode: API_ERROR_CODES.CANNOT_CHANGE_ADMIN_ROLE,
+        message: API_ERROR_MESSAGES.CANNOT_DEMOTE_LAST_ADMIN,
+        errorCode: API_ERROR_CODES.CANNOT_DEMOTE_LAST_ADMIN,
       });
     }
 

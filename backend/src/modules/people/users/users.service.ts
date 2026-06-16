@@ -104,7 +104,11 @@ export class UsersService {
     }
 
     if (user.role === "ADMIN") {
-      throw new Error("Cannot change admin role");
+      const activeAdminCount = await this.usersRepository.countActiveAdmins();
+
+      if (activeAdminCount <= 1) {
+        throw new Error("Cannot demote last admin");
+      }
     }
 
     const updatedUser = await this.usersRepository.updateRole(userId, dto.role);
