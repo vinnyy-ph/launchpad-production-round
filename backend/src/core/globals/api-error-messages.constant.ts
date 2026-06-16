@@ -15,6 +15,8 @@ export const API_ERROR_MESSAGES = {
   USER_ALREADY_EXISTS: "A user with this email already exists",
   CANNOT_DEACTIVATE_SELF: "You cannot deactivate your own account",
   CANNOT_DEACTIVATE_LAST_ADMIN: "Cannot deactivate the last admin account",
+  CANNOT_CHANGE_OWN_ROLE: "You cannot change your own role",
+  CANNOT_CHANGE_ADMIN_ROLE: "Cannot change the role of an admin account",
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
   INVALID_USER_ROLE: "Role must be HR or Employee",
 } as const;
