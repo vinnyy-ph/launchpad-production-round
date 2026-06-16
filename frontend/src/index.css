@@ -7,6 +7,7 @@
   Values map to the Jia palette/radius (frontend-swiftwork jia-design-system reference);
   variable NAMES are kept so every shadcn component re-themes at once.
   Source palette: src/shared/styles/jia-tokens.css.
+  Light-only by design — the Jia brandbook defines no dark theme (no .dark block).
 */
 @layer base {
   :root {
@@ -16,8 +17,9 @@
     --card-foreground: 228 27% 9%;
     --popover: 0 0% 100%;
     --popover-foreground: 228 27% 9%;
-    --primary: 228 27% 9%;              /* #181D27 — primary button / text */
+    --primary: 230 33% 10%;             /* #111322 — primary button (brandbook recipe) */
     --primary-foreground: 0 0% 100%;
+    --primary-hover: 226 25% 25%;       /* #30374F — primary button hover */
     --secondary: 220 13% 95%;           /* #EFF1F5 — gray-cool-100 */
     --secondary-foreground: 228 27% 9%;
     --muted: 220 13% 95%;
@@ -31,28 +33,6 @@
     --ring: 228 27% 9%;                 /* #181D27 */
     --radius: 0.5rem;                   /* 8px base */
   }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-  }
 }
 
 @layer base {
@@ -60,5 +40,53 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
+  }
+}
+
+@layer base {
+  /* Brandbook interaction: focus-visible ring (2px #111322, 2px offset). */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+  /* On gradient surfaces, switch the ring to white. */
+  .on-gradient :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline-color: #ffffff;
+  }
+
+  /* Disabled baseline (brandbook: 38% opacity, not-allowed). */
+  :where(button, input, select, textarea):disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+
+  /* Selection — cool neutral. */
+  ::selection { background: var(--gray-200); color: var(--text-primary); }
+
+  /* Scrollbar — thin cool-neutral. */
+  * { scrollbar-width: thin; scrollbar-color: var(--gray-300) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb {
+    background: var(--gray-300); border-radius: 9999px;
+    border: 2px solid transparent; background-clip: content-box;
+  }
+  *::-webkit-scrollbar-track { background: transparent; }
+
+  /* Reduced motion — kill ambient gradient drift + long transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* The ONE gradient moment for a status pill (pipeline "active/current"). Use sparingly. */
+  .jia-badge-active {
+    background: var(--gradient-jia);
+    color: var(--text-primary);
+    border-color: transparent;
   }
 }
