@@ -5,5 +5,13 @@ model SurveyReminderConfig {
   frequency  ReminderFrequency @default(DAILY)
   everyXDays Int? // only when frequency = EVERY_X_DAYS
 
+  // ── Audit ──
+  createdAt DateTime  @default(now())
+  createdBy String?
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+  deletedBy String?
+
   @@map("survey_reminder_configs")
 }

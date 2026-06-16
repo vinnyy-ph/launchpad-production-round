@@ -6,6 +6,14 @@ model TeamMember {
   employee   Employee @relation(fields: [employeeId], references: [id])
   joinedAt   DateTime @default(now())
 
+  // ── Audit ──
+  createdAt DateTime  @default(now())
+  createdBy String?
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+  deletedBy String?
+
   @@unique([teamId, employeeId])
   @@map("team_members")
 }

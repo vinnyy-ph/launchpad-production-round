@@ -10,5 +10,12 @@ model OnboardingDocument {
 
   submissions OnboardingDocumentSubmission[]
 
+  // ── Audit ──
+  createdBy String?
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+  deletedBy String?
+
   @@map("onboarding_documents")
 }

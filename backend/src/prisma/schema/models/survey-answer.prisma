@@ -7,5 +7,13 @@ model SurveyAnswer {
   answerText String? // for SHORT/LONG_ANSWER
   answerData Json? // for LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX
 
+  // ── Audit ──
+  createdAt DateTime  @default(now())
+  createdBy String?
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+  deletedBy String?
+
   @@map("survey_answers")
 }
