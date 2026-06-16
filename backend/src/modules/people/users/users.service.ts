@@ -6,6 +6,8 @@ import type {
   DeactivateUserResponseDto,
   ListUsersQueryDto,
   ListUsersResponseDto,
+  UpdateRoleRequestDto,
+  UpdateRoleResponseDto,
   UserListItemDto,
   UserResponseDto,
 } from "./dto";
@@ -76,6 +78,41 @@ export class UsersService {
       success: true,
       message: API_SUCCESS_MESSAGES.USER_DEACTIVATED,
       data: this.toUserResponse(deactivatedUser),
+    };
+  }
+
+  /**
+   * Updates a user's role between HR and Employee.
+   */
+  async updateRole(
+    userId: string,
+    dto: UpdateRoleRequestDto,
+    requestingUserId: string,
+  ): Promise<UpdateRoleResponseDto> {
+    if (userId === requestingUserId) {
+      throw new Error("Cannot change own role");
+    }
+
+    const user = await this.usersRepository.findById(userId);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.isActive) {
+      throw new Error("User already deactivated");
+    }
+
+    if (user.role === "ADMIN") {
+      throw new Error("Cannot change admin role");
+    }
+
+    const updatedUser = await this.usersRepository.updateRole(userId, dto.role);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.USER_ROLE_UPDATED,
+      data: this.toUserResponse(updatedUser),
     };
   }
 
