@@ -90,7 +90,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex h-full flex-shrink-0 flex-col border-r border-[color:var(--border-primary)] transition-all duration-200 ease-in-out z-20 shadow-xs",
+        "flex h-full flex-shrink-0 flex-col border-r border-[color:var(--border-primary)] transition-all duration-200 ease-in-out z-20",
         expanded ? "w-[240px]" : "w-[72px]"
       )}
       style={{ background: "var(--gray-50)" }}
@@ -142,7 +142,7 @@ export function Sidebar() {
                       key={item.href}
                       to={item.href}
                       className={cn(
-                        "flex items-center h-[36px] px-3 rounded-sm transition-all duration-100 group",
+                        "flex items-center h-[36px] px-3 rounded-md transition-all duration-100 group",
                         expanded ? "gap-2" : "w-10 justify-center",
                         active
                           ? "bg-[rgb(239,241,245)] text-[rgb(37,43,55)]"
@@ -171,20 +171,20 @@ export function Sidebar() {
       </nav>
 
       {/* Footer / Toggle */}
-      <div className="mt-auto border-t border-[color:var(--border-primary)] p-2">
+      <div className="mt-auto flex flex-col">
         {expanded && (
-          <div className="px-4 py-3 text-center mb-1">
-            <p className="text-[12px] font-medium text-[color:var(--text-tertiary)] leading-tight">
+          <div className="px-4 py-4 text-center">
+            <p className="text-[12px] font-medium text-[color:var(--text-tertiary)]">
               © 2026 White Cloak Technologies, Inc.
             </p>
           </div>
         )}
         <button
           onClick={toggle}
-          className="flex h-10 w-full items-center justify-center rounded-sm text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--gray-100)] hover:text-[color:var(--text-secondary)]"
+          className="flex h-10 w-full items-center justify-center border-t border-[color:var(--border-primary)] text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-secondary)]"
           aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
         >
-          {expanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+          {expanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
         </button>
       </div>
     </aside>
