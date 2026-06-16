@@ -8,6 +8,9 @@ import type {
   GetEmployeeProfileParamsDto,
   ListEmployeesQueryDto,
   ListEmployeesResponseDto,
+  UpdateEmployeeProfileParamsDto,
+  UpdateEmployeeProfileRequestDto,
+  UpdateEmployeeProfileResponseDto,
 } from "./dto";
 
 type RepositoryEmployee = Awaited<ReturnType<EmployeesRepository["findMany"]>>["employees"][number];
@@ -52,6 +55,43 @@ export class EmployeesService {
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EMPLOYEE_RETRIEVED,
+      data: this.toProfileResponse(employee),
+    };
+  }
+
+  /**
+   * Updates another employee profile for HR and returns the refreshed unredacted profile.
+   */
+  async updateEmployeeProfile(
+    params: UpdateEmployeeProfileParamsDto,
+    update: UpdateEmployeeProfileRequestDto,
+    updatedBy = "hr-profile-edit",
+  ): Promise<UpdateEmployeeProfileResponseDto> {
+    if (update.supervisorId === params.employeeId) {
+      throw new Error("Employee cannot supervise themselves");
+    }
+
+    if (update.supervisorId) {
+      const supervisor = await this.employeesRepository.findById(update.supervisorId);
+
+      if (!supervisor) {
+        throw new Error("Supervisor not found");
+      }
+    }
+
+    const employee = await this.employeesRepository.updateProfile(
+      params.employeeId,
+      update,
+      updatedBy,
+    );
+
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.EMPLOYEE_PROFILE_UPDATED,
       data: this.toProfileResponse(employee),
     };
   }

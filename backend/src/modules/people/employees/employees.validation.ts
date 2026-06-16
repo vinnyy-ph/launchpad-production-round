@@ -1,5 +1,10 @@
 import { EmployeeStatus } from "@prisma/client";
-import type { GetEmployeeProfileParamsDto, ListEmployeesQueryDto } from "./dto";
+import type {
+  GetEmployeeProfileParamsDto,
+  ListEmployeesQueryDto,
+  UpdateEmployeeProfileParamsDto,
+  UpdateEmployeeProfileRequestDto,
+} from "./dto";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
@@ -39,6 +44,49 @@ export class EmployeesValidation {
     return { employeeId };
   }
 
+  /**
+   * Converts employee update route params into a typed DTO before service logic runs.
+   */
+  parseUpdateProfileParams(params: Record<string, unknown>): UpdateEmployeeProfileParamsDto {
+    const employeeId = this.parseOptionalString(params.employeeId);
+
+    if (!employeeId) {
+      throw new Error("Employee id is required");
+    }
+
+    return { employeeId };
+  }
+
+  /**
+   * Normalizes HR-editable employee profile fields.
+   * Undefined fields are ignored, while nullable fields allow HR to clear existing values.
+   */
+  parseUpdateProfileBody(body: Record<string, unknown>): UpdateEmployeeProfileRequestDto {
+    const update: Record<string, unknown> = {};
+
+    this.assignOptionalString(update, "companyEmail", body.companyEmail);
+    this.assignOptionalString(update, "firstName", body.firstName);
+    this.assignOptionalString(update, "lastName", body.lastName);
+    this.assignOptionalNullableString(update, "middleName", body.middleName);
+    this.assignOptionalNullableString(update, "personalEmail", body.personalEmail);
+    this.assignOptionalNullableDate(update, "birthday", body.birthday);
+    this.assignOptionalNullableString(update, "address", body.address);
+    this.assignOptionalNullableString(update, "emergencyContact", body.emergencyContact);
+    this.assignOptionalNullableString(update, "jobTitle", body.jobTitle);
+    this.assignOptionalNullableString(update, "department", body.department);
+    this.assignOptionalNullableString(update, "supervisorId", body.supervisorId);
+
+    if (body.status !== undefined) {
+      update.status = this.parseEmployeeStatus(body.status);
+    }
+
+    if (Object.keys(update).length === 0) {
+      throw new Error("Employee profile update body is required");
+    }
+
+    return update as UpdateEmployeeProfileRequestDto;
+  }
+
   /** Returns a trimmed string when present, otherwise leaves the optional filter unset. */
   private parseOptionalString(value: unknown): string | undefined {
     if (typeof value !== "string") {
@@ -72,5 +120,71 @@ export class EmployeesValidation {
     }
 
     return status as EmployeeStatus;
+  }
+
+  /** Assigns a trimmed required-string-style field only when it is present in the request body. */
+  private assignOptionalString<T extends Record<string, unknown>>(
+    target: T,
+    key: keyof T,
+    value: unknown,
+  ) {
+    if (value === undefined) {
+      return;
+    }
+
+    const parsed = this.parseOptionalString(value);
+
+    if (!parsed) {
+      throw new Error("Invalid employee profile update");
+    }
+
+    target[key] = parsed as T[keyof T];
+  }
+
+  /** Assigns a nullable string field, allowing null to clear optional profile data. */
+  private assignOptionalNullableString<T extends Record<string, unknown>>(
+    target: T,
+    key: keyof T,
+    value: unknown,
+  ) {
+    if (value === undefined) {
+      return;
+    }
+
+    if (value === null) {
+      target[key] = null as T[keyof T];
+      return;
+    }
+
+    const parsed = this.parseOptionalString(value);
+    target[key] = (parsed ?? null) as T[keyof T];
+  }
+
+  /** Parses a nullable date field from an ISO string or Date instance. */
+  private assignOptionalNullableDate<T extends Record<string, unknown>>(
+    target: T,
+    key: keyof T,
+    value: unknown,
+  ) {
+    if (value === undefined) {
+      return;
+    }
+
+    if (value === null) {
+      target[key] = null as T[keyof T];
+      return;
+    }
+
+    if (typeof value !== "string" && !(value instanceof Date)) {
+      throw new Error("Invalid employee birthday");
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error("Invalid employee birthday");
+    }
+
+    target[key] = parsed as T[keyof T];
   }
 }
