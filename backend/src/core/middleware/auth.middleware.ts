@@ -3,11 +3,11 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 import { adminAuth } from "../../modules/auth/firebase.service";
 import { prisma } from "../database/prisma.service";
 
-// Verifies the Firebase ID token, then resolves the pre-created (invited) account
-// by email and binds the Google uid on first sign-in. This is the universal login
-// gate: it rejects un-invited emails and blocks the two distinct "cannot sign in"
-// reasons — a deactivated account (User.isActive=false) and the Inactive employment
-// status (Employee.status=INACTIVE).
+// Per-request login gate — a pure read. Verifies the Firebase ID token, resolves the
+// pre-created (invited) account by email, and enforces the two distinct "cannot sign
+// in" blocks on every request: a deactivated account (User.isActive=false) and the
+// Inactive employment status (Employee.status=INACTIVE). Binding the Google uid on
+// first sign-in is an admission write owned by POST /api/auth/session, not this guard.
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
   const [scheme, token] = (req.headers.authorization ?? "").split(" ");
 
@@ -42,23 +42,8 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         .json({ error: "No account for this email. Ask an admin for an invitation." });
     }
 
-    // First sign-in binds the Google identity. The guarded update is atomic, so two
-    // concurrent first sign-ins can't bind different uids; later sign-ins must match.
-    if (!account.googleId) {
-      const bound = await prisma.user.updateMany({
-        where: { id: account.id, googleId: null },
-        data: { googleId: decoded.uid },
-      });
-      if (bound.count === 0) {
-        const fresh = await prisma.user.findUnique({ where: { id: account.id } });
-        if (fresh?.googleId !== decoded.uid) {
-          return res
-            .status(403)
-            .json({ error: "This email is linked to a different Google identity." });
-        }
-      }
-      account.googleId = decoded.uid;
-    } else if (account.googleId !== decoded.uid) {
+    // Once bound, the account is pinned to one Google identity.
+    if (account.googleId && account.googleId !== decoded.uid) {
       return res
         .status(403)
         .json({ error: "This email is linked to a different Google identity." });
@@ -73,6 +58,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     }
 
     req.user = account;
+    req.firebaseUid = decoded.uid;
     return next();
   } catch (error) {
     return next(error);

@@ -41,3 +41,22 @@ export async function resolveSession(user: User): Promise<SessionUser> {
     displayName: employee ? `${employee.firstName} ${employee.lastName}` : null,
   };
 }
+
+// Binds the Google uid to the account on first sign-in (admission write, idempotent
+// and race-safe). Returns false only if the account is already bound to a different
+// Google identity. Owned by the session bootstrap, not the per-request guard.
+export async function bindGoogleId(user: User, firebaseUid: string): Promise<boolean> {
+  if (user.googleId === firebaseUid) return true;
+  if (user.googleId) return false;
+
+  const bound = await prisma.user.updateMany({
+    where: { id: user.id, googleId: null },
+    data: { googleId: firebaseUid },
+  });
+  if (bound.count === 0) {
+    // Lost the race to a concurrent first sign-in — confirm it bound the same uid.
+    const fresh = await prisma.user.findUnique({ where: { id: user.id } });
+    return fresh?.googleId === firebaseUid;
+  }
+  return true;
+}
