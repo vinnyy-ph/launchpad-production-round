@@ -4,16 +4,13 @@ model OnboardingDocument {
   template         OnboardingTemplate @relation(fields: [templateId], references: [id])
   documentName     String
   instructions     String?
-  allowedFileTypes String             // e.g. "pdf,jpg,png"
+  allowedFileTypes String // e.g. "pdf,jpg,png"
   isRequired       Boolean            @default(true)
   createdAt        DateTime           @default(now())
-  createdBy        String?
-  updatedAt        DateTime           @updatedAt
-  updatedBy        String?
-  deletedAt        DateTime?
-  deletedBy        String?
 
   submissions OnboardingDocumentSubmission[]
+
+  updatedAt DateTime @updatedAt
 
   @@map("onboarding_documents")
 }
