@@ -110,7 +110,7 @@ export class EmployeesService {
       middleName: employee.middleName,
       fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
       jobTitle: employee.jobTitle,
-      department: employee.department,
+      department: employee.department?.name ?? null,
       status: this.toStatusDto(employee.status),
       teams: employee.teamMemberships.map((membership) => ({
         id: membership.team.id,
@@ -157,7 +157,7 @@ export class EmployeesService {
       address: employee.address,
       emergencyContact: employee.emergencyContact,
       jobTitle: employee.jobTitle,
-      department: employee.department,
+      department: employee.department?.name ?? null,
       status: this.toStatusDto(employee.status),
       teams: employee.teamMemberships.map((membership) => ({
         id: membership.team.id,
@@ -191,9 +191,7 @@ export class EmployeesService {
         status: this.toStatusDto(directReport.status),
       })),
       createdAt: employee.createdAt,
-      createdBy: employee.createdBy,
       updatedAt: employee.updatedAt,
-      updatedBy: employee.updatedBy,
     };
   }
 

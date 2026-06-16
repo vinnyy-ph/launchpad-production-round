@@ -57,7 +57,6 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
           firstName: "Marco",
           jobTitle: "Senior Backend Engineer",
           status: "ACTIVE",
-          updatedBy: "hr-profile-edit",
         }),
       }),
     );
@@ -121,7 +120,6 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
       expect.objectContaining({
         where: {
           id: "missing-supervisor",
-          deletedAt: null,
         },
       }),
     );
