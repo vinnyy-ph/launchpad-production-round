@@ -1,5 +1,8 @@
 import cors from "cors";
 import express from "express";
+import { API_ROUTES } from "./core/globals";
+import { authenticate } from "./core/middleware/auth.middleware";
+import { employeesRouter } from "./modules/people/employees";
 import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
@@ -38,3 +41,13 @@ app.get("/api", (_req, res) => res.json({ message: "ERP API" }));
 
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+
+app.get(API_ROUTES.ROOT, (_req, res) =>
+  res.json({
+    message: "ERP API",
+    version: API_ROUTES.VERSION,
+    basePath: API_ROUTES.VERSIONED_ROOT,
+  }),
+);
+app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) => res.json({ user: req.user }));
+app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);
