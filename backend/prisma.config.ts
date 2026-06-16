@@ -8,6 +8,7 @@ export default defineConfig({
   schema: "src/prisma",
   migrations: {
     path: "src/prisma/migrations",
+    seed: "ts-node --project tsconfig.seed.json --transpile-only prisma/seed/index.ts",
   },
   datasource: {
     url: env("DIRECT_URL"),

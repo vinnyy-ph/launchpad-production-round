@@ -1,5 +1,8 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('ADMIN', 'HR', 'SUPERVISOR', 'EMPLOYEE');
+CREATE TYPE "Role" AS ENUM ('ADMIN', 'HR', 'EMPLOYEE');
 
 -- CreateEnum
 CREATE TYPE "EmployeeStatus" AS ENUM ('ONBOARDING', 'ACTIVE', 'OFFBOARDING', 'INACTIVE');
@@ -11,7 +14,7 @@ CREATE TYPE "InviteStatus" AS ENUM ('PENDING', 'ACCEPTED', 'EXPIRED', 'FAILED_DE
 CREATE TYPE "DocumentStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateEnum
-CREATE TYPE "OffboardingStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'COMPLETE');
+CREATE TYPE "OffboardingStatus" AS ENUM ('IN_PROGRESS', 'COMPLETED', 'CANCELLED');
 
 -- CreateEnum
 CREATE TYPE "SignatoryStatus" AS ENUM ('PENDING', 'SIGNED', 'REJECTED');
@@ -20,10 +23,10 @@ CREATE TYPE "SignatoryStatus" AS ENUM ('PENDING', 'SIGNED', 'REJECTED');
 CREATE TYPE "BulkJobStatus" AS ENUM ('PROCESSING', 'DONE', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "RecurringType" AS ENUM ('ONE_TIME', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'BIMONTHLY', 'QUARTERLY', 'SEMI_ANNUAL', 'ANNUAL');
+CREATE TYPE "RecurringType" AS ENUM ('ONE_TIME', 'WEEKLY', 'BI_WEEKLY', 'MONTHLY', 'BI_MONTHLY', 'QUARTERLY', 'SEMI_ANNUAL', 'ANNUAL');
 
 -- CreateEnum
-CREATE TYPE "AudienceType" AS ENUM ('EVERYONE', 'SUPERVISOR_BASED', 'TEAM_BASED');
+CREATE TYPE "AudienceType" AS ENUM ('EVERYONE', 'SUPERVISOR_BASED', 'SPECIFIC_TEAMS');
 
 -- CreateEnum
 CREATE TYPE "SurveyVisibility" AS ENUM ('EVERYONE', 'SUPERVISOR_BASED', 'TEAM_BASED', 'HR_ROOT_ONLY', 'SPECIFIC_TEAMS');
@@ -35,7 +38,10 @@ CREATE TYPE "QuestionType" AS ENUM ('SHORT_ANSWER', 'LONG_ANSWER', 'LINEAR_SCALE
 CREATE TYPE "ReminderFrequency" AS ENUM ('DAILY', 'EVERY_X_DAYS', 'WEEKLY');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('EMAIL', 'IN_APP');
+CREATE TYPE "NotificationType" AS ENUM ('ONBOARDING_INVITE', 'ONBOARDING_COMPLETE', 'ONBOARDING_STATUS', 'OFFBOARDING_STARTED', 'OFFBOARDING_STATUS', 'CLEARANCE_SIGN_REQUEST', 'CLEARANCE_REJECTED', 'NEW_PULSE', 'PULSE_REMINDER', 'NEW_EVALUATION', 'EVAL_ACK_REMINDER');
+
+-- CreateEnum
+CREATE TYPE "NotificationChannel" AS ENUM ('IN_APP', 'EMAIL', 'BOTH');
 
 -- CreateTable
 CREATE TABLE "activity_logs" (
@@ -46,6 +52,8 @@ CREATE TABLE "activity_logs" (
     "oldValue" TEXT,
     "newValue" TEXT,
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "activity_logs_pkey" PRIMARY KEY ("id")
 );
@@ -60,6 +68,7 @@ CREATE TABLE "bulk_onboarding_jobs" (
     "failureCount" INTEGER NOT NULL DEFAULT 0,
     "status" "BulkJobStatus" NOT NULL DEFAULT 'PROCESSING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "bulk_onboarding_jobs_pkey" PRIMARY KEY ("id")
 );
@@ -69,7 +78,11 @@ CREATE TABLE "clearance_signatories" (
     "id" TEXT NOT NULL,
     "templateId" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "requirements" TEXT NOT NULL,
     "order" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "clearance_signatories_pkey" PRIMARY KEY ("id")
 );
@@ -79,9 +92,13 @@ CREATE TABLE "clearance_signature_requests" (
     "id" TEXT NOT NULL,
     "offboardingId" TEXT NOT NULL,
     "signatoryId" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "requirements" TEXT NOT NULL,
     "status" "SignatoryStatus" NOT NULL DEFAULT 'PENDING',
     "note" TEXT,
     "actionAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "clearance_signature_requests_pkey" PRIMARY KEY ("id")
 );
@@ -92,8 +109,19 @@ CREATE TABLE "clearance_templates" (
     "name" TEXT NOT NULL,
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "clearance_templates_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "departments" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "departments_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -109,7 +137,7 @@ CREATE TABLE "employees" (
     "address" TEXT,
     "emergencyContact" TEXT,
     "jobTitle" TEXT,
-    "department" TEXT,
+    "departmentId" TEXT,
     "supervisorId" TEXT,
     "status" "EmployeeStatus" NOT NULL DEFAULT 'ONBOARDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -125,6 +153,8 @@ CREATE TABLE "evaluation_acknowledgements" (
     "employeeId" TEXT NOT NULL,
     "isDeemedAck" BOOLEAN NOT NULL DEFAULT false,
     "acknowledgedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "evaluation_acknowledgements_pkey" PRIMARY KEY ("id")
 );
@@ -134,10 +164,16 @@ CREATE TABLE "notifications" (
     "id" TEXT NOT NULL,
     "recipientId" TEXT NOT NULL,
     "type" "NotificationType" NOT NULL,
+    "channel" "NotificationChannel" NOT NULL DEFAULT 'IN_APP',
     "subject" TEXT NOT NULL,
     "body" TEXT NOT NULL,
+    "linkUrl" TEXT,
+    "sourceType" TEXT,
+    "sourceId" TEXT,
     "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "readAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
@@ -147,11 +183,14 @@ CREATE TABLE "offboarding_records" (
     "id" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
     "clearanceTemplateId" TEXT NOT NULL,
+    "initiatedById" TEXT NOT NULL,
     "tenderDate" TIMESTAMP(3) NOT NULL,
     "effectiveDate" TIMESTAMP(3) NOT NULL,
     "attachmentUrl" TEXT,
-    "status" "OffboardingStatus" NOT NULL DEFAULT 'PENDING',
+    "status" "OffboardingStatus" NOT NULL DEFAULT 'IN_PROGRESS',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "offboarding_records_pkey" PRIMARY KEY ("id")
 );
@@ -162,6 +201,8 @@ CREATE TABLE "onboarding_custom_field_values" (
     "recordId" TEXT NOT NULL,
     "fieldId" TEXT NOT NULL,
     "value" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "onboarding_custom_field_values_pkey" PRIMARY KEY ("id")
 );
@@ -173,6 +214,7 @@ CREATE TABLE "onboarding_custom_fields" (
     "fieldLabel" TEXT NOT NULL,
     "isRequired" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "onboarding_custom_fields_pkey" PRIMARY KEY ("id")
 );
@@ -185,8 +227,11 @@ CREATE TABLE "onboarding_document_submissions" (
     "fileUrl" TEXT NOT NULL,
     "status" "DocumentStatus" NOT NULL DEFAULT 'PENDING',
     "rejectionNote" TEXT,
+    "reviewerId" TEXT,
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "reviewedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "onboarding_document_submissions_pkey" PRIMARY KEY ("id")
 );
@@ -200,6 +245,7 @@ CREATE TABLE "onboarding_documents" (
     "allowedFileTypes" TEXT NOT NULL,
     "isRequired" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "onboarding_documents_pkey" PRIMARY KEY ("id")
 );
@@ -212,6 +258,8 @@ CREATE TABLE "onboarding_invitations" (
     "status" "InviteStatus" NOT NULL DEFAULT 'PENDING',
     "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "onboarding_invitations_pkey" PRIMARY KEY ("id")
 );
@@ -224,6 +272,7 @@ CREATE TABLE "onboarding_records" (
     "isComplete" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "onboarding_records_pkey" PRIMARY KEY ("id")
 );
@@ -234,6 +283,7 @@ CREATE TABLE "onboarding_templates" (
     "name" TEXT NOT NULL,
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "onboarding_templates_pkey" PRIMARY KEY ("id")
 );
@@ -252,6 +302,7 @@ CREATE TABLE "performance_evaluations" (
     "supportingDocUrl" TEXT,
     "isSent" BOOLEAN NOT NULL DEFAULT false,
     "sentAt" TIMESTAMP(3),
+    "ackDeadline" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -281,6 +332,8 @@ CREATE TABLE "survey_answers" (
     "questionId" TEXT NOT NULL,
     "answerText" TEXT,
     "answerData" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "survey_answers_pkey" PRIMARY KEY ("id")
 );
@@ -291,18 +344,39 @@ CREATE TABLE "survey_audience_configs" (
     "surveyId" TEXT NOT NULL,
     "supervisorId" TEXT,
     "teamId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "survey_audience_configs_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "survey_audience_members" (
+    "occurrenceId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+
+    CONSTRAINT "survey_audience_members_pkey" PRIMARY KEY ("occurrenceId","employeeId")
+);
+
+-- CreateTable
+CREATE TABLE "survey_completions" (
+    "occurrenceId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "survey_completions_pkey" PRIMARY KEY ("occurrenceId","employeeId")
 );
 
 -- CreateTable
 CREATE TABLE "survey_occurrences" (
     "id" TEXT NOT NULL,
     "surveyId" TEXT NOT NULL,
+    "occurrenceNumber" INTEGER NOT NULL DEFAULT 1,
     "releaseDate" TIMESTAMP(3) NOT NULL,
     "deadline" TIMESTAMP(3) NOT NULL,
     "isClosed" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "survey_occurrences_pkey" PRIMARY KEY ("id")
 );
@@ -313,8 +387,15 @@ CREATE TABLE "survey_questions" (
     "surveyId" TEXT NOT NULL,
     "type" "QuestionType" NOT NULL,
     "questionText" TEXT NOT NULL,
+    "isRequired" BOOLEAN NOT NULL DEFAULT true,
     "options" JSONB,
+    "scaleMin" INTEGER,
+    "scaleMax" INTEGER,
+    "scaleMinLabel" TEXT,
+    "scaleMaxLabel" TEXT,
     "orderIndex" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "survey_questions_pkey" PRIMARY KEY ("id")
 );
@@ -325,6 +406,8 @@ CREATE TABLE "survey_reminder_configs" (
     "surveyId" TEXT NOT NULL,
     "frequency" "ReminderFrequency" NOT NULL DEFAULT 'DAILY',
     "everyXDays" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "survey_reminder_configs_pkey" PRIMARY KEY ("id")
 );
@@ -334,7 +417,11 @@ CREATE TABLE "survey_responses" (
     "id" TEXT NOT NULL,
     "occurrenceId" TEXT NOT NULL,
     "employeeId" TEXT,
+    "respondentSupervisorId" TEXT,
+    "respondentTeamIds" TEXT[],
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "survey_responses_pkey" PRIMARY KEY ("id")
 );
@@ -345,6 +432,8 @@ CREATE TABLE "team_members" (
     "teamId" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "team_members_pkey" PRIMARY KEY ("id")
 );
@@ -378,6 +467,9 @@ CREATE UNIQUE INDEX "clearance_signatories_templateId_order_key" ON "clearance_s
 
 -- CreateIndex
 CREATE UNIQUE INDEX "clearance_signature_requests_offboardingId_signatoryId_key" ON "clearance_signature_requests"("offboardingId", "signatoryId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "departments_name_key" ON "departments"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "employees_userId_key" ON "employees"("userId");
@@ -434,6 +526,9 @@ ALTER TABLE "clearance_signature_requests" ADD CONSTRAINT "clearance_signature_r
 ALTER TABLE "employees" ADD CONSTRAINT "employees_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "employees" ADD CONSTRAINT "employees_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "departments"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "employees" ADD CONSTRAINT "employees_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "employees"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -452,6 +547,9 @@ ALTER TABLE "offboarding_records" ADD CONSTRAINT "offboarding_records_employeeId
 ALTER TABLE "offboarding_records" ADD CONSTRAINT "offboarding_records_clearanceTemplateId_fkey" FOREIGN KEY ("clearanceTemplateId") REFERENCES "clearance_templates"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "offboarding_records" ADD CONSTRAINT "offboarding_records_initiatedById_fkey" FOREIGN KEY ("initiatedById") REFERENCES "employees"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "onboarding_custom_field_values" ADD CONSTRAINT "onboarding_custom_field_values_recordId_fkey" FOREIGN KEY ("recordId") REFERENCES "onboarding_records"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -465,6 +563,9 @@ ALTER TABLE "onboarding_document_submissions" ADD CONSTRAINT "onboarding_documen
 
 -- AddForeignKey
 ALTER TABLE "onboarding_document_submissions" ADD CONSTRAINT "onboarding_document_submissions_documentId_fkey" FOREIGN KEY ("documentId") REFERENCES "onboarding_documents"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "onboarding_document_submissions" ADD CONSTRAINT "onboarding_document_submissions_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "employees"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "onboarding_documents" ADD CONSTRAINT "onboarding_documents_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "onboarding_templates"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -497,7 +598,22 @@ ALTER TABLE "survey_answers" ADD CONSTRAINT "survey_answers_questionId_fkey" FOR
 ALTER TABLE "survey_audience_configs" ADD CONSTRAINT "survey_audience_configs_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "pulse_surveys"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "survey_audience_configs" ADD CONSTRAINT "survey_audience_configs_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "employees"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "survey_audience_configs" ADD CONSTRAINT "survey_audience_configs_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "teams"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "survey_audience_members" ADD CONSTRAINT "survey_audience_members_occurrenceId_fkey" FOREIGN KEY ("occurrenceId") REFERENCES "survey_occurrences"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "survey_audience_members" ADD CONSTRAINT "survey_audience_members_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "employees"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "survey_completions" ADD CONSTRAINT "survey_completions_occurrenceId_fkey" FOREIGN KEY ("occurrenceId") REFERENCES "survey_occurrences"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "survey_completions" ADD CONSTRAINT "survey_completions_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "employees"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "survey_occurrences" ADD CONSTRAINT "survey_occurrences_surveyId_fkey" FOREIGN KEY ("surveyId") REFERENCES "pulse_surveys"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -522,3 +638,4 @@ ALTER TABLE "team_members" ADD CONSTRAINT "team_members_employeeId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "teams" ADD CONSTRAINT "teams_leaderId_fkey" FOREIGN KEY ("leaderId") REFERENCES "employees"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+

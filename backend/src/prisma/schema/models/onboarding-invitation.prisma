@@ -6,12 +6,9 @@ model OnboardingInvitation {
   status      InviteStatus     @default(PENDING)
   sentAt      DateTime         @default(now())
   expiresAt   DateTime
-  createdAt   DateTime         @default(now())
-  createdBy   String?
-  updatedAt   DateTime         @updatedAt
-  updatedBy   String?
-  deletedAt   DateTime?
-  deletedBy   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("onboarding_invitations")
 }
