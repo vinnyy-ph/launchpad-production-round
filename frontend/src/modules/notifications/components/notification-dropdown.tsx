@@ -12,10 +12,10 @@ export function NotificationDropdown({ notifications, loading, onRead }: Props) 
   return (
     <div
       className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-[color:var(--border-primary)] bg-white"
-      style={{ boxShadow: "var(--shadow-lg)" }}
+      style={{ boxShadow: "var(--shadow-sm)" }}
     >
       <div className="border-b border-[color:var(--border-primary)] px-4 py-3">
-        <span className="text-sm font-semibold text-[color:var(--text-primary)]">
+        <span className="text-sm font-bold text-[color:var(--text-primary)]">
           Notifications
         </span>
       </div>

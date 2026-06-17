@@ -1,14 +1,11 @@
-import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  Home, User, ClipboardList, CheckSquare, BarChart2,
-  Users, UserPlus, UserMinus, LayoutGrid, Shield,
-  ChevronRight, ChevronLeft, FileText, Rss,
-  type LucideIcon,
+  LayoutDashboard, TrendingUp, DoorOpen, LayoutGrid, ClipboardCheck,
+  Users, Network, ClipboardList, UserCog, type LucideIcon
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { SwiftWorkLogo } from "@/shared/components/brand/swift-work-logo";
 import type { Role } from "@/modules/auth/types/auth.types";
+import { cn } from "@/shared/lib/utils";
 
 type AllowedRole = Role | "SUPERVISOR" | "ALL";
 
@@ -21,58 +18,39 @@ interface NavItem {
 
 const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
   {
-    title: "",
+    title: "General",
     items: [
-      { label: "Home", icon: Home, href: "/", roles: ["ALL"] },
+      { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ALL"] },
+      { label: "Performance", icon: TrendingUp, href: "/performance", roles: ["ALL"] },
+      { label: "Offboarding", icon: DoorOpen, href: "/offboarding", roles: ["ALL"] }, // Simplified condition for now
     ],
   },
   {
-    title: "My Work",
+    title: "My Team",
     items: [
-      { label: "My Profile", icon: User, href: "/employee/profile", roles: ["EMPLOYEE", "SUPERVISOR"] },
-      { label: "My Onboarding", icon: ClipboardList, href: "/employee/onboarding", roles: ["EMPLOYEE", "SUPERVISOR"] },
-      { label: "My Clearance", icon: CheckSquare, href: "/employee/clearance", roles: ["EMPLOYEE", "SUPERVISOR"] },
-      { label: "My Surveys", icon: BarChart2, href: "/employee/surveys", roles: ["ALL"] },
+      { label: "Overview", icon: LayoutGrid, href: "/supervisor/reports", roles: ["SUPERVISOR"] },
+      { label: "Evaluations", icon: ClipboardCheck, href: "/supervisor/evaluations", roles: ["SUPERVISOR"] },
     ],
   },
   {
-    title: "People",
+    title: "Organization",
     items: [
-      { label: "Directory", icon: Users, href: "/hr/directory", roles: ["HR", "ADMIN"] },
-      { label: "Onboarding", icon: UserPlus, href: "/hr/onboarding", roles: ["HR", "ADMIN"] },
-      { label: "Offboarding", icon: UserMinus, href: "/hr/offboarding", roles: ["HR", "ADMIN"] },
-      { label: "Teams", icon: LayoutGrid, href: "/hr/teams", roles: ["HR", "ADMIN"] },
+      { label: "People", icon: Users, href: "/hr/directory", roles: ["HR"] },
+      { label: "Structure", icon: Network, href: "/hr/teams", roles: ["HR"] },
+      { label: "Surveys", icon: ClipboardList, href: "/hr/surveys", roles: ["HR"] },
     ],
   },
   {
-    title: "Performance",
+    title: "Admin",
     items: [
-      { label: "Evaluations", icon: FileText, href: "/supervisor/evaluations", roles: ["SUPERVISOR", "ADMIN"] },
-      { label: "My Reports", icon: BarChart2, href: "/supervisor/reports", roles: ["SUPERVISOR", "ADMIN"] },
-      { label: "Surveys", icon: Rss, href: "/hr/surveys", roles: ["HR", "ADMIN"] },
-    ],
-  },
-  {
-    title: "System",
-    items: [
-      { label: "Users", icon: Shield, href: "/admin/users", roles: ["ADMIN"] },
+      { label: "Users", icon: UserCog, href: "/admin/users", roles: ["ADMIN"] },
     ],
   },
 ];
 
 export function Sidebar() {
-  const [expanded, setExpanded] = useState<boolean>(() => {
-    return localStorage.getItem("sidebar-expanded") !== "false";
-  });
   const { appUser } = useAuth();
   const location = useLocation();
-
-  const toggle = () => {
-    setExpanded((prev) => {
-      localStorage.setItem("sidebar-expanded", String(!prev));
-      return !prev;
-    });
-  };
 
   const canSee = (roles: AllowedRole[]) => {
     if (!appUser) return false;
@@ -87,71 +65,82 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex h-full flex-shrink-0 flex-col border-r border-[color:var(--border-primary)] transition-all duration-200"
-      style={{ width: expanded ? 220 : 52, background: "var(--bg-secondary)" }}
+      className="flex h-full w-[240px] flex-shrink-0 flex-col border-r border-[color:var(--border-primary)] z-20"
+      style={{ background: "var(--gray-50)" }}
     >
-      {/* Logo */}
-      <div className="flex h-14 items-center px-3 border-b border-[color:var(--border-primary)]">
-        {expanded ? (
-          <SwiftWorkLogo tone="dark" size={28} />
-        ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--gray-neutral-900)] flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 40 40" aria-hidden="true">
-              <g fill="#FFFFFF">
-                <rect x="12" y="22" width="4.2" height="8" rx="2.1" />
-                <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1" />
-                <rect x="23.8" y="11" width="4.2" height="19" rx="2.1" />
-              </g>
-            </svg>
+      {/* Workspace Section (Logomark) */}
+      <div className="px-5 mt-[20px] mb-6">
+        <div className="flex items-center gap-2 p-3 bg-white rounded-xl shadow-[inset_0_0_0_1px_rgb(233,234,235)]">
+          <div 
+            className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center" 
+            style={{ background: "var(--gradient-jia)" }}
+          >
+            <span className="text-white font-bold text-[15px] tracking-[0.01em] leading-none font-sans">
+              SW
+            </span>
           </div>
-        )}
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-medium text-[color:var(--text-primary)] truncate leading-tight">
+              Swift Work
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Nav */}
+      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
         {NAV_SECTIONS.map((section) => {
           const visible = section.items.filter((item) => canSee(item.roles));
           if (visible.length === 0) return null;
           return (
-            <div key={section.title || "home"} className="mb-1">
-              {expanded && section.title && (
-                <span className="block px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--text-tertiary)]">
+            <div key={section.title || "home"} className="mb-4">
+              {section.title && (
+                <span className="block px-5 pb-1 text-[12px] font-bold uppercase tracking-[0.04em] text-[color:var(--text-quaternary)]">
                   {section.title}
                 </span>
               )}
-              {visible.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <NavLink
-                    key={item.href}
-                    to={item.href}
-                    title={!expanded ? item.label : undefined}
-                    className={[
-                      "mx-1 flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors",
-                      active
-                        ? "bg-white font-medium text-[color:var(--text-primary)] shadow-[var(--shadow-xs)]"
-                        : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-primary)]",
-                    ].join(" ")}
-                  >
-                    <Icon size={16} className="flex-shrink-0" />
-                    {expanded && <span className="truncate">{item.label}</span>}
-                  </NavLink>
-                );
-              })}
+              <div className="flex flex-col px-2 pb-4">
+                {visible.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <NavLink
+                      key={item.href}
+                      to={item.href}
+                      className={cn(
+                        "flex items-center h-[36px] px-3 rounded-md transition-all duration-100 group gap-2",
+                        active
+                          ? "bg-[rgb(239,241,245)] text-[rgb(37,43,55)]"
+                          : "text-[rgb(65,70,81)] hover:bg-[rgb(239,241,245)]"
+                      )}
+                    >
+                      <Icon 
+                        size={20} 
+                        className={cn(
+                          "flex-shrink-0 transition-colors",
+                          active ? "text-[rgb(37,43,55)]" : "text-[#A4A7AE] group-hover:text-[rgb(37,43,55)]"
+                        )} 
+                      />
+                      <span className="truncate text-[14px] font-medium">
+                        {item.label}
+                      </span>
+                    </NavLink>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
       </nav>
 
-      {/* Expand/collapse toggle */}
-      <button
-        onClick={toggle}
-        className="flex h-10 w-full items-center justify-center border-t border-[color:var(--border-primary)] text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-secondary)]"
-        aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-      >
-        {expanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-      </button>
+      {/* Footer */}
+      <div className="mt-auto flex flex-col">
+        <div className="px-4 py-4 text-center">
+          <p className="text-[12px] font-medium text-[color:var(--text-tertiary)]">
+            © 2026 White Cloak Technologies, Inc.
+          </p>
+        </div>
+      </div>
     </aside>
   );
 }

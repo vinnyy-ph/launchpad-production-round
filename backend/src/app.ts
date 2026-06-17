@@ -10,6 +10,8 @@ import { authLimiter, globalLimiter } from "./core/middleware/rate-limit.middlew
 import { swaggerSpec } from "./docs/swagger.config";
 import { authRoutes } from "./modules/auth";
 import { dashboardRoutes } from "./modules/dashboard";
+import { usersRouter } from "./modules/people/users";
+import { pulseSurveysRouter } from "./modules/performance/surveys";
 
 export const app = express();
 
@@ -50,4 +52,6 @@ app.get(API_ROUTES.ROOT, (_req, res) =>
   }),
 );
 app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) => res.json({ user: req.user }));
+app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/pulse`, pulseSurveysRouter);

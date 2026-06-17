@@ -1,28 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchNotifications } from "../services/notifications.service";
-import type { Notification } from "../types/notifications.types";
+
+export const NOTIFICATIONS_KEY = ["notifications"] as const;
 
 export function useNotifications(limit = 10) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: [...NOTIFICATIONS_KEY, limit],
+    queryFn: () => fetchNotifications(limit),
+    // TODO: re-enable when /api/notifications route exists (Darben's backend module)
+    enabled: false,
+  });
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchNotifications(limit);
-      setNotifications(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load notifications");
-    } finally {
-      setLoading(false);
-    }
-  }, [limit]);
-
-  useEffect(() => { void load(); }, [load]);
-
+  const notifications = data ?? [];
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  return { notifications, loading, error, unreadCount, reload: load };
+  return {
+    notifications,
+    loading: isLoading,
+    error: error instanceof Error ? error.message : null,
+    unreadCount,
+    reload: refetch,
+  };
 }
