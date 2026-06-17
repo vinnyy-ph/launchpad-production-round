@@ -43,7 +43,8 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
     <tr
       ref={ref}
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+        // Brandbook .portal-table tbody tr: gc-100 row divider, gc-50 hover, blue-tint selected.
+        "border-b border-[color:var(--gray-100)] transition-colors hover:bg-[color:var(--gray-50)] data-[state=selected]:bg-[rgba(159,202,237,0.07)]",
         className
       )}
       {...props}
@@ -52,6 +53,8 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
 );
 TableRow.displayName = "TableRow";
 
+// Brandbook .portal-table thead th: gc-50 bg, 9/12 padding, 10.5px bold uppercase,
+// .8px tracking, tertiary text, 1px g-200 bottom border.
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   React.ThHTMLAttributes<HTMLTableCellElement>
@@ -59,7 +62,10 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      "px-3 py-[9px] text-left align-middle whitespace-nowrap",
+      "border-b border-[color:var(--gray-neutral-200)] bg-[color:var(--gray-50)]",
+      "text-[10.5px] font-bold uppercase tracking-[0.8px] text-[color:var(--text-tertiary)]",
+      "[&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}
@@ -67,13 +73,17 @@ const TableHead = React.forwardRef<
 ));
 TableHead.displayName = "TableHead";
 
+// .portal-table td: 10/12 padding, weight 500, primary text.
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
   React.TdHTMLAttributes<HTMLTableCellElement>
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("p-2 align-middle [&:has([role=checkbox])]:pr-0", className)}
+    className={cn(
+      "px-3 py-2.5 align-middle font-medium text-[color:var(--text-primary)] [&:has([role=checkbox])]:pr-0",
+      className
+    )}
     {...props}
   />
 ));

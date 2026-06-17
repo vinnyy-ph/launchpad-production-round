@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/shared/ui/primitives/button";
 import { cn } from "@/shared/lib/utils";
 
@@ -15,15 +15,15 @@ export function ErrorState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-3 px-6 py-12 text-center",
+        "flex flex-col gap-1.5 rounded-[10px] border border-[#FECDCA] bg-[#FEF3F2] p-4",
         className,
       )}
       role="alert"
     >
-      <AlertCircle className="h-6 w-6 text-[color:var(--color-error-500)]" aria-hidden="true" />
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="text-sm font-bold text-[#B42318]">Something went wrong</p>
+      <p className="text-[12.5px] font-medium text-[#B42318]">{message}</p>
       {onRetry && (
-        <Button variant="outline" size="sm" onClick={onRetry}>
+        <Button variant="outline" size="sm" className="mt-2 self-start" onClick={onRetry}>
           <RefreshCw /> Try again
         </Button>
       )}

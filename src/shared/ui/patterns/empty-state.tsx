@@ -28,10 +28,10 @@ export function EmptyState({ icon: Icon, title, body, action, className }: Empty
         className,
       )}
     >
-      <Icon className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+      <Icon className="h-8 w-8 text-[color:var(--text-quaternary)]" aria-hidden="true" />
       <div className="space-y-1">
         <p className="text-sm font-bold text-foreground">{title}</p>
-        {body && <p className="text-sm text-muted-foreground">{body}</p>}
+        {body && <p className="text-[12.5px] font-medium text-[color:var(--text-tertiary)]">{body}</p>}
       </div>
       {action &&
         (isActionConfig(action) ? (

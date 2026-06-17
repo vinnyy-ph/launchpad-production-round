@@ -82,19 +82,15 @@ export function Sidebar({
       style={{ background: "var(--gray-50)" }}
     >
       {/* Workspace switcher */}
-      <div className="px-5 mt-[20px] mb-6">
-        <div className="flex items-center gap-2 p-3 bg-white rounded-xl shadow-[inset_0_0_0_1px_rgb(233,234,235)]">
+      <div className="px-5 mt-[20px] mb-6 border-b border-[color:var(--border-primary)] pb-4">
+        <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-[color:var(--border-primary)]">
           <div
-            className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center"
+            className="w-7 h-7 rounded-lg flex-shrink-0"
             style={{ background: "var(--gradient-jia)" }}
-          >
-            <span className="text-white font-bold text-[15px] tracking-[0.01em] leading-none font-sans">
-              SW
-            </span>
-          </div>
+          />
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-medium text-[color:var(--text-primary)] truncate leading-tight">
-              SwiftWork
+              SwiftWork ✦
             </p>
           </div>
           <ChevronsUpDown
@@ -113,7 +109,7 @@ export function Sidebar({
           return (
             <div key={section.title || "home"} className="mb-4">
               {section.title && (
-                <span className="block px-5 pb-1 text-[12px] font-bold uppercase tracking-[0.04em] text-[color:var(--text-quaternary)]">
+                <span className="block px-5 pb-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[color:var(--text-quaternary)]">
                   {section.title}
                 </span>
               )}
@@ -127,20 +123,20 @@ export function Sidebar({
                       href={item.href}
                       onClick={onNavigate}
                       className={cn(
-                        "flex items-center h-[36px] px-3 rounded-md transition-all duration-100 group gap-2",
+                        "flex items-center py-[7px] px-4 rounded-md transition-all duration-100 group gap-[9px]",
                         active
-                          ? "bg-[rgb(239,241,245)] text-[rgb(37,43,55)]"
+                          ? "bg-[rgb(239,241,245)] text-[color:var(--text-primary)]"
                           : "text-[rgb(65,70,81)] hover:bg-[rgb(239,241,245)]"
                       )}
                     >
                       <Icon
-                        size={20}
+                        size={16}
                         className={cn(
                           "flex-shrink-0 transition-colors",
-                          active ? "text-[rgb(37,43,55)]" : "text-[#A4A7AE] group-hover:text-[rgb(37,43,55)]"
+                          active ? "text-[color:var(--text-primary)]" : "text-[#A4A7AE] group-hover:text-[color:var(--text-primary)]"
                         )}
                       />
-                      <span className="truncate text-[14px] font-medium flex-1">
+                      <span className={cn("truncate text-[14px] flex-1", active ? "font-bold" : "font-medium")}>
                         {item.label}
                       </span>
                       {item.badge != null && item.badge > 0 && (
@@ -161,7 +157,7 @@ export function Sidebar({
       <div className="mt-auto flex flex-col">
         <div className="px-4 py-4 text-center">
           <p className="text-[12px] font-medium text-[color:var(--text-tertiary)]">
-            © 2026 White Cloak Technologies, Inc.
+            © 2026 SwiftWork
           </p>
         </div>
       </div>

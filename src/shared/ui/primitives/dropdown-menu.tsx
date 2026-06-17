@@ -63,7 +63,8 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+        // Brandbook .dd-menu: 8px radius, 1px rgba(0,0,0,.08) border, 4px/0 padding, layered soft shadow.
+        "z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border border-[rgba(0,0,0,0.08)] bg-popover py-1 text-popover-foreground shadow-[0_4px_6px_-2px_rgba(10,13,18,0.03),0_12px_16px_-4px_rgba(10,13,18,0.08)]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-dropdown-menu-content-transform-origin]",
         className
       )}
@@ -73,16 +74,24 @@ const DropdownMenuContent = React.forwardRef<
 ))
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
 
+// B3F-4: destructive item variant — #D92D20 text + #FEF3F2 hover bg; icon inherits color.
+// Default variant keeps existing behavior so all call-sites compile unchanged.
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
     inset?: boolean
+    variant?: "default" | "destructive"
   }
->(({ className, inset, ...props }, ref) => (
+>(({ className, inset, variant = "default", ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
+      // Brandbook .dd-item: 9/12 padding, 13.5px weight 500, gap 8px, hover gc-50, no radius.
+      "relative flex cursor-default select-none items-center gap-2 px-3 py-[9px] text-[13.5px] font-medium outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-[color:var(--text-tertiary)]",
+      // default hover
+      variant === "default" && "text-[color:var(--text-primary)] focus:bg-gray-50 focus:text-[color:var(--text-primary)]",
+      // destructive: red text + light-red hover bg; icon inherits via currentColor
+      variant === "destructive" && "text-[#D92D20] focus:bg-[#FEF3F2] focus:text-[#D92D20] [&>svg]:text-[#D92D20]",
       inset && "pl-8",
       className
     )}
@@ -146,7 +155,7 @@ const DropdownMenuLabel = React.forwardRef<
   <DropdownMenuPrimitive.Label
     ref={ref}
     className={cn(
-      "px-2 py-1.5 text-sm font-semibold",
+      "px-3 py-1.5 text-sm font-semibold",
       inset && "pl-8",
       className
     )}
@@ -161,7 +170,7 @@ const DropdownMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    className={cn("my-1 h-px bg-[color:var(--gray-neutral-200)]", className)}
     {...props}
   />
 ))

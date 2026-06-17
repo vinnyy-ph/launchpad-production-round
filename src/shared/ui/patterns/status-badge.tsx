@@ -1,14 +1,23 @@
 import { cn } from "@/shared/lib/utils";
 
-type Tone = "neutral" | "success" | "warning" | "error" | "info";
+type Tone = "neutral" | "success" | "warning" | "error" | "brand" | "info";
+type Shape = "default" | "pill" | "modern";
 
+// Exact brandbook .badge colorways (match Badge primitive 1:1).
 const TONE_CLASS: Record<Tone, string> = {
-  neutral: "bg-secondary text-secondary-foreground",
-  success: "bg-[var(--color-success-50)] text-[var(--color-success-600)]",
-  warning: "bg-[var(--color-warning-50)] text-[var(--color-warning-600)]",
-  error: "bg-[var(--color-error-50)] text-[var(--color-error-600)]",
-  // No brand "info" token yet — alias to neutral until one exists.
-  info: "bg-secondary text-secondary-foreground",
+  neutral: "bg-[#FAFAFA] text-[color:var(--text-secondary)] border-[#E9EAEB]",
+  success: "bg-[#ECFDF3] text-[#067647] border-[#ABEFC6]",
+  warning: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]",
+  error: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]",
+  brand: "bg-[#EEF4FF] text-[#3538CD] border-[#C7D7FE]",
+  // "info" is an alias kept for back-compat — maps to the brand colorway.
+  info: "bg-[#EEF4FF] text-[#3538CD] border-[#C7D7FE]",
+};
+
+const SHAPE_CLASS: Record<Shape, string> = {
+  default: "rounded-sm",
+  pill: "rounded-full",
+  modern: "rounded-full bg-white text-[color:var(--text-secondary)] border-[#D5D7DA]",
 };
 
 // Enum-backed literals (authoritative) + derived literals (no producer yet).
@@ -47,10 +56,14 @@ function toSentenceCase(s: string): string {
 export function StatusBadge({
   status,
   tone,
+  dot = false,
+  shape = "pill",
   className,
 }: {
   status: string;
   tone?: Tone;
+  dot?: boolean;
+  shape?: Shape;
   className?: string;
 }) {
   const key = typeof status === "string" ? status.toUpperCase() : "";
@@ -58,11 +71,18 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex items-center gap-[5px] border px-2 py-[3px] text-xs font-medium",
         TONE_CLASS[resolved],
+        SHAPE_CLASS[shape],
         className,
       )}
     >
+      {dot && (
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full bg-current"
+          aria-hidden="true"
+        />
+      )}
       {toSentenceCase(status)}
     </span>
   );

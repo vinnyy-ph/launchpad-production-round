@@ -24,7 +24,7 @@
   gap: 10px;
   align-items: flex-start;
   background: var(--color-error-50);
-  border: 1px solid var(--color-error-200);
+  border: 1px solid var(--border-secondary);
   border-radius: var(--radius-lg, 10px);
   padding: 12px 14px;
   color: var(--color-error-600);

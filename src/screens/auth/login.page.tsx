@@ -23,8 +23,8 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen md:grid md:grid-cols-2">
       {/* Mobile gradient band (hidden on desktop) */}
-      <div className="sw-poster flex h-[150px] items-end p-6 md:hidden">
-        <p className="max-w-[230px] text-lg font-bold leading-tight tracking-[-0.02em] text-white">
+      <div className="sw-poster flex min-h-[200px] items-end p-6 md:hidden">
+        <p className="max-w-[230px] text-lg font-bold leading-[38px] tracking-[-0.02em] text-white">
           Where your people and performance live in one place.
         </p>
       </div>
@@ -33,7 +33,7 @@ export default function LoginPage() {
       <div className="flex items-center justify-center bg-white px-6 py-12 md:p-16">
         <div className="flex w-full max-w-[380px] flex-col">
           <SwiftWorkLogo />
-          <h1 className="mt-10 text-[28px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-4xl">
+          <h1 className="mt-10 text-[30px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-4xl">
             Welcome back
           </h1>
           <p className="mt-3 text-base leading-relaxed text-[color:var(--text-secondary)]">
@@ -59,7 +59,7 @@ export default function LoginPage() {
 
       {/* Desktop poster (hidden on mobile) */}
       <div className="sw-poster hidden items-end p-14 md:flex md:order-last">
-        <p className="max-w-[380px] text-3xl font-bold leading-snug tracking-[-0.02em] text-white">
+        <p className="max-w-[380px] text-3xl font-bold leading-[38px] tracking-[-0.02em] text-white">
           Where your people and performance live in one place.
         </p>
       </div>

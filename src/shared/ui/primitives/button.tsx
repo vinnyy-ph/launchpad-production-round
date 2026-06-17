@@ -4,22 +4,29 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/shared/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-[colors,transform] active:scale-[.97] disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // Brandbook .btn: 8px radius, 1px border (per-variant color), weight 500, 8px gap, disabled .38.
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border text-sm font-medium disabled:pointer-events-none disabled:opacity-[.38] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.97] [transition:background_120ms_cubic-bezier(.2,0,0,1),transform_100ms_cubic-bezier(.2,0,0,1),box-shadow_120ms_cubic-bezier(.2,0,0,1),color_120ms_cubic-bezier(.2,0,0,1),border-color_120ms_cubic-bezier(.2,0,0,1)]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        default:     "border-transparent bg-primary text-primary-foreground hover:bg-primary-hover",
+        destructive: "border-transparent bg-[#D92D20] text-white hover:bg-[#b91c1c]",
+        outline:     "border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary:   "border-input bg-white text-foreground shadow-xs hover:bg-gray-50",
+        ghost:       "border-transparent text-foreground hover:bg-[var(--gray-50)]",
+        link:        "border-transparent text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 px-3 text-sm",
-        lg: "h-11 px-5",
-        icon: "h-10 w-10",
+        xs:      "h-8 px-2.5 text-xs gap-1.5",
+        sm:      "h-9 px-3 text-[13px] gap-1.5",
+        default: "h-10 px-3.5",
+        lg:      "h-11 px-4",
+        xl:      "h-12 px-[18px] text-base gap-2",
+        icon:    "h-10 w-10",
+        "icon-xs": "h-8 w-8",
+        "icon-sm": "h-9 w-9",
+        "icon-lg": "h-11 w-11",
+        "icon-xl": "h-12 w-12",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

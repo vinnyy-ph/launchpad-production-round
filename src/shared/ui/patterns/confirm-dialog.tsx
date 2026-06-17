@@ -67,7 +67,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               <AlertDialogDescription>{opts.description}</AlertDialogDescription>
             )}
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className={cn(opts?.destructive && "sm:flex-row-reverse sm:justify-start")}>
             <AlertDialogCancel onClick={() => settle(false)}>
               {opts?.cancelLabel ?? "Cancel"}
             </AlertDialogCancel>
