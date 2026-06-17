@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { redirect } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../hooks/use-auth";
 
 interface RequireAuthProps {
@@ -10,13 +10,16 @@ interface RequireAuthProps {
 
 export function RequireAuth({ children }: RequireAuthProps) {
   const { appUser, loading } = useAuth();
+  const router = useRouter();
 
-  if (loading) {
+  // Redirect in an effect, never during render — calling redirect()/router
+  // methods while rendering races the active navigation and crashes React.
+  useEffect(() => {
+    if (!loading && !appUser) router.replace("/login");
+  }, [loading, appUser, router]);
+
+  if (loading || !appUser) {
     return <div className="min-h-screen bg-white" aria-busy="true" />;
-  }
-
-  if (!appUser) {
-    redirect("/login");
   }
 
   return <>{children}</>;
