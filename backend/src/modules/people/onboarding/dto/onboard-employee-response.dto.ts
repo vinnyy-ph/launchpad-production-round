@@ -8,6 +8,11 @@ export interface OnboardedEmployeeDto {
   companyEmail: string;
   firstName: string;
   lastName: string;
+  middleName: string | null;
+  personalEmail: string | null;
+  birthday: string | null;
+  address: string | null;
+  emergencyContact: string | null;
   jobTitle: string;
   department: string;
   supervisor: {
