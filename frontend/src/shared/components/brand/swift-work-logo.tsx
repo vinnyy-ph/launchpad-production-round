@@ -51,7 +51,7 @@ export function SwiftWorkLogo({ tone = "dark", size = 38, className, markOnly = 
           lineHeight: 1,
         }}
       >
-        Swift Work
+        SwiftWork
       </span>
       <span
         aria-hidden="true"

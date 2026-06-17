@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/lib/query-keys";
 import { fetchNotifications } from "../services/notifications.service";
-
-export const NOTIFICATIONS_KEY = ["notifications"] as const;
 
 export function useNotifications(limit = 10) {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: [...NOTIFICATIONS_KEY, limit],
+    queryKey: queryKeys.notifications.list(limit),
     queryFn: () => fetchNotifications(limit),
     // TODO: re-enable when /api/notifications route exists (Darben's backend module)
     enabled: false,
