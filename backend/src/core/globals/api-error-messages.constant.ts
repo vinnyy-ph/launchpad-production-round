@@ -21,6 +21,9 @@ export const API_ERROR_MESSAGES = {
   CANNOT_DEMOTE_LAST_ADMIN: "Cannot change the role of the last remaining admin. The system must always have at least one admin.",
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
   INVALID_USER_ROLE: "Role must be HR or Employee",
+  EMPLOYEE_ALREADY_EXISTS: "An employee with this email already exists",
+  SUPERVISOR_NOT_FOUND: "Supervisor not found",
+  ONBOARDING_FAILED: "Failed to create onboarding record",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];
