@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import "@/shared/styles/jia-tokens.css";
 import "@/shared/styles/fonts/satoshi.css";
 import "@/index.css";
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
   description: "People and performance, in one place.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
