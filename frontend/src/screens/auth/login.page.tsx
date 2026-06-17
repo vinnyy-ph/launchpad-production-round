@@ -43,14 +43,14 @@ export default function LoginPage() {
           {status === "error" && (
             <div className="sw-alert mt-8" role="alert">
               <AlertCircle size={16} aria-hidden="true" />
-              <span>Swift Work couldn't sign you in. Try again.</span>
+              <span>SwiftWork couldn't sign you in. Try again.</span>
             </div>
           )}
 
           <GoogleSignInButton className="mt-8" onClick={handleSignIn} loading={loading} />
 
           <p className="mt-6 text-[13px] leading-relaxed text-[color:var(--text-tertiary)]">
-            By continuing you agree to Swift Work's{" "}
+            By continuing you agree to SwiftWork's{" "}
             <a href="#" className="text-[color:var(--text-secondary)] underline underline-offset-2">Terms</a> and{" "}
             <a href="#" className="text-[color:var(--text-secondary)] underline underline-offset-2">Privacy Policy</a>.
           </p>
