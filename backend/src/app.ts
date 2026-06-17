@@ -3,6 +3,7 @@ import express from "express";
 import { API_ROUTES } from "./core/globals";
 import { authenticate } from "./core/middleware/auth.middleware";
 import { employeesRouter } from "./modules/people/employees";
+import { teamsRouter } from "./modules/people/teams";
 import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
@@ -51,3 +52,4 @@ app.get(API_ROUTES.ROOT, (_req, res) =>
 );
 app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) => res.json({ user: req.user }));
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/teams`, teamsRouter);
