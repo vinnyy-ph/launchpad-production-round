@@ -24,6 +24,7 @@ const options: swaggerJsdoc.Options = {
       { name: "Users", description: "Admin user management (add and deactivate accounts)" },
       { name: "Onboarding", description: "HR employee onboarding (create employee and start onboarding)" },
       { name: "Onboarding Documents", description: "HR required document checklist for employee onboarding" },
+      { name: "Onboarding Custom Fields", description: "HR custom text fields for employee onboarding" },
     ],
     components: {
       securitySchemes: {

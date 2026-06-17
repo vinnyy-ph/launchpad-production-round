@@ -20,6 +20,11 @@ export const API_SUCCESS_MESSAGES = {
   DOCUMENT_RETRIEVED: "Required document retrieved successfully",
   DOCUMENT_UPDATED: "Required document updated successfully",
   DOCUMENT_DELETED: "Required document deleted successfully",
+  CUSTOM_FIELD_CREATED: "Custom field created successfully",
+  CUSTOM_FIELDS_RETRIEVED: "Custom fields retrieved successfully",
+  CUSTOM_FIELD_RETRIEVED: "Custom field retrieved successfully",
+  CUSTOM_FIELD_UPDATED: "Custom field updated successfully",
+  CUSTOM_FIELD_DELETED: "Custom field deleted successfully",
 } as const;
 
 export type ApiSuccessMessage =
