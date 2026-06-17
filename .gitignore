@@ -1,52 +1,20 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-node_modules/
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-dist/
-
-# tsc -b emits these next to the source config (composite project)
-frontend/vite.config.js
-frontend/vite.config.d.ts
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
-.env
-.env.testing
-
-# claude
-.claude/
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
+# Next.js
+.next/
 next-env.d.ts
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.swc/
+
+# Environment
+.env
+.env.local
+
+# TypeScript build info
+*.tsbuildinfo
 
 .claude/
 .superpowers/
-
-.cursor/
-
-CONTEXT.md
