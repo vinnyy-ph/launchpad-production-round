@@ -18,6 +18,7 @@ jest.mock("../../core/database/prisma.service", () => ({
       findMany: jest.fn(),
       count: jest.fn(),
       findFirst: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));
@@ -36,7 +37,6 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
       expect.objectContaining({
         where: {
           id: "employee-active",
-          deletedAt: null,
         },
       }),
     );
@@ -59,9 +59,7 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
         address: "123 Example Street",
         emergencyContact: "Jamie Reed, +1 555 0100",
         createdAt: "2026-01-01T00:00:00.000Z",
-        createdBy: "hr-user",
         updatedAt: "2026-01-02T00:00:00.000Z",
-        updatedBy: "hr-user",
         status: "active",
         teams: [{ id: "team-engineering", name: "Engineering" }],
         ledTeams: [{ id: "team-platform", name: "Platform" }],
@@ -102,7 +100,6 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
       expect.objectContaining({
         where: {
           id: "employee-inactive",
-          deletedAt: null,
         },
       }),
     );

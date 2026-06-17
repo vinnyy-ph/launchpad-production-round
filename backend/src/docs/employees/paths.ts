@@ -241,6 +241,55 @@
  *           example: Employee retrieved successfully
  *         data:
  *           $ref: '#/components/schemas/EmployeeProfile'
+ *     UpdateEmployeeProfileRequest:
+ *       type: object
+ *       description: HR-editable employee profile fields. Omitted fields are left unchanged.
+ *       properties:
+ *         companyEmail:
+ *           type: string
+ *           format: email
+ *           example: marco.reed@example.com
+ *         firstName:
+ *           type: string
+ *           example: Marco
+ *         lastName:
+ *           type: string
+ *           example: Reed
+ *         middleName:
+ *           type: string
+ *           nullable: true
+ *         personalEmail:
+ *           type: string
+ *           format: email
+ *           nullable: true
+ *           example: marco.personal@example.com
+ *         birthday:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         address:
+ *           type: string
+ *           nullable: true
+ *           example: 123 Example Street
+ *         emergencyContact:
+ *           type: string
+ *           nullable: true
+ *           example: Jamie Reed, +1 555 0100
+ *         jobTitle:
+ *           type: string
+ *           nullable: true
+ *           example: Senior Backend Engineer
+ *         department:
+ *           type: string
+ *           nullable: true
+ *           example: Engineering
+ *         supervisorId:
+ *           type: string
+ *           nullable: true
+ *           description: Send null to clear the supervisor.
+ *           example: supervisor-1
+ *         status:
+ *           $ref: '#/components/schemas/EmployeeStatus'
  *     ApiError:
  *       type: object
  *       properties:
@@ -353,6 +402,42 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/EmployeeProfileResponse'
+ *       404:
+ *         description: Employee not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *   patch:
+ *     tags: [Employees]
+ *     summary: Edit one employee profile
+ *     description: Allows HR to edit another employee profile and returns the refreshed unredacted profile.
+ *     parameters:
+ *       - in: path
+ *         name: employeeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Employee ID.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateEmployeeProfileRequest'
+ *     responses:
+ *       200:
+ *         description: Employee profile updated.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/EmployeeProfileResponse'
+ *       400:
+ *         description: Invalid profile update input.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
  *       404:
  *         description: Employee not found.
  *         content:

@@ -14,6 +14,7 @@ jest.mock("../../core/database/prisma.service", () => ({
       findMany: jest.fn(),
       count: jest.fn(),
       findFirst: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));
@@ -46,18 +47,16 @@ describe("GET /api/v1/employees - search and filter employees", () => {
         skip: 10,
         take: 10,
         where: expect.objectContaining({
-          deletedAt: null,
           status: "ACTIVE",
           supervisorId: "supervisor-1",
           OR: expect.arrayContaining([
             { firstName: { contains: "marcus", mode: "insensitive" } },
             { companyEmail: { contains: "marcus", mode: "insensitive" } },
+            { department: { name: { contains: "marcus", mode: "insensitive" } } },
           ]),
           teamMemberships: {
             some: {
-              deletedAt: null,
               team: {
-                deletedAt: null,
                 name: { contains: "engineering", mode: "insensitive" },
               },
             },

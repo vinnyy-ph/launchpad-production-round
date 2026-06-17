@@ -4,13 +4,14 @@ import * as https from 'https'
 import { neonConfig } from '@neondatabase/serverless'
 import nodeFetch from 'node-fetch'
 
-// Node.js native fetch tries IPv6 first which times out on this network — use node-fetch with IPv4 agent
+// Node.js native fetch can prefer IPv6 on some networks, so Neon uses an IPv4 agent here.
 const ipv4Agent = new https.Agent({ family: 4 })
 neonConfig.fetchFunction = (url: string, opts?: RequestInit) =>
   nodeFetch(url, { ...opts, agent: ipv4Agent } as Parameters<typeof nodeFetch>[1])
 
 import { PrismaClient } from '@prisma/client'
 import { PrismaNeonHttp } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { seedUsers } from './users'
 import { seedTeams } from './teams'
 import { seedOnboarding } from './onboarding'
@@ -19,7 +20,24 @@ import { seedSurveys } from './surveys'
 import { seedEvaluations } from './evaluations'
 import { seedNotifications } from './notifications'
 
-const adapter = new PrismaNeonHttp(process.env.DATABASE_URL!, {})
+const databaseUrl = process.env.DATABASE_URL
+
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required to run the seed script')
+}
+
+function createSeedAdapter(connectionString: string) {
+  const hostname = new URL(connectionString).hostname
+  const isNeonHost = hostname.includes('neon.tech')
+
+  if (isNeonHost) {
+    return new PrismaNeonHttp(connectionString, {})
+  }
+
+  return new PrismaPg(connectionString)
+}
+
+const adapter = createSeedAdapter(databaseUrl)
 const prisma = new PrismaClient({ adapter })
 
 async function clearAll() {
@@ -50,7 +68,7 @@ async function clearAll() {
   await prisma.bulkOnboardingJob.deleteMany()
   await prisma.teamMember.deleteMany()
   await prisma.team.deleteMany()
-  // updateMany uses implicit transactions not supported in HTTP mode — use raw SQL
+  // updateMany uses implicit transactions that are not supported in HTTP mode, so use raw SQL.
   await prisma.$executeRawUnsafe('UPDATE employees SET "supervisorId" = NULL')
   await prisma.employee.deleteMany()
   await prisma.department.deleteMany()
@@ -86,5 +104,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1) })
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
   .finally(() => prisma.$disconnect())
