@@ -6,6 +6,7 @@ const controller = new EvaluationsController();
 
 router.get("/", controller.listEvaluations);
 router.post("/", controller.createEvaluation);
+router.patch("/:evaluationId/send", controller.sendEvaluation);
 router.patch("/:evaluationId", controller.updateEvaluation);
 router.delete("/:evaluationId", controller.deleteEvaluation);
 

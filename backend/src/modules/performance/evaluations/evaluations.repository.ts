@@ -53,6 +53,13 @@ export class EvaluationsRepository {
     });
   }
 
+  async markAsSent(id: string, sentAt: Date, ackDeadline: Date) {
+    return prisma.performanceEvaluation.update({
+      where: { id },
+      data: { isSent: true, sentAt, ackDeadline },
+    });
+  }
+
   async update(id: string, data: UpdateEvaluationData) {
     return prisma.performanceEvaluation.update({
       where: { id },

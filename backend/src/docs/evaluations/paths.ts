@@ -312,3 +312,48 @@
  *       422:
  *         description: Evaluation has already been sent and cannot be deleted
  */
+
+/**
+ * @openapi
+ * /api/v1/evaluations/{evaluationId}/send:
+ *   patch:
+ *     tags: [Evaluations]
+ *     summary: Send a draft evaluation
+ *     description: |
+ *       Marks a draft evaluation as sent. This action is irreversible — once sent,
+ *       the evaluation cannot be edited or deleted. Only the original reviewer may
+ *       send. Sets `isSent` to true and populates `sentAt` with the current timestamp
+ *       and `ackDeadline` to 7 days from now.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: evaluationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Evaluation sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Evaluation sent successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/EvaluationRecord'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Not the original reviewer, or authenticated user has no employee record
+ *       404:
+ *         description: Evaluation not found
+ *       422:
+ *         description: Evaluation has already been sent
+ */

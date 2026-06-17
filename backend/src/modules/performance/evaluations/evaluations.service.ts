@@ -126,6 +126,27 @@ export class EvaluationsService {
     await this.evaluationsRepository.softDelete(evaluationId);
   }
 
+  async send(evaluationId: string, userId: string) {
+    const evaluation = await this.evaluationsRepository.findById(evaluationId);
+    if (!evaluation) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND);
+
+    const reviewer = await prisma.employee.findUnique({ where: { userId } });
+    if (!reviewer) throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
+
+    if (evaluation.reviewerId !== reviewer.id) throw new Error(EVAL_ERROR_MESSAGES.NOT_REVIEWER);
+    if (evaluation.isSent) throw new Error(EVAL_ERROR_MESSAGES.ALREADY_SENT);
+
+    const now = new Date();
+    const ackDeadline = new Date(now.getTime() + EVAL_ACK_DEADLINE_DAYS * 24 * 60 * 60 * 1000);
+    const updated = await this.evaluationsRepository.markAsSent(evaluationId, now, ackDeadline);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.EVALUATION_SENT,
+      data: this.toResponse(updated),
+    };
+  }
+
   private toResponse(evaluation: PerformanceEvaluation): EvaluationResponseDto {
     return {
       id: evaluation.id,
