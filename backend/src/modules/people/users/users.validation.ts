@@ -1,5 +1,5 @@
 import { Role } from "@prisma/client";
-import type { AddUserRequestDto, GetUserParamsDto, ListUsersQueryDto } from "./dto";
+import type { AddUserRequestDto, GetUserParamsDto, ListUsersQueryDto, UpdateRoleRequestDto } from "./dto";
 import { ADD_USER_ALLOWED_ROLES, USER_FIELDS } from "./users.constants";
 
 const DEFAULT_PAGE = 1;
@@ -37,6 +37,15 @@ export class UsersValidation {
   parseUserIdParam(params: Record<string, unknown>): GetUserParamsDto {
     const userId = this.parseRequiredString(params.userId, USER_FIELDS.USER_ID);
     return { userId };
+  }
+
+  /**
+   * Validates and normalizes the PATCH /api/v1/users/:userId/role request body.
+   */
+  parseUpdateRoleBody(body: Record<string, unknown>): UpdateRoleRequestDto {
+    const role = this.parseAddUserRole(body.role);
+
+    return { role };
   }
 
   /**

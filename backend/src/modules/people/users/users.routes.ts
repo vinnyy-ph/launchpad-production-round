@@ -14,3 +14,6 @@ usersRouter.post("/", requireRole("ADMIN"), usersController.addUser);
 
 /** Deactivates a user account without deleting records. */
 usersRouter.patch("/:userId/deactivate", requireRole("ADMIN"), usersController.deactivateUser);
+
+/** Changes a user's role between HR and Employee. */
+usersRouter.patch("/:userId/role", requireRole("ADMIN"), usersController.updateRole);

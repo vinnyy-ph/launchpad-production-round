@@ -94,6 +94,17 @@ export class UsersRepository {
   }
 
   /**
+   * Updates a user's stored role.
+   */
+  async updateRole(userId: string, role: Role) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      include: userWithEmployeeInclude,
+    });
+  }
+
+  /**
    * Checks whether an account already exists for the given email.
    */
   async existsByEmail(email: string) {
