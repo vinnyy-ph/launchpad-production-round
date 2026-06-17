@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, ChevronDown, Search, Menu, User } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
