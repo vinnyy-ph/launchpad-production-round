@@ -1,14 +1,39 @@
-import { apiFetch } from "@/shared/lib/api-client";
+import { readCollection } from "@/shared/mock/db";
+import type { DemoEmployee } from "@/shared/mock/seed";
 import type { EmployeeFilters, EmployeeListItem } from "../types/employees.types";
 
-// Spec contract: GET /api/employees?search=&status=&teamId=&supervisorId=
-// (Running backend currently exposes /api/v1/employees — reconcile the path with the lead.)
-const BASE = "/api/employees";
+const COLLECTION = "employees";
 
+function toListItem(e: DemoEmployee): EmployeeListItem {
+  const [firstName, ...rest] = (e.displayName ?? "").split(" ");
+  return {
+    id: e.employeeId,
+    firstName: firstName || null,
+    lastName: rest.join(" ") || null,
+    companyEmail: e.email,
+    jobTitle: e.jobTitle ?? null,
+    departmentName: e.department ?? null,
+    supervisorName: null,
+    employeeStatus: e.isActive ? "ACTIVE" : "INACTIVE",
+  };
+}
+
+// Reads the mock employee collection (no backend). Filters are applied in-memory.
 export function getEmployees(filters: EmployeeFilters = {}): Promise<EmployeeListItem[]> {
-  const params = new URLSearchParams();
-  if (filters.search) params.set("search", filters.search);
-  if (filters.status) params.set("status", filters.status);
-  const qs = params.toString();
-  return apiFetch<EmployeeListItem[]>(qs ? `${BASE}?${qs}` : BASE);
+  let rows = readCollection<DemoEmployee>(COLLECTION).map(toListItem);
+
+  if (filters.status) {
+    rows = rows.filter((r) => r.employeeStatus === filters.status);
+  }
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    rows = rows.filter((r) =>
+      [r.firstName, r.lastName, r.companyEmail]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+  return Promise.resolve(rows);
 }
