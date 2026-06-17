@@ -1,11 +1,12 @@
-import { signInWithPopup, signOut } from "firebase/auth";
-import { auth, googleProvider } from "@/shared/lib/firebase";
+import { setView, clearSession } from "../stores/auth.store";
+import { DEFAULT_VIEW } from "@/shared/mock/identity";
 
-// Google SSO sign-in via popup. Resolves with the Firebase user credential.
-export function signInWithGoogle() {
-  return signInWithPopup(auth, googleProvider);
+// Fake Google sign-in: no popup, no Firebase. Drops you into the default
+// demo view; the /login guard then redirects to that role's home.
+export async function signInWithGoogle(): Promise<void> {
+  setView(DEFAULT_VIEW);
 }
 
-export function signOutUser() {
-  return signOut(auth);
+export async function signOutUser(): Promise<void> {
+  clearSession();
 }
