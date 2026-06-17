@@ -25,6 +25,7 @@ export { useFormField, Form, FormItem, FormLabel, FormControl, FormDescription, 
 export * from "./primitives/radio-group";
 export * from "./primitives/slider";
 export * from "./primitives/command";
+export * from "./primitives/combobox";
 export * from "./primitives/sheet";
 export * from "./primitives/hover-card";
 export * from "./primitives/calendar";

@@ -47,6 +47,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  Combobox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -714,6 +715,20 @@ export default function KitPage() {
               </CommandGroup>
             </CommandList>
           </Command>
+        </Showcase>
+
+        {/* ------------------------------------------------------------------ */}
+        {/* COMBOBOX */}
+        {/* ------------------------------------------------------------------ */}
+        <Showcase id="combobox" title="Combobox">
+          <Combobox
+            options={[
+              { value: "eng", label: "Engineering" },
+              { value: "people", label: "People" },
+              { value: "design", label: "Design" },
+            ]}
+            placeholder="Select department…"
+          />
         </Showcase>
 
         {/* ------------------------------------------------------------------ */}
