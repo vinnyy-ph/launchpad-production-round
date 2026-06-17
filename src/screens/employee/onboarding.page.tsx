@@ -170,7 +170,7 @@ export default function EmployeeOnboardingPage() {
     );
   }
 
-  if (loadError || obCase === null || obCase.status === "COMPLETE") {
+  if (loadError) {
     return (
       <div className="p-6">
         <PageHeader title="My onboarding" subtitle="Track your onboarding tasks and documents." />
@@ -179,17 +179,31 @@ export default function EmployeeOnboardingPage() {
           style={{ boxShadow: "var(--shadow-xs)" }}
         >
           <EmptyState
-            icon={loadError ? AlertCircle : CheckCircle2}
-            title={loadError ? "Could not load onboarding data" : "All done!"}
+            icon={AlertCircle}
+            title="Could not load onboarding data"
+            body="Something went wrong while loading your onboarding case."
+            action={{ label: "Retry", onClick: loadCase }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (obCase === null || obCase.status === "COMPLETE") {
+    return (
+      <div className="p-6">
+        <PageHeader title="My onboarding" subtitle="Track your onboarding tasks and documents." />
+        <div
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <EmptyState
+            icon={CheckCircle2}
+            title={obCase?.status === "COMPLETE" ? "Onboarding complete" : "No onboarding case"}
             body={
-              loadError
-                ? "Something went wrong while loading your onboarding case."
-                : "Your onboarding is complete or hasn't started yet."
-            }
-            action={
-              loadError
-                ? { label: "Retry", onClick: loadCase }
-                : undefined
+              obCase?.status === "COMPLETE"
+                ? "You have successfully completed onboarding."
+                : "Your onboarding hasn't started yet. Check back later."
             }
           />
         </div>

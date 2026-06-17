@@ -10,6 +10,7 @@ import {
   Separator,
   StatusBadge,
   EmptyState,
+  ErrorState,
   ConfirmProvider,
   useConfirm,
   Select,
@@ -74,14 +75,27 @@ function OffboardingDetailInner() {
   const confirm = useConfirm();
 
   // Derive data on every render (so mutations are reflected immediately)
-  const { offCase, employee, employees } = useMemo(() => {
-    const cases = readCollection<OffboardingCase>("offboardingCases");
-    const emps = readCollection<DemoEmployee>("employees");
-    const found = cases.find((c) => c.id === id) ?? null;
-    const emp = found ? (emps.find((e) => e.employeeId === found.employeeId) ?? null) : null;
-    return { offCase: found, employee: emp, employees: emps };
+  const { offCase, employee, employees, loadError } = useMemo(() => {
+    try {
+      const cases = readCollection<OffboardingCase>("offboardingCases");
+      const emps = readCollection<DemoEmployee>("employees");
+      const found = cases.find((c) => c.id === id) ?? null;
+      const emp = found ? (emps.find((e) => e.employeeId === found.employeeId) ?? null) : null;
+      return { offCase: found, employee: emp, employees: emps, loadError: null };
+    } catch {
+      return { offCase: null, employee: null, employees: [] as DemoEmployee[], loadError: "Could not load offboarding case." };
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, tick]);
+
+  // ── load error ───────────────────────────────────────────────────────────────
+  if (loadError) {
+    return (
+      <div className="p-4">
+        <ErrorState message={loadError} onRetry={refresh} />
+      </div>
+    );
+  }
 
   // ── not found ────────────────────────────────────────────────────────────────
   if (!offCase || !employee) {
@@ -141,8 +155,16 @@ function OffboardingDetailInner() {
 
   // ── sign handler ─────────────────────────────────────────────────────────────
 
-  function handleSign(deptIdx: number, signNote?: string) {
-    updateClearance(offCase!.id, deptIdx, { status: "SIGNED", note: signNote ?? undefined });
+  async function handleSign(deptIdx: number) {
+    const cl = offCase!.clearances[deptIdx];
+    const ok = await confirm({
+      title: `Sign clearance: ${cl.dept}?`,
+      description: "This is irreversible without a manual reset. Signing all clearances will mark the employee inactive.",
+      confirmLabel: "Sign",
+      cancelLabel: "Cancel",
+    });
+    if (!ok) return;
+    updateClearance(offCase!.id, deptIdx, { status: "SIGNED" });
     refresh();
     toast.success("Clearance signed.");
   }
@@ -331,7 +353,7 @@ function OffboardingDetailInner() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => handleSign(idx)}
+                        onClick={() => void handleSign(idx)}
                       >
                         <CheckCircle className="h-4 w-4" />
                         Sign

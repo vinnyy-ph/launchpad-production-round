@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ClipboardList, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import {
   Progress,
   Separator,
 } from "@/shared/ui";
-import { EmptyState, StatusBadge } from "@/shared/ui/patterns";
+import { EmptyState, ErrorState, StatusBadge, ConfirmProvider, useConfirm } from "@/shared/ui/patterns";
 import { readCollection, writeCollection } from "@/shared/mock/db";
 import type {
   OnboardingCase,
@@ -52,17 +52,31 @@ function DocStatusIcon({ status }: { status: DocStatus }) {
 
 // ─── page ───────────────────────────────────────────────────────────────────
 
-export default function OnboardingDetailPage() {
+function OnboardingDetailInner() {
   const params = useParams();
   const router = useRouter();
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
 
-  // Load initial data
-  const [onboardingCase, setOnboardingCase] = useState<OnboardingCase | null>(() => {
-    const cases = readCollection<OnboardingCase>("onboardingCases");
-    return cases.find((c) => c.id === id) ?? null;
-  });
+  const [onboardingCase, setOnboardingCase] = useState<OnboardingCase | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const cases = readCollection<OnboardingCase>("onboardingCases");
+      setOnboardingCase(cases.find((c) => c.id === id) ?? null);
+    } catch {
+      setLoadError("Could not load onboarding case.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
 
   const employee = useMemo<DemoEmployee | null>(() => {
     if (!onboardingCase) return null;
@@ -100,12 +114,23 @@ export default function OnboardingDetailPage() {
   }
 
   // ── document actions ─────────────────────────────────────────────────────
-  function handleDocAction(docName: string, action: "APPROVED" | "REJECTED") {
+  async function handleDocAction(docName: string, action: "APPROVED" | "REJECTED") {
     if (!onboardingCase) return;
+    const isApprove = action === "APPROVED";
+    const ok = await confirm({
+      title: isApprove ? `Approve "${docName}"?` : `Reject "${docName}"?`,
+      description: isApprove
+        ? "Approving all documents may automatically mark the employee as Active."
+        : "Rejection will require the employee to resubmit this document.",
+      confirmLabel: isApprove ? "Approve" : "Reject",
+      cancelLabel: "Cancel",
+      destructive: !isApprove,
+    });
+    if (!ok) return;
     const updatedDocs = onboardingCase.documents.map((d) =>
       d.name === docName ? { ...d, status: action as DocStatus } : d,
     );
-    const label = action === "APPROVED" ? "approved" : "rejected";
+    const label = isApprove ? "approved" : "rejected";
     toast.success(`"${docName}" ${label}.`);
     persist({ ...onboardingCase, documents: updatedDocs });
   }
@@ -135,6 +160,16 @@ export default function OnboardingDetailPage() {
   }
 
   // ─── render guards ──────────────────────────────────────────────────────
+
+  if (loading) return null;
+
+  if (loadError) {
+    return (
+      <div className="p-4">
+        <ErrorState message={loadError} onRetry={load} />
+      </div>
+    );
+  }
 
   // Not found
   if (onboardingCase === null) {
@@ -299,7 +334,7 @@ export default function OnboardingDetailPage() {
                       size="sm"
                       variant="outline"
                       className="text-[#067647] border-[#ABEFC6] hover:bg-[#ECFDF3]"
-                      onClick={() => handleDocAction(doc.name, "APPROVED")}
+                      onClick={() => void handleDocAction(doc.name, "APPROVED")}
                       disabled={doc.status === "PENDING"}
                     >
                       Approve
@@ -308,7 +343,7 @@ export default function OnboardingDetailPage() {
                       size="sm"
                       variant="outline"
                       className="text-[#B42318] border-[#FECDCA] hover:bg-[#FEF3F2]"
-                      onClick={() => handleDocAction(doc.name, "REJECTED")}
+                      onClick={() => void handleDocAction(doc.name, "REJECTED")}
                       disabled={doc.status === "PENDING"}
                     >
                       Reject
@@ -329,5 +364,15 @@ export default function OnboardingDetailPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// ─── page export (wraps with ConfirmProvider) ─────────────────────────────────
+
+export default function OnboardingDetailPage() {
+  return (
+    <ConfirmProvider>
+      <OnboardingDetailInner />
+    </ConfirmProvider>
   );
 }

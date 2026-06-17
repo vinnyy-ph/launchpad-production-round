@@ -4,8 +4,11 @@ import type { EmployeeFilters, EmployeeListItem } from "../types/employees.types
 
 const COLLECTION = "employees";
 
-function toListItem(e: DemoEmployee): EmployeeListItem {
+function toListItem(e: DemoEmployee, allEmployees: DemoEmployee[]): EmployeeListItem {
   const [firstName, ...rest] = (e.displayName ?? "").split(" ");
+  const supervisor = e.supervisorId
+    ? allEmployees.find((s) => s.employeeId === e.supervisorId) ?? null
+    : null;
   return {
     id: e.employeeId,
     firstName: firstName || null,
@@ -13,14 +16,15 @@ function toListItem(e: DemoEmployee): EmployeeListItem {
     companyEmail: e.email,
     jobTitle: e.jobTitle ?? null,
     departmentName: e.department ?? null,
-    supervisorName: null,
-    employeeStatus: e.isActive ? "ACTIVE" : "INACTIVE",
+    supervisorName: supervisor?.displayName ?? null,
+    employeeStatus: e.employeeStatus,
   };
 }
 
 // Reads the mock employee collection (no backend). Filters are applied in-memory.
 export function getEmployees(filters: EmployeeFilters = {}): Promise<EmployeeListItem[]> {
-  let rows = readCollection<DemoEmployee>(COLLECTION).map(toListItem);
+  const allEmployees = readCollection<DemoEmployee>(COLLECTION);
+  let rows = allEmployees.map((e) => toListItem(e, allEmployees));
 
   if (filters.status) {
     rows = rows.filter((r) => r.employeeStatus === filters.status);

@@ -76,7 +76,7 @@ export default function OffboardingHubPage() {
       <EmptyState
         icon={DoorOpen}
         title="No active offboarding"
-        body="You have no offboarding or clearance tasks at this time."
+        body="You have no offboarding case at this time."
       />
     );
   }
@@ -87,7 +87,7 @@ export default function OffboardingHubPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <PageHeader title="Offboarding status" />
+      <PageHeader title="My offboarding" subtitle="Track your offboarding status and clearance progress." />
 
       {/* Status banner */}
       <div

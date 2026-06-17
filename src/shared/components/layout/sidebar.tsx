@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, DoorOpen, LayoutGrid, ClipboardCheck,
-  Users, Network, ClipboardList, UserCog, ChevronsUpDown, type LucideIcon
+  Users, Network, ClipboardList, UserCog, UserCircle, BookOpen, ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Role } from "@/modules/auth/types/auth.types";
@@ -26,7 +27,16 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ALL"] },
       { label: "Performance", icon: TrendingUp, href: "/performance", roles: ["ALL"] },
-      { label: "Offboarding", icon: DoorOpen, href: "/offboarding", roles: ["ALL"], badge: 1 },
+      { label: "Offboarding", icon: DoorOpen, href: "/offboarding", roles: ["ALL"] },
+    ],
+  },
+  {
+    title: "Me",
+    items: [
+      { label: "My profile", icon: UserCircle, href: "/employee/profile", roles: ["ALL"] },
+      { label: "My onboarding", icon: BookOpen, href: "/employee/onboarding", roles: ["ALL"] },
+      { label: "My clearances", icon: ShieldCheck, href: "/employee/clearance", roles: ["ALL"] },
+      { label: "Surveys", icon: ClipboardList, href: "/employee/surveys", roles: ["ALL"] },
     ],
   },
   {
@@ -93,11 +103,6 @@ export function Sidebar({
               SwiftWork ✦
             </p>
           </div>
-          <ChevronsUpDown
-            size={16}
-            className="flex-shrink-0 text-[color:var(--text-tertiary)]"
-            aria-hidden="true"
-          />
         </div>
       </div>
 
@@ -125,15 +130,15 @@ export function Sidebar({
                       className={cn(
                         "flex items-center py-[7px] px-4 rounded-md transition-all duration-100 group gap-[9px]",
                         active
-                          ? "bg-[rgb(239,241,245)] text-[color:var(--text-primary)]"
-                          : "text-[rgb(65,70,81)] hover:bg-[rgb(239,241,245)]"
+                          ? "bg-[color:var(--bg-secondary)] text-[color:var(--text-primary)]"
+                          : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
                       )}
                     >
                       <Icon
                         size={16}
                         className={cn(
                           "flex-shrink-0 transition-colors",
-                          active ? "text-[color:var(--text-primary)]" : "text-[#A4A7AE] group-hover:text-[color:var(--text-primary)]"
+                          active ? "text-[color:var(--text-primary)]" : "text-[color:var(--text-quaternary)] group-hover:text-[color:var(--text-primary)]"
                         )}
                       />
                       <span className={cn("truncate text-[14px] flex-1", active ? "font-bold" : "font-medium")}>

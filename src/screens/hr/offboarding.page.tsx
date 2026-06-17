@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -21,6 +21,39 @@ import { readCollection } from "@/shared/mock/db";
 import type { OffboardingCase, DemoEmployee } from "@/shared/mock/types";
 
 type OffboardingStatus = OffboardingCase["status"];
+
+// ─── data hook ────────────────────────────────────────────────────────────────
+
+interface UseOffboardingRowsResult {
+  rows: CaseRow[];
+  loading: boolean;
+  error: string | null;
+  reload: () => void;
+}
+
+function useOffboardingRows(): UseOffboardingRowsResult {
+  const [rows, setRows] = useState<CaseRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    try {
+      const cases = readCollection<OffboardingCase>("offboardingCases");
+      const employees = readCollection<DemoEmployee>("employees");
+      setRows(buildRows(cases, employees));
+    } catch {
+      setError("Could not load offboarding cases.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { rows, loading, error, reload: load };
+}
 
 const ALL = "ALL";
 
@@ -81,12 +114,7 @@ export default function OffboardingPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<typeof ALL | OffboardingStatus>(ALL);
-
-  const rows = useMemo<CaseRow[]>(() => {
-    const cases = readCollection<OffboardingCase>("offboardingCases");
-    const employees = readCollection<DemoEmployee>("employees");
-    return buildRows(cases, employees);
-  }, []);
+  const { rows, loading, error, reload } = useOffboardingRows();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -181,6 +209,9 @@ export default function OffboardingPage() {
         <DataTable
           columns={columns}
           data={filtered}
+          isLoading={loading}
+          error={error}
+          onRetry={reload}
           emptyState={
             <EmptyState
               icon={LogOut}

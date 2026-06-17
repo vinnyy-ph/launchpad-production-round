@@ -3,8 +3,9 @@ import type { Notification } from "../types/notifications.types";
 
 const COLLECTION = "notifications";
 
-export async function fetchNotifications(limit = 10): Promise<Notification[]> {
+export async function fetchNotifications(employeeId: string, limit = 10): Promise<Notification[]> {
   const all = readCollection<Notification>(COLLECTION)
+    .filter((n) => n.recipientEmployeeId === employeeId)
     .slice()
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return all.slice(0, limit);

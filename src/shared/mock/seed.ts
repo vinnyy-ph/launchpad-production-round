@@ -211,11 +211,16 @@ function seedAcknowledgements(): Acknowledgement[] {
 // ─── notifications ───────────────────────────────────────────────────────────
 function seedNotifications(): Notification[] {
   return [
-    { id: "n1", type: "NEW_PULSE", subject: "New pulse survey", body: "Q2 engagement pulse is open.", linkUrl: "/employee/surveys", isRead: false, createdAt: "2026-06-16T09:00:00.000Z" },
-    { id: "n2", type: "NEW_EVALUATION", subject: "Evaluation shared", body: "Your H1 evaluation is ready to acknowledge.", linkUrl: "/employee/profile", isRead: false, createdAt: "2026-06-15T14:30:00.000Z" },
-    { id: "n3", type: "CLEARANCE_SIGN_REQUEST", subject: "Clearance needs your sign-off", body: "M. Tan's IT clearance is awaiting you.", linkUrl: "/hr/offboarding", isRead: false, createdAt: "2026-06-15T11:00:00.000Z" },
-    { id: "n4", type: "ONBOARDING_COMPLETE", subject: "Onboarding update", body: "H. Reyes reached document review.", linkUrl: "/hr/onboarding", isRead: true, createdAt: "2026-06-14T08:00:00.000Z" },
-    { id: "n5", type: "PULSE_REMINDER", subject: "Pulse reminder", body: "2 days left to submit the engagement pulse.", linkUrl: "/employee/surveys", isRead: true, createdAt: "2026-06-13T08:00:00.000Z" },
+    // All employees get the pulse open notification
+    { id: "n1", type: "NEW_PULSE", subject: "New pulse survey", body: "Q2 engagement pulse is open.", recipientEmployeeId: "e-emp", linkUrl: "/employee/surveys", isRead: false, createdAt: "2026-06-16T09:00:00.000Z" },
+    // Evaluation ack reminder goes to the employee whose evaluation was shared
+    { id: "n2", type: "NEW_EVALUATION", subject: "Evaluation shared", body: "Your H1 evaluation is ready to acknowledge.", recipientEmployeeId: "e-emp", linkUrl: "/employee/surveys", isRead: false, createdAt: "2026-06-15T14:30:00.000Z" },
+    // Clearance sign-off goes to the supervisor (IT clearance owner = e-sup)
+    { id: "n3", type: "CLEARANCE_SIGN_REQUEST", subject: "Clearance needs your sign-off", body: "M. Tan's IT clearance is awaiting you.", recipientEmployeeId: "e-sup", linkUrl: "/employee/clearance", isRead: false, createdAt: "2026-06-15T11:00:00.000Z" },
+    // Onboarding status update goes to HR
+    { id: "n4", type: "ONBOARDING_COMPLETE", subject: "Onboarding update", body: "H. Reyes reached document review.", recipientEmployeeId: "e-hr", linkUrl: "/hr/onboarding", isRead: true, createdAt: "2026-06-14T08:00:00.000Z" },
+    // Pulse reminder goes to the employee (broadening: also relevant to supervisor)
+    { id: "n5", type: "PULSE_REMINDER", subject: "Pulse reminder", body: "2 days left to submit the engagement pulse.", recipientEmployeeId: "e-sup", linkUrl: "/employee/surveys", isRead: true, createdAt: "2026-06-13T08:00:00.000Z" },
   ];
 }
 

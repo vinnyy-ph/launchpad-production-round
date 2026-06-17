@@ -7,6 +7,8 @@ import {
   AlertCircle,
   RefreshCw,
   CheckSquare,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -277,15 +279,12 @@ function QuestionInput({ q, idx, answer, error, onChange, onToggleMulti }: Quest
                 type="button"
                 onClick={() => onChange(q.id, v)}
                 aria-label={`Rate ${v}`}
-                className="flex-1 rounded-lg border border-[color:var(--border-primary)] py-2 text-sm font-bold transition hover:bg-[color:var(--bg-secondary)]"
-                style={{
-                  background:
-                    answer === v
-                      ? "linear-gradient(135deg, var(--brand-peach), var(--brand-blue))"
-                      : undefined,
-                  color: answer === v ? "white" : undefined,
-                  borderColor: answer === v ? "transparent" : undefined,
-                }}
+                className={[
+                  "flex-1 rounded-lg border py-2 text-sm font-bold transition",
+                  answer === v
+                    ? "border-transparent bg-[color:var(--gray-neutral-900)] text-white"
+                    : "border-[color:var(--border-primary)] hover:bg-[color:var(--bg-secondary)]",
+                ].join(" ")}
               >
                 {v}
               </button>
@@ -305,7 +304,7 @@ function QuestionInput({ q, idx, answer, error, onChange, onToggleMulti }: Quest
               key={opt}
               className="flex cursor-pointer items-center gap-3 rounded-lg border border-[color:var(--border-primary)] px-4 py-2.5 hover:bg-[color:var(--bg-secondary)]"
             >
-              <RadioGroupItem value={opt} id={`${q.id}-${opt}`} />
+              <RadioGroupItem value={opt} id={`${q.id}-${opt}`} aria-label={opt} />
               <span className="text-sm">{opt}</span>
             </label>
           ))}
@@ -325,6 +324,7 @@ function QuestionInput({ q, idx, answer, error, onChange, onToggleMulti }: Quest
                   checked={selected}
                   onCheckedChange={(v) => onToggleMulti(q.id, opt, !!v)}
                   id={`${q.id}-${opt}`}
+                  aria-label={opt}
                 />
                 <span className="text-sm">{opt}</span>
               </label>
@@ -452,7 +452,10 @@ function AcknowledgementsTab({
                   From {supervisorName(ev.supervisorId)} · Shared {ev.sharedAt ? new Date(ev.sharedAt).toLocaleDateString() : "—"}
                 </p>
               </div>
-              <span className="text-xs text-[color:var(--text-quaternary)]">{isExpanded ? "▲" : "▼"}</span>
+              {isExpanded
+                ? <ChevronUp size={16} className="text-[color:var(--text-quaternary)]" aria-hidden="true" />
+                : <ChevronDown size={16} className="text-[color:var(--text-quaternary)]" aria-hidden="true" />
+              }
             </button>
 
             {isExpanded && (

@@ -1,11 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { AlertCircle, RefreshCw, Users } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { readCollection } from "@/shared/mock/db";
 import type { DemoEmployee } from "@/shared/mock/types";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { StatCard, DataTable, type Column, EmptyState, StatusBadge } from "@/shared/ui/patterns";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/shared/ui";
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
@@ -50,9 +56,18 @@ function formatDate(iso: string): string {
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const router = useRouter();
   const { appUser } = useAuth();
   const { reports, loading, error, reload } = useTeamReports(appUser?.employeeId);
+  const [selectedEmployee, setSelectedEmployee] = useState<DemoEmployee | null>(null);
+
+  // Resolve supervisor name for the sheet
+  const supervisorName = useCallback(
+    (supId: string | null) => {
+      if (!supId) return "None";
+      return reports.find((r) => r.employeeId === supId)?.displayName ?? supId;
+    },
+    [reports],
+  );
 
   const stats = {
     total: reports.length,
@@ -163,7 +178,7 @@ export default function ReportsPage() {
             isLoading={loading}
             error={null}
             getRowId={(row) => row.employeeId}
-            onRowClick={(row) => router.push(`/hr/directory/${row.employeeId}`)}
+            onRowClick={(row) => setSelectedEmployee(row)}
             emptyState={
               <EmptyState
                 icon={Users}
@@ -174,6 +189,66 @@ export default function ReportsPage() {
           />
         </div>
       </section>
+
+      {/* Employee detail sheet */}
+      <Sheet open={!!selectedEmployee} onOpenChange={(open) => !open && setSelectedEmployee(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          {selectedEmployee && (
+            <>
+              <SheetHeader className="mb-6">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                    style={{
+                      background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                    }}
+                    aria-hidden="true"
+                  >
+                    {initials(selectedEmployee.displayName)}
+                  </span>
+                  <div>
+                    <SheetTitle className="text-left text-base font-bold leading-tight text-[color:var(--text-primary)]">
+                      {selectedEmployee.displayName}
+                    </SheetTitle>
+                    <SheetDescription className="text-left text-sm text-[color:var(--text-secondary)]">
+                      {selectedEmployee.jobTitle}
+                    </SheetDescription>
+                  </div>
+                </div>
+              </SheetHeader>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4" style={{ boxShadow: "var(--shadow-xs)" }}>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Department</span>
+                    <span className="text-sm text-[color:var(--text-primary)]">{selectedEmployee.department}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Status</span>
+                    <StatusBadge status={selectedEmployee.employeeStatus} dot />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Supervisor</span>
+                    <span className="text-sm text-[color:var(--text-primary)]">{supervisorName(selectedEmployee.supervisorId)}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Team</span>
+                    <span className="text-sm text-[color:var(--text-primary)]">{selectedEmployee.teamId ?? "Unassigned"}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 col-span-2">
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Email</span>
+                    <span className="text-sm text-[color:var(--text-primary)]">{selectedEmployee.email}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 col-span-2">
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Start date</span>
+                    <span className="text-sm text-[color:var(--text-primary)]">{formatDate(selectedEmployee.startDate)}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

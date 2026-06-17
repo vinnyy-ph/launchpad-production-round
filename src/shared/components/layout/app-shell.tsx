@@ -3,6 +3,8 @@
 import { useState, type ReactNode } from "react";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
+import { PendingAckBanner } from "./pending-ack-banner";
+import { UnansweredSurveyBanner } from "./unanswered-survey-banner";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -19,6 +21,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar onMenuClick={() => setMobileOpen((p) => !p)} />
+        <PendingAckBanner />
+        <UnansweredSurveyBanner />
         <main className="flex-1 overflow-y-auto bg-[color:var(--bg-primary)] p-6">
           {children}
         </main>

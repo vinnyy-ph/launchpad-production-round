@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Network } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
@@ -8,6 +8,7 @@ import {
   Skeleton,
   StatusBadge,
   EmptyState,
+  ErrorState,
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -146,17 +147,25 @@ function SkeletonCard() {
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 export default function TeamsPage() {
-  const { teams, employees, isLoading } = useMemo(() => {
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [employees, setEmployees] = useState<DemoEmployee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     try {
-      return {
-        teams: readCollection<Team>("teams"),
-        employees: readCollection<DemoEmployee>("employees"),
-        isLoading: false,
-      };
+      setTeams(readCollection<Team>("teams"));
+      setEmployees(readCollection<DemoEmployee>("employees"));
     } catch {
-      return { teams: [], employees: [], isLoading: false };
+      setError("Could not load teams.");
+    } finally {
+      setLoading(false);
     }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const employeeMap = useMemo(() => {
     const map = new Map<string, DemoEmployee>();
@@ -190,25 +199,32 @@ export default function TeamsPage() {
         />
 
         {/* Stats row */}
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Teams" value={isLoading ? "—" : teams.length} />
-          <StatCard label="Active Members" value={isLoading ? "—" : totalActiveMembers} />
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-2">
+          <StatCard label="Total Teams" value={loading ? "—" : teams.length} />
+          <StatCard label="Active Members" value={loading ? "—" : totalActiveMembers} />
         </div>
 
+        {/* Error state */}
+        {error && (
+          <div className="mb-6">
+            <ErrorState message={error} onRetry={load} />
+          </div>
+        )}
+
         {/* Team grid */}
-        {isLoading ? (
+        {loading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </div>
-        ) : teams.length === 0 ? (
+        ) : !error && teams.length === 0 ? (
           <EmptyState
             icon={Network}
             title="No teams configured"
             body="Teams and org structure will appear here once configured."
           />
-        ) : (
+        ) : !error ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {teams.map((team) => {
               const lead = team.leadEmployeeId
@@ -227,7 +243,7 @@ export default function TeamsPage() {
               );
             })}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

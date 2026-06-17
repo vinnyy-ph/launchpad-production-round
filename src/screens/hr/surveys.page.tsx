@@ -109,7 +109,7 @@ function defaultBuilder(): BuilderState {
     title: "",
     description: "",
     audience: "All employees",
-    anonymous: true,
+    anonymous: false,
     minGroupSize: 3,
     recurrence: "NONE",
     status: "DRAFT",

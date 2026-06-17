@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, Search, Menu, User } from "lucide-react";
+import { LogOut, Menu, User } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { RoleSwitcher } from "./role-switcher";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -18,7 +18,10 @@ const BREADCRUMB_MAP: Record<string, string[]> = {
   "/hr/teams": ["Organization", "Structure"],
   "/hr/surveys": ["Organization", "Surveys"],
   "/admin/users": ["Admin", "Users"],
-  "/employee/profile": ["Profile"],
+  "/employee/profile": ["Me", "My profile"],
+  "/employee/onboarding": ["Me", "My onboarding"],
+  "/employee/surveys": ["Me", "Surveys"],
+  "/employee/clearance": ["Me", "My clearances"],
 };
 
 function useBreadcrumb(): string[] {
@@ -122,28 +125,10 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         )}
       </div>
 
-      {/* Center: Search */}
-      <div className="flex-1 flex justify-center px-4">
-        <label className="relative flex items-center w-full max-w-[460px]">
-          <Search
-            size={18}
-            className="absolute left-3 text-[color:var(--text-tertiary)] pointer-events-none"
-          />
-          <input
-            type="text"
-            placeholder="Search people, teams, surveys…"
-            aria-label="Search"
-            disabled
-            title="Search coming soon"
-            className="w-full h-10 pl-[38px] pr-3.5 text-[14px] font-medium text-[color:var(--text-primary)] bg-white border border-[color:var(--border-secondary)] rounded-lg outline-none shadow-[var(--shadow-inset-brand)] cursor-not-allowed disabled:opacity-60"
-          />
-        </label>
-      </div>
-
       {/* Right: Controls */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <RoleSwitcher />
-        <span className="hidden sm:block text-[13px] font-medium tabular-nums text-[color:var(--text-tertiary)] select-none">
+        <span aria-hidden="true" className="hidden sm:block text-[13px] font-medium tabular-nums text-[color:var(--text-tertiary)] select-none">
           {clock}
         </span>
         <NotificationBell />
@@ -153,6 +138,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           className="flex items-center gap-2 h-8 pl-1 pr-3 border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] rounded-full cursor-pointer transition-colors duration-150 hover:bg-[color:var(--bg-tertiary)]"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
+          aria-label="Account menu"
         >
           <span
             className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold tracking-[0.01em] text-[color:var(--text-primary)] flex-shrink-0"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -16,6 +16,52 @@ import {
 import { DataTable, EmptyState, FilterBar, StatusBadge, type Column } from "@/shared/ui/patterns";
 import { readCollection } from "@/shared/mock/db";
 import type { OnboardingCase, DemoEmployee, OnboardingStatus } from "@/shared/mock/types";
+
+// ─── data hook ───────────────────────────────────────────────────────────────
+
+interface UseOnboardingRowsResult {
+  rows: CaseRow[];
+  loading: boolean;
+  error: string | null;
+  reload: () => void;
+}
+
+function useOnboardingRows(): UseOnboardingRowsResult {
+  const [rows, setRows] = useState<CaseRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    try {
+      const cases = readCollection<OnboardingCase>("onboardingCases");
+      const employees = readCollection<DemoEmployee>("employees");
+      const empMap = new Map(employees.map((e) => [e.employeeId, e]));
+      const built = cases.map((c) => {
+        const emp = empMap.get(c.employeeId);
+        return {
+          caseId: c.id,
+          employeeId: c.employeeId,
+          name: emp?.displayName ?? "Unknown",
+          email: emp?.email ?? "—",
+          status: c.status,
+          progress: c.progress,
+          invitedAt: c.invitedAt,
+        } satisfies CaseRow;
+      });
+      setRows(built);
+    } catch {
+      setError("Could not load onboarding cases.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { rows, loading, error, reload: load };
+}
 
 const ALL = "ALL";
 
@@ -53,25 +99,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<typeof ALL | OnboardingStatus>(ALL);
-
-  const rows = useMemo<CaseRow[]>(() => {
-    const cases = readCollection<OnboardingCase>("onboardingCases");
-    const employees = readCollection<DemoEmployee>("employees");
-    const empMap = new Map(employees.map((e) => [e.employeeId, e]));
-
-    return cases.map((c) => {
-      const emp = empMap.get(c.employeeId);
-      return {
-        caseId: c.id,
-        employeeId: c.employeeId,
-        name: emp?.displayName ?? "Unknown",
-        email: emp?.email ?? "—",
-        status: c.status,
-        progress: c.progress,
-        invitedAt: c.invitedAt,
-      };
-    });
-  }, []);
+  const { rows, loading, error, reload } = useOnboardingRows();
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -116,15 +144,6 @@ export default function OnboardingPage() {
         <span className="text-sm text-[color:var(--text-secondary)]">{formatDate(r.invitedAt)}</span>
       ),
     },
-    {
-      header: "",
-      cell: () => (
-        <span className="text-xs font-medium text-[color:var(--brand-blue)] hover:underline">
-          View
-        </span>
-      ),
-      className: "w-16 text-right",
-    },
   ];
 
   return (
@@ -168,6 +187,9 @@ export default function OnboardingPage() {
         <DataTable
           columns={columns}
           data={filtered}
+          isLoading={loading}
+          error={error}
+          onRetry={reload}
           emptyState={
             <EmptyState
               icon={ClipboardList}

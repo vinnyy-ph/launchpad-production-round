@@ -113,6 +113,7 @@ export default function ProfilePage() {
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
   const [emailDraft, setEmailDraft] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -161,18 +162,28 @@ export default function ProfilePage() {
 
   function saveContact() {
     if (!employee) return;
+    if (!emailDraft.trim()) {
+      setEmailError("Email is required.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDraft.trim())) {
+      setEmailError("Enter a valid email address.");
+      return;
+    }
+    setEmailError(null);
     const all = readCollection<DemoEmployee>("employees");
     const updated = all.map((e) =>
-      e.employeeId === employee.employeeId ? { ...e, email: emailDraft } : e,
+      e.employeeId === employee.employeeId ? { ...e, email: emailDraft.trim() } : e,
     );
     writeCollection("employees", updated);
-    setEmployee((prev) => (prev ? { ...prev, email: emailDraft } : prev));
+    setEmployee((prev) => (prev ? { ...prev, email: emailDraft.trim() } : prev));
     setEditMode(false);
     toast.success("Contact info updated");
   }
 
   function cancelEdit() {
     setEmailDraft(employee?.email ?? "");
+    setEmailError(null);
     setEditMode(false);
   }
 
@@ -324,15 +335,22 @@ export default function ProfilePage() {
                   id="profile-email"
                   type="email"
                   value={emailDraft}
-                  onChange={(e) => setEmailDraft(e.target.value)}
+                  onChange={(e) => { setEmailDraft(e.target.value); setEmailError(null); }}
                   placeholder="Enter email"
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? "profile-email-error" : undefined}
                 />
+                {emailError && (
+                  <p id="profile-email-error" className="mt-1 flex items-center gap-1 text-xs text-[color:var(--color-error-500)]">
+                    <AlertCircle size={12} aria-hidden="true" /> {emailError}
+                  </p>
+                )}
               </FormField>
             ) : (
               <FieldRow label="Email" value={employee.email} />
             )}
             {/* Phone is display-only; DemoEmployee has no phone field */}
-            <FieldRow label="Phone" value="+63 912 000 0000" />
+            <FieldRow label="Phone" value="—" />
           </div>
         </div>
       </PageSection>

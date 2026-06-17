@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -67,23 +67,30 @@ function getInitials(name: string, email: string): string {
 
 function useUsers() {
   const [tick, setTick] = useState(0);
+  const [rows, setRows] = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const rows: UserRow[] = useMemo(() => {
-    const users = readCollection<UserAccount>("users");
-    const employees = readCollection<DemoEmployee>("employees");
-    const empMap = new Map(employees.map((e) => [e.employeeId, e]));
-
-    return users.map((user) => {
-      const emp = empMap.get(user.employeeId);
-      return {
-        user,
-        employee: emp,
-        displayName: emp?.displayName ?? user.email,
-        email: user.email,
-      };
-    });
+  const reload = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    try {
+      const users = readCollection<UserAccount>("users");
+      const employees = readCollection<DemoEmployee>("employees");
+      const empMap = new Map(employees.map((e) => [e.employeeId, e]));
+      setRows(users.map((user) => {
+        const emp = empMap.get(user.employeeId);
+        return { user, employee: emp, displayName: emp?.displayName ?? user.email, email: user.email };
+      }));
+    } catch {
+      setError("Could not load users.");
+    } finally {
+      setLoading(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
+
+  useEffect(() => { reload(); }, [reload]);
 
   const activeAdminCount = useMemo(
     () => rows.filter((r) => r.user.isActive && r.user.role === "ADMIN").length,
@@ -147,7 +154,7 @@ function useUsers() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnlyActiveAdmin]);
 
-  return { rows, isOnlyActiveAdmin, changeRole, deactivate };
+  return { rows, loading, error, reload, isOnlyActiveAdmin, changeRole, deactivate };
 }
 
 // ---------------------------------------------------------------------------
@@ -168,7 +175,7 @@ export default function UsersPage() {
 
 function UsersPageInner() {
   const confirm = useConfirm();
-  const { rows, isOnlyActiveAdmin, changeRole, deactivate } = useUsers();
+  const { rows, loading, error, reload, isOnlyActiveAdmin, changeRole, deactivate } = useUsers();
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | typeof ALL_ROLES>(ALL_ROLES);
@@ -339,6 +346,9 @@ function UsersPageInner() {
         <DataTable
           columns={columns}
           data={filtered}
+          isLoading={loading}
+          error={error}
+          onRetry={reload}
           getRowId={(row) => row.user.id}
           emptyState={
             <EmptyState
