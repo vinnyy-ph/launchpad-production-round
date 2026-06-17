@@ -36,6 +36,15 @@ export const API_ERROR_MESSAGES = {
   ONBOARDING_RECORD_NOT_FOUND: "Onboarding record not found",
   INVALID_EMAIL: "A valid email address is required",
   INVITATION_DELIVERY_FAILED: "Failed to deliver the invitation email",
+  ONBOARDING_ALREADY_COMPLETE: "Onboarding has already been completed",
+  INVITATION_EXPIRED: "The onboarding invitation has expired",
+  ONBOARDING_INCOMPLETE:
+    "Onboarding cannot be completed until all required profile fields, custom fields, and documents are submitted",
+  INVALID_FILE_TYPE: "The uploaded file type is not allowed for this document",
+  DOCUMENT_SUBMISSION_NOT_ALLOWED:
+    "A document can only be re-submitted when the previous submission was rejected",
+  EMPLOYEE_ONBOARDING_NOT_FOUND:
+    "No onboarding record was found for this employee account",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];
