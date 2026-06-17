@@ -1,30 +1,10 @@
 // frontend/src/pages/home.page.tsx
-import { useState, useEffect, useCallback } from "react";
 import { AlertCircle, RefreshCw, Bell } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { apiFetch } from "@/shared/lib/api-client";
+import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
 import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
 import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
-
-// Shape returned by GET /api/dashboard (role-aware, backend returns only relevant fields)
-interface DashboardStats {
-  // HR / ADMIN
-  pendingOnboarding?: number;
-  pendingOffboarding?: number;
-  activeEmployees?: number;
-  pendingClearances?: number;
-  // SUPERVISOR
-  pendingEvaluations?: number;
-  directReports?: number;
-  unreadSurveys?: number;
-  completedEvaluations?: number;
-  totalEvaluations?: number;
-  // EMPLOYEE
-  pendingDocuments?: number;
-  onboardingProgress?: number;
-  clearanceStatus?: string | null;
-}
 
 interface StatCardProps {
   label: string;
@@ -69,27 +49,10 @@ function StatCardSkeleton() {
 
 export default function HomePage() {
   const { appUser } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [statsError, setStatsError] = useState<string | null>(null);
+  const { stats, loading: statsLoading, error: statsError, reload: loadStats } = useDashboard();
 
   const { notifications, loading: notifLoading, error: notifError, reload: reloadNotifs } = useNotifications(5);
   const { markRead } = useMarkRead(() => void reloadNotifs());
-
-  const loadStats = useCallback(async () => {
-    try {
-      setStatsLoading(true);
-      setStatsError(null);
-      const data = await apiFetch<DashboardStats>("/api/dashboard");
-      setStats(data);
-    } catch (e) {
-      setStatsError(e instanceof Error ? e.message : "Failed to load stats");
-    } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void loadStats(); }, [loadStats]);
 
   const statCards = buildStatCards(appUser?.role, appUser?.isSupervisor, stats);
 
