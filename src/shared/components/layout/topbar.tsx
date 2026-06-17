@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, ChevronDown, Search, Menu, User } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
+import { RoleSwitcher } from "./role-switcher";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
 
@@ -77,6 +78,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
       {/* Right: Controls */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        <RoleSwitcher />
         <NotificationBell />
         <div ref={menuRef} className="relative">
         <button
