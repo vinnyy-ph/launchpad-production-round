@@ -32,6 +32,14 @@
     --input: 220 5% 84%;                /* #D5D7DA — neutral-300 */
     --ring: 228 27% 9%;                 /* #181D27 */
     --radius: 0.5rem;                   /* 8px base */
+
+    /* Chart categorical palette — cool neutrals + one brand accent. */
+    --chart-1: 230 33% 10%;   /* #111322 */
+    --chart-2: 222 25% 38%;   /* #4A5578 */
+    --chart-3: 221 28% 66%;   /* #B9C0D4 */
+    --chart-4: 18 92% 87%;    /* #FCCEC0 — peach (gradient stop) */
+    --chart-5: 327 56% 80%;   /* #EBACC9 — pink */
+    --chart-6: 205 70% 78%;   /* #9FCAED — sky */
   }
 }
 

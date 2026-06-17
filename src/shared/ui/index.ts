@@ -21,5 +21,20 @@ export * from "./primitives/tabs";
 export * from "./primitives/textarea";
 export * from "./primitives/tooltip";
 
+export * from "./primitives/form";
+export * from "./primitives/radio-group";
+export * from "./primitives/slider";
+export * from "./primitives/command";
+export * from "./primitives/sheet";
+export * from "./primitives/hover-card";
+export * from "./primitives/calendar";
+export * from "./primitives/pagination";
+export * from "./primitives/breadcrumb";
+export * from "./primitives/accordion";
+export * from "./primitives/scroll-area";
+export * from "./primitives/aspect-ratio";
+export * from "./primitives/alert";
+export * from "./primitives/chart";
+
 // Patterns (composed)
 export * from "./patterns";
