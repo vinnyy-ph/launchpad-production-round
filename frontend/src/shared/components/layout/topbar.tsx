@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, ChevronDown, Search } from "lucide-react";
+import { LogOut, ChevronDown, Search, Menu, User } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { appUser } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -39,32 +39,41 @@ export function Topbar() {
     <header className="flex h-16 flex-shrink-0 items-center justify-between px-6 border-b border-[color:var(--border-primary)] bg-white">
       {/* Left: Workspace Identity */}
       <div className="flex items-center gap-2.5 flex-shrink-0">
-        <span 
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
+          aria-label="Open menu"
+        >
+          <Menu size={20} />
+        </button>
+        <span
           className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ background: "var(--gradient-jia)" }}
+          style={{ background: "#181D27" }}
         />
         <span className="text-[16px] font-bold tracking-[-0.01em] text-[#181d27] whitespace-nowrap">
-          Swift Work
+          SwiftWork
         </span>
       </div>
 
       {/* Center: Search */}
       <div className="flex-1 flex justify-center px-4">
         <label className="relative flex items-center w-full max-w-[460px]">
-          <Search 
-            size={18} 
-            className="absolute left-3 text-[color:var(--text-tertiary)] pointer-events-none" 
+          <Search
+            size={18}
+            className="absolute left-3 text-[color:var(--text-tertiary)] pointer-events-none"
           />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search people, teams, surveys…"
             aria-label="Search"
-            className="w-full h-10 pl-[38px] pr-3.5 text-[14px] font-medium text-[color:var(--text-primary)] bg-white border border-[color:var(--border-secondary)] rounded-lg outline-none shadow-[var(--shadow-inset-brand)] focus:border-[color:var(--border-strong)] focus:shadow-[var(--focus-ring-shadow)] transition-all"
+            disabled
+            title="Search coming soon"
+            className="w-full h-10 pl-[38px] pr-3.5 text-[14px] font-medium text-[color:var(--text-primary)] bg-white border border-[color:var(--border-secondary)] rounded-lg outline-none shadow-[var(--shadow-inset-brand)] cursor-not-allowed disabled:opacity-60"
           />
         </label>
       </div>
 
-      {/* Right: Controls (Existing logic, styled in Task 5) */}
+      {/* Right: Controls */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <NotificationBell />
         <div ref={menuRef} className="relative">
@@ -82,13 +91,31 @@ export function Topbar() {
         {menuOpen && (
           <div
             role="menu"
-            className="absolute right-0 top-full z-50 mt-1 w-40 rounded-xl border border-[color:var(--border-primary)] bg-white"
+            className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
             style={{ boxShadow: "var(--shadow-md)" }}
           >
+            <div className="border-b border-[color:var(--border-primary)] px-3 py-2.5">
+              <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+                {appUser?.displayName ?? appUser?.email ?? "Account"}
+              </p>
+              {appUser?.role && (
+                <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                  {appUser.role.charAt(0) + appUser.role.slice(1).toLowerCase()}
+                </p>
+              )}
+            </div>
+            <button
+              role="menuitem"
+              onClick={() => { setMenuOpen(false); navigate("/employee/profile"); }}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
+            >
+              <User size={14} />
+              My profile
+            </button>
             <button
               role="menuitem"
               onClick={() => void handleSignOut()}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
             >
               <LogOut size={14} />
               Sign out
