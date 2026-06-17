@@ -1,10 +1,18 @@
-import { apiFetch } from "@/shared/lib/api-client";
+import { readCollection, writeCollection } from "@/shared/mock/db";
 import type { Notification } from "../types/notifications.types";
 
-export function fetchNotifications(limit = 10) {
-  return apiFetch<Notification[]>(`/api/notifications?limit=${limit}`);
+const COLLECTION = "notifications";
+
+export async function fetchNotifications(limit = 10): Promise<Notification[]> {
+  const all = readCollection<Notification>(COLLECTION)
+    .slice()
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return all.slice(0, limit);
 }
 
-export function markNotificationRead(id: string) {
-  return apiFetch<void>(`/api/notifications/${id}/read`, { method: "PATCH" });
+export async function markNotificationRead(id: string): Promise<void> {
+  const rows = readCollection<Notification>(COLLECTION).map((n) =>
+    n.id === id ? { ...n, isRead: true } : n,
+  );
+  writeCollection(COLLECTION, rows);
 }
