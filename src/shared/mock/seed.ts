@@ -221,6 +221,9 @@ function seedNotifications(): Notification[] {
     { id: "n4", type: "ONBOARDING_COMPLETE", subject: "Onboarding update", body: "H. Reyes reached document review.", recipientEmployeeId: "e-hr", linkUrl: "/hr/onboarding", isRead: true, createdAt: "2026-06-14T08:00:00.000Z" },
     // Pulse reminder goes to the employee (broadening: also relevant to supervisor)
     { id: "n5", type: "PULSE_REMINDER", subject: "Pulse reminder", body: "2 days left to submit the engagement pulse.", recipientEmployeeId: "e-sup", linkUrl: "/employee/surveys", isRead: true, createdAt: "2026-06-13T08:00:00.000Z" },
+    // Admin (default login) — onboarding completion to review + the open pulse to answer
+    { id: "n6", type: "ONBOARDING_COMPLETE", subject: "New hire in document review", body: "H. Reyes reached document review.", recipientEmployeeId: "e-admin", linkUrl: "/hr/onboarding", isRead: false, createdAt: "2026-06-16T10:00:00.000Z" },
+    { id: "n7", type: "NEW_PULSE", subject: "New pulse survey", body: "Q2 engagement pulse is open.", recipientEmployeeId: "e-admin", linkUrl: "/employee/surveys", isRead: true, createdAt: "2026-06-16T09:00:00.000Z" },
   ];
 }
 

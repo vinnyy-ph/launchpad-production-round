@@ -1,7 +1,7 @@
 import { buildSeed } from "./seed";
 
 const STORAGE_KEY = "swiftwork-demo";
-export const MOCK_DB_VERSION = 3;
+export const MOCK_DB_VERSION = 4;
 
 interface DbShape {
   version: number;
