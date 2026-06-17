@@ -12,10 +12,12 @@ export async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const authHeader = url.startsWith("/") ? await getAuthHeader() : {};
+  const isFormData = options.body instanceof FormData;
   const res = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      // Let the browser set the multipart boundary for FormData uploads.
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...authHeader,
       ...(options.headers as Record<string, string> | undefined),
     },
@@ -23,6 +25,10 @@ export async function apiFetch<T>(
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { message?: string }).message ?? res.statusText);
+  }
+  // No body to parse (e.g. a 204 from a PATCH/DELETE).
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
   }
   return res.json() as Promise<T>;
 }

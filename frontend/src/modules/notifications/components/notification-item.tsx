@@ -1,4 +1,7 @@
-import { useNavigate } from "react-router-dom";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import type { Notification } from "../types/notifications.types";
 
 interface Props {
@@ -7,12 +10,12 @@ interface Props {
 }
 
 export function NotificationItem({ notification, onRead }: Props) {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleClick = () => {
     if (!notification.isRead) onRead(notification.id);
     if (notification.linkUrl && notification.linkUrl.startsWith("/")) {
-      navigate(notification.linkUrl);
+      router.push(notification.linkUrl);
     }
   };
 
@@ -37,7 +40,7 @@ export function NotificationItem({ notification, onRead }: Props) {
           {notification.body}
         </p>
       </div>
-      <span className="mt-0.5 flex-shrink-0 text-[color:var(--text-quaternary)]">›</span>
+      <ChevronRight size={16} className="mt-0.5 flex-shrink-0 text-[color:var(--text-quaternary)]" />
     </button>
   );
 }

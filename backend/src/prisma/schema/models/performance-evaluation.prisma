@@ -15,6 +15,7 @@ model PerformanceEvaluation {
   sentAt           DateTime?
   /// Deemed-acknowledged anchor: sentAt + ack window. Set on send.
   ackDeadline      DateTime?
+  deletedAt        DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

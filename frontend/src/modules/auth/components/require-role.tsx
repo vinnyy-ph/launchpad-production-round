@@ -1,5 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { redirect } from "next/navigation";
 import { useAuth } from "../hooks/use-auth";
 import type { Role } from "../types/auth.types";
 
@@ -11,12 +13,12 @@ interface Props {
 export function RequireRole({ allowedRoles, children }: Props) {
   const { appUser, loading } = useAuth();
   if (loading) return null;
-  if (!appUser) return <Navigate to="/login" replace />;
+  if (!appUser) redirect("/login");
 
   const hasRole =
     allowedRoles.includes(appUser.role) ||
     (allowedRoles.includes("SUPERVISOR") && appUser.isSupervisor);
 
-  if (!hasRole) return <Navigate to="/" replace />;
+  if (!hasRole) redirect("/");
   return <>{children}</>;
 }

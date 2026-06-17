@@ -32,6 +32,7 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.testing
 
 # claude
 .claude/
@@ -45,3 +46,7 @@ next-env.d.ts
 
 .claude/
 .superpowers/
+
+.cursor/
+
+CONTEXT.md
