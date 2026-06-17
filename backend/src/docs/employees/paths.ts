@@ -286,7 +286,7 @@
  *         supervisorId:
  *           type: string
  *           nullable: true
- *           description: Send null to clear the supervisor.
+ *           description: Send null only when making this employee the single root; circular reporting is rejected.
  *           example: supervisor-1
  *         status:
  *           $ref: '#/components/schemas/EmployeeStatus'

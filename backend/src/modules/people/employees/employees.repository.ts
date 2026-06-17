@@ -116,6 +116,31 @@ export class EmployeesRepository {
   }
 
   /**
+   * Finds only the fields needed to validate supervisor-tree rules.
+   */
+  async findSupervisorLink(employeeId: string) {
+    return prisma.employee.findFirst({
+      where: { id: employeeId },
+      select: {
+        id: true,
+        supervisorId: true,
+      },
+    });
+  }
+
+  /**
+   * Counts employees without supervisors, optionally excluding the employee being edited.
+   */
+  async countRootEmployees(excludingEmployeeId?: string) {
+    return prisma.employee.count({
+      where: {
+        supervisorId: null,
+        ...(excludingEmployeeId ? { id: { not: excludingEmployeeId } } : {}),
+      },
+    });
+  }
+
+  /**
    * Updates HR-editable employee profile fields and returns the refreshed unredacted profile.
    */
   async updateProfile(employeeId: string, update: UpdateEmployeeProfileRequestDto, updatedBy: string) {
