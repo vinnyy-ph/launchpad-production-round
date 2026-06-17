@@ -74,10 +74,13 @@ function EvalBanner({
     );
   }
 
+  const ratings = evaluation.ratings ?? [];
   const avgScore =
-    evaluation.ratings.length > 0
-      ? (evaluation.ratings.reduce((s, r) => s + r.score, 0) / evaluation.ratings.length).toFixed(1)
-      : null;
+    evaluation.grade != null
+      ? String(evaluation.grade)
+      : ratings.length > 0
+        ? (ratings.reduce((s, r) => s + r.score, 0) / ratings.length).toFixed(1)
+        : null;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-[#FEDF89] bg-[#FFFAEB] px-4 py-3 sm:flex-row sm:items-center">
@@ -382,12 +385,12 @@ export default function ProfilePage() {
               </p>
             )}
 
-            {myEval.ratings.length > 0 && (
+            {(myEval.ratings?.length ?? 0) > 0 && (
               <div className="space-y-2 border-t border-[color:var(--border-primary)] pt-3">
                 <p className="text-xs font-medium text-[color:var(--text-tertiary)] uppercase tracking-wide">
                   Competency ratings
                 </p>
-                {myEval.ratings.map((r) => (
+                {(myEval.ratings ?? []).map((r) => (
                   <div key={r.competency} className="flex items-center justify-between gap-3">
                     <span className="text-sm text-[color:var(--text-secondary)]">
                       {r.competency}

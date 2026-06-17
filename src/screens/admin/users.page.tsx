@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Users } from "lucide-react";
+import { Users, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
@@ -14,6 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  FormField,
   DataTable,
   EmptyState,
   FilterBar,
@@ -154,7 +161,54 @@ function useUsers() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnlyActiveAdmin]);
 
-  return { rows, loading, error, reload, isOnlyActiveAdmin, changeRole, deactivate };
+  // Create both an employee row and an active user account.
+  const inviteUser = useCallback((input: { displayName: string; email: string; role: Role }) => {
+    const employees = readCollection<DemoEmployee>("employees");
+    const users = readCollection<UserAccount>("users");
+
+    const emailLower = input.email.trim().toLowerCase();
+    if (users.some((u) => u.email.toLowerCase() === emailLower)) {
+      toast.error("A user with this email already exists.");
+      return false;
+    }
+
+    const stamp = Date.now().toString(36);
+    const employeeId = `e-${stamp}`;
+    const userId = `u-${stamp}`;
+    const now = new Date().toISOString();
+
+    const newEmployee: DemoEmployee = {
+      employeeId,
+      userId,
+      displayName: input.displayName.trim(),
+      email: input.email.trim(),
+      role: input.role,
+      isSupervisor: false,
+      isActive: true,
+      jobTitle: input.role === "ADMIN" ? "Admin" : input.role === "HR" ? "HR" : "Employee",
+      department: input.role === "HR" ? "People" : "Unassigned",
+      employeeStatus: "ACTIVE",
+      supervisorId: null,
+      teamId: null,
+      startDate: now.slice(0, 10),
+    };
+    const newUser: UserAccount = {
+      id: userId,
+      employeeId,
+      email: input.email.trim(),
+      role: input.role,
+      isActive: true,
+      lastActiveAt: now,
+    };
+
+    writeCollection<DemoEmployee>("employees", [...employees, newEmployee]);
+    writeCollection<UserAccount>("users", [...users, newUser]);
+    setTick((t) => t + 1);
+    toast.success(`${newEmployee.displayName} invited.`);
+    return true;
+  }, []);
+
+  return { rows, loading, error, reload, isOnlyActiveAdmin, changeRole, deactivate, inviteUser };
 }
 
 // ---------------------------------------------------------------------------
@@ -175,10 +229,11 @@ export default function UsersPage() {
 
 function UsersPageInner() {
   const confirm = useConfirm();
-  const { rows, loading, error, reload, isOnlyActiveAdmin, changeRole, deactivate } = useUsers();
+  const { rows, loading, error, reload, isOnlyActiveAdmin, changeRole, deactivate, inviteUser } = useUsers();
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | typeof ALL_ROLES>(ALL_ROLES);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -310,7 +365,15 @@ function UsersPageInner() {
         level="page"
         title="User management"
         subtitle="Manage user accounts, roles, and access across the organization."
+        action={
+          <Button onClick={() => setInviteOpen(true)}>
+            <Plus aria-hidden="true" />
+            Invite user
+          </Button>
+        }
       />
+
+      <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} onInvite={inviteUser} />
 
       <FilterBar aria-label="Filter users">
         <Input
@@ -359,10 +422,111 @@ function UsersPageInner() {
                   ? "Try a different search or role filter."
                   : "No user accounts have been created yet."
               }
+              action={hasFilters ? undefined : { label: "Invite user", onClick: () => setInviteOpen(true) }}
             />
           }
         />
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Invite user dialog
+// ---------------------------------------------------------------------------
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function InviteUserDialog({
+  open,
+  onOpenChange,
+  onInvite,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onInvite: (input: { displayName: string; email: string; role: Role }) => boolean;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("EMPLOYEE");
+  const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
+
+  function reset() {
+    setName("");
+    setEmail("");
+    setRole("EMPLOYEE");
+    setErrors({});
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) reset();
+    onOpenChange(next);
+  }
+
+  function handleSubmit() {
+    const next: { name?: string; email?: string } = {};
+    if (!name.trim()) next.name = "Name is required.";
+    if (!EMAIL_RE.test(email.trim())) next.email = "Enter a valid email address.";
+    setErrors(next);
+    if (next.name || next.email) return;
+
+    const ok = onInvite({ displayName: name, email, role });
+    if (ok) {
+      reset();
+      onOpenChange(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Invite user</DialogTitle>
+          <DialogDescription>
+            Create an account and employee record. The user becomes active immediately.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <FormField label="Full name" htmlFor="invite-name" required error={errors.name}>
+            <Input
+              id="invite-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Jordan Park"
+              autoFocus
+            />
+          </FormField>
+          <FormField label="Email" htmlFor="invite-email" required error={errors.email}>
+            <Input
+              id="invite-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@swiftwork.demo"
+            />
+          </FormField>
+          <FormField label="Role" htmlFor="invite-role">
+            <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+              <SelectTrigger id="invite-role">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {roleLabel(r)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+        </div>
+
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => handleOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSubmit}>Invite user</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

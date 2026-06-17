@@ -30,22 +30,26 @@ import type {
   SurveyQuestion,
   Evaluation,
   DemoEmployee,
+  Team,
 } from "@/shared/mock/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
  * Aggregate rating answers for a given question across all responses.
- * Returns data for a BarChart (count per rating 1–5).
+ * Uses question's scaleMin/scaleMax range (not hardcoded 1-5).
  */
 function aggregateRating(
   responses: SurveyResponse[],
-  qid: string,
+  q: SurveyQuestion,
 ): { label: string; count: number }[] {
-  const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const min = (q as { scaleMin?: number }).scaleMin ?? 1;
+  const max = (q as { scaleMax?: number }).scaleMax ?? 5;
+  const counts: Record<number, number> = {};
+  for (let i = min; i <= max; i++) counts[i] = 0;
   for (const r of responses) {
-    const val = r.answers[qid];
-    if (typeof val === "number" && val >= 1 && val <= 5) {
+    const val = r.answers[q.id];
+    if (typeof val === "number" && val >= min && val <= max) {
       counts[val] = (counts[val] ?? 0) + 1;
     }
   }
@@ -100,13 +104,14 @@ function buildTrend(
 
 /**
  * Build evaluation competency averages for the BarChart.
+ * Guards ev.ratings with ?? [] to avoid runtime errors on optional field.
  */
 function buildCompetencyAverages(
   evals: Evaluation[],
 ): { competency: string; avg: number }[] {
   const totals: Record<string, { sum: number; count: number }> = {};
   for (const ev of evals) {
-    for (const r of ev.ratings) {
+    for (const r of (ev.ratings ?? [])) {
       if (!totals[r.competency]) totals[r.competency] = { sum: 0, count: 0 };
       totals[r.competency].sum += r.score;
       totals[r.competency].count++;
@@ -118,6 +123,21 @@ function buildCompetencyAverages(
   }));
 }
 
+/**
+ * Build grade distribution (1-5) for shared+acknowledged evaluations.
+ */
+function buildGradeDistribution(
+  evals: Evaluation[],
+): { label: string; count: number }[] {
+  const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const ev of evals) {
+    if (ev.grade !== undefined && ev.grade >= 1 && ev.grade <= 5) {
+      counts[ev.grade] = (counts[ev.grade] ?? 0) + 1;
+    }
+  }
+  return Object.entries(counts).map(([k, v]) => ({ label: `Grade ${k}`, count: v }));
+}
+
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 function usePerformanceData() {
@@ -125,6 +145,7 @@ function usePerformanceData() {
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [evals, setEvals] = useState<Evaluation[]>([]);
   const [employees, setEmployees] = useState<DemoEmployee[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,6 +157,7 @@ function usePerformanceData() {
       setResponses(readCollection<SurveyResponse>("surveyResponses"));
       setEvals(readCollection<Evaluation>("evaluations"));
       setEmployees(readCollection<DemoEmployee>("employees"));
+      setTeams(readCollection<Team>("teams"));
     } catch {
       setError("Could not load performance data.");
     } finally {
@@ -145,7 +167,7 @@ function usePerformanceData() {
 
   useEffect(() => { load(); }, [load]);
 
-  return { surveys, responses, evals, employees, loading, error, reload: load };
+  return { surveys, responses, evals, employees, teams, loading, error, reload: load };
 }
 
 // ─── Stat strip ───────────────────────────────────────────────────────────────
@@ -184,92 +206,193 @@ function AnonymityGuard({ minGroupSize, count }: { minGroupSize: number; count: 
 function SurveyResultsPanel({
   survey,
   responses,
+  employees,
+  teams,
 }: {
   survey: Survey;
   responses: SurveyResponse[];
+  employees: DemoEmployee[];
+  teams: Team[];
 }) {
-  const surveyResponses = responses.filter((r) => r.surveyId === survey.id);
-  const responseCount = surveyResponses.length;
-  const meetsMinGroup = responseCount >= survey.minGroupSize;
+  const [filterTeamId, setFilterTeamId] = useState<string>("all");
+  const [filterSupervisorId, setFilterSupervisorId] = useState<string>("all");
+
+  const allSurveyResponses = responses.filter((r) => r.surveyId === survey.id);
+
+  // Derive unique supervisors from employees who submitted responses
+  const respondentEmployeeIds = new Set(allSurveyResponses.map((r) => r.employeeId));
+  const respondentEmployees = employees.filter((e) => respondentEmployeeIds.has(e.employeeId));
+
+  const supervisorIds = Array.from(
+    new Set(respondentEmployees.map((e) => e.supervisorId).filter(Boolean))
+  ) as string[];
+  const supervisors = employees.filter((e) => supervisorIds.includes(e.employeeId));
+
+  // Apply team filter: keep responses from employees in the selected team
+  const teamFilteredResponses =
+    filterTeamId === "all"
+      ? allSurveyResponses
+      : allSurveyResponses.filter((r) => {
+          const emp = employees.find((e) => e.employeeId === r.employeeId);
+          return emp?.teamId === filterTeamId;
+        });
+
+  // Apply supervisor filter on top of team filter
+  const filteredResponses =
+    filterSupervisorId === "all"
+      ? teamFilteredResponses
+      : teamFilteredResponses.filter((r) => {
+          const emp = employees.find((e) => e.employeeId === r.employeeId);
+          return emp?.supervisorId === filterSupervisorId;
+        });
+
+  const isFiltered = filterTeamId !== "all" || filterSupervisorId !== "all";
+  const filteredResponseCount = filteredResponses.length;
+  const totalResponseCount = allSurveyResponses.length;
+
+  // Min-group-size is applied AFTER filter when a filter is active
+  const effectiveCount = isFiltered ? filteredResponseCount : totalResponseCount;
+  const meetsMinGroup = effectiveCount >= survey.minGroupSize;
+
   const ratingQIds = survey.questions.filter((q) => q.type === "RATING").map((q) => q.id);
-  const trendData = meetsMinGroup ? buildTrend(surveyResponses, ratingQIds) : [];
+  const trendData = meetsMinGroup ? buildTrend(filteredResponses, ratingQIds) : [];
 
   return (
     <div className="space-y-6">
-      {/* Response count */}
+      {/* Stats */}
       <div className="flex flex-wrap gap-3">
-        <StatStrip label="Responses" value={responseCount} />
+        <StatStrip label="Total responses" value={totalResponseCount} />
+        {isFiltered && (
+          <StatStrip label="Filtered responses" value={filteredResponseCount} />
+        )}
         <StatStrip label="Min group size" value={survey.minGroupSize} />
         <StatStrip label="Anonymity" value={survey.anonymous ? "On" : "Off"} />
-        <StatStrip label="Audience" value={survey.audience} />
       </div>
 
-      {/* Anonymity guard */}
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium text-[color:var(--text-primary)]">Filter</span>
+
+        {/* Team filter */}
+        <Select value={filterTeamId} onValueChange={(v) => { setFilterTeamId(v); setFilterSupervisorId("all"); }}>
+          <SelectTrigger className="w-auto min-w-[180px]">
+            <SelectValue placeholder="All teams" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All teams</SelectItem>
+            {teams.map((t) => (
+              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Supervisor filter */}
+        <Select value={filterSupervisorId} onValueChange={setFilterSupervisorId}>
+          <SelectTrigger className="w-auto min-w-[200px]">
+            <SelectValue placeholder="All supervisors" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All supervisors</SelectItem>
+            {supervisors.map((s) => (
+              <SelectItem key={s.employeeId} value={s.employeeId}>
+                {s.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {isFiltered && (
+          <button
+            onClick={() => { setFilterTeamId("all"); setFilterSupervisorId("all"); }}
+            className="text-xs text-[color:var(--text-tertiary)] underline hover:text-[color:var(--text-primary)]"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {/* Anonymity guard — triggered by filtered count when filter is active */}
       {survey.anonymous && !meetsMinGroup && (
-        <AnonymityGuard minGroupSize={survey.minGroupSize} count={responseCount} />
+        <AnonymityGuard minGroupSize={survey.minGroupSize} count={effectiveCount} />
       )}
 
       {/* Per-question charts */}
       <div className="space-y-6">
-        {survey.questions.map((q: SurveyQuestion, idx: number) => (
-          <div
-            key={q.id}
-            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          >
-            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-              Q{idx + 1} · {q.type}
-            </p>
-            <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">{q.prompt}</p>
+        {survey.questions.map((q: SurveyQuestion, idx: number) => {
+          const scaleMinLabel = (q as { scaleMinLabel?: string }).scaleMinLabel;
+          const scaleMaxLabel = (q as { scaleMaxLabel?: string }).scaleMaxLabel;
 
-            {q.type === "RATING" && (
-              <BarChart
-                data={aggregateRating(surveyResponses, q.id).map((d) => ({ label: d.label, count: d.count }))}
-                categoryKey="label"
-                valueKey="count"
-                height={200}
-                minGroupSize={survey.anonymous ? survey.minGroupSize : undefined}
-              />
-            )}
+          return (
+            <div
+              key={q.id}
+              className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+              style={{ boxShadow: "var(--shadow-xs)" }}
+            >
+              <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+                Q{idx + 1} · {q.type}
+              </p>
+              <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">{q.prompt}</p>
 
-            {q.type === "SINGLE" && (
-              <DonutChart
-                data={aggregateSingle(surveyResponses, q.id, q.options ?? [])}
-                height={200}
-                minGroupSize={survey.anonymous ? survey.minGroupSize : undefined}
-              />
-            )}
+              {q.type === "RATING" && (
+                <>
+                  {scaleMinLabel || scaleMaxLabel ? (
+                    <p className="mb-2 text-xs text-[color:var(--text-tertiary)]">
+                      {scaleMinLabel && <span>1 = {scaleMinLabel}</span>}
+                      {scaleMinLabel && scaleMaxLabel && <span className="mx-1">·</span>}
+                      {scaleMaxLabel && (
+                        <span>
+                          {(q as { scaleMax?: number }).scaleMax ?? 5} = {scaleMaxLabel}
+                        </span>
+                      )}
+                    </p>
+                  ) : null}
+                  <BarChart
+                    data={aggregateRating(filteredResponses, q).map((d) => ({ label: d.label, count: d.count }))}
+                    categoryKey="label"
+                    valueKey="count"
+                    height={200}
+                    minGroupSize={survey.anonymous ? survey.minGroupSize : undefined}
+                  />
+                </>
+              )}
 
-            {q.type === "MULTI" && (
-              <BarChart
-                data={(q.options ?? []).map((opt) => ({
-                  option: opt,
-                  count: surveyResponses.filter((r) => {
-                    const ans = r.answers[q.id];
-                    return Array.isArray(ans) && ans.includes(opt);
-                  }).length,
-                }))}
-                categoryKey="option"
-                valueKey="count"
-                height={200}
-                minGroupSize={survey.anonymous ? survey.minGroupSize : undefined}
-              />
-            )}
+              {q.type === "SINGLE" && (
+                <DonutChart
+                  data={aggregateSingle(filteredResponses, q.id, q.options ?? [])}
+                  height={200}
+                  minGroupSize={survey.anonymous ? survey.minGroupSize : undefined}
+                />
+              )}
 
-            {q.type === "TEXT" && (
-              survey.anonymous || !meetsMinGroup ? (
-                survey.anonymous && !meetsMinGroup ? (
-                  <AnonymityGuard minGroupSize={survey.minGroupSize} count={responseCount} />
-                ) : (
+              {q.type === "MULTI" && (
+                <BarChart
+                  data={(q.options ?? []).map((opt) => ({
+                    option: opt,
+                    count: filteredResponses.filter((r) => {
+                      const ans = r.answers[q.id];
+                      return Array.isArray(ans) && ans.includes(opt);
+                    }).length,
+                  }))}
+                  categoryKey="option"
+                  valueKey="count"
+                  height={200}
+                  minGroupSize={survey.anonymous ? survey.minGroupSize : undefined}
+                />
+              )}
+
+              {q.type === "TEXT" && (
+                !meetsMinGroup ? (
+                  <AnonymityGuard minGroupSize={survey.minGroupSize} count={effectiveCount} />
+                ) : survey.anonymous ? (
+                  // Anonymous survey — use "Response N" labels, never show identity
                   <div className="space-y-2">
-                    {surveyResponses
+                    {filteredResponses
                       .filter((r) => r.answers[q.id] && String(r.answers[q.id]).trim())
                       .map((r, i) => (
                         <div
                           key={r.id}
                           className="rounded-lg bg-[color:var(--bg-secondary)] px-4 py-2.5"
                         >
-                          {/* Never reveal respondent identity for anonymous surveys */}
                           <p className="text-xs text-[color:var(--text-quaternary)]">Response {i + 1}</p>
                           <p className="mt-0.5 text-sm text-[color:var(--text-primary)]">
                             {String(r.answers[q.id])}
@@ -277,31 +400,35 @@ function SurveyResultsPanel({
                         </div>
                       ))}
                   </div>
+                ) : (
+                  // Non-anonymous survey — show display name
+                  <div className="space-y-2">
+                    {filteredResponses
+                      .filter((r) => r.answers[q.id] && String(r.answers[q.id]).trim())
+                      .map((r) => {
+                        const emp = employees.find((e) => e.employeeId === r.employeeId);
+                        const displayName = emp ? emp.displayName : r.employeeId;
+                        return (
+                          <div
+                            key={r.id}
+                            className="rounded-lg bg-[color:var(--bg-secondary)] px-4 py-2.5"
+                          >
+                            <p className="text-xs text-[color:var(--text-quaternary)]">{displayName}</p>
+                            <p className="mt-0.5 text-sm text-[color:var(--text-primary)]">
+                              {String(r.answers[q.id])}
+                            </p>
+                          </div>
+                        );
+                      })}
+                  </div>
                 )
-              ) : (
-                <div className="space-y-2">
-                  {surveyResponses
-                    .filter((r) => r.answers[q.id] && String(r.answers[q.id]).trim())
-                    .map((r) => (
-                      <div
-                        key={r.id}
-                        className="rounded-lg bg-[color:var(--bg-secondary)] px-4 py-2.5"
-                      >
-                        {/* Named survey — can show employee name */}
-                        <p className="text-xs text-[color:var(--text-quaternary)]">{r.employeeId}</p>
-                        <p className="mt-0.5 text-sm text-[color:var(--text-primary)]">
-                          {String(r.answers[q.id])}
-                        </p>
-                      </div>
-                    ))}
-                </div>
-              )
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Trend chart */}
+      {/* Trend chart — only shown when filtered response count >= minGroupSize */}
       {ratingQIds.length > 0 && (
         <div
           className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
@@ -334,8 +461,9 @@ function SurveyResultsPanel({
 // ─── Evaluations summary panel ────────────────────────────────────────────────
 
 function EvaluationsSummaryPanel({ evals }: { evals: Evaluation[] }) {
-  const sharedEvals = evals.filter((e) => e.status === "SHARED" || e.status === "ACKNOWLEDGED");
-  const competencyData = buildCompetencyAverages(sharedEvals);
+  const sharedEvals = evals.filter(
+    (e) => e.status === "SHARED" || e.status === "ACKNOWLEDGED" || e.status === "DEEMED_ACKNOWLEDGED"
+  );
 
   if (sharedEvals.length === 0) {
     return (
@@ -348,16 +476,64 @@ function EvaluationsSummaryPanel({ evals }: { evals: Evaluation[] }) {
   }
 
   const acknowledgedCount = evals.filter((e) => e.status === "ACKNOWLEDGED").length;
+  const deemedAckCount = evals.filter((e) => e.status === "DEEMED_ACKNOWLEDGED").length;
   const pendingCount = evals.filter((e) => e.status === "SHARED").length;
+  const draftCount = evals.filter((e) => e.status === "DRAFT").length;
+
+  const gradeDistribution = buildGradeDistribution(sharedEvals);
+  const hasGrades = gradeDistribution.some((d) => d.count > 0);
+
+  const competencyData = buildCompetencyAverages(sharedEvals);
 
   return (
     <div className="space-y-6">
+      {/* Summary stats */}
       <div className="flex flex-wrap gap-3">
         <StatStrip label="Total evaluations" value={evals.length} />
         <StatStrip label="Acknowledged" value={acknowledgedCount} />
+        <StatStrip label="Deemed acknowledged" value={deemedAckCount} />
         <StatStrip label="Pending acknowledgement" value={pendingCount} />
+        <StatStrip label="Drafts" value={draftCount} />
       </div>
 
+      {/* Grade distribution — primary chart */}
+      {hasGrades && (
+        <div
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">
+            Grade distribution (shared &amp; acknowledged evaluations)
+          </p>
+          <BarChart
+            data={gradeDistribution}
+            categoryKey="label"
+            valueKey="count"
+            height={220}
+          />
+        </div>
+      )}
+
+      {/* Status breakdown donut — includes DEEMED_ACKNOWLEDGED */}
+      <div
+        className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      >
+        <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">
+          Evaluation status breakdown
+        </p>
+        <DonutChart
+          data={[
+            { name: "Draft", value: draftCount },
+            { name: "Shared", value: pendingCount },
+            { name: "Acknowledged", value: acknowledgedCount },
+            { name: "Deemed ack.", value: deemedAckCount },
+          ].filter((d) => d.value > 0)}
+          height={220}
+        />
+      </div>
+
+      {/* Competency averages — secondary chart, guarded */}
       {competencyData.length > 0 && (
         <div
           className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
@@ -374,24 +550,6 @@ function EvaluationsSummaryPanel({ evals }: { evals: Evaluation[] }) {
           />
         </div>
       )}
-
-      {/* Status breakdown donut */}
-      <div
-        className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-        style={{ boxShadow: "var(--shadow-xs)" }}
-      >
-        <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">
-          Evaluation status breakdown
-        </p>
-        <DonutChart
-          data={[
-            { name: "Draft", value: evals.filter((e) => e.status === "DRAFT").length },
-            { name: "Shared", value: evals.filter((e) => e.status === "SHARED").length },
-            { name: "Acknowledged", value: evals.filter((e) => e.status === "ACKNOWLEDGED").length },
-          ].filter((d) => d.value > 0)}
-          height={220}
-        />
-      </div>
     </div>
   );
 }
@@ -399,7 +557,7 @@ function EvaluationsSummaryPanel({ evals }: { evals: Evaluation[] }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function PerformanceHubPage() {
-  const { surveys, responses, evals, loading, error, reload } = usePerformanceData();
+  const { surveys, responses, evals, employees, teams, loading, error, reload } = usePerformanceData();
 
   const [selectedSurveyId, setSelectedSurveyId] = useState<string>("");
 
@@ -506,7 +664,12 @@ export default function PerformanceHubPage() {
               </div>
 
               {selectedSurvey ? (
-                <SurveyResultsPanel survey={selectedSurvey} responses={responses} />
+                <SurveyResultsPanel
+                  survey={selectedSurvey}
+                  responses={responses}
+                  employees={employees}
+                  teams={teams}
+                />
               ) : (
                 <EmptyState icon={TrendingUp} title="Select a survey" body="Choose a survey above to view results." />
               )}

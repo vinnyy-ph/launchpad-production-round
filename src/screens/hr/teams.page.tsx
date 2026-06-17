@@ -2,23 +2,36 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Network } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
-  Badge,
+  Button,
+  Combobox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  FormField,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
   Skeleton,
   StatusBadge,
   EmptyState,
   ErrorState,
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
   StatCard,
 } from "@/shared/ui";
-import { readCollection } from "@/shared/mock/db";
+import { readCollection, writeCollection } from "@/shared/mock/db";
 import type { Team, DemoEmployee } from "@/shared/mock/types";
+import { OrgChart, allTeamIds } from "@/modules/people/employees/components/org-chart/org-chart";
+import { OrgChartControls } from "@/modules/people/employees/components/org-chart/org-chart-controls";
+import { CreateTeamDialog } from "@/modules/people/teams/components/create-team-dialog";
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+const NONE = "__none__";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -26,138 +39,30 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-// ─── sub-components ──────────────────────────────────────────────────────────
-
-function LeadAvatar({ name }: { name: string }) {
-  return (
-    <span
-      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
-  );
-}
-
-function MemberAvatar({ name }: { name: string }) {
-  return (
-    <span
-      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
-  );
-}
-
-interface TeamCardProps {
-  team: Team;
-  lead: DemoEmployee | undefined;
-  members: DemoEmployee[];
-}
-
-function TeamCard({ team, lead, members }: TeamCardProps) {
-  return (
-    <div
-      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-      style={{ boxShadow: "var(--shadow-xs)" }}
-    >
-      {/* Team name */}
-      <p className="text-base font-bold text-[color:var(--text-primary)]">{team.name}</p>
-
-      {/* Lead row */}
-      <div className="mt-3">
-        <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          Team Lead
-        </p>
-        {lead ? (
-          <div className="mt-1.5 flex items-center gap-2">
-            <LeadAvatar name={lead.displayName} />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-                {lead.displayName}
-              </p>
-              <p className="text-xs text-[color:var(--text-tertiary)]">{lead.jobTitle}</p>
-            </div>
-          </div>
-        ) : (
-          <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">No lead assigned</p>
-        )}
-      </div>
-
-      {/* Member count + expandable list */}
-      <div className="mt-4">
-        <Accordion type="single" collapsible>
-          <AccordionItem value="members" className="border-0">
-            <AccordionTrigger className="py-0 hover:no-underline [&:hover]:no-underline">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-                  Members
-                </p>
-                <Badge variant="neutral">{members.length} members</Badge>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pb-0 pt-3">
-              {members.length === 0 ? (
-                <p className="text-xs text-[color:var(--text-tertiary)]">No members in this team.</p>
-              ) : (
-                <div className="divide-y divide-[color:var(--border-primary)]">
-                  {members.map((member) => (
-                    <div
-                      key={member.employeeId}
-                      className="flex items-center justify-between gap-3 py-2"
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <MemberAvatar name={member.displayName} />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-                            {member.displayName}
-                          </p>
-                          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-                            {member.jobTitle}
-                          </p>
-                        </div>
-                      </div>
-                      <StatusBadge status={member.employeeStatus} dot />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
-    </div>
-  );
-}
-
-function SkeletonCard() {
-  return (
-    <div
-      className="rounded-xl border border-[color:var(--border-primary)] bg-white"
-      style={{ boxShadow: "var(--shadow-xs)" }}
-    >
-      <Skeleton className="h-48 rounded-xl" />
-    </div>
-  );
-}
-
-// ─── page ─────────────────────────────────────────────────────────────────────
-
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [employees, setEmployees] = useState<DemoEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // expand/collapse state — teamIds that are open
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // dialogs / sheet
+  const [createOpen, setCreateOpen] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [leadTeamId, setLeadTeamId] = useState<string | null>(null);
+  const [moveEmployeeId, setMoveEmployeeId] = useState<string | null>(null);
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
     try {
-      setTeams(readCollection<Team>("teams"));
+      const nextTeams = readCollection<Team>("teams");
+      setTeams(nextTeams);
       setEmployees(readCollection<DemoEmployee>("employees"));
+      // default: expand the root level on first load
+      setExpanded((prev) => (prev.size === 0 ? new Set(nextTeams.filter((t) => t.parentId === null).map((t) => t.id)) : prev));
     } catch {
       setError("Could not load teams.");
     } finally {
@@ -178,13 +83,88 @@ export default function TeamsPage() {
     [employees],
   );
 
+  // ── expand/collapse ─────────────────────────────────────────────────────────
+  const toggle = useCallback((teamId: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  }, []);
+
+  const expandAll = useCallback(() => setExpanded(new Set(allTeamIds(teams))), [teams]);
+  const collapseAll = useCallback(() => setExpanded(new Set()), []);
+
+  // ── change team lead ──────────────────────────────────────────────────────
+  const leadTeam = leadTeamId ? teams.find((t) => t.id === leadTeamId) ?? null : null;
+  const [leadDraft, setLeadDraft] = useState<string>(NONE);
+  useEffect(() => {
+    setLeadDraft(leadTeam?.leadEmployeeId ?? NONE);
+  }, [leadTeam]);
+
+  const saveLead = useCallback(() => {
+    if (!leadTeam) return;
+    const current = readCollection<Team>("teams");
+    const next = current.map((t) =>
+      t.id === leadTeam.id ? { ...t, leadEmployeeId: leadDraft === NONE ? null : leadDraft } : t,
+    );
+    writeCollection<Team>("teams", next);
+    toast.success("Team lead updated.");
+    setLeadTeamId(null);
+    load();
+  }, [leadTeam, leadDraft, load]);
+
+  // ── move member to another team ───────────────────────────────────────────
+  const moveEmployee = moveEmployeeId ? employeeMap.get(moveEmployeeId) ?? null : null;
+  const [moveDraft, setMoveDraft] = useState<string>("");
+  useEffect(() => {
+    setMoveDraft(moveEmployee?.teamId ?? "");
+  }, [moveEmployee]);
+
+  const saveMove = useCallback(() => {
+    if (!moveEmployee || !moveDraft || moveDraft === moveEmployee.teamId) {
+      setMoveEmployeeId(null);
+      return;
+    }
+    const fromTeamId = moveEmployee.teamId;
+    // 1) update employee's teamId
+    const emps = readCollection<DemoEmployee>("employees");
+    writeCollection<DemoEmployee>(
+      "employees",
+      emps.map((e) => (e.employeeId === moveEmployee.employeeId ? { ...e, teamId: moveDraft } : e)),
+    );
+    // 2) update team membership arrays (remove from old, add to new)
+    const current = readCollection<Team>("teams");
+    writeCollection<Team>(
+      "teams",
+      current.map((t) => {
+        if (t.id === fromTeamId) return { ...t, memberIds: t.memberIds.filter((id) => id !== moveEmployee.employeeId) };
+        if (t.id === moveDraft) return { ...t, memberIds: [...new Set([...t.memberIds, moveEmployee.employeeId])] };
+        return t;
+      }),
+    );
+    toast.success(`${moveEmployee.displayName} moved.`);
+    setMoveEmployeeId(null);
+    load();
+  }, [moveEmployee, moveDraft, load]);
+
+  // ── profile sheet ──────────────────────────────────────────────────────────
+  const profile = profileId ? employeeMap.get(profileId) ?? null : null;
+
+  const employeeOptions = useMemo(
+    () => employees.map((e) => ({ value: e.employeeId, label: `${e.displayName} · ${e.jobTitle}` })),
+    [employees],
+  );
+  const teamOptions = useMemo(
+    () => teams.map((t) => ({ value: t.id, label: t.name })),
+    [teams],
+  );
+
   return (
     <div className="relative">
       {/* Gradient blur accent — page header area only */}
-      <div
-        className="pointer-events-none absolute left-0 top-0 h-48 w-full overflow-hidden"
-        aria-hidden="true"
-      >
+      <div className="pointer-events-none absolute left-0 top-0 h-48 w-full overflow-hidden" aria-hidden="true">
         <div
           className="absolute -left-10 -top-10 h-64 w-96 rounded-full opacity-30 blur-3xl"
           style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-blue, #93c5fd))" }}
@@ -200,8 +180,8 @@ export default function TeamsPage() {
 
         {/* Stats row */}
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-2">
-          <StatCard label="Total Teams" value={loading ? "—" : teams.length} />
-          <StatCard label="Active Members" value={loading ? "—" : totalActiveMembers} />
+          <StatCard label="Total teams" value={loading ? "—" : teams.length} />
+          <StatCard label="Active members" value={loading ? "—" : totalActiveMembers} />
         </div>
 
         {/* Error state */}
@@ -211,40 +191,152 @@ export default function TeamsPage() {
           </div>
         )}
 
-        {/* Team grid */}
+        {/* Org chart */}
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
+          <div className="space-y-3">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="ml-6 h-24 rounded-xl" />
+            <Skeleton className="ml-6 h-24 rounded-xl" />
           </div>
         ) : !error && teams.length === 0 ? (
           <EmptyState
             icon={Network}
             title="No teams configured"
-            body="Teams and org structure will appear here once configured."
+            body="Create your first team to start building the org structure."
+            action={{ label: "Create team", onClick: () => setCreateOpen(true) }}
           />
         ) : !error ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {teams.map((team) => {
-              const lead = team.leadEmployeeId
-                ? employeeMap.get(team.leadEmployeeId)
-                : undefined;
-              const members = team.memberIds
-                .map((id) => employeeMap.get(id))
-                .filter((e): e is DemoEmployee => e !== undefined);
-              return (
-                <TeamCard
-                  key={team.id}
-                  team={team}
-                  lead={lead}
-                  members={members}
-                />
-              );
-            })}
-          </div>
+          <>
+            <OrgChartControls
+              onExpandAll={expandAll}
+              onCollapseAll={collapseAll}
+              onCreateTeam={() => setCreateOpen(true)}
+            />
+            <OrgChart
+              teams={teams}
+              employees={employees}
+              expanded={expanded}
+              onToggle={toggle}
+              onOpenProfile={(id) => setProfileId(id)}
+              onChangeLead={(id) => setLeadTeamId(id)}
+              onMoveMember={(id) => setMoveEmployeeId(id)}
+            />
+          </>
         ) : null}
       </div>
+
+      {/* Create team dialog */}
+      <CreateTeamDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        teams={teams}
+        employees={employees}
+        onCreated={load}
+      />
+
+      {/* Change lead dialog */}
+      <Dialog open={leadTeamId !== null} onOpenChange={(o) => { if (!o) setLeadTeamId(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change team lead</DialogTitle>
+            <DialogDescription>{leadTeam ? `Set the lead for ${leadTeam.name}.` : ""}</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <FormField label="Team lead">
+              <Combobox
+                options={employeeOptions}
+                value={leadDraft === NONE ? "" : leadDraft}
+                onChange={(v) => setLeadDraft(v || NONE)}
+                placeholder="Select a lead…"
+                searchPlaceholder="Search employees…"
+                emptyText="No employees found."
+              />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setLeadTeamId(null)}>Cancel</Button>
+            <Button onClick={saveLead}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move member dialog */}
+      <Dialog open={moveEmployeeId !== null} onOpenChange={(o) => { if (!o) setMoveEmployeeId(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move member</DialogTitle>
+            <DialogDescription>
+              {moveEmployee ? `Move ${moveEmployee.displayName} to another team.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <FormField label="Team">
+              <Combobox
+                options={teamOptions}
+                value={moveDraft}
+                onChange={(v) => setMoveDraft(v)}
+                placeholder="Select a team…"
+                searchPlaceholder="Search teams…"
+                emptyText="No teams found."
+              />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setMoveEmployeeId(null)}>Cancel</Button>
+            <Button onClick={saveMove} disabled={!moveDraft || moveDraft === moveEmployee?.teamId}>Move</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Read-only profile sheet */}
+      <Sheet open={profileId !== null} onOpenChange={(o) => { if (!o) setProfileId(null); }}>
+        <SheetContent>
+          {profile && (
+            <>
+              <SheetHeader>
+                <div className="flex items-center gap-3">
+                  <span
+                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+                    aria-hidden="true"
+                  >
+                    {initials(profile.displayName)}
+                  </span>
+                  <div className="min-w-0 text-left">
+                    <SheetTitle>{profile.displayName}</SheetTitle>
+                    <SheetDescription>{profile.jobTitle}</SheetDescription>
+                  </div>
+                </div>
+              </SheetHeader>
+              <dl className="mt-6 space-y-4 text-sm">
+                <ProfileRow label="Email" value={profile.email} />
+                <ProfileRow label="Department" value={profile.department} />
+                <ProfileRow
+                  label="Team"
+                  value={(profile.teamId && teams.find((t) => t.id === profile.teamId)?.name) || "—"}
+                />
+                <ProfileRow
+                  label="Supervisor"
+                  value={(profile.supervisorId && employeeMap.get(profile.supervisorId)?.displayName) || "—"}
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-[color:var(--text-tertiary)]">Status</dt>
+                  <dd><StatusBadge status={profile.employeeStatus} dot /></dd>
+                </div>
+              </dl>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function ProfileRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-[color:var(--text-tertiary)]">{label}</dt>
+      <dd className="truncate font-medium text-[color:var(--text-primary)]">{value}</dd>
     </div>
   );
 }

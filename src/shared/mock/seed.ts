@@ -95,11 +95,12 @@ function seedUsers(): UserAccount[] {
 function seedTeams(): Team[] {
   const members = (teamId: string) => seedEmployees().filter((e) => e.teamId === teamId).map((e) => e.employeeId);
   return [
-    { id: "t-eng", name: "Engineering", parentId: null, leadEmployeeId: "e-sup", memberIds: members("t-eng") },
-    { id: "t-people", name: "People", parentId: null, leadEmployeeId: "e-hr", memberIds: members("t-people") },
-    { id: "t-design", name: "Design", parentId: null, leadEmployeeId: "e5", memberIds: members("t-design") },
-    { id: "t-sales", name: "Sales", parentId: null, leadEmployeeId: "e8", memberIds: members("t-sales") },
-    { id: "t-finance", name: "Finance", parentId: null, leadEmployeeId: "e13", memberIds: members("t-finance") },
+    { id: "t-root", name: "SwiftWork", parentId: null, leadEmployeeId: "e-admin", memberIds: [] },
+    { id: "t-eng", name: "Engineering", parentId: "t-root", leadEmployeeId: "e-sup", memberIds: members("t-eng") },
+    { id: "t-people", name: "People", parentId: "t-root", leadEmployeeId: "e-hr", memberIds: members("t-people") },
+    { id: "t-design", name: "Design", parentId: "t-root", leadEmployeeId: "e5", memberIds: members("t-design") },
+    { id: "t-sales", name: "Sales", parentId: "t-root", leadEmployeeId: "e8", memberIds: members("t-sales") },
+    { id: "t-finance", name: "Finance", parentId: "t-root", leadEmployeeId: "e13", memberIds: members("t-finance") },
   ];
 }
 
@@ -158,21 +159,25 @@ function seedSurveys(): Survey[] {
     {
       id: "sv1", title: "Q2 engagement pulse", description: "How are you feeling about work this quarter?",
       questions: [
-        { id: "q1", type: "RATING", prompt: "How satisfied are you at work?" },
-        { id: "q2", type: "SINGLE", prompt: "Do you feel supported by your manager?", options: ["Yes", "Somewhat", "No"] },
-        { id: "q3", type: "TEXT", prompt: "What would make work better?" },
+        { id: "q1", type: "RATING", prompt: "How satisfied are you at work?", scaleMin: 1, scaleMax: 5, scaleMinLabel: "Not at all", scaleMaxLabel: "Extremely", required: true },
+        { id: "q2", type: "SINGLE", prompt: "Do you feel supported by your manager?", options: ["Yes", "Somewhat", "No"], required: true },
+        { id: "q3", type: "TEXT", prompt: "What would make work better?", multiline: true, maxChars: 500 },
       ],
-      audience: "All employees", anonymous: true, minGroupSize: 4, recurrence: "QUARTERLY", status: "ACTIVE",
-      createdAt: "2026-06-10T09:00:00.000Z",
+      anonymous: false, minGroupSize: 4, recurrence: "QUARTERLY", status: "ACTIVE", createdAt: "2026-06-10T09:00:00.000Z",
+      audienceType: "EVERYONE", audience: "All employees",
+      releaseDate: "2026-06-10", deadline: "2026-06-20", reminderType: "WEEKLY",
+      visibilityScope: "SUPERVISOR_BASED",
     },
     {
       id: "sv2", title: "Onboarding experience", description: "For employees in their first 90 days.",
       questions: [
-        { id: "q1", type: "RATING", prompt: "How smooth was your onboarding?" },
+        { id: "q1", type: "RATING", prompt: "How smooth was your onboarding?", scaleMin: 1, scaleMax: 5, scaleMinLabel: "Rough", scaleMaxLabel: "Seamless" },
         { id: "q2", type: "MULTI", prompt: "What helped most?", options: ["Buddy", "Docs", "Manager", "Team"] },
       ],
-      audience: "Engineering", anonymous: false, minGroupSize: 3, recurrence: "NONE", status: "DRAFT",
-      createdAt: "2026-06-14T09:00:00.000Z",
+      anonymous: false, minGroupSize: 3, recurrence: "NONE", status: "DRAFT", createdAt: "2026-06-14T09:00:00.000Z",
+      audienceType: "SPECIFIC_TEAMS", audienceTeamIds: ["t-eng"], audience: "Engineering",
+      releaseDate: "2026-07-01", deadline: "2026-07-10", reminderType: "EVERY_X_DAYS", reminderIntervalDays: 3,
+      visibilityScope: "HR_ADMIN",
     },
   ];
 }
@@ -195,9 +200,45 @@ function seedEvaluations(): Evaluation[] {
     { competency: "Growth", score: c },
   ];
   return [
-    { id: "ev1", employeeId: "e-emp", supervisorId: "e-sup", period: "H1 2026", status: "SHARED", ratings: ratings(4, 5, 4), summary: "Strong half — reliable delivery and great teamwork.", sharedAt: "2026-06-15T14:30:00.000Z" },
-    { id: "ev2", employeeId: "e1", supervisorId: "e-sup", period: "H1 2026", status: "ACKNOWLEDGED", ratings: ratings(5, 4, 5), summary: "Exceptional technical leadership.", sharedAt: "2026-06-10T09:00:00.000Z" },
-    { id: "ev3", employeeId: "e2", supervisorId: "e-sup", period: "H1 2026", status: "DRAFT", ratings: ratings(3, 4, 3), summary: "", sharedAt: null },
+    {
+      id: "ev1", employeeId: "e-emp", supervisorId: "e-sup", period: "H1 2026", status: "SHARED",
+      sharedAt: "2026-06-15T14:30:00.000Z", ackDeadline: "2026-06-29T00:00:00.000Z",
+      grade: 4,
+      highlights: ["Shipped the billing revamp ahead of schedule", "Mentored two new engineers"],
+      lowlights: ["Estimates ran long on the search project"],
+      evaluationText: "A strong half. Reliable delivery, steady ownership, and great teamwork across the squad.",
+      recommendationText: "Ready for a senior scope next cycle — pair on system design to close the estimation gap.",
+      supportingDocs: ["H1-goals.pdf", "peer-feedback.pdf"],
+      ratings: ratings(4, 5, 4), summary: "Strong half — reliable delivery and great teamwork.",
+    },
+    {
+      id: "ev2", employeeId: "e1", supervisorId: "e-sup", period: "H1 2026", status: "ACKNOWLEDGED",
+      sharedAt: "2026-06-10T09:00:00.000Z", ackDeadline: "2026-06-24T00:00:00.000Z",
+      grade: 5,
+      highlights: ["Led the platform migration", "Set the code-review bar for the team"],
+      lowlights: ["Could delegate more"],
+      evaluationText: "Exceptional technical leadership across the half.",
+      recommendationText: "Tech-lead track. Hand off more implementation to grow the team.",
+      supportingDocs: [],
+      ratings: ratings(5, 4, 5), summary: "Exceptional technical leadership.",
+    },
+    {
+      id: "ev3", employeeId: "e2", supervisorId: "e-sup", period: "H1 2026", status: "DRAFT",
+      sharedAt: null, ackDeadline: null,
+      grade: 3, highlights: [], lowlights: [], evaluationText: "", recommendationText: "", supportingDocs: [],
+      ratings: ratings(3, 4, 3), summary: "",
+    },
+    {
+      id: "ev4", employeeId: "e9", supervisorId: "e8", period: "H1 2026", status: "DEEMED_ACKNOWLEDGED",
+      sharedAt: "2026-05-20T09:00:00.000Z", ackDeadline: "2026-06-03T00:00:00.000Z",
+      grade: 3,
+      highlights: ["Consistent quota attainment"],
+      lowlights: ["Pipeline hygiene needs work"],
+      evaluationText: "Solid, dependable half with room to tighten pipeline discipline.",
+      recommendationText: "Coaching on CRM hygiene; on track.",
+      supportingDocs: [],
+      ratings: ratings(3, 3, 4), summary: "Solid, dependable half.",
+    },
   ];
 }
 
@@ -205,6 +246,7 @@ function seedAcknowledgements(): Acknowledgement[] {
   return [
     { id: "ak1", evaluationId: "ev1", employeeId: "e-emp", acknowledgedAt: null, deemedAt: null },
     { id: "ak2", evaluationId: "ev2", employeeId: "e1", acknowledgedAt: "2026-06-12T10:00:00.000Z", deemedAt: null },
+    { id: "ak3", evaluationId: "ev4", employeeId: "e9", acknowledgedAt: null, deemedAt: "2026-06-03T00:00:00.000Z" },
   ];
 }
 

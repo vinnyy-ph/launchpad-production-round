@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   ClipboardList,
   Plus,
   Pencil,
   Trash2,
   Play,
+  Square,
   ChevronDown,
   ChevronUp,
   GripVertical,
@@ -45,15 +46,36 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  Checkbox,
+  DatePicker,
+  Combobox,
+  type ComboboxOption,
 } from "@/shared/ui";
 import { EmptyState, DataTable, FormField, type Column } from "@/shared/ui/patterns";
 import { readCollection, writeCollection } from "@/shared/mock/db";
-import type { Survey, SurveyQuestion, QuestionType, Recurrence, SurveyStatus } from "@/shared/mock/types";
+import type {
+  Survey,
+  SurveyQuestion,
+  QuestionType,
+  Recurrence,
+  SurveyStatus,
+  AudienceType,
+  VisibilityScope,
+  ReminderType,
+  Team,
+  DemoEmployee,
+} from "@/shared/mock/types";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function toDate(iso: string | undefined): Date | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? undefined : d;
 }
 
 const STATUS_VARIANT: Record<SurveyStatus, "success" | "warning" | "neutral"> = {
@@ -69,38 +91,61 @@ const STATUS_LABEL: Record<SurveyStatus, string> = {
 };
 
 const RECURRENCE_LABEL: Record<Recurrence, string> = {
-  NONE: "One-time",
+  NONE: "None",
   WEEKLY: "Weekly",
+  BI_WEEKLY: "Bi-weekly",
   MONTHLY: "Monthly",
+  BI_MONTHLY: "Bi-monthly",
   QUARTERLY: "Quarterly",
+  SEMI_ANNUAL: "Semi-annual",
+  ANNUAL: "Annual",
+};
+
+const AUDIENCE_TYPE_LABEL: Record<AudienceType, string> = {
+  EVERYONE: "Everyone",
+  SUPERVISOR_BASED: "Supervisor-based",
+  SPECIFIC_TEAMS: "Specific teams",
+};
+
+const VISIBILITY_LABEL: Record<VisibilityScope, string> = {
+  ADMIN_ONLY: "Admin only",
+  HR_ADMIN: "HR & admin",
+  SUPERVISOR_BASED: "Supervisor-based",
+  TEAM_LEADS: "Team leads",
+  EVERYONE: "Everyone",
+};
+
+const REMINDER_LABEL: Record<ReminderType, string> = {
+  NONE: "None",
+  DAILY: "Daily",
+  EVERY_X_DAYS: "Every X days",
+  WEEKLY: "Weekly",
 };
 
 const QUESTION_TYPE_LABEL: Record<QuestionType, string> = {
-  RATING: "Rating (1–5)",
+  RATING: "Rating (scale)",
   SINGLE: "Single choice",
   MULTI: "Multi-select",
   TEXT: "Open text",
 };
-
-const AUDIENCE_OPTIONS = [
-  "All employees",
-  "Engineering",
-  "Design",
-  "Sales",
-  "People",
-  "Finance",
-];
 
 // ─── Default builder state ───────────────────────────────────────────────────
 
 interface BuilderState {
   title: string;
   description: string;
-  audience: string;
+  audienceType: AudienceType;
+  audienceTeamIds: string[];
+  audienceSupervisorId: string;
   anonymous: boolean;
   minGroupSize: number;
   recurrence: Recurrence;
   status: SurveyStatus;
+  releaseDate: Date | undefined;
+  deadline: Date | undefined;
+  reminderType: ReminderType;
+  reminderIntervalDays: number;
+  visibilityScope: VisibilityScope;
   questions: SurveyQuestion[];
 }
 
@@ -108,17 +153,40 @@ function defaultBuilder(): BuilderState {
   return {
     title: "",
     description: "",
-    audience: "All employees",
+    audienceType: "EVERYONE",
+    audienceTeamIds: [],
+    audienceSupervisorId: "",
     anonymous: false,
     minGroupSize: 3,
     recurrence: "NONE",
     status: "DRAFT",
+    releaseDate: new Date(),
+    deadline: undefined,
+    reminderType: "NONE",
+    reminderIntervalDays: 7,
+    visibilityScope: "SUPERVISOR_BASED",
     questions: [],
   };
 }
 
 function defaultQuestion(): SurveyQuestion {
-  return { id: uid(), type: "RATING", prompt: "", options: [] };
+  return {
+    id: uid(),
+    type: "RATING",
+    prompt: "",
+    options: [],
+    scaleMin: 1,
+    scaleMax: 5,
+    scaleMinLabel: "",
+    scaleMaxLabel: "",
+    multiline: false,
+    maxChars: undefined,
+    required: false,
+  };
+}
+
+function audienceLabel(type: AudienceType): string {
+  return AUDIENCE_TYPE_LABEL[type];
 }
 
 // ─── Hooks ───────────────────────────────────────────────────────────────────
@@ -165,7 +233,52 @@ function useSurveys() {
     setSurveys([...all].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   }, []);
 
-  return { surveys, loading, error, reload: load, save, remove, activate };
+  const deactivate = useCallback((id: string) => {
+    const all = readCollection<Survey>("surveys").map((s) =>
+      s.id === id ? { ...s, status: "CLOSED" as SurveyStatus } : s,
+    );
+    writeCollection("surveys", all);
+    setSurveys([...all].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }, []);
+
+  return { surveys, loading, error, reload: load, save, remove, activate, deactivate };
+}
+
+// ─── Audience preview ─────────────────────────────────────────────────────────
+
+function useAudienceCount(
+  audienceType: AudienceType,
+  audienceTeamIds: string[],
+  audienceSupervisorId: string,
+): string {
+  return useMemo(() => {
+    try {
+      const employees = readCollection<DemoEmployee>("employees");
+      const active = employees.filter((e) => e.isActive);
+      if (audienceType === "EVERYONE") {
+        return `~${active.length} employees`;
+      }
+      if (audienceType === "SUPERVISOR_BASED") {
+        if (!audienceSupervisorId) return "Select a supervisor";
+        const count = active.filter(
+          (e) =>
+            e.employeeId === audienceSupervisorId ||
+            e.supervisorId === audienceSupervisorId,
+        ).length;
+        return `~${count} employees`;
+      }
+      if (audienceType === "SPECIFIC_TEAMS") {
+        if (audienceTeamIds.length === 0) return "Select at least one team";
+        const count = active.filter(
+          (e) => e.teamId !== null && audienceTeamIds.includes(e.teamId),
+        ).length;
+        return `~${count} employees`;
+      }
+      return "";
+    } catch {
+      return "";
+    }
+  }, [audienceType, audienceTeamIds, audienceSupervisorId]);
 }
 
 // ─── Survey builder dialog ────────────────────────────────────────────────────
@@ -183,6 +296,32 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
   const [activeTab, setActiveTab] = useState("settings");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Supervisor and team options from mock data
+  const supervisorOptions = useMemo<ComboboxOption[]>(() => {
+    try {
+      const employees = readCollection<DemoEmployee>("employees");
+      return employees
+        .filter((e) => e.isSupervisor && e.isActive)
+        .map((e) => ({ value: e.employeeId, label: e.displayName }));
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const teams = useMemo<Team[]>(() => {
+    try {
+      return readCollection<Team>("teams");
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const audienceCount = useAudienceCount(
+    form.audienceType,
+    form.audienceTeamIds,
+    form.audienceSupervisorId,
+  );
+
   // Populate from initial when dialog opens
   useEffect(() => {
     if (open) {
@@ -190,11 +329,18 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
         setForm({
           title: initial.title,
           description: initial.description,
-          audience: initial.audience,
+          audienceType: initial.audienceType ?? "EVERYONE",
+          audienceTeamIds: initial.audienceTeamIds ?? [],
+          audienceSupervisorId: initial.audienceSupervisorId ?? "",
           anonymous: initial.anonymous,
           minGroupSize: initial.minGroupSize,
           recurrence: initial.recurrence,
           status: initial.status,
+          releaseDate: toDate(initial.releaseDate),
+          deadline: toDate(initial.deadline),
+          reminderType: initial.reminderType ?? "NONE",
+          reminderIntervalDays: initial.reminderIntervalDays ?? 7,
+          visibilityScope: initial.visibilityScope ?? "SUPERVISOR_BASED",
           questions: initial.questions.map((q) => ({ ...q, options: [...(q.options ?? [])] })),
         });
       } else {
@@ -257,10 +403,25 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
       return { ...f, questions: qs };
     });
 
+  const toggleTeam = (teamId: string, checked: boolean) => {
+    setForm((f) => ({
+      ...f,
+      audienceTeamIds: checked
+        ? [...f.audienceTeamIds, teamId]
+        : f.audienceTeamIds.filter((id) => id !== teamId),
+    }));
+  };
+
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!form.title.trim()) errs.title = "Title is required.";
     if (form.questions.length === 0) errs.questions = "Add at least one question.";
+    if (form.deadline && form.releaseDate && form.deadline <= form.releaseDate) {
+      errs.deadline = "Deadline must be after the release date.";
+    }
+    if (form.reminderType === "EVERY_X_DAYS" && (!form.reminderIntervalDays || form.reminderIntervalDays < 1)) {
+      errs.reminderIntervalDays = "Interval must be at least 1 day.";
+    }
     form.questions.forEach((q, i) => {
       if (!q.prompt.trim()) errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
       if ((q.type === "SINGLE" || q.type === "MULTI") && (q.options ?? []).length < 2)
@@ -268,8 +429,8 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
     });
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      if (errs.title || errs.questions) setActiveTab("settings");
-      else setActiveTab("questions");
+      const hasSettingsErr = errs.title || errs.questions || errs.deadline || errs.reminderIntervalDays;
+      setActiveTab(hasSettingsErr ? "settings" : "questions");
     }
     return Object.keys(errs).length === 0;
   };
@@ -280,13 +441,21 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
       id: initial?.id ?? uid(),
       title: form.title.trim(),
       description: form.description.trim(),
-      audience: form.audience,
       anonymous: form.anonymous,
       minGroupSize: form.minGroupSize,
       recurrence: form.recurrence,
       status: form.status,
       questions: form.questions,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
+      audienceType: form.audienceType,
+      audienceTeamIds: form.audienceType === "SPECIFIC_TEAMS" ? form.audienceTeamIds : undefined,
+      audienceSupervisorId: form.audienceType === "SUPERVISOR_BASED" ? form.audienceSupervisorId : undefined,
+      audience: audienceLabel(form.audienceType),
+      releaseDate: form.releaseDate?.toISOString(),
+      deadline: form.deadline?.toISOString(),
+      reminderType: form.reminderType,
+      reminderIntervalDays: form.reminderType === "EVERY_X_DAYS" ? form.reminderIntervalDays : undefined,
+      visibilityScope: form.visibilityScope,
     };
     onSave(survey);
     onClose();
@@ -312,6 +481,7 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
 
           {/* ── Settings tab ── */}
           <TabsContent value="settings" className="mt-4 space-y-4">
+            {/* Title */}
             <FormField label="Survey title" htmlFor="sv-title" error={errors.title} required>
               <Input
                 id="sv-title"
@@ -322,6 +492,7 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
               />
             </FormField>
 
+            {/* Description */}
             <FormField label="Description" htmlFor="sv-desc">
               <Textarea
                 id="sv-desc"
@@ -332,64 +503,66 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
               />
             </FormField>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Audience" htmlFor="sv-audience">
-                <Select value={form.audience} onValueChange={(v) => set("audience", v)}>
-                  <SelectTrigger id="sv-audience">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AUDIENCE_OPTIONS.map((a) => (
-                      <SelectItem key={a} value={a}>{a}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-
-              <FormField label="Recurrence" htmlFor="sv-recurrence">
-                <Select value={form.recurrence} onValueChange={(v) => set("recurrence", v as Recurrence)}>
-                  <SelectTrigger id="sv-recurrence">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(["NONE", "WEEKLY", "MONTHLY", "QUARTERLY"] as Recurrence[]).map((r) => (
-                      <SelectItem key={r} value={r}>{RECURRENCE_LABEL[r]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Status" htmlFor="sv-status">
-                <Select value={form.status} onValueChange={(v) => set("status", v as SurveyStatus)}>
-                  <SelectTrigger id="sv-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="CLOSED">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormField>
-
-              <FormField
-                label={`Minimum group size: ${form.minGroupSize}`}
-                htmlFor="sv-mgs"
-                hint="Results hidden below this threshold."
+            {/* Audience type */}
+            <FormField label="Audience type" htmlFor="sv-audience-type">
+              <Select
+                value={form.audienceType}
+                onValueChange={(v) => set("audienceType", v as AudienceType)}
               >
-                <div className="pt-2">
-                  <Slider
-                    min={2}
-                    max={10}
-                    value={[form.minGroupSize]}
-                    onValueChange={([v]) => set("minGroupSize", v)}
-                  />
+                <SelectTrigger id="sv-audience-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EVERYONE">Everyone</SelectItem>
+                  <SelectItem value="SUPERVISOR_BASED">Supervisor-based</SelectItem>
+                  <SelectItem value="SPECIFIC_TEAMS">Specific teams</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+
+            {/* Supervisor picker */}
+            {form.audienceType === "SUPERVISOR_BASED" && (
+              <FormField label="Supervisor" htmlFor="sv-supervisor">
+                <Combobox
+                  options={supervisorOptions}
+                  value={form.audienceSupervisorId}
+                  onChange={(v) => set("audienceSupervisorId", v)}
+                  placeholder="Select supervisor…"
+                  searchPlaceholder="Search supervisors…"
+                  emptyText="No supervisors found."
+                />
+              </FormField>
+            )}
+
+            {/* Team checkboxes */}
+            {form.audienceType === "SPECIFIC_TEAMS" && (
+              <FormField label="Teams">
+                <div className="space-y-2 rounded-xl border border-[color:var(--border-primary)] p-3">
+                  {teams.length === 0 && (
+                    <p className="text-xs text-[color:var(--text-tertiary)]">No teams found.</p>
+                  )}
+                  {teams.map((team) => (
+                    <label key={team.id} className="flex cursor-pointer items-center gap-2.5">
+                      <Checkbox
+                        checked={form.audienceTeamIds.includes(team.id)}
+                        onCheckedChange={(checked) => toggleTeam(team.id, !!checked)}
+                        id={`team-${team.id}`}
+                      />
+                      <span className="text-sm text-[color:var(--text-primary)]">{team.name}</span>
+                    </label>
+                  ))}
                 </div>
               </FormField>
-            </div>
+            )}
 
+            {/* Audience preview */}
+            {audienceCount && (
+              <p className="text-xs text-[color:var(--text-tertiary)]">
+                Who receives this: <span className="font-medium text-[color:var(--text-secondary)]">{audienceCount}</span>
+              </p>
+            )}
+
+            {/* Anonymous + min group size */}
             <div className="flex items-center justify-between rounded-xl border border-[color:var(--border-primary)] px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-[color:var(--text-primary)]">Anonymous responses</p>
@@ -402,6 +575,110 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
                 onCheckedChange={(v) => set("anonymous", v)}
                 aria-label="Anonymous responses"
               />
+            </div>
+
+            <FormField
+              label={`Minimum group size: ${form.minGroupSize}`}
+              htmlFor="sv-mgs"
+              hint="Results are hidden below this threshold."
+            >
+              <div className="pt-2">
+                <Slider
+                  min={2}
+                  max={10}
+                  value={[form.minGroupSize]}
+                  onValueChange={([v]) => set("minGroupSize", v)}
+                />
+              </div>
+            </FormField>
+
+            {/* Release date + Deadline */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Release date" htmlFor="sv-release">
+                <DatePicker
+                  value={form.releaseDate}
+                  onChange={(d) => set("releaseDate", d)}
+                  placeholder="Pick a date"
+                />
+              </FormField>
+              <FormField label="Deadline" htmlFor="sv-deadline" error={errors.deadline}>
+                <DatePicker
+                  value={form.deadline}
+                  onChange={(d) => set("deadline", d)}
+                  placeholder="Pick a date"
+                />
+              </FormField>
+            </div>
+
+            {/* Recurrence + Visibility */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Recurrence" htmlFor="sv-recurrence">
+                <Select
+                  value={form.recurrence}
+                  onValueChange={(v) => set("recurrence", v as Recurrence)}
+                >
+                  <SelectTrigger id="sv-recurrence">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["NONE", "WEEKLY", "BI_WEEKLY", "MONTHLY", "BI_MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL"] as Recurrence[]).map((r) => (
+                      <SelectItem key={r} value={r}>{RECURRENCE_LABEL[r]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
+              <FormField label="Visibility scope" htmlFor="sv-visibility">
+                <Select
+                  value={form.visibilityScope}
+                  onValueChange={(v) => set("visibilityScope", v as VisibilityScope)}
+                >
+                  <SelectTrigger id="sv-visibility">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["ADMIN_ONLY", "HR_ADMIN", "SUPERVISOR_BASED", "TEAM_LEADS", "EVERYONE"] as VisibilityScope[]).map((vs) => (
+                      <SelectItem key={vs} value={vs}>{VISIBILITY_LABEL[vs]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </div>
+
+            {/* Reminders */}
+            <div className="space-y-3">
+              <FormField label="Reminders" htmlFor="sv-reminder">
+                <Select
+                  value={form.reminderType}
+                  onValueChange={(v) => set("reminderType", v as ReminderType)}
+                >
+                  <SelectTrigger id="sv-reminder">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["NONE", "DAILY", "EVERY_X_DAYS", "WEEKLY"] as ReminderType[]).map((r) => (
+                      <SelectItem key={r} value={r}>{REMINDER_LABEL[r]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
+              {form.reminderType === "EVERY_X_DAYS" && (
+                <FormField
+                  label="Interval (days)"
+                  htmlFor="sv-reminder-interval"
+                  error={errors.reminderIntervalDays}
+                >
+                  <Input
+                    id="sv-reminder-interval"
+                    type="number"
+                    min={1}
+                    value={form.reminderIntervalDays}
+                    onChange={(e) => set("reminderIntervalDays", Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    error={!!errors.reminderIntervalDays}
+                  />
+                </FormField>
+              )}
             </div>
           </TabsContent>
 
@@ -424,6 +701,7 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
                 key={q.id}
                 className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
               >
+                {/* Question header row */}
                 <div className="mb-3 flex items-center gap-2">
                   <GripVertical size={14} className="flex-shrink-0 text-[color:var(--text-quaternary)]" />
                   <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
@@ -431,7 +709,18 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
                   </span>
                   <Select
                     value={q.type}
-                    onValueChange={(v) => updateQuestion(q.id, { type: v as QuestionType, options: [] })}
+                    onValueChange={(v) =>
+                      updateQuestion(q.id, {
+                        type: v as QuestionType,
+                        options: [],
+                        scaleMin: v === "RATING" ? 1 : undefined,
+                        scaleMax: v === "RATING" ? 5 : undefined,
+                        scaleMinLabel: "",
+                        scaleMaxLabel: "",
+                        multiline: false,
+                        maxChars: undefined,
+                      })
+                    }
                   >
                     <SelectTrigger className="ml-auto h-7 w-auto text-xs">
                       <SelectValue />
@@ -472,6 +761,7 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
                   </div>
                 </div>
 
+                {/* Prompt */}
                 <Input
                   placeholder="Question prompt…"
                   value={q.prompt}
@@ -484,6 +774,49 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
                   </p>
                 )}
 
+                {/* RATING scale fields */}
+                {q.type === "RATING" && (
+                  <div className="mt-3 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <FormField label="Min value" htmlFor={`q-smin-${q.id}`}>
+                        <Input
+                          id={`q-smin-${q.id}`}
+                          type="number"
+                          value={q.scaleMin ?? 1}
+                          onChange={(e) => updateQuestion(q.id, { scaleMin: parseInt(e.target.value, 10) || 1 })}
+                        />
+                      </FormField>
+                      <FormField label="Max value" htmlFor={`q-smax-${q.id}`}>
+                        <Input
+                          id={`q-smax-${q.id}`}
+                          type="number"
+                          value={q.scaleMax ?? 5}
+                          onChange={(e) => updateQuestion(q.id, { scaleMax: parseInt(e.target.value, 10) || 5 })}
+                        />
+                      </FormField>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <FormField label="Min label" htmlFor={`q-sminl-${q.id}`}>
+                        <Input
+                          id={`q-sminl-${q.id}`}
+                          placeholder="e.g. Not at all"
+                          value={q.scaleMinLabel ?? ""}
+                          onChange={(e) => updateQuestion(q.id, { scaleMinLabel: e.target.value })}
+                        />
+                      </FormField>
+                      <FormField label="Max label" htmlFor={`q-smaxl-${q.id}`}>
+                        <Input
+                          id={`q-smaxl-${q.id}`}
+                          placeholder="e.g. Extremely"
+                          value={q.scaleMaxLabel ?? ""}
+                          onChange={(e) => updateQuestion(q.id, { scaleMaxLabel: e.target.value })}
+                        />
+                      </FormField>
+                    </div>
+                  </div>
+                )}
+
+                {/* SINGLE / MULTI options */}
                 {(q.type === "SINGLE" || q.type === "MULTI") && (
                   <div className="mt-3 space-y-2">
                     {(q.options ?? []).map((opt, oi) => (
@@ -519,6 +852,48 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
                     </Button>
                   </div>
                 )}
+
+                {/* TEXT fields */}
+                {q.type === "TEXT" && (
+                  <div className="mt-3 space-y-2">
+                    <label className="flex cursor-pointer items-center gap-2.5">
+                      <Checkbox
+                        checked={!!q.multiline}
+                        onCheckedChange={(checked) => updateQuestion(q.id, { multiline: !!checked })}
+                        id={`q-multiline-${q.id}`}
+                      />
+                      <span className="text-sm text-[color:var(--text-primary)]">Multi-line answer</span>
+                    </label>
+                    <FormField label="Max characters (optional)" htmlFor={`q-maxchars-${q.id}`}>
+                      <Input
+                        id={`q-maxchars-${q.id}`}
+                        type="number"
+                        min={1}
+                        placeholder="No limit"
+                        value={q.maxChars ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                          updateQuestion(q.id, { maxChars: val });
+                        }}
+                      />
+                    </FormField>
+                  </div>
+                )}
+
+                {/* Required toggle */}
+                <div className="mt-3 flex items-center gap-2.5">
+                  <Checkbox
+                    checked={!!q.required}
+                    onCheckedChange={(checked) => updateQuestion(q.id, { required: !!checked })}
+                    id={`q-required-${q.id}`}
+                  />
+                  <label
+                    htmlFor={`q-required-${q.id}`}
+                    className="cursor-pointer text-sm text-[color:var(--text-primary)]"
+                  >
+                    Required
+                  </label>
+                </div>
               </div>
             ))}
 
@@ -563,11 +938,12 @@ function SurveyBuilderDialog({ open, onClose, initial, onSave }: BuilderDialogPr
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function HRSurveysPage() {
-  const { surveys, loading, error, reload, save, remove, activate } = useSurveys();
+  const { surveys, loading, error, reload, save, remove, activate, deactivate } = useSurveys();
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editing, setEditing] = useState<Survey | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
 
   const openCreate = () => {
     setEditing(null);
@@ -598,13 +974,24 @@ export default function HRSurveysPage() {
     toast.success("Survey activated — it is now live.");
   };
 
+  const handleDeactivate = () => {
+    if (!deactivatingId) return;
+    deactivate(deactivatingId);
+    setDeactivatingId(null);
+    toast.success("Survey closed.");
+  };
+
   const columns: Column<Survey>[] = [
     {
       header: "Title",
       cell: (s) => (
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{s.title}</p>
-          <p className="truncate text-xs text-[color:var(--text-tertiary)]">{s.audience} · {RECURRENCE_LABEL[s.recurrence]}</p>
+          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+            {s.audienceType ? AUDIENCE_TYPE_LABEL[s.audienceType] : (s.audience ?? "—")}
+            {" · "}
+            {RECURRENCE_LABEL[s.recurrence]}
+          </p>
         </div>
       ),
     },
@@ -623,9 +1010,13 @@ export default function HRSurveysPage() {
       ),
     },
     {
-      header: "Min group",
+      header: "Deadline",
       cell: (s) => (
-        <span className="text-sm text-[color:var(--text-secondary)]">{s.minGroupSize}</span>
+        <span className="text-sm text-[color:var(--text-secondary)]">
+          {s.deadline
+            ? new Date(s.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+            : "—"}
+        </span>
       ),
     },
     {
@@ -648,6 +1039,16 @@ export default function HRSurveysPage() {
               <Play size={12} /> Activate
             </button>
           )}
+          {s.status === "ACTIVE" && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setDeactivatingId(s.id); }}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
+              aria-label="Deactivate survey"
+            >
+              <Square size={12} /> Deactivate
+            </button>
+          )}
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); openEdit(s); }}
@@ -656,14 +1057,16 @@ export default function HRSurveysPage() {
           >
             <Pencil size={14} />
           </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setDeletingId(s.id); }}
-            className="rounded-lg p-1.5 text-[color:var(--color-error-500)] hover:bg-[color:var(--bg-secondary)]"
-            aria-label="Delete survey"
-          >
-            <Trash2 size={14} />
-          </button>
+          {s.status === "DRAFT" && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setDeletingId(s.id); }}
+              className="rounded-lg p-1.5 text-[color:var(--color-error-500)] hover:bg-[color:var(--bg-secondary)]"
+              aria-label="Delete survey"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
       ),
     },
@@ -770,6 +1173,22 @@ export default function HRSurveysPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleActivate}>Activate</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deactivate confirm */}
+      <AlertDialog open={!!deactivatingId} onOpenChange={(o) => !o && setDeactivatingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close this survey?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The survey will be set to closed and will no longer accept responses.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeactivate}>Close survey</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

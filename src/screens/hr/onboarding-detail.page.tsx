@@ -4,12 +4,19 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ClipboardList, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
   Button,
   Input,
   Progress,
   Separator,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/shared/ui";
 import { EmptyState, ErrorState, StatusBadge, ConfirmProvider, useConfirm } from "@/shared/ui/patterns";
 import { readCollection, writeCollection } from "@/shared/mock/db";
@@ -18,6 +25,7 @@ import type {
   DemoEmployee,
   OnboardingDocument,
   DocStatus,
+  UserAccount,
 } from "@/shared/mock/types";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -50,6 +58,46 @@ function DocStatusIcon({ status }: { status: DocStatus }) {
   return <Clock className="h-4 w-4 text-[color:var(--text-quaternary)]" aria-label="Pending" />;
 }
 
+// ─── bulk .xlsx import ────────────────────────────────────────────────────────
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface ParsedRow {
+  rowNo: number;
+  name: string;
+  email: string;
+  valid: boolean;
+  error?: string;
+}
+
+/** Pull the first non-empty value for any of the given header aliases. */
+function pick(row: Record<string, unknown>, keys: string[]): string {
+  for (const k of Object.keys(row)) {
+    if (keys.includes(k.trim().toLowerCase())) {
+      const v = row[k];
+      if (v != null && String(v).trim() !== "") return String(v).trim();
+    }
+  }
+  return "";
+}
+
+function validateRows(rows: Record<string, unknown>[], existingEmails: Set<string>): ParsedRow[] {
+  const seen = new Set<string>();
+  return rows.map((raw, i) => {
+    const name = pick(raw, ["name", "full name", "displayname", "employee"]);
+    const email = pick(raw, ["email", "e-mail", "email address"]);
+    const rowNo = i + 2; // header is row 1
+    let error: string | undefined;
+    if (!name) error = "Missing name.";
+    else if (!email) error = "Missing email.";
+    else if (!EMAIL_RE.test(email)) error = "Invalid email.";
+    else if (existingEmails.has(email.toLowerCase()) || seen.has(email.toLowerCase()))
+      error = "Duplicate email.";
+    if (email) seen.add(email.toLowerCase());
+    return { rowNo, name, email, valid: !error, error };
+  });
+}
+
 // ─── page ───────────────────────────────────────────────────────────────────
 
 function OnboardingDetailInner() {
@@ -62,6 +110,10 @@ function OnboardingDetailInner() {
   const [onboardingCase, setOnboardingCase] = useState<OnboardingCase | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // bulk import preview state
+  const [bulkRows, setBulkRows] = useState<ParsedRow[] | null>(null);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -153,10 +205,94 @@ function OnboardingDetailInner() {
     toast.success("Invitation sent.");
   }
 
-  // ── bulk upload ──────────────────────────────────────────────────────────
-  function handleFileSelect() {
-    toast.success("Bulk upload received — processing.");
+  // ── bulk upload (.xlsx) ────────────────────────────────────────────────────
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    setBulkError(null);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      if (json.length === 0) {
+        setBulkError("The spreadsheet has no data rows.");
+        setBulkRows([]);
+        return;
+      }
+      const existingEmails = new Set(
+        readCollection<DemoEmployee>("employees").map((emp) => emp.email.toLowerCase()),
+      );
+      setBulkRows(validateRows(json, existingEmails));
+    } catch {
+      setBulkError("Could not read the file. Make sure it is a valid .xlsx spreadsheet.");
+      setBulkRows([]);
+    }
+  }
+
+  // Commit only the valid rows: create employee + user + onboarding case for each.
+  function commitBulk() {
+    if (!bulkRows) return;
+    const valid = bulkRows.filter((r) => r.valid);
+    if (valid.length === 0) {
+      toast.error("No valid rows to import.");
+      return;
+    }
+    const employees = readCollection<DemoEmployee>("employees");
+    const users = readCollection<UserAccount>("users");
+    const cases = readCollection<OnboardingCase>("onboardingCases");
+
+    const newEmployees: DemoEmployee[] = [];
+    const newUsers: UserAccount[] = [];
+    const newCases: OnboardingCase[] = [];
+    const nowIso = new Date().toISOString();
+
+    valid.forEach((r, idx) => {
+      const stamp = `${Date.now().toString(36)}${idx}`;
+      const employeeId = `e-${stamp}`;
+      const userId = `u-${stamp}`;
+      newEmployees.push({
+        employeeId,
+        userId,
+        displayName: r.name,
+        email: r.email,
+        role: "EMPLOYEE",
+        isSupervisor: false,
+        isActive: true,
+        jobTitle: "New hire",
+        department: "Unassigned",
+        employeeStatus: "ONBOARDING",
+        supervisorId: null,
+        teamId: null,
+        startDate: nowIso.slice(0, 10),
+      });
+      newUsers.push({ id: userId, employeeId, email: r.email, role: "EMPLOYEE", isActive: true, lastActiveAt: nowIso });
+      newCases.push({
+        id: `ob-${stamp}`,
+        employeeId,
+        status: "INVITED",
+        progress: 0,
+        customFields: [
+          { label: "T-shirt size", value: "" },
+          { label: "Emergency contact", value: "" },
+          { label: "Equipment", value: "" },
+        ],
+        documents: [
+          { name: "Signed contract", status: "PENDING" },
+          { name: "Government ID", status: "PENDING" },
+          { name: "Tax form", status: "PENDING" },
+        ],
+        invitedAt: nowIso,
+      });
+    });
+
+    writeCollection<DemoEmployee>("employees", [...employees, ...newEmployees]);
+    writeCollection<UserAccount>("users", [...users, ...newUsers]);
+    writeCollection<OnboardingCase>("onboardingCases", [...cases, ...newCases]);
+
+    toast.success(`Imported ${valid.length} of ${bulkRows.length} rows.`);
+    setBulkRows(null);
   }
 
   // ─── render guards ──────────────────────────────────────────────────────
@@ -363,7 +499,94 @@ function OnboardingDetailInner() {
           )}
         </div>
       </section>
+
+      {/* Bulk import preview dialog */}
+      <BulkImportDialog
+        rows={bulkRows}
+        error={bulkError}
+        onClose={() => { setBulkRows(null); setBulkError(null); }}
+        onCommit={commitBulk}
+      />
     </div>
+  );
+}
+
+// ─── bulk import dialog ────────────────────────────────────────────────────────
+
+function BulkImportDialog({
+  rows,
+  error,
+  onClose,
+  onCommit,
+}: {
+  rows: ParsedRow[] | null;
+  error: string | null;
+  onClose: () => void;
+  onCommit: () => void;
+}) {
+  const open = rows !== null;
+  const validCount = rows?.filter((r) => r.valid).length ?? 0;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Bulk import preview</DialogTitle>
+          <DialogDescription>
+            {error
+              ? "We could not import this file."
+              : `${validCount} of ${rows?.length ?? 0} row(s) are valid. Only valid rows will be imported.`}
+          </DialogDescription>
+        </DialogHeader>
+
+        {error ? (
+          <div className="flex items-center gap-2 rounded-lg border border-[#FECDCA] bg-[#FEF3F2] p-3 text-sm text-[#B42318]">
+            <XCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+            {error}
+          </div>
+        ) : (
+          <div className="max-h-[50vh] overflow-y-auto rounded-lg border border-[color:var(--border-primary)]">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-[#FAFAFA]">
+                <tr className="text-left text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                  <th className="px-3 py-2">Row</th>
+                  <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">Email</th>
+                  <th className="px-3 py-2">Result</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[color:var(--border-primary)]">
+                {(rows ?? []).map((r) => (
+                  <tr key={r.rowNo}>
+                    <td className="px-3 py-2 text-[color:var(--text-tertiary)]">{r.rowNo}</td>
+                    <td className="px-3 py-2 text-[color:var(--text-primary)]">{r.name || "—"}</td>
+                    <td className="px-3 py-2 text-[color:var(--text-secondary)]">{r.email || "—"}</td>
+                    <td className="px-3 py-2">
+                      {r.valid ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#067647]">
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Valid
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#B42318]">
+                          <XCircle className="h-3.5 w-3.5" aria-hidden="true" /> {r.error}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={onCommit} disabled={!!error || validCount === 0}>
+            Import {validCount} valid row{validCount === 1 ? "" : "s"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
