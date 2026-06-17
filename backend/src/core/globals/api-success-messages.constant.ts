@@ -25,6 +25,10 @@ export const API_SUCCESS_MESSAGES = {
   CUSTOM_FIELD_RETRIEVED: "Custom field retrieved successfully",
   CUSTOM_FIELD_UPDATED: "Custom field updated successfully",
   CUSTOM_FIELD_DELETED: "Custom field deleted successfully",
+  INVITATION_SENT: "Invitation sent successfully",
+  INVITATION_RESENT: "Invitation resent successfully",
+  INVITATION_EMAIL_UPDATED: "Invitation email updated and resent successfully",
+  INVITATION_STATUS_RETRIEVED: "Invitation status retrieved successfully",
 } as const;
 
 export type ApiSuccessMessage =

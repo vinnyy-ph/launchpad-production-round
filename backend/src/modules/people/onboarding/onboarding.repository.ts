@@ -70,7 +70,7 @@ export class OnboardingRepository {
 
       const employee = await tx.employee.create({
         data: {
-          userId: user.id,
+          user: { connect: { id: user.id } },
           companyEmail: dto.companyEmail,
           firstName: dto.firstName ?? dto.companyEmail.split("@")[0],
           lastName: dto.lastName ?? "",

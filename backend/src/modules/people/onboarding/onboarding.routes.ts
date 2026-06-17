@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireRole } from "../../../core/middleware/roles.middleware";
 import { customFieldsRouter } from "./custom-fields";
 import { documentsRouter } from "./documents";
+import { invitationRouter } from "./invitation";
 import { OnboardingController } from "./onboarding.controller";
 
 const onboardingController = new OnboardingController();
@@ -16,3 +17,6 @@ onboardingRouter.use("/documents", documentsRouter);
 
 /** HR-managed onboarding custom text fields. */
 onboardingRouter.use("/custom-fields", customFieldsRouter);
+
+/** HR-managed onboarding invitations. */
+onboardingRouter.use("/invitations", invitationRouter);

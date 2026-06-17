@@ -22,7 +22,6 @@ export const API_ERROR_MESSAGES = {
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
   INVALID_USER_ROLE: "Role must be HR or Employee",
   EMPLOYEE_ALREADY_EXISTS: "An employee with this email already exists",
-  SUPERVISOR_NOT_FOUND: "Supervisor not found",
   ONBOARDING_FAILED: "Failed to create onboarding record",
   INVALID_EMERGENCY_CONTACT_PHONE:
     "Emergency contact must include a valid Philippine mobile number",
@@ -30,6 +29,13 @@ export const API_ERROR_MESSAGES = {
     "This emergency contact phone number is already assigned to another employee",
   DOCUMENT_NOT_FOUND: "Required document not found",
   CUSTOM_FIELD_NOT_FOUND: "Custom field not found",
+  INVITATION_NOT_FOUND: "Invitation not found",
+  INVITATION_ALREADY_ACCEPTED: "Invitation has already been accepted",
+  ACCOUNT_ALREADY_CREATED:
+    "The employee has already created their account. The email cannot be changed.",
+  ONBOARDING_RECORD_NOT_FOUND: "Onboarding record not found",
+  INVALID_EMAIL: "A valid email address is required",
+  INVITATION_DELIVERY_FAILED: "Failed to deliver the invitation email",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];
