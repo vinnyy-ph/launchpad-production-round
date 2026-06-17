@@ -1,5 +1,7 @@
-import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+"use client";
+
+import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { useAuth } from "../hooks/use-auth";
 
 interface RequireAuthProps {
@@ -10,11 +12,11 @@ export function RequireAuth({ children }: RequireAuthProps) {
   const { appUser, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="min-h-screen bg-white" aria-busy="true" />;
   }
 
   if (!appUser) {
-    return <Navigate to="/login" replace />;
+    redirect("/login");
   }
 
   return <>{children}</>;
