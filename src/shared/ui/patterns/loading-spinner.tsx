@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { Skeleton } from "@/shared/components/ui/skeleton";
+import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import { cn } from "@/shared/lib/utils";
 
 export function Spinner({ className, size = 16 }: { className?: string; size?: number }) {

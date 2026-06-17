@@ -6,8 +6,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/shared/components/ui/table";
-import { Skeleton } from "@/shared/components/ui/skeleton";
+} from "@/shared/ui/primitives/table";
+import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import { ErrorState } from "./error-boundary";
 import { cn } from "@/shared/lib/utils";
 

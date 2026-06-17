@@ -1,5 +1,5 @@
 import { Network } from "lucide-react";
-import { EmptyState } from "@/shared/components/common";
+import { EmptyState } from "@/shared/ui/patterns";
 
 export default function TeamsPage() {
   return (

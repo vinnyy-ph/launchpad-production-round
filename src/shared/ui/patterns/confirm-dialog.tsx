@@ -15,8 +15,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/shared/components/ui/alert-dialog";
-import { buttonVariants } from "@/shared/components/ui/button";
+} from "@/shared/ui/primitives/alert-dialog";
+import { buttonVariants } from "@/shared/ui/primitives/button";
 import { cn } from "@/shared/lib/utils";
 
 interface ConfirmOptions {

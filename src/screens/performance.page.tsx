@@ -1,5 +1,5 @@
 import { TrendingUp } from "lucide-react";
-import { EmptyState } from "@/shared/components/common";
+import { EmptyState } from "@/shared/ui/patterns";
 
 export default function PerformanceHubPage() {
   return (

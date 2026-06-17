@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Plus } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { Button } from "@/shared/components/ui/button";
-import { DataTable, EmptyState, StatusBadge, type Column } from "@/shared/components/common";
+import { Button } from "@/shared/ui/primitives/button";
+import { DataTable, EmptyState, StatusBadge, type Column } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import type {
