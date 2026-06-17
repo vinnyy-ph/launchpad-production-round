@@ -55,6 +55,51 @@ export class OnboardingController {
         });
       }
 
+      if (error.message === "Invalid birthday") {
+        return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: API_ERROR_MESSAGES.VALIDATION_FAILED,
+          errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+          errors: [
+            {
+              field: ONBOARDING_FIELDS.BIRTHDAY,
+              message: error.message,
+              code: API_ERROR_CODES.VALIDATION_FAILED,
+            },
+          ],
+        });
+      }
+
+      if (error.message === "Invalid emergency contact phone number") {
+        return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: API_ERROR_MESSAGES.INVALID_EMERGENCY_CONTACT_PHONE,
+          errorCode: API_ERROR_CODES.INVALID_EMERGENCY_CONTACT_PHONE,
+          errors: [
+            {
+              field: ONBOARDING_FIELDS.EMERGENCY_CONTACT,
+              message: API_ERROR_MESSAGES.INVALID_EMERGENCY_CONTACT_PHONE,
+              code: API_ERROR_CODES.INVALID_EMERGENCY_CONTACT_PHONE,
+            },
+          ],
+        });
+      }
+
+      if (error.message === "Emergency contact phone number is already in use") {
+        return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EMERGENCY_CONTACT_PHONE_ALREADY_IN_USE,
+          errorCode: API_ERROR_CODES.EMERGENCY_CONTACT_PHONE_ALREADY_IN_USE,
+          errors: [
+            {
+              field: ONBOARDING_FIELDS.EMERGENCY_CONTACT,
+              message: API_ERROR_MESSAGES.EMERGENCY_CONTACT_PHONE_ALREADY_IN_USE,
+              code: API_ERROR_CODES.EMERGENCY_CONTACT_PHONE_ALREADY_IN_USE,
+            },
+          ],
+        });
+      }
+
       if (error.message === "Employee already exists") {
         return res.status(HTTP_STATUS_CODES.CONFLICT).json({
           success: false,

@@ -1,3 +1,4 @@
+import { tryExtractNormalizedPhilippinePhone } from "../../shared/phone";
 import { prisma } from "../../../core/database/prisma.service";
 import type { OnboardEmployeeRequestDto } from "./dto";
 import { INVITATION_EXPIRY_DAYS } from "./onboarding.constants";
@@ -35,6 +36,22 @@ export class OnboardingRepository {
   }
 
   /**
+   * Returns true when another employee already uses the same emergency contact phone number.
+   */
+  async emergencyContactPhoneInUse(normalizedPhone: string): Promise<boolean> {
+    const employees = await prisma.employee.findMany({
+      where: { emergencyContact: { not: null } },
+      select: { emergencyContact: true },
+    });
+
+    return employees.some((employee) => {
+      const existingPhone = tryExtractNormalizedPhilippinePhone(employee.emergencyContact!);
+
+      return existingPhone === normalizedPhone;
+    });
+  }
+
+  /**
    * Creates a User, Employee, OnboardingRecord, and OnboardingInvitation in one atomic transaction.
    * Also finds-or-creates the default OnboardingTemplate and the Department by name.
    */
@@ -55,8 +72,13 @@ export class OnboardingRepository {
         data: {
           userId: user.id,
           companyEmail: dto.companyEmail,
-          firstName: dto.companyEmail.split("@")[0],
-          lastName: "",
+          firstName: dto.firstName ?? dto.companyEmail.split("@")[0],
+          lastName: dto.lastName ?? "",
+          middleName: dto.middleName ?? null,
+          personalEmail: dto.personalEmail ?? null,
+          birthday: dto.birthday ? new Date(dto.birthday) : null,
+          address: dto.address ?? null,
+          emergencyContact: dto.emergencyContact ?? null,
           jobTitle: dto.jobTitle,
           supervisor: { connect: { id: dto.supervisorId } },
           department: {

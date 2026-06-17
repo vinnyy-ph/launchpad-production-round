@@ -31,6 +31,16 @@ export class OnboardingService {
       throw new Error("Supervisor not found");
     }
 
+    if (dto.emergencyContactNormalizedPhone) {
+      const phoneInUse = await this.onboardingRepository.emergencyContactPhoneInUse(
+        dto.emergencyContactNormalizedPhone,
+      );
+
+      if (phoneInUse) {
+        throw new Error("Emergency contact phone number is already in use");
+      }
+    }
+
     const result = await this.onboardingRepository.createOnboarding(dto);
 
     return {
@@ -42,6 +52,11 @@ export class OnboardingService {
           companyEmail: result.employee.companyEmail,
           firstName: result.employee.firstName,
           lastName: result.employee.lastName,
+          middleName: result.employee.middleName,
+          personalEmail: result.employee.personalEmail,
+          birthday: result.employee.birthday?.toISOString() ?? null,
+          address: result.employee.address,
+          emergencyContact: result.employee.emergencyContact,
           jobTitle: result.employee.jobTitle ?? "",
           department: result.employee.department?.name ?? "",
           supervisor: {
