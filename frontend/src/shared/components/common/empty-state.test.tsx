@@ -13,9 +13,9 @@ describe("EmptyState", () => {
   });
 
   it("fires the action handler when an action config is provided", async () => {
-    const onClick = vi.fn();
+    const onClick = jest.fn();
     render(<EmptyState icon={Inbox} title="Empty" action={{ label: "Invite", onClick }} />);
     await userEvent.click(screen.getByRole("button", { name: "Invite" }));
-    expect(onClick).toHaveBeenCalledOnce();
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });

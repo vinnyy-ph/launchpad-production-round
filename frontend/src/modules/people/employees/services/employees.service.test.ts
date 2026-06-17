@@ -1,12 +1,12 @@
-vi.mock("@/shared/lib/api-client", () => ({
-  apiFetch: vi.fn(() => Promise.resolve([])),
+jest.mock("@/shared/lib/api-client", () => ({
+  apiFetch: jest.fn(() => Promise.resolve([])),
 }));
 
 import { apiFetch } from "@/shared/lib/api-client";
 import { getEmployees } from "./employees.service";
 
 describe("getEmployees", () => {
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => jest.clearAllMocks());
 
   it("calls the bare endpoint when no filters are given", async () => {
     await getEmployees();

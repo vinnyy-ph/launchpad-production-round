@@ -19,7 +19,7 @@ describe("DataTable", () => {
   });
 
   it("renders an error state with a working retry button", async () => {
-    const onRetry = vi.fn();
+    const onRetry = jest.fn();
     render(
       <DataTable
         columns={columns}
@@ -31,11 +31,11 @@ describe("DataTable", () => {
     );
     expect(screen.getByText("Boom")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /try again/i }));
-    expect(onRetry).toHaveBeenCalledOnce();
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it("renders rows and fires onRowClick with the clicked row", async () => {
-    const onRowClick = vi.fn();
+    const onRowClick = jest.fn();
     const data: Row[] = [
       { id: "1", name: "Ada" },
       { id: "2", name: "Lin" },

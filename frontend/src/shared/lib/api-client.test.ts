@@ -1,6 +1,11 @@
-vi.mock("@/shared/lib/firebase", () => ({ auth: { currentUser: null } }));
+/**
+ * @jest-environment node
+ */
+jest.mock("@/shared/lib/firebase", () => ({ auth: { currentUser: null } }));
 
 import { apiFetch } from "./api-client";
+
+const originalFetch = global.fetch;
 
 function makeResponse(body: unknown, init: { status?: number } = {}): Response {
   const status = init.status ?? 200;
@@ -14,15 +19,15 @@ function makeResponse(body: unknown, init: { status?: number } = {}): Response {
 }
 
 function stubFetch(response: Response) {
-  const spy = vi.fn((_url: string, _init?: RequestInit) => Promise.resolve(response));
-  vi.stubGlobal("fetch", spy);
+  const spy = jest.fn((_url: string, _init?: RequestInit) => Promise.resolve(response));
+  global.fetch = spy as unknown as typeof fetch;
   return spy;
 }
 
 describe("apiFetch", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
   });
 
   it("returns parsed JSON on a 200", async () => {

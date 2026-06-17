@@ -1,10 +1,15 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
 
-const { mockUseEmployees } = vi.hoisted(() => ({ mockUseEmployees: vi.fn() }));
-vi.mock("@/modules/people/employees/hooks/use-employees", () => ({
+const mockUseEmployees = jest.fn();
+jest.mock("@/modules/people/employees/hooks/use-employees", () => ({
   useEmployees: () => mockUseEmployees(),
+}));
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+  usePathname: () => "/hr/directory",
+  useParams: () => ({}),
 }));
 
 import DirectoryPage from "./directory.page";
@@ -23,18 +28,14 @@ const sample: EmployeeListItem[] = [
 ];
 
 function renderPage() {
-  return render(
-    <MemoryRouter>
-      <DirectoryPage />
-    </MemoryRouter>,
-  );
+  return render(<DirectoryPage />);
 }
 
 describe("DirectoryPage", () => {
-  afterEach(() => vi.clearAllMocks());
+  afterEach(() => jest.clearAllMocks());
 
   it("renders employee rows from the hook", () => {
-    mockUseEmployees.mockReturnValue({ employees: sample, loading: false, error: null, reload: vi.fn() });
+    mockUseEmployees.mockReturnValue({ employees: sample, loading: false, error: null, reload: jest.fn() });
     renderPage();
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByText("ada@acme.test")).toBeInTheDocument();
@@ -43,13 +44,13 @@ describe("DirectoryPage", () => {
   });
 
   it("shows the empty state when there are no employees", () => {
-    mockUseEmployees.mockReturnValue({ employees: [], loading: false, error: null, reload: vi.fn() });
+    mockUseEmployees.mockReturnValue({ employees: [], loading: false, error: null, reload: jest.fn() });
     renderPage();
     expect(screen.getByText("No employees yet")).toBeInTheDocument();
   });
 
   it("shows the error state when the query fails", () => {
-    mockUseEmployees.mockReturnValue({ employees: [], loading: false, error: "Boom", reload: vi.fn() });
+    mockUseEmployees.mockReturnValue({ employees: [], loading: false, error: "Boom", reload: jest.fn() });
     renderPage();
     expect(screen.getByText("Boom")).toBeInTheDocument();
   });
