@@ -17,11 +17,11 @@ const config: Config = {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'Satoshi"',
+  				'"Satoshi"',
   				'ui-sans-serif',
   				'system-ui',
   				'-apple-system',
-  				'Segoe UI"',
+  				'"Segoe UI"',
   				'Helvetica',
   				'Arial',
   				'sans-serif'
