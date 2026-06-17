@@ -21,12 +21,52 @@ export class EvaluationsRepository {
     });
   }
 
-  async findByReviewer(reviewerId: string, query: ListEvaluationsQuery) {
+  async findVisible(
+    employeeId: string,
+    role: string,
+    query: ListEvaluationsQuery,
+    downwardIds: string[]
+  ) {
+    let visibilityFilter: any;
+
+    if (role === "HR" || role === "ADMIN") {
+      visibilityFilter = {
+        OR: [
+          { reviewerId: employeeId },
+          { isSent: true },
+        ],
+      };
+    } else {
+      const allowedRevieweeIds = [employeeId, ...downwardIds];
+      visibilityFilter = {
+        OR: [
+          { reviewerId: employeeId },
+          {
+            isSent: true,
+            revieweeId: { in: allowedRevieweeIds },
+          },
+        ],
+      };
+    }
+
+    let statusFilter: any;
+    if (query.status === "draft") {
+      statusFilter = {
+        isSent: false,
+        reviewerId: employeeId,
+      };
+    } else if (query.status === "sent") {
+      statusFilter = {
+        isSent: true,
+        ...visibilityFilter,
+      };
+    } else {
+      statusFilter = visibilityFilter;
+    }
+
     const where = {
-      reviewerId,
       deletedAt: null,
-      ...(query.status === "draft" && { isSent: false }),
-      ...(query.status === "sent" && { isSent: true }),
+      ...statusFilter,
     };
 
     const [evaluations, total] = await Promise.all([

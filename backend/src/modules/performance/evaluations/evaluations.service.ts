@@ -1,8 +1,9 @@
-import type { PerformanceEvaluation } from "@prisma/client";
+import type { PerformanceEvaluation, User } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
 import { EvaluationsRepository } from "./evaluations.repository";
+import { downwardChain, upwardChain } from "../../shared";
 import type {
   CreateEvaluationInput,
   EvaluationResponseDto,
@@ -16,11 +17,20 @@ export class EvaluationsService {
     private readonly evaluationsRepository = new EvaluationsRepository(),
   ) {}
 
-  async list(query: ListEvaluationsQuery, userId: string): Promise<ListEvaluationsResponseDto> {
-    const reviewer = await prisma.employee.findUnique({ where: { userId } });
-    if (!reviewer) throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
+  async list(query: ListEvaluationsQuery, currentUser: User): Promise<ListEvaluationsResponseDto> {
+    const employee = await prisma.employee.findUnique({ where: { userId: currentUser.id } });
+    const isHr = currentUser.role === "HR" || currentUser.role === "ADMIN";
+    if (!employee && !isHr) throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
 
-    const { evaluations, total } = await this.evaluationsRepository.findByReviewer(reviewer.id, query);
+    const employeeId = employee?.id ?? "";
+    const downwardIds = employee ? await downwardChain(employee.id) : [];
+
+    const { evaluations, total } = await this.evaluationsRepository.findVisible(
+      employeeId,
+      currentUser.role,
+      query,
+      downwardIds,
+    );
 
     return {
       success: true,
@@ -32,6 +42,41 @@ export class EvaluationsService {
         totalPages: Math.ceil(total / query.limit),
       },
     };
+  }
+
+  async get(evaluationId: string, currentUser: User): Promise<EvaluationResponseDto> {
+    const evaluation = await this.evaluationsRepository.findById(evaluationId);
+    if (!evaluation) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND);
+
+    const employee = await prisma.employee.findUnique({ where: { userId: currentUser.id } });
+
+    if (!evaluation.isSent) {
+      if (!employee || evaluation.reviewerId !== employee.id) {
+        throw new Error(EVAL_ERROR_MESSAGES.NOT_AUTHORIZED);
+      }
+    } else {
+      const isHr = currentUser.role === "HR" || currentUser.role === "ADMIN";
+      if (isHr) {
+        return this.toResponse(evaluation);
+      }
+
+      if (!employee) {
+        throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
+      }
+
+      const isReviewer = evaluation.reviewerId === employee.id;
+      const isReviewee = evaluation.revieweeId === employee.id;
+
+      if (!isReviewer && !isReviewee) {
+        const uChain = await upwardChain(evaluation.revieweeId);
+        const isUpwardSupervisor = uChain.includes(employee.id);
+        if (!isUpwardSupervisor) {
+          throw new Error(EVAL_ERROR_MESSAGES.NOT_AUTHORIZED);
+        }
+      }
+    }
+
+    return this.toResponse(evaluation);
   }
 
   async create(input: CreateEvaluationInput, userId: string) {

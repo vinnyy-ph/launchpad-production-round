@@ -5,6 +5,7 @@ export const EVAL_ERROR_MESSAGES = {
   EVALUATION_NOT_FOUND: "Evaluation not found",
   ALREADY_SENT: "Evaluation already sent",
   NOT_REVIEWER: "Not the evaluation reviewer",
+  NOT_AUTHORIZED: "Not authorized to view this evaluation",
 } as const;
 
 export const EVAL_ACK_DEADLINE_DAYS = 7;

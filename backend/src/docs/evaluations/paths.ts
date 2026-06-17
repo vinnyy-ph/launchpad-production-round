@@ -122,10 +122,13 @@
  * /api/v1/evaluations:
  *   get:
  *     tags: [Evaluations]
- *     summary: List my evaluations
+ *     summary: List visible performance evaluations
  *     description: |
- *       Returns a paginated list of performance evaluations created by the authenticated
- *       supervisor. Soft-deleted evaluations are excluded. Optionally filter by send status.
+ *       Returns a paginated list of performance evaluations visible to the authenticated user.
+ *       Enforces visibility constraints:
+ *       - HR/ADMIN: Can list all sent evaluations plus their own drafts.
+ *       - Employee: Can list evaluations they created (draft/sent), sent evaluations where they are the reviewee, and sent evaluations of their downward reports.
+ *       Soft-deleted evaluations are excluded. Optionally filter by status (draft/sent).
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -226,6 +229,43 @@
 /**
  * @openapi
  * /api/v1/evaluations/{evaluationId}:
+ *   get:
+ *     tags: [Evaluations]
+ *     summary: Get a performance evaluation by ID
+ *     description: |
+ *       Retrieves the performance evaluation details. Enforces visibility rules:
+ *       - Draft evaluations are visible only to the reviewer (creator).
+ *       - Sent evaluations are visible to the reviewee, HR/ADMIN, and everyone in the reviewee's upward supervisory chain.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: evaluationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Evaluation details retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 reviewerId:
+ *                   type: string
+ *                 revieweeId:
+ *                   type: string
+ *                 isSent:
+ *                   type: boolean
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Not authorized to view this evaluation
+ *       404:
+ *         description: Evaluation not found
  *   patch:
  *     tags: [Evaluations]
  *     summary: Update a draft evaluation
