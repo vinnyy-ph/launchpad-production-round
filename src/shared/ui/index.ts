@@ -21,7 +21,7 @@ export * from "./primitives/tabs";
 export * from "./primitives/textarea";
 export * from "./primitives/tooltip";
 
-export * from "./primitives/form";
+export { useFormField, Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField as RHFFormField } from "./primitives/form";
 export * from "./primitives/radio-group";
 export * from "./primitives/slider";
 export * from "./primitives/command";
