@@ -50,6 +50,18 @@
  *           type: string
  *           format: date-time
  *           nullable: true
+ *         acknowledgement:
+ *           nullable: true
+ *           type: object
+ *           properties:
+ *             isDeemedAck:
+ *               type: boolean
+ *               example: false
+ *             acknowledgedAt:
+ *               type: string
+ *               format: date-time
+ *               nullable: true
+ *               example: null
  *         deletedAt:
  *           type: string
  *           format: date-time
@@ -396,4 +408,50 @@
  *         description: Evaluation not found
  *       422:
  *         description: Evaluation has already been sent
+ */
+
+/**
+ * @openapi
+ * /api/v1/evaluations/{evaluationId}/acknowledge:
+ *   patch:
+ *     tags: [Evaluations]
+ *     summary: Acknowledge a sent evaluation
+ *     description: |
+ *       The reviewee explicitly confirms receipt of their sent evaluation.
+ *       Only the reviewee may call this endpoint. The evaluation must already
+ *       be sent (`isSent: true`) and must not have been previously acknowledged.
+ *       Sets `acknowledgedAt` to the current timestamp on the existing
+ *       `EvaluationAcknowledgement` record.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: evaluationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Evaluation acknowledged successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Evaluation acknowledged successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/EvaluationRecord'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Caller has no employee record, or is not the reviewee
+ *       404:
+ *         description: Evaluation not found
+ *       422:
+ *         description: Evaluation has not been sent, or has already been acknowledged
  */
