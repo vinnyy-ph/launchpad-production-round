@@ -61,7 +61,7 @@ export function RoleSwitcher() {
         <Eye size={15} aria-hidden="true" />
         <span className="hidden sm:inline">Viewing as</span>
         <span className="font-semibold text-[color:var(--text-primary)]">{LABELS[active]}</span>
-        <ChevronDown size={14} />
+        <ChevronDown size={14} aria-hidden="true" />
       </button>
       {open && (
         <div
@@ -90,7 +90,7 @@ export function RoleSwitcher() {
               onClick={onReset}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
             >
-              <RotateCcw size={14} />
+              <RotateCcw size={14} aria-hidden="true" />
               Reset demo data
             </button>
           </div>
