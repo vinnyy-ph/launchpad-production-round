@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { roleHome } from "@/modules/auth/role-home";
-import LoginPage from "@/pages/auth/login.page";
+import LoginPage from "@/screens/auth/login.page";
 
 export default function Login() {
   const { appUser, loading } = useAuth();

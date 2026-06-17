@@ -60,7 +60,7 @@ export function Sidebar({
   onNavigate?: () => void;
 }) {
   const { appUser } = useAuth();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
 
   const canSee = (roles: AllowedRole[]) => {
     if (!appUser) return false;

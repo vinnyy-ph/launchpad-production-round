@@ -1,2 +1,2 @@
 "use client";
-export { default } from "@/pages/hr/surveys.page";
+export { default } from "@/screens/hr/surveys.page";

@@ -1,2 +1,2 @@
 "use client";
-export { default } from "@/pages/offboarding.page";
+export { default } from "@/screens/offboarding.page";
