@@ -5,12 +5,14 @@ export const mockedPrisma = jest.mocked(prisma);
 export const findManyMock = mockedPrisma.employee.findMany as jest.Mock;
 export const countMock = mockedPrisma.employee.count as jest.Mock;
 export const findFirstMock = mockedPrisma.employee.findFirst as jest.Mock;
+export const updateMock = mockedPrisma.employee.update as jest.Mock;
 
 /** Clears employee Prisma mocks before each scenario so tests cannot leak state. */
 export function resetEmployeeMocks() {
   findManyMock.mockReset();
   countMock.mockReset();
   findFirstMock.mockReset();
+  updateMock.mockReset();
 }
 
 /**
@@ -41,7 +43,10 @@ export function buildEmployeeRecord(overrides: {
     lastName: overrides.lastName,
     middleName: null,
     jobTitle: "Software Engineer",
-    department: "Technology",
+    department: {
+      id: "department-technology",
+      name: "Technology",
+    },
     status: overrides.status,
     teamMemberships: [
       {
@@ -79,9 +84,7 @@ export function buildEmployeeProfileRecord() {
     address: "123 Example Street",
     emergencyContact: "Jamie Reed, +1 555 0100",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    createdBy: "hr-user",
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-    updatedBy: "hr-user",
     user: {
       id: "employee-active-user",
       email: "marcus.reed@example.com",

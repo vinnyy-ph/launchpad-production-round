@@ -9,6 +9,7 @@ import type {
   CreateUserResponseDto,
   DeactivateUserResponseDto,
   ListUsersResponseDto,
+  UpdateRoleResponseDto,
 } from "./dto";
 import { USER_FIELDS } from "./users.constants";
 import { UsersService } from "./users.service";
@@ -78,6 +79,37 @@ export class UsersController {
       }
 
       const result = await this.usersService.deactivateUser(params.userId, req.user.id);
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
+  /**
+   * Handles PATCH /api/v1/users/:userId/role to change a user's role.
+   */
+  updateRole = async (
+    req: Request,
+    res: Response<UpdateRoleResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const params = this.usersValidation.parseUserIdParam(req.params);
+      const body = this.usersValidation.parseUpdateRoleBody(req.body);
+
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const result = await this.usersService.updateRole(
+        params.userId,
+        body,
+        req.user.id,
+      );
 
       return res.json(result);
     } catch (error) {
@@ -177,6 +209,22 @@ export class UsersController {
         success: false,
         message: API_ERROR_MESSAGES.USER_ALREADY_DEACTIVATED,
         errorCode: API_ERROR_CODES.USER_ALREADY_DEACTIVATED,
+      });
+    }
+
+    if (error.message === "Cannot change own role") {
+      return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+        success: false,
+        message: API_ERROR_MESSAGES.CANNOT_CHANGE_OWN_ROLE,
+        errorCode: API_ERROR_CODES.CANNOT_CHANGE_OWN_ROLE,
+      });
+    }
+
+    if (error.message === "Cannot demote last admin") {
+      return res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
+        success: false,
+        message: API_ERROR_MESSAGES.CANNOT_DEMOTE_LAST_ADMIN,
+        errorCode: API_ERROR_CODES.CANNOT_DEMOTE_LAST_ADMIN,
       });
     }
 

@@ -12,3 +12,6 @@ export type { EmployeeUserResponseDto } from "./employee-user-response.dto";
 export type { GetEmployeeProfileParamsDto } from "./get-employee-profile-params.dto";
 export type { ListEmployeesQueryDto } from "./list-employees-query.dto";
 export type { ListEmployeesResponseDto } from "./list-employees-response.dto";
+export type { UpdateEmployeeProfileParamsDto } from "./update-employee-profile-params.dto";
+export type { UpdateEmployeeProfileRequestDto } from "./update-employee-profile-request.dto";
+export type { UpdateEmployeeProfileResponseDto } from "./update-employee-profile-response.dto";

@@ -1,6 +1,58 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
-import type { ListEmployeesQueryDto } from "./dto";
+import type { ListEmployeesQueryDto, UpdateEmployeeProfileRequestDto } from "./dto";
+
+const employeeProfileInclude = {
+  user: {
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isActive: true,
+    },
+  },
+  supervisor: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+    },
+  },
+  department: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  directReports: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+      status: true,
+    },
+  },
+  ledTeams: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  teamMemberships: {
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.EmployeeInclude;
 
 /**
  * Handles employee persistence queries and keeps Prisma-specific filtering out of controllers.
@@ -20,6 +72,12 @@ export class EmployeesRepository {
         take: filters.limit,
         orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
         include: {
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           supervisor: {
             select: {
               id: true,
@@ -30,7 +88,6 @@ export class EmployeesRepository {
             },
           },
           teamMemberships: {
-            where: { deletedAt: null },
             include: {
               team: {
                 select: {
@@ -50,72 +107,78 @@ export class EmployeesRepository {
 
   /**
    * Finds one unredacted employee profile for HR views.
-   * Soft-deleted employees and related records are excluded from the profile response.
    */
   async findById(employeeId: string) {
     return prisma.employee.findFirst({
-      where: {
-        id: employeeId,
-        deletedAt: null,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-            isActive: true,
-          },
-        },
-        supervisor: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            companyEmail: true,
-            jobTitle: true,
-          },
-        },
-        directReports: {
-          where: { deletedAt: null },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            companyEmail: true,
-            jobTitle: true,
-            status: true,
-          },
-        },
-        ledTeams: {
-          where: { deletedAt: null },
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        teamMemberships: {
-          where: { deletedAt: null },
-          include: {
-            team: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
+      where: { id: employeeId },
+      include: employeeProfileInclude,
     });
   }
 
   /**
-   * Builds a soft-delete-aware Prisma where clause for search and filter behavior.
+   * Updates HR-editable employee profile fields and returns the refreshed unredacted profile.
+   */
+  async updateProfile(employeeId: string, update: UpdateEmployeeProfileRequestDto, updatedBy: string) {
+    void updatedBy;
+    const existingEmployee = await this.findById(employeeId);
+
+    if (!existingEmployee) {
+      return null;
+    }
+
+    const data: Prisma.EmployeeUpdateInput = {
+      companyEmail: update.companyEmail,
+      firstName: update.firstName,
+      lastName: update.lastName,
+      middleName: update.middleName,
+      personalEmail: update.personalEmail,
+      birthday: update.birthday,
+      address: update.address,
+      emergencyContact: update.emergencyContact,
+      jobTitle: update.jobTitle,
+      status: update.status,
+      ...(update.department !== undefined
+        ? {
+            department: update.department
+              ? {
+                  connectOrCreate: {
+                    where: { name: update.department },
+                    create: { name: update.department },
+                  },
+                }
+              : { disconnect: true },
+          }
+        : {}),
+      ...(update.supervisorId !== undefined
+        ? {
+            supervisor: update.supervisorId
+              ? { connect: { id: update.supervisorId } }
+              : { disconnect: true },
+          }
+        : {}),
+      ...(update.companyEmail
+        ? {
+            user: {
+              update: {
+                email: update.companyEmail,
+              },
+            },
+          }
+        : {}),
+    };
+
+    return prisma.employee.update({
+      where: { id: employeeId },
+      data,
+      include: employeeProfileInclude,
+    });
+  }
+
+  /**
+   * Builds a Prisma where clause for search and filter behavior.
    */
   private buildWhere(filters: ListEmployeesQueryDto): Prisma.EmployeeWhereInput {
-    const where: Prisma.EmployeeWhereInput = {
-      deletedAt: null,
-    };
+    const where: Prisma.EmployeeWhereInput = {};
 
     if (filters.status) {
       where.status = filters.status;
@@ -134,16 +197,14 @@ export class EmployeesRepository {
         { companyEmail: { contains: filters.search, mode: "insensitive" } },
         { personalEmail: { contains: filters.search, mode: "insensitive" } },
         { jobTitle: { contains: filters.search, mode: "insensitive" } },
-        { department: { contains: filters.search, mode: "insensitive" } },
+        { department: { name: { contains: filters.search, mode: "insensitive" } } },
       ];
     }
 
     if (filters.teamId || filters.team) {
       where.teamMemberships = {
         some: {
-          deletedAt: null,
           team: {
-            deletedAt: null,
             ...(filters.teamId ? { id: filters.teamId } : {}),
             ...(filters.team ? { name: { contains: filters.team, mode: "insensitive" } } : {}),
           },

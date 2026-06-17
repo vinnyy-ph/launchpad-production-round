@@ -122,6 +122,23 @@
  *           example: User deactivated successfully
  *         data:
  *           $ref: '#/components/schemas/UserResponse'
+ *     UpdateRoleRequest:
+ *       type: object
+ *       required: [role]
+ *       properties:
+ *         role:
+ *           $ref: '#/components/schemas/AddUserRole'
+ *     UpdateRoleResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
+ *           type: string
+ *           example: User role updated successfully
+ *         data:
+ *           $ref: '#/components/schemas/UserResponse'
  */
 
 /**
@@ -244,4 +261,49 @@
  *         description: User is already deactivated
  *       422:
  *         description: Cannot deactivate the last admin account
+ */
+
+/**
+ * @openapi
+ * /api/v1/users/{userId}/role:
+ *   patch:
+ *     tags: [Users]
+ *     summary: Update a user's role
+ *     description: |
+ *       Changes a user's stored role between HR and Employee.
+ *       The last remaining admin cannot be demoted (lockout protection).
+ *       The role takes effect on the user's next authenticated request.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateRoleRequest'
+ *     responses:
+ *       200:
+ *         description: User role updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UpdateRoleResponse'
+ *       400:
+ *         description: Validation failed or invalid role
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Caller is not an admin or attempted self-change
+ *       404:
+ *         description: User not found
+ *       409:
+ *         description: User is deactivated
+ *       422:
+ *         description: Cannot demote the last remaining admin
  */

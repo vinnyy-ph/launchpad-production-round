@@ -8,6 +8,9 @@ import type {
   GetEmployeeProfileParamsDto,
   ListEmployeesQueryDto,
   ListEmployeesResponseDto,
+  UpdateEmployeeProfileParamsDto,
+  UpdateEmployeeProfileRequestDto,
+  UpdateEmployeeProfileResponseDto,
 } from "./dto";
 
 type RepositoryEmployee = Awaited<ReturnType<EmployeesRepository["findMany"]>>["employees"][number];
@@ -57,6 +60,43 @@ export class EmployeesService {
   }
 
   /**
+   * Updates another employee profile for HR and returns the refreshed unredacted profile.
+   */
+  async updateEmployeeProfile(
+    params: UpdateEmployeeProfileParamsDto,
+    update: UpdateEmployeeProfileRequestDto,
+    updatedBy = "hr-profile-edit",
+  ): Promise<UpdateEmployeeProfileResponseDto> {
+    if (update.supervisorId === params.employeeId) {
+      throw new Error("Employee cannot supervise themselves");
+    }
+
+    if (update.supervisorId) {
+      const supervisor = await this.employeesRepository.findById(update.supervisorId);
+
+      if (!supervisor) {
+        throw new Error("Supervisor not found");
+      }
+    }
+
+    const employee = await this.employeesRepository.updateProfile(
+      params.employeeId,
+      update,
+      updatedBy,
+    );
+
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.EMPLOYEE_PROFILE_UPDATED,
+      data: this.toProfileResponse(employee),
+    };
+  }
+
+  /**
    * Converts a Prisma employee result into the API response DTO.
    * This keeps database enum casing and relation structure from leaking to API consumers.
    */
@@ -70,7 +110,7 @@ export class EmployeesService {
       middleName: employee.middleName,
       fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
       jobTitle: employee.jobTitle,
-      department: employee.department,
+      department: employee.department?.name ?? null,
       status: this.toStatusDto(employee.status),
       teams: employee.teamMemberships.map((membership) => ({
         id: membership.team.id,
@@ -117,7 +157,7 @@ export class EmployeesService {
       address: employee.address,
       emergencyContact: employee.emergencyContact,
       jobTitle: employee.jobTitle,
-      department: employee.department,
+      department: employee.department?.name ?? null,
       status: this.toStatusDto(employee.status),
       teams: employee.teamMemberships.map((membership) => ({
         id: membership.team.id,
@@ -151,9 +191,7 @@ export class EmployeesService {
         status: this.toStatusDto(directReport.status),
       })),
       createdAt: employee.createdAt,
-      createdBy: employee.createdBy,
       updatedAt: employee.updatedAt,
-      updatedBy: employee.updatedBy,
     };
   }
 

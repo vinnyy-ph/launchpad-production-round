@@ -31,9 +31,7 @@ export interface EmployeeProfileDto {
   supervisor: EmployeeSupervisorResponseDto | null;
   directReports: EmployeeDirectReportResponseDto[];
   createdAt: Date;
-  createdBy: string | null;
   updatedAt: Date;
-  updatedBy: string | null;
 }
 
 /**

@@ -7,13 +7,14 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
   authenticate: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-// Prisma returns null when the requested employee does not exist or is soft-deleted.
+// Prisma returns null when the requested employee does not exist.
 jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
     employee: {
       findMany: jest.fn(),
       count: jest.fn(),
       findFirst: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));
