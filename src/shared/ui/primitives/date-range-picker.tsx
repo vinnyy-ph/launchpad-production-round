@@ -14,10 +14,11 @@ export type { DateRange };
 export interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (range?: DateRange) => void;
+  disabled?: boolean;
   className?: string;
 }
 
-export function DateRangePicker({ value, onChange, className }: DateRangePickerProps) {
+export function DateRangePicker({ value, onChange, disabled, className }: DateRangePickerProps) {
   const label =
     value?.from && value?.to
       ? `${format(value.from, "LLL d")} – ${format(value.to, "LLL d, y")}`
@@ -30,6 +31,7 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
       <PopoverTrigger asChild>
         <Button
           variant="outline"
+          disabled={disabled}
           className={cn("w-full justify-start text-left font-normal", !value?.from && "text-muted-foreground", className)}
         >
           <CalendarIcon className="mr-2 h-4 w-4" aria-hidden="true" />

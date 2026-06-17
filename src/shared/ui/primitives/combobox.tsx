@@ -19,6 +19,7 @@ export interface ComboboxProps {
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
+  disabled?: boolean;
   className?: string;
 }
 
@@ -31,6 +32,7 @@ export function Combobox({
   placeholder = "Select…",
   searchPlaceholder = "Search…",
   emptyText = "No results.",
+  disabled,
   className,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
@@ -43,6 +45,7 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          disabled={disabled}
           className={cn("w-[220px] justify-between font-normal", !selected && "text-muted-foreground", className)}
         >
           {selected ? selected.label : placeholder}
@@ -58,7 +61,8 @@ export function Combobox({
               {options.map((o) => (
                 <CommandItem
                   key={o.value}
-                  value={o.label}
+                  value={o.value}
+                  keywords={[o.label]}
                   onSelect={() => {
                     onChange?.(o.value === value ? "" : o.value);
                     setOpen(false);
