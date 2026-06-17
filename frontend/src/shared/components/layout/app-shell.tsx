@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Outlet } from "react-router-dom";
+"use client";
+
+import { useState, type ReactNode } from "react";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
-export function AppShell() {
+export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -19,7 +20,7 @@ export function AppShell() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar onMenuClick={() => setMobileOpen((p) => !p)} />
         <main className="flex-1 overflow-y-auto bg-[color:var(--bg-primary)] p-6">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>

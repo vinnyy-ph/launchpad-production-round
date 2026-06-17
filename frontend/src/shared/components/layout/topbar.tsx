@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { LogOut, ChevronDown, Search, Menu, User } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -7,7 +9,7 @@ import { signOutUser } from "@/modules/auth/services/auth.service";
 
 export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { appUser } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +34,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   const handleSignOut = async () => {
     await signOutUser();
-    navigate("/login");
+    router.push("/login");
   };
 
   return (
@@ -106,7 +108,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             </div>
             <button
               role="menuitem"
-              onClick={() => { setMenuOpen(false); navigate("/employee/profile"); }}
+              onClick={() => { setMenuOpen(false); router.push("/employee/profile"); }}
               className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
             >
               <User size={14} />

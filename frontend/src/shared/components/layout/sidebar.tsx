@@ -1,4 +1,7 @@
-import { NavLink, useLocation } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, DoorOpen, LayoutGrid, ClipboardCheck,
   Users, Network, ClipboardList, UserCog, ChevronsUpDown, type LucideIcon
@@ -57,7 +60,7 @@ export function Sidebar({
   onNavigate?: () => void;
 }) {
   const { appUser } = useAuth();
-  const location = useLocation();
+  const pathname = usePathname();
 
   const canSee = (roles: AllowedRole[]) => {
     if (!appUser) return false;
@@ -68,7 +71,7 @@ export function Sidebar({
   };
 
   const isActive = (href: string) =>
-    href === "/" ? location.pathname === "/" : location.pathname.startsWith(href);
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
     <aside
@@ -119,9 +122,9 @@ export function Sidebar({
                   const Icon = item.icon;
                   const active = isActive(item.href);
                   return (
-                    <NavLink
+                    <Link
                       key={item.href}
-                      to={item.href}
+                      href={item.href}
                       onClick={onNavigate}
                       className={cn(
                         "flex items-center h-[36px] px-3 rounded-md transition-all duration-100 group gap-2",
@@ -145,7 +148,7 @@ export function Sidebar({
                           {item.badge}
                         </span>
                       )}
-                    </NavLink>
+                    </Link>
                   );
                 })}
               </div>
