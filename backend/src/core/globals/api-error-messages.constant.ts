@@ -24,6 +24,10 @@ export const API_ERROR_MESSAGES = {
   EMPLOYEE_ALREADY_EXISTS: "An employee with this email already exists",
   SUPERVISOR_NOT_FOUND: "Supervisor not found",
   ONBOARDING_FAILED: "Failed to create onboarding record",
+  INVALID_EMERGENCY_CONTACT_PHONE:
+    "Emergency contact must include a valid Philippine mobile number",
+  EMERGENCY_CONTACT_PHONE_ALREADY_IN_USE:
+    "This emergency contact phone number is already assigned to another employee",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];

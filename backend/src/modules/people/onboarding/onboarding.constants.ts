@@ -6,6 +6,8 @@ export const ONBOARDING_FIELDS = {
   JOB_TITLE: "jobTitle",
   SUPERVISOR_ID: "supervisorId",
   DEPARTMENT: "department",
+  BIRTHDAY: "birthday",
+  EMERGENCY_CONTACT: "emergencyContact",
 } as const;
 
 /** Number of days before an onboarding invitation expires. */
