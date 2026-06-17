@@ -5,6 +5,7 @@ import {
   buildReviewerEmployee,
   evalFindFirstMock,
   evalUpdateMock,
+  evalAcknowledgementCreateMock,
   employeeFindUniqueMock,
   resetEvaluationMocks,
 } from "./evaluations-test.helpers";
@@ -26,6 +27,11 @@ jest.mock("../../core/database/prisma.service", () => ({
       create: jest.fn(),
       update: jest.fn(),
     },
+    evaluationAcknowledgement: {
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -112,6 +118,15 @@ describe("PATCH /api/v1/evaluations/:evaluationId/send", () => {
     evalFindFirstMock.mockResolvedValue(existing);
     employeeFindUniqueMock.mockResolvedValue(reviewer);
     evalUpdateMock.mockResolvedValue(sentRecord);
+    evalAcknowledgementCreateMock.mockResolvedValue({
+      id: "ack-001",
+      evaluationId: EVAL_ID,
+      employeeId: sentRecord.revieweeId,
+      isDeemedAck: false,
+      acknowledgedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     const response = await request(app)
       .patch(`/api/v1/evaluations/${EVAL_ID}/send`)

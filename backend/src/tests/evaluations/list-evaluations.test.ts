@@ -31,6 +31,11 @@ jest.mock("../../core/database/prisma.service", () => ({
       create: jest.fn(),
       update: jest.fn(),
     },
+    evaluationAcknowledgement: {
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(),
   },
 }));
 
