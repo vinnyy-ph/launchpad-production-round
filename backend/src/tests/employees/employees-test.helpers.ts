@@ -104,3 +104,11 @@ export function buildEmployeeProfileRecord() {
     ],
   };
 }
+
+/** Builds a minimal supervisor edge record for org-chart validation tests. */
+export function buildSupervisorLink(id: string, supervisorId: string | null) {
+  return {
+    id,
+    supervisorId,
+  };
+}

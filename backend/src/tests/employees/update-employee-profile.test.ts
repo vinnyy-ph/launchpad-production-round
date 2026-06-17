@@ -2,6 +2,8 @@ import request from "supertest";
 import { app } from "../../app";
 import {
   buildEmployeeProfileRecord,
+  buildSupervisorLink,
+  countMock,
   findFirstMock,
   resetEmployeeMocks,
   updateMock,
@@ -123,6 +125,123 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
         },
       }),
     );
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("sets exactly one supervisor for an employee", async () => {
+    const existingProfile = buildEmployeeProfileRecord();
+    const updatedProfile = {
+      ...existingProfile,
+      supervisor: {
+        id: "supervisor-2",
+        firstName: "Nia",
+        lastName: "Santos",
+        companyEmail: "nia.santos@example.com",
+        jobTitle: "Engineering Director",
+      },
+    };
+
+    findFirstMock
+      .mockResolvedValueOnce({ ...buildEmployeeProfileRecord(), id: "supervisor-2" })
+      .mockResolvedValueOnce(buildSupervisorLink("employee-active", "supervisor-1"))
+      .mockResolvedValueOnce(buildSupervisorLink("supervisor-2", null))
+      .mockResolvedValueOnce(existingProfile);
+    countMock.mockResolvedValue(1);
+    updateMock.mockResolvedValue(updatedProfile);
+
+    const response = await request(app)
+      .patch("/api/v1/employees/employee-active")
+      .send({ supervisorId: "supervisor-2" })
+      .expect(200);
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "employee-active" },
+        data: expect.objectContaining({
+          supervisor: { connect: { id: "supervisor-2" } },
+        }),
+      }),
+    );
+    expect(response.body.data.supervisor).toMatchObject({
+      id: "supervisor-2",
+      fullName: "Nia Santos",
+    });
+  });
+
+  it("rejects circular supervisor relationships", async () => {
+    findFirstMock
+      .mockResolvedValueOnce({ ...buildEmployeeProfileRecord(), id: "direct-report-1" })
+      .mockResolvedValueOnce(buildSupervisorLink("employee-active", "supervisor-1"))
+      .mockResolvedValueOnce(buildSupervisorLink("direct-report-1", "employee-active"));
+
+    const response = await request(app)
+      .patch("/api/v1/employees/employee-active")
+      .send({ supervisorId: "direct-report-1" })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      message: "Invalid employee profile update",
+      errors: [
+        {
+          field: "supervisorId",
+          message: "Circular supervisor relationship is not allowed",
+        },
+      ],
+    });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects clearing a supervisor when another root already exists", async () => {
+    findFirstMock.mockResolvedValueOnce(buildSupervisorLink("employee-active", "supervisor-1"));
+    countMock.mockResolvedValue(1);
+
+    const response = await request(app)
+      .patch("/api/v1/employees/employee-active")
+      .send({ supervisorId: null })
+      .expect(400);
+
+    expect(countMock).toHaveBeenCalledWith({
+      where: {
+        supervisorId: null,
+        id: { not: "employee-active" },
+      },
+    });
+    expect(response.body).toMatchObject({
+      success: false,
+      message: "Invalid employee profile update",
+      errors: [
+        {
+          field: "supervisorId",
+          message: "Exactly one root employee is required",
+        },
+      ],
+    });
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects assigning a supervisor to the only root employee", async () => {
+    findFirstMock
+      .mockResolvedValueOnce({ ...buildEmployeeProfileRecord(), id: "supervisor-2" })
+      .mockResolvedValueOnce(buildSupervisorLink("employee-active", null))
+      .mockResolvedValueOnce(buildSupervisorLink("supervisor-2", null));
+    countMock.mockResolvedValue(0);
+
+    const response = await request(app)
+      .patch("/api/v1/employees/employee-active")
+      .send({ supervisorId: "supervisor-2" })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      message: "Invalid employee profile update",
+      errors: [
+        {
+          field: "supervisorId",
+          message: "Root employee must not have a supervisor",
+        },
+      ],
+    });
     expect(updateMock).not.toHaveBeenCalled();
   });
 });

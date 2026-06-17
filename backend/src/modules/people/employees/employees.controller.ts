@@ -135,6 +135,9 @@ export class EmployeesController {
           "Employee profile update body is required",
           "Employee cannot supervise themselves",
           "Supervisor not found",
+          "Circular supervisor relationship is not allowed",
+          "Exactly one root employee is required",
+          "Root employee must not have a supervisor",
           "Invalid employee birthday",
           "Invalid employee profile update",
           "Invalid employee status",
@@ -166,7 +169,15 @@ export class EmployeesController {
       return EMPLOYEE_QUERY_FIELDS.BIRTHDAY;
     }
 
-    if (message === "Employee cannot supervise themselves" || message === "Supervisor not found") {
+    if (
+      [
+        "Employee cannot supervise themselves",
+        "Supervisor not found",
+        "Circular supervisor relationship is not allowed",
+        "Exactly one root employee is required",
+        "Root employee must not have a supervisor",
+      ].includes(message)
+    ) {
       return EMPLOYEE_QUERY_FIELDS.SUPERVISOR_ID;
     }
 

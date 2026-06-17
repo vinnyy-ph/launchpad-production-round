@@ -67,16 +67,8 @@ export class EmployeesService {
     update: UpdateEmployeeProfileRequestDto,
     updatedBy = "hr-profile-edit",
   ): Promise<UpdateEmployeeProfileResponseDto> {
-    if (update.supervisorId === params.employeeId) {
-      throw new Error("Employee cannot supervise themselves");
-    }
-
-    if (update.supervisorId) {
-      const supervisor = await this.employeesRepository.findById(update.supervisorId);
-
-      if (!supervisor) {
-        throw new Error("Supervisor not found");
-      }
+    if (update.supervisorId !== undefined) {
+      await this.assertValidSupervisorAssignment(params.employeeId, update.supervisorId);
     }
 
     const employee = await this.employeesRepository.updateProfile(
@@ -203,5 +195,73 @@ export class EmployeesService {
   /** Maps Prisma's uppercase status enum to the lowercase API response contract. */
   private toStatusDto(status: EmployeeStatus): EmployeeStatusDto {
     return status.toLowerCase() as EmployeeStatusDto;
+  }
+
+  /**
+   * Enforces org-chart invariants before HR changes an employee's supervisor.
+   */
+  private async assertValidSupervisorAssignment(employeeId: string, supervisorId: string | null) {
+    if (supervisorId === employeeId) {
+      throw new Error("Employee cannot supervise themselves");
+    }
+
+    if (supervisorId) {
+      const supervisor = await this.employeesRepository.findById(supervisorId);
+
+      if (!supervisor) {
+        throw new Error("Supervisor not found");
+      }
+    }
+
+    const employee = await this.employeesRepository.findSupervisorLink(employeeId);
+
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    if (supervisorId) {
+      await this.assertSupervisorChainDoesNotCycle(employeeId, supervisorId);
+    }
+
+    await this.assertExactlyOneRootAfterSupervisorChange(employee.id, employee.supervisorId, supervisorId);
+  }
+
+  /**
+   * Walks upward from the proposed supervisor and rejects descendant-to-ancestor cycles.
+   */
+  private async assertSupervisorChainDoesNotCycle(employeeId: string, supervisorId: string) {
+    const visitedEmployeeIds = new Set<string>();
+    let currentSupervisorId: string | null = supervisorId;
+
+    while (currentSupervisorId) {
+      if (currentSupervisorId === employeeId || visitedEmployeeIds.has(currentSupervisorId)) {
+        throw new Error("Circular supervisor relationship is not allowed");
+      }
+
+      visitedEmployeeIds.add(currentSupervisorId);
+      const supervisor = await this.employeesRepository.findSupervisorLink(currentSupervisorId);
+      currentSupervisorId = supervisor?.supervisorId ?? null;
+    }
+  }
+
+  /**
+   * Ensures the org chart keeps exactly one employee without a supervisor after the edit.
+   */
+  private async assertExactlyOneRootAfterSupervisorChange(
+    employeeId: string,
+    currentSupervisorId: string | null,
+    nextSupervisorId: string | null,
+  ) {
+    const rootCountExcludingEmployee = await this.employeesRepository.countRootEmployees(employeeId);
+    const employeeWillBeRoot = nextSupervisorId === null;
+    const finalRootCount = rootCountExcludingEmployee + (employeeWillBeRoot ? 1 : 0);
+
+    if (finalRootCount !== 1) {
+      throw new Error(
+        currentSupervisorId === null && nextSupervisorId !== null
+          ? "Root employee must not have a supervisor"
+          : "Exactly one root employee is required",
+      );
+    }
   }
 }
