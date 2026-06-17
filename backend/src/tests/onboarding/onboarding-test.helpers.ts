@@ -3,10 +3,13 @@ import { prisma } from "../../core/database/prisma.service";
 
 export const SUPERVISOR_ID = "supervisor-employee-id";
 export const HR_USER_ID = "hr-user-id";
+export const VALID_PH_EMERGENCY_CONTACT = "Jane Doe - 09171234567";
+export const VALID_PH_EMERGENCY_CONTACT_DISPLAY = "Jane Doe - +63 917 123 4567";
 
 export const mockedPrisma = jest.mocked(prisma);
 export const userFindUniqueMock = mockedPrisma.user.findUnique as jest.Mock;
 export const employeeFindFirstMock = mockedPrisma.employee.findFirst as jest.Mock;
+export const employeeFindManyMock = mockedPrisma.employee.findMany as jest.Mock;
 export const transactionMock = mockedPrisma.$transaction as jest.Mock;
 
 /** Clears all onboarding-related Prisma mocks before each test. */
@@ -14,6 +17,11 @@ export function resetOnboardingMocks() {
   userFindUniqueMock.mockReset();
   employeeFindFirstMock.mockReset();
   transactionMock.mockReset();
+
+  if (employeeFindManyMock) {
+    employeeFindManyMock.mockReset();
+    employeeFindManyMock.mockResolvedValue([]);
+  }
 }
 
 /** Minimal HR account injected by the auth mock for onboarding tests. */
@@ -65,6 +73,20 @@ export function buildOnboardBody() {
   };
 }
 
+/** Onboarding request body with all optional HR pre-fill profile fields. */
+export function buildOnboardBodyWithPrefill() {
+  return {
+    ...buildOnboardBody(),
+    firstName: "John",
+    middleName: "Michael",
+    lastName: "Doe",
+    personalEmail: "John.Personal@Gmail.com",
+    birthday: "1995-06-15",
+    address: "123 Main St, City, State",
+    emergencyContact: VALID_PH_EMERGENCY_CONTACT,
+  };
+}
+
 /** Supervisor record returned by the findFirst mock. */
 export function buildSupervisorRecord() {
   return {
@@ -78,22 +100,32 @@ export function buildSupervisorRecord() {
  * Wires $transaction to simulate the full onboarding creation flow.
  * Returns a realistic result matching what the repository produces.
  */
-export function mockOnboardingTransaction() {
+export function mockOnboardingTransaction(employeeOverrides: Record<string, unknown> = {}) {
   transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+    const defaultEmployee = {
+      id: "new-employee-id",
+      companyEmail: "new.hire@example.com",
+      firstName: "new.hire",
+      lastName: "",
+      middleName: null,
+      personalEmail: null,
+      birthday: null,
+      address: null,
+      emergencyContact: null,
+      jobTitle: "Software Engineer",
+      status: "ONBOARDING",
+      department: { name: "Engineering" },
+      supervisor: { id: SUPERVISOR_ID, firstName: "Jane", lastName: "Manager" },
+    };
+
     const tx = {
       user: {
         create: jest.fn().mockResolvedValue({ id: "new-user-id" }),
       },
       employee: {
         create: jest.fn().mockResolvedValue({
-          id: "new-employee-id",
-          companyEmail: "new.hire@example.com",
-          firstName: "new.hire",
-          lastName: "",
-          jobTitle: "Software Engineer",
-          status: "ONBOARDING",
-          department: { name: "Engineering" },
-          supervisor: { id: SUPERVISOR_ID, firstName: "Jane", lastName: "Manager" },
+          ...defaultEmployee,
+          ...employeeOverrides,
         }),
       },
       onboardingTemplate: {
