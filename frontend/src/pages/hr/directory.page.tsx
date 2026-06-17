@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Users, Plus } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button } from "@/shared/components/ui/button";
@@ -29,7 +29,7 @@ function initials(e: EmployeeListItem): string {
 }
 
 export default function DirectoryPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"" | EmployeeStatus>("");
   const debouncedSearch = useDebounce(search, 300);
@@ -87,7 +87,7 @@ export default function DirectoryPage() {
         title="Directory"
         subtitle="Search and manage employees across the organization."
         action={
-          <Button onClick={() => navigate("/hr/onboarding")}>
+          <Button onClick={() => router.push("/hr/onboarding")}>
             <Plus /> Add employee
           </Button>
         }
@@ -126,7 +126,7 @@ export default function DirectoryPage() {
           isLoading={loading}
           error={error}
           onRetry={() => void reload()}
-          onRowClick={(e) => navigate(`/hr/directory/${e.id}`)}
+          onRowClick={(e) => router.push(`/hr/directory/${e.id}`)}
           getRowId={(e) => e.id}
           emptyState={
             <EmptyState
@@ -140,7 +140,7 @@ export default function DirectoryPage() {
               action={
                 hasFilters
                   ? undefined
-                  : { label: "Add employee", onClick: () => navigate("/hr/onboarding") }
+                  : { label: "Add employee", onClick: () => router.push("/hr/onboarding") }
               }
             />
           }
