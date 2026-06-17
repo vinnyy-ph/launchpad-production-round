@@ -20,6 +20,9 @@ import ProfilePage from "@/pages/employee/profile.page";
 import EmployeeOnboardingPage from "@/pages/employee/onboarding.page";
 import ClearancePage from "@/pages/employee/clearance.page";
 import EmployeeSurveysPage from "@/pages/employee/surveys.page";
+import PerformanceHubPage from "@/pages/performance.page";
+import OffboardingHubPage from "@/pages/offboarding.page";
+import TeamsPage from "@/pages/hr/teams.page";
 
 export function AppRouter() {
   const { appUser, loading } = useAuth();
@@ -45,6 +48,13 @@ export function AppRouter() {
         }
       >
         <Route path="/" element={<HomePage />} />
+
+        <Route path="/performance" element={<PerformanceHubPage />} />
+        <Route path="/offboarding" element={<OffboardingHubPage />} />
+        <Route
+          path="/hr/teams"
+          element={<RequireRole allowedRoles={["HR", "ADMIN"]}><TeamsPage /></RequireRole>}
+        />
 
         <Route
           path="/admin/users"
