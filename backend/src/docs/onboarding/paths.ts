@@ -24,6 +24,38 @@
  *           type: string
  *           description: Department name. Created if it does not already exist.
  *           example: Engineering
+ *         personalEmail:
+ *           type: string
+ *           format: email
+ *           description: Optional personal email pre-filled by HR for the new hire to confirm or edit.
+ *           example: john.personal@gmail.com
+ *         firstName:
+ *           type: string
+ *           description: Optional first name. Defaults to the company email local-part when omitted.
+ *           example: John
+ *         middleName:
+ *           type: string
+ *           description: Optional middle name pre-filled by HR.
+ *           example: Michael
+ *         lastName:
+ *           type: string
+ *           description: Optional last name. Defaults to an empty string when omitted.
+ *           example: Doe
+ *         birthday:
+ *           type: string
+ *           format: date
+ *           description: Optional birthday in ISO date format (YYYY-MM-DD).
+ *           example: 1995-06-15
+ *         address:
+ *           type: string
+ *           description: Optional home address pre-filled by HR.
+ *           example: 123 Main St, City, State
+ *         emergencyContact:
+ *           type: string
+ *           description: |
+ *             Optional emergency contact pre-filled by HR. Must include a valid Philippine mobile number.
+ *             Accepts phone-only values (e.g. 09171234567) or name plus phone (e.g. Jane Doe - 09171234567).
+ *           example: Jane Doe - 09171234567
  *     OnboardedEmployeeSupervisor:
  *       type: object
  *       properties:
@@ -51,7 +83,29 @@
  *           example: john.doe
  *         lastName:
  *           type: string
- *           example: ""
+ *           example: Doe
+ *         middleName:
+ *           type: string
+ *           nullable: true
+ *           example: Michael
+ *         personalEmail:
+ *           type: string
+ *           format: email
+ *           nullable: true
+ *           example: john.personal@gmail.com
+ *         birthday:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           example: 1995-06-15T00:00:00.000Z
+ *         address:
+ *           type: string
+ *           nullable: true
+ *           example: 123 Main St, City, State
+ *         emergencyContact:
+ *           type: string
+ *           nullable: true
+ *           example: Jane Doe - +63 917 123 4567
  *         jobTitle:
  *           type: string
  *           example: Software Engineer
@@ -127,6 +181,9 @@
  *       Creates a new employee with the required onboarding inputs, starts an onboarding record,
  *       and triggers an invitation for the new hire. Requires HR or Admin role.
  *
+ *       HR may optionally pre-fill profile fields (personal email, name, birthday, address,
+ *       emergency contact) so the new hire can confirm or edit them later.
+ *
  *       This endpoint atomically creates:
  *       - A User account (role EMPLOYEE, invitation-gated sign-in)
  *       - An Employee profile (status ONBOARDING)
@@ -164,7 +221,7 @@
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  *       409:
- *         description: An employee with this email already exists
+ *         description: An employee with this email already exists, or the emergency contact phone is already in use
  *         content:
  *           application/json:
  *             schema:
