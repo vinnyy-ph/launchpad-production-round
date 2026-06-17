@@ -1,4 +1,4 @@
-import type { PerformanceEvaluation, User } from "@prisma/client";
+import type { PerformanceEvaluation, EvaluationAcknowledgement, User } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
@@ -11,6 +11,10 @@ import type {
   ListEvaluationsResponseDto,
   UpdateEvaluationInput,
 } from "./dto";
+
+type EvaluationWithAck = PerformanceEvaluation & {
+  acknowledgement: Pick<EvaluationAcknowledgement, "isDeemedAck" | "acknowledgedAt"> | null;
+};
 
 export class EvaluationsService {
   constructor(
@@ -99,23 +103,39 @@ export class EvaluationsService {
         }
       : { isSent: false as const };
 
-    const evaluation = await this.evaluationsRepository.create({
+    const createData = {
       reviewerId: reviewer.id,
       revieweeId: input.revieweeId,
       evaluationPeriod: input.evaluationPeriod,
       grade: input.grade,
-      highlights: input.highlights,
-      lowlights: input.lowlights,
-      evaluation: input.evaluation,
-      recommendation: input.recommendation,
-      supportingDocUrl: input.supportingDocUrl,
+      highlights: input.highlights ?? null,
+      lowlights: input.lowlights ?? null,
+      evaluation: input.evaluation ?? null,
+      recommendation: input.recommendation ?? null,
+      supportingDocUrl: input.supportingDocUrl ?? null,
       ...sendFields,
-    });
+    };
+
+    let evaluation: Awaited<ReturnType<typeof this.evaluationsRepository.create>>;
+    let acknowledgement: Awaited<ReturnType<typeof this.evaluationsRepository.createAcknowledgement>> | null;
+
+    if (input.send) {
+      [evaluation, acknowledgement] = await prisma.$transaction(async (tx) => {
+        const created = await tx.performanceEvaluation.create({ data: createData });
+        const ack = await tx.evaluationAcknowledgement.create({
+          data: { evaluationId: created.id, employeeId: created.revieweeId, isDeemedAck: false },
+        });
+        return [created, ack] as const;
+      });
+    } else {
+      evaluation = await this.evaluationsRepository.create(createData);
+      acknowledgement = null;
+    }
 
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EVALUATION_CREATED,
-      data: this.toResponse(evaluation),
+      data: this.toResponse({ ...evaluation, acknowledgement }),
     };
   }
 
@@ -149,12 +169,43 @@ export class EvaluationsService {
       : {};
 
     const { send: _, ...fields } = input;
-    const updated = await this.evaluationsRepository.update(evaluationId, { ...fields, ...sendFields });
+    const updateData = { ...fields, ...sendFields };
+
+    let updated: Awaited<ReturnType<typeof this.evaluationsRepository.update>>;
+    let acknowledgement: Awaited<ReturnType<typeof this.evaluationsRepository.createAcknowledgement>> | null;
+
+    if (input.send) {
+      [updated, acknowledgement] = await prisma.$transaction(async (tx) => {
+        const updatedRecord = await tx.performanceEvaluation.update({
+          where: { id: evaluationId },
+          data: {
+            ...(updateData.revieweeId !== undefined && { revieweeId: updateData.revieweeId }),
+            ...(updateData.evaluationPeriod !== undefined && { evaluationPeriod: updateData.evaluationPeriod }),
+            ...(updateData.grade !== undefined && { grade: updateData.grade }),
+            ...(updateData.highlights !== undefined && { highlights: updateData.highlights }),
+            ...(updateData.lowlights !== undefined && { lowlights: updateData.lowlights }),
+            ...(updateData.evaluation !== undefined && { evaluation: updateData.evaluation }),
+            ...(updateData.recommendation !== undefined && { recommendation: updateData.recommendation }),
+            ...(updateData.supportingDocUrl !== undefined && { supportingDocUrl: updateData.supportingDocUrl }),
+            isSent: true,
+            sentAt: updateData.sentAt,
+            ackDeadline: updateData.ackDeadline,
+          },
+        });
+        const ack = await tx.evaluationAcknowledgement.create({
+          data: { evaluationId, employeeId: updatedRecord.revieweeId, isDeemedAck: false },
+        });
+        return [updatedRecord, ack] as const;
+      });
+    } else {
+      updated = await this.evaluationsRepository.update(evaluationId, updateData);
+      acknowledgement = null;
+    }
 
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EVALUATION_UPDATED,
-      data: this.toResponse(updated),
+      data: this.toResponse({ ...updated, acknowledgement }),
     };
   }
 
@@ -183,16 +234,45 @@ export class EvaluationsService {
 
     const now = new Date();
     const ackDeadline = new Date(now.getTime() + EVAL_ACK_DEADLINE_DAYS * 24 * 60 * 60 * 1000);
-    const updated = await this.evaluationsRepository.markAsSent(evaluationId, now, ackDeadline);
+    const [updated, acknowledgement] = await prisma.$transaction([
+      prisma.performanceEvaluation.update({
+        where: { id: evaluationId },
+        data: { isSent: true, sentAt: now, ackDeadline },
+      }),
+      prisma.evaluationAcknowledgement.create({
+        data: { evaluationId, employeeId: evaluation.revieweeId, isDeemedAck: false },
+      }),
+    ]);
 
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EVALUATION_SENT,
-      data: this.toResponse(updated),
+      data: this.toResponse({ ...updated, acknowledgement }),
     };
   }
 
-  private toResponse(evaluation: PerformanceEvaluation): EvaluationResponseDto {
+  async acknowledge(evaluationId: string, userId: string) {
+    const evaluation = await this.evaluationsRepository.findById(evaluationId);
+    if (!evaluation) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND);
+
+    const employee = await prisma.employee.findUnique({ where: { userId } });
+    if (!employee) throw new Error(EVAL_ERROR_MESSAGES.REVIEWEE_NOT_EMPLOYEE);
+
+    if (evaluation.revieweeId !== employee.id) throw new Error(EVAL_ERROR_MESSAGES.NOT_REVIEWEE);
+    if (!evaluation.isSent) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_SENT);
+    if (!evaluation.acknowledgement) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_SENT);
+    if (evaluation.acknowledgement.acknowledgedAt) throw new Error(EVAL_ERROR_MESSAGES.ALREADY_ACKNOWLEDGED);
+
+    const acknowledgement = await this.evaluationsRepository.acknowledgeById(evaluationId);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.EVALUATION_ACKNOWLEDGED,
+      data: this.toResponse({ ...evaluation, acknowledgement }),
+    };
+  }
+
+  private toResponse(evaluation: EvaluationWithAck): EvaluationResponseDto {
     return {
       id: evaluation.id,
       reviewerId: evaluation.reviewerId,
@@ -207,6 +287,12 @@ export class EvaluationsService {
       isSent: evaluation.isSent,
       sentAt: evaluation.sentAt,
       ackDeadline: evaluation.ackDeadline,
+      acknowledgement: evaluation.acknowledgement
+        ? {
+            isDeemedAck: evaluation.acknowledgement.isDeemedAck,
+            acknowledgedAt: evaluation.acknowledgement.acknowledgedAt,
+          }
+        : null,
       createdAt: evaluation.createdAt,
       updatedAt: evaluation.updatedAt,
     };

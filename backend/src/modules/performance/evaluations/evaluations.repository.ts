@@ -72,6 +72,7 @@ export class EvaluationsRepository {
     const [evaluations, total] = await Promise.all([
       prisma.performanceEvaluation.findMany({
         where,
+        include: { acknowledgement: true },
         orderBy: { createdAt: "desc" },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
@@ -83,7 +84,10 @@ export class EvaluationsRepository {
   }
 
   async findById(id: string) {
-    return prisma.performanceEvaluation.findFirst({ where: { id, deletedAt: null } });
+    return prisma.performanceEvaluation.findFirst({
+      where: { id, deletedAt: null },
+      include: { acknowledgement: true },
+    });
   }
 
   async softDelete(id: string) {
@@ -116,6 +120,19 @@ export class EvaluationsRepository {
         ...(data.sentAt !== undefined && { sentAt: data.sentAt }),
         ...(data.ackDeadline !== undefined && { ackDeadline: data.ackDeadline }),
       },
+    });
+  }
+
+  async createAcknowledgement(evaluationId: string, employeeId: string) {
+    return prisma.evaluationAcknowledgement.create({
+      data: { evaluationId, employeeId, isDeemedAck: false },
+    });
+  }
+
+  async acknowledgeById(evaluationId: string) {
+    return prisma.evaluationAcknowledgement.update({
+      where: { evaluationId },
+      data: { acknowledgedAt: new Date() },
     });
   }
 }
