@@ -28,6 +28,7 @@ export const API_ERROR_MESSAGES = {
     "Emergency contact must include a valid Philippine mobile number",
   EMERGENCY_CONTACT_PHONE_ALREADY_IN_USE:
     "This emergency contact phone number is already assigned to another employee",
+  DOCUMENT_NOT_FOUND: "Required document not found",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];

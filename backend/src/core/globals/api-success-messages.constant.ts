@@ -15,6 +15,11 @@ export const API_SUCCESS_MESSAGES = {
   USER_ROLE_UPDATED: "User role updated successfully",
   USERS_RETRIEVED: "Users retrieved successfully",
   EMPLOYEE_ONBOARDED: "Employee onboarded successfully",
+  DOCUMENT_CREATED: "Required document created successfully",
+  DOCUMENTS_RETRIEVED: "Required documents retrieved successfully",
+  DOCUMENT_RETRIEVED: "Required document retrieved successfully",
+  DOCUMENT_UPDATED: "Required document updated successfully",
+  DOCUMENT_DELETED: "Required document deleted successfully",
 } as const;
 
 export type ApiSuccessMessage =
