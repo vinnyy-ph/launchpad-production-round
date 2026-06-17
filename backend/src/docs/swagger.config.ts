@@ -26,6 +26,10 @@ const options: swaggerJsdoc.Options = {
       { name: "Onboarding Documents", description: "HR required document checklist for employee onboarding" },
       { name: "Onboarding Custom Fields", description: "HR custom text fields for employee onboarding" },
       { name: "Invitations", description: "HR invitation management for onboarding" },
+      {
+        name: "Employee Onboarding",
+        description: "Employee self-service onboarding (accept invite, profile, documents, complete)",
+      },
     ],
     components: {
       securitySchemes: {

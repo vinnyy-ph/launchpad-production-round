@@ -29,6 +29,12 @@ export const API_SUCCESS_MESSAGES = {
   INVITATION_RESENT: "Invitation resent successfully",
   INVITATION_EMAIL_UPDATED: "Invitation email updated and resent successfully",
   INVITATION_STATUS_RETRIEVED: "Invitation status retrieved successfully",
+  INVITATION_ACCEPTED: "Invitation accepted successfully",
+  ONBOARDING_STATUS_RETRIEVED: "Onboarding status retrieved successfully",
+  ONBOARDING_PROFILE_UPDATED: "Onboarding profile updated successfully",
+  CUSTOM_FIELD_VALUES_SAVED: "Custom field values saved successfully",
+  DOCUMENT_SUBMITTED: "Document submitted successfully",
+  ONBOARDING_COMPLETED: "Onboarding completed successfully",
 } as const;
 
 export type ApiSuccessMessage =
