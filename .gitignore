@@ -51,3 +51,4 @@ next-env.d.ts
 .cursor/
 
 CONTEXT.md
+/.playwright-mcp
