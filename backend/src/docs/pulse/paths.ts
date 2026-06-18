@@ -224,6 +224,72 @@
  *             everyXDays:
  *               type: integer
  *               description: Required when frequency is EVERY_X_DAYS.
+ *     UpdatePulseSurveyRequest:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: Q2 Wellbeing Check
+ *         recurringType:
+ *           type: string
+ *           enum: [ONE_TIME, WEEKLY, BI_WEEKLY, MONTHLY, BI_MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL]
+ *         audienceType:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, SPECIFIC_TEAMS]
+ *         isAnonymous:
+ *           type: boolean
+ *         isActive:
+ *           type: boolean
+ *         visibility:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, TEAM_BASED, HR_ROOT_ONLY, SPECIFIC_TEAMS]
+ *         questions:
+ *           type: array
+ *           items:
+ *             type: object
+ *             required: [type, questionText, orderIndex]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [SHORT_ANSWER, LONG_ANSWER, LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX]
+ *               questionText:
+ *                 type: string
+ *                 example: How satisfied are you with your workload?
+ *               isRequired:
+ *                 type: boolean
+ *                 default: true
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               scaleMin:
+ *                 type: integer
+ *               scaleMax:
+ *                 type: integer
+ *               scaleMinLabel:
+ *                 type: string
+ *               scaleMaxLabel:
+ *                 type: string
+ *               orderIndex:
+ *                 type: integer
+ *         audienceConfigs:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               supervisorId:
+ *                 type: string
+ *               teamId:
+ *                 type: string
+ *         reminderConfig:
+ *           type: object
+ *           nullable: true
+ *           properties:
+ *             frequency:
+ *               type: string
+ *               enum: [DAILY, EVERY_X_DAYS, WEEKLY]
+ *             everyXDays:
+ *               type: integer
  */
 
 /**
@@ -565,4 +631,53 @@
  *                 errorCode:
  *                   type: string
  *                   example: SURVEY_NOT_FOUND
+ *   patch:
+ *     tags: [Pulse Surveys]
+ *     summary: Update a pulse survey
+ *     description: |
+ *       **HR role only.** Updates an existing pulse survey.
+ *       If the survey has been activated (occurrenceCount > 0), the fields: `questions`,
+ *       `audienceType`, `audienceConfigs`, `isAnonymous`, and `recurringType` cannot be modified.
+ *       Attempting to modify these fields on an activated survey returns a 409 Conflict.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: surveyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the pulse survey
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdatePulseSurveyRequest'
+ *     responses:
+ *       200:
+ *         description: Survey updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Resource updated successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/PulseSurveyDetail'
+ *       400:
+ *         description: Validation failed
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User is not HR role
+ *       404:
+ *         description: Survey not found
+ *       409:
+ *         description: Conflict. Cannot update questions/audience/anonymity/recurrence after activation.
  */
