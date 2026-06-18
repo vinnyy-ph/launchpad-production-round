@@ -4,6 +4,7 @@ export interface Evaluation {
   reviewerId: string;
   revieweeId: string;
   reviewee: { id: string; fullName: string } | null;
+  reviewer: { id: string; fullName: string } | null;
   periodStart: string;
   periodEnd: string;
   grade: number;

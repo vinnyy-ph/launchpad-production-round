@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ClipboardList,
   CheckCircle2,
@@ -40,11 +40,12 @@ import type {
   Survey,
   SurveyResponse,
   SurveyQuestion,
-  Evaluation,
-  Acknowledgement,
   DemoEmployee,
   AudienceType,
 } from "@/shared/mock/types";
+import { useEvaluations } from "@/modules/performance/evaluations/hooks/use-evaluations";
+import { useAcknowledgeEvaluation } from "@/modules/performance/evaluations/hooks/use-acknowledge-evaluation";
+import type { Evaluation as PerfEvaluation } from "@/modules/performance/evaluations/types/evaluations.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,17 @@ const GRADE_LABELS: Record<number, string> = {
   4: "Exceeds expectations",
   5: "Exceptional",
 };
+
+function formatPeriod(startIso: string, endIso: string): string {
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+  return `${new Date(startIso).toLocaleDateString(undefined, opts)} – ${new Date(endIso).toLocaleDateString(undefined, opts)}`;
+}
+
+/** An evaluation issued to the employee stays pending until acknowledged or deemed-acknowledged. */
+function isPendingAck(ev: PerfEvaluation): boolean {
+  const ack = ev.acknowledgement;
+  return ev.isSent && !ack?.acknowledgedAt && !ack?.isDeemedAck;
+}
 
 // ─── Audience filtering ───────────────────────────────────────────────────────
 
@@ -141,68 +153,32 @@ function useActiveSurveys(employeeId: string) {
 }
 
 function useMyEvaluations(employeeId: string) {
-  const [evals, setEvals] = useState<Evaluation[]>([]);
-  const [acks, setAcks] = useState<Acknowledgement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, isError, refetch } = useEvaluations();
+  const ackMutation = useAcknowledgeEvaluation();
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      const all = readCollection<Evaluation>("evaluations");
-      const allAcks = readCollection<Acknowledgement>("acknowledgements");
-      const mine = all.filter(
-        (e) =>
-          e.employeeId === employeeId &&
-          (e.status === "SHARED" ||
-            e.status === "ACKNOWLEDGED" ||
-            e.status === "DEEMED_ACKNOWLEDGED"),
-      );
-      const myAcks = allAcks.filter((a) => a.employeeId === employeeId);
-      setEvals(mine);
-      setAcks(myAcks);
-    } catch {
-      setError("Could not load evaluations.");
-    } finally {
-      setLoading(false);
-    }
-  }, [employeeId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Only evaluations that were issued TO this employee and have been sent.
+  const evals = useMemo(
+    () => (data ?? []).filter((e) => e.isSent && e.revieweeId === employeeId),
+    [data, employeeId],
+  );
 
   const acknowledge = useCallback(
     (evaluationId: string) => {
-      const allAcks = readCollection<Acknowledgement>("acknowledgements");
-      const now = new Date().toISOString();
-      const updated = allAcks.map((a) =>
-        a.evaluationId === evaluationId && a.employeeId === employeeId
-          ? { ...a, acknowledgedAt: now }
-          : a,
-      );
-      writeCollection("acknowledgements", updated);
-
-      const allEvals = readCollection<Evaluation>("evaluations");
-      writeCollection(
-        "evaluations",
-        allEvals.map((e) =>
-          e.id === evaluationId ? { ...e, status: "ACKNOWLEDGED" as const } : e,
-        ),
-      );
-
-      setAcks(updated.filter((a) => a.employeeId === employeeId));
-      setEvals((prev) =>
-        prev.map((e) =>
-          e.id === evaluationId ? { ...e, status: "ACKNOWLEDGED" as const } : e,
-        ),
-      );
+      ackMutation.mutate(evaluationId, {
+        onSuccess: () => toast.success("Evaluation acknowledged."),
+        onError: () => toast.error("Could not acknowledge — please try again."),
+      });
     },
-    [employeeId],
+    [ackMutation],
   );
 
-  return { evals, acks, loading, error, reload: load, acknowledge };
+  return {
+    evals,
+    loading: isLoading,
+    error: isError ? "Could not load your evaluations." : null,
+    reload: () => void refetch(),
+    acknowledge,
+  };
 }
 
 // ─── Survey taker ─────────────────────────────────────────────────────────────
@@ -594,24 +570,20 @@ function SurveysTab({ entries, employeeId, loading, error, onReload, initialSurv
 // ─── Acknowledgements tab ─────────────────────────────────────────────────────
 
 interface AcksTabProps {
-  evals: Evaluation[];
-  acks: Acknowledgement[];
+  evals: PerfEvaluation[];
   loading: boolean;
   error: string | null;
   onReload: () => void;
   onAcknowledge: (evaluationId: string) => void;
-  supervisorName: (id: string) => string;
   initialExpandedId?: string | null;
 }
 
 function AcknowledgementsTab({
   evals,
-  acks,
   loading,
   error,
   onReload,
   onAcknowledge,
-  supervisorName,
   initialExpandedId,
 }: AcksTabProps) {
   const [ackingId, setAckingId] = useState<string | null>(null);
@@ -626,8 +598,6 @@ function AcknowledgementsTab({
       deepLinkApplied.current = true;
     }
   }, [initialExpandedId, evals]);
-
-  const ackFor = (evaluationId: string) => acks.find((a) => a.evaluationId === evaluationId);
 
   if (loading) {
     return (
@@ -675,11 +645,10 @@ function AcknowledgementsTab({
   return (
     <div className="space-y-3 pt-4">
       {evals.map((ev) => {
-        const ack = ackFor(ev.id);
+        const ack = ev.acknowledgement;
         const isExpanded = expandedId === ev.id;
-        const isDeemedAck =
-          ev.status === "DEEMED_ACKNOWLEDGED" || (!!ack?.deemedAt && !ack?.acknowledgedAt);
-        const isAcknowledged = ev.status === "ACKNOWLEDGED" || !!ack?.acknowledgedAt;
+        const isAcknowledged = !!ack?.acknowledgedAt;
+        const isDeemedAck = !isAcknowledged && !!ack?.isDeemedAck;
 
         return (
           <div
@@ -695,7 +664,7 @@ function AcknowledgementsTab({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                    {ev.period} · Performance evaluation
+                    {formatPeriod(ev.periodStart, ev.periodEnd)} · Performance evaluation
                   </p>
                   {isAcknowledged && <Badge variant="success">Acknowledged</Badge>}
                   {!isAcknowledged && isDeemedAck && (
@@ -704,8 +673,8 @@ function AcknowledgementsTab({
                   {!isAcknowledged && !isDeemedAck && <Badge variant="neutral">Pending</Badge>}
                 </div>
                 <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
-                  From {supervisorName(ev.supervisorId)} · Shared{" "}
-                  {ev.sharedAt ? new Date(ev.sharedAt).toLocaleDateString() : "—"}
+                  From {ev.reviewer?.fullName ?? "Your supervisor"} · Shared{" "}
+                  {ev.sentAt ? new Date(ev.sentAt).toLocaleDateString() : "—"}
                 </p>
               </div>
               {isExpanded ? (
@@ -775,42 +744,43 @@ function AcknowledgementsTab({
                 )}
 
                 {/* Evaluation text */}
-                {ev.evaluationText && (
+                {ev.evaluation && (
                   <div>
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
                       Evaluation
                     </p>
                     <p className="text-sm leading-relaxed text-[color:var(--text-primary)]">
-                      {ev.evaluationText}
+                      {ev.evaluation}
                     </p>
                   </div>
                 )}
 
                 {/* Recommendation text */}
-                {ev.recommendationText && (
+                {ev.recommendation && (
                   <div>
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
                       Recommendation
                     </p>
                     <p className="text-sm leading-relaxed text-[color:var(--text-primary)]">
-                      {ev.recommendationText}
+                      {ev.recommendation}
                     </p>
                   </div>
                 )}
 
-                {/* Supporting docs */}
-                {ev.supportingDocs && ev.supportingDocs.length > 0 && (
+                {/* Supporting document */}
+                {ev.supportingDocUrl && (
                   <div>
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Supporting documents
+                      Supporting document
                     </p>
-                    <ul className="space-y-1">
-                      {ev.supportingDocs.map((doc, i) => (
-                        <li key={i} className="text-sm text-[color:var(--text-secondary)]">
-                          {doc}
-                        </li>
-                      ))}
-                    </ul>
+                    <a
+                      href={ev.supportingDocUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="break-all text-sm text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
+                    >
+                      {ev.supportingDocUrl}
+                    </a>
                   </div>
                 )}
 
@@ -818,12 +788,8 @@ function AcknowledgementsTab({
                 {!isAcknowledged && isDeemedAck && (
                   <p className="text-xs text-[color:var(--text-tertiary)]">
                     Deemed acknowledged on{" "}
-                    {ack?.deemedAt
-                      ? new Date(ack.deemedAt).toLocaleDateString()
-                      : ev.ackDeadline
-                      ? new Date(ev.ackDeadline).toLocaleDateString()
-                      : "—"}{" "}
-                    — no action needed.
+                    {ev.ackDeadline ? new Date(ev.ackDeadline).toLocaleDateString() : "—"} — no
+                    action needed.
                   </p>
                 )}
                 {isAcknowledged && (
@@ -862,7 +828,6 @@ function AcknowledgementsTab({
               onClick={() => {
                 if (ackingId) onAcknowledge(ackingId);
                 setAckingId(null);
-                toast.success("Evaluation acknowledged.");
               }}
             >
               Acknowledge
@@ -885,17 +850,11 @@ export default function EmployeeSurveysPage() {
 
   const {
     evals,
-    acks,
     loading: evalLoading,
     error: evalError,
     reload: reloadEvals,
     acknowledge,
   } = useMyEvaluations(employeeId);
-
-  const [employees, setEmployees] = useState<DemoEmployee[]>([]);
-  useEffect(() => {
-    setEmployees(readCollection<DemoEmployee>("employees"));
-  }, []);
 
   // Notification click-to-land: open the exact tab/item the link points at.
   const [tab, setTab] = useState<"survey" | "acknowledgements">("survey");
@@ -911,16 +870,7 @@ export default function EmployeeSurveysPage() {
     setDeepLink({ survey: sv, eval: ev });
   }, []);
 
-  const supervisorName = useCallback(
-    (id: string) => employees.find((e) => e.employeeId === id)?.displayName ?? id,
-    [employees],
-  );
-
-  const pendingAcks = evals.filter((ev) => {
-    if (ev.status === "ACKNOWLEDGED" || ev.status === "DEEMED_ACKNOWLEDGED") return false;
-    const ack = acks.find((a) => a.evaluationId === ev.id);
-    return !ack?.acknowledgedAt && !ack?.deemedAt;
-  }).length;
+  const pendingAcks = evals.filter(isPendingAck).length;
 
   const unansweredCount = entries.filter((e) => !e.alreadyAnswered).length;
 
@@ -956,12 +906,10 @@ export default function EmployeeSurveysPage() {
         <TabsContent value="acknowledgements">
           <AcknowledgementsTab
             evals={evals}
-            acks={acks}
             loading={evalLoading}
             error={evalError}
             onReload={reloadEvals}
             onAcknowledge={acknowledge}
-            supervisorName={supervisorName}
             initialExpandedId={deepLink.eval}
           />
         </TabsContent>

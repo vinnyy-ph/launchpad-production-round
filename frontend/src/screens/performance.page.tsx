@@ -28,10 +28,11 @@ import type {
   Survey,
   SurveyResponse,
   SurveyQuestion,
-  Evaluation,
   DemoEmployee,
   Team,
 } from "@/shared/mock/types";
+import { useEvaluations } from "@/modules/performance/evaluations/hooks/use-evaluations";
+import type { Evaluation as PerfEvaluation } from "@/modules/performance/evaluations/types/evaluations.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -102,32 +103,20 @@ function buildTrend(
     }));
 }
 
-/**
- * Build evaluation competency averages for the BarChart.
- * Guards ev.ratings with ?? [] to avoid runtime errors on optional field.
- */
-function buildCompetencyAverages(
-  evals: Evaluation[],
-): { competency: string; avg: number }[] {
-  const totals: Record<string, { sum: number; count: number }> = {};
-  for (const ev of evals) {
-    for (const r of (ev.ratings ?? [])) {
-      if (!totals[r.competency]) totals[r.competency] = { sum: 0, count: 0 };
-      totals[r.competency].sum += r.score;
-      totals[r.competency].count++;
-    }
-  }
-  return Object.entries(totals).map(([competency, { sum, count }]) => ({
-    competency,
-    avg: Math.round((sum / count) * 10) / 10,
-  }));
+/** Derive an evaluation's lifecycle status from the real API fields. */
+type EvalStatus = "DRAFT" | "SHARED" | "ACKNOWLEDGED" | "DEEMED_ACKNOWLEDGED";
+function evalStatus(ev: PerfEvaluation): EvalStatus {
+  if (!ev.isSent) return "DRAFT";
+  if (ev.acknowledgement?.acknowledgedAt) return "ACKNOWLEDGED";
+  if (ev.acknowledgement?.isDeemedAck) return "DEEMED_ACKNOWLEDGED";
+  return "SHARED";
 }
 
 /**
  * Build grade distribution (1-5) for shared+acknowledged evaluations.
  */
 function buildGradeDistribution(
-  evals: Evaluation[],
+  evals: PerfEvaluation[],
 ): { label: string; count: number }[] {
   const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   for (const ev of evals) {
@@ -143,7 +132,6 @@ function buildGradeDistribution(
 function usePerformanceData() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
-  const [evals, setEvals] = useState<Evaluation[]>([]);
   const [employees, setEmployees] = useState<DemoEmployee[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +143,6 @@ function usePerformanceData() {
     try {
       setSurveys(readCollection<Survey>("surveys"));
       setResponses(readCollection<SurveyResponse>("surveyResponses"));
-      setEvals(readCollection<Evaluation>("evaluations"));
       setEmployees(readCollection<DemoEmployee>("employees"));
       setTeams(readCollection<Team>("teams"));
     } catch {
@@ -167,7 +154,7 @@ function usePerformanceData() {
 
   useEffect(() => { load(); }, [load]);
 
-  return { surveys, responses, evals, employees, teams, loading, error, reload: load };
+  return { surveys, responses, employees, teams, loading, error, reload: load };
 }
 
 // ─── Stat strip ───────────────────────────────────────────────────────────────
@@ -460,10 +447,48 @@ function SurveyResultsPanel({
 
 // ─── Evaluations summary panel ────────────────────────────────────────────────
 
-function EvaluationsSummaryPanel({ evals }: { evals: Evaluation[] }) {
-  const sharedEvals = evals.filter(
-    (e) => e.status === "SHARED" || e.status === "ACKNOWLEDGED" || e.status === "DEEMED_ACKNOWLEDGED"
-  );
+function EvaluationsSummaryPanel({
+  evals,
+  loading,
+  error,
+  onReload,
+}: {
+  evals: PerfEvaluation[];
+  loading: boolean;
+  error: string | null;
+  onReload: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="h-24 rounded-xl border border-[color:var(--border-primary)] bg-white"
+            style={{ opacity: 1 - i * 0.2 }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
+        <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
+        <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{error}</span>
+        <button
+          onClick={onReload}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
+        >
+          <RefreshCw size={12} /> Retry
+        </button>
+      </div>
+    );
+  }
+
+  const withStatus = evals.map((ev) => ({ ev, status: evalStatus(ev) }));
+  const sharedEvals = withStatus.filter((s) => s.status !== "DRAFT").map((s) => s.ev);
 
   if (sharedEvals.length === 0) {
     return (
@@ -475,15 +500,13 @@ function EvaluationsSummaryPanel({ evals }: { evals: Evaluation[] }) {
     );
   }
 
-  const acknowledgedCount = evals.filter((e) => e.status === "ACKNOWLEDGED").length;
-  const deemedAckCount = evals.filter((e) => e.status === "DEEMED_ACKNOWLEDGED").length;
-  const pendingCount = evals.filter((e) => e.status === "SHARED").length;
-  const draftCount = evals.filter((e) => e.status === "DRAFT").length;
+  const acknowledgedCount = withStatus.filter((s) => s.status === "ACKNOWLEDGED").length;
+  const deemedAckCount = withStatus.filter((s) => s.status === "DEEMED_ACKNOWLEDGED").length;
+  const pendingCount = withStatus.filter((s) => s.status === "SHARED").length;
+  const draftCount = withStatus.filter((s) => s.status === "DRAFT").length;
 
   const gradeDistribution = buildGradeDistribution(sharedEvals);
   const hasGrades = gradeDistribution.some((d) => d.count > 0);
-
-  const competencyData = buildCompetencyAverages(sharedEvals);
 
   return (
     <div className="space-y-6">
@@ -532,24 +555,6 @@ function EvaluationsSummaryPanel({ evals }: { evals: Evaluation[] }) {
           height={220}
         />
       </div>
-
-      {/* Competency averages — secondary chart, guarded */}
-      {competencyData.length > 0 && (
-        <div
-          className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        >
-          <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">
-            Average competency scores (shared &amp; acknowledged evaluations)
-          </p>
-          <BarChart
-            data={competencyData}
-            categoryKey="competency"
-            valueKey="avg"
-            height={220}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -557,7 +562,13 @@ function EvaluationsSummaryPanel({ evals }: { evals: Evaluation[] }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function PerformanceHubPage() {
-  const { surveys, responses, evals, employees, teams, loading, error, reload } = usePerformanceData();
+  const { surveys, responses, employees, teams, loading, error, reload } = usePerformanceData();
+  const {
+    data: evalData,
+    isLoading: evalLoading,
+    isError: evalError,
+    refetch: refetchEvals,
+  } = useEvaluations();
 
   const [selectedSurveyId, setSelectedSurveyId] = useState<string>("");
 
@@ -675,7 +686,12 @@ export default function PerformanceHubPage() {
 
         {/* ── Evaluations tab ── */}
         <TabsContent value="evaluations" className="mt-5">
-          <EvaluationsSummaryPanel evals={evals} />
+          <EvaluationsSummaryPanel
+            evals={evalData ?? []}
+            loading={evalLoading}
+            error={evalError ? "Could not load evaluations." : null}
+            onReload={() => void refetchEvals()}
+          />
         </TabsContent>
       </Tabs>
     </div>
