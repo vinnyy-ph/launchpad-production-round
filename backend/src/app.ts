@@ -14,6 +14,7 @@ import { usersRouter } from "./modules/people/users";
 import { onboardingRouter } from "./modules/people/onboarding";
 import { employeeOnboardingRouter } from "./modules/people/onboarding/employee-onboarding";
 import { pulseSurveysRouter } from "./modules/performance/surveys";
+import { notificationsRouter } from "./modules/notifications";
 
 export const app = express();
 
@@ -63,3 +64,8 @@ app.use(
   employeeOnboardingRouter,
 );
 app.use(`${API_ROUTES.VERSIONED_ROOT}/pulse`, pulseSurveysRouter);
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/notifications`,
+  authenticate,
+  notificationsRouter,
+);

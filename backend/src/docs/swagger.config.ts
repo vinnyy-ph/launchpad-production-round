@@ -31,6 +31,10 @@ const options: swaggerJsdoc.Options = {
         name: "Employee Onboarding",
         description: "Employee self-service onboarding (accept invite, profile, documents, complete)",
       },
+      {
+        name: "Notifications",
+        description: "In-app notifications delivered in real time via Socket.IO",
+      },
     ],
     components: {
       securitySchemes: {
