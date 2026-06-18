@@ -842,14 +842,15 @@ export default function EvaluationsPage() {
 
       {/* Summary strip */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total" value={isLoading ? "—" : evals.length} variant="brand" />
+        <StatCard label="Total" value={evals.length} loading={isLoading} variant="brand" />
         <StatCard
           label="Drafts"
-          value={isLoading ? "—" : draftCount}
+          value={draftCount}
+          loading={isLoading}
           variant={!isLoading && draftCount > 0 ? "warn" : "default"}
         />
-        <StatCard label="Sent" value={isLoading ? "—" : sentCount} />
-        <StatCard label="Acknowledged" value={isLoading ? "—" : ackedCount} />
+        <StatCard label="Sent" value={sentCount} loading={isLoading} />
+        <StatCard label="Acknowledged" value={ackedCount} loading={isLoading} />
       </div>
 
       <FilterBar aria-label="Filter evaluations" className="gap-3">
