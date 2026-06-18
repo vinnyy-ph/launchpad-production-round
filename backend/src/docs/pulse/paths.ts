@@ -818,5 +818,209 @@
  *         description: Survey not found
  *       409:
  *         description: Conflict. Survey is already inactive.
+ *
+ * /api/v1/pulse/surveys/{id}/occurrences:
+ *   get:
+ *     tags: [Pulse Surveys]
+ *     summary: List occurrences for a survey
+ *     description: |
+ *       **HR role only.** Returns all occurrences for a survey, paginated. Light shape (no questions).
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the pulse survey
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of occurrences per page
+ *     responses:
+ *       200:
+ *         description: Pulse survey occurrences retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Pulse survey occurrences retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: occ-uuid-123
+ *                       occurrenceNumber:
+ *                         type: integer
+ *                         example: 1
+ *                       releaseDate:
+ *                         type: string
+ *                         format: date-time
+ *                       deadline:
+ *                         type: string
+ *                         format: date-time
+ *                       isClosed:
+ *                         type: boolean
+ *                         example: false
+ *                       audienceSize:
+ *                         type: integer
+ *                         example: 5
+ *                       completionCount:
+ *                         type: integer
+ *                         example: 2
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User is not HR role
+ *       404:
+ *         description: Survey not found
+ *
+ * /api/v1/pulse/occurrences/{occurrenceId}:
+ *   get:
+ *     tags: [Pulse Surveys]
+ *     summary: Get details of a single survey occurrence
+ *     description: |
+ *       **HR role only.** Returns a single occurrence in full detail.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: occurrenceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the survey occurrence
+ *     responses:
+ *       200:
+ *         description: Pulse survey occurrence retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Pulse survey occurrence retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: occ-uuid-123
+ *                     surveyId:
+ *                       type: string
+ *                       example: survey-uuid-123
+ *                     occurrenceNumber:
+ *                       type: integer
+ *                       example: 1
+ *                     releaseDate:
+ *                       type: string
+ *                       format: date-time
+ *                     deadline:
+ *                       type: string
+ *                       format: date-time
+ *                     isClosed:
+ *                       type: boolean
+ *                       example: false
+ *                     audienceSize:
+ *                       type: integer
+ *                       example: 5
+ *                     completionCount:
+ *                       type: integer
+ *                       example: 2
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User is not HR role
+ *       404:
+ *         description: Occurrence not found
+ *
+ * /api/v1/pulse/me/surveys:
+ *   get:
+ *     tags: [Pulse Surveys]
+ *     summary: List open surveys assigned to the authenticated employee
+ *     description: |
+ *       **Any authenticated employee.** Returns open occurrences assigned to the authenticated employee that they have not yet completed.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Pending pulse surveys retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Pending pulse surveys retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       occurrenceId:
+ *                         type: string
+ *                         example: occ-uuid-123
+ *                       surveyId:
+ *                         type: string
+ *                         example: survey-uuid-123
+ *                       surveyName:
+ *                         type: string
+ *                         example: Q2 Wellbeing Check
+ *                       deadline:
+ *                         type: string
+ *                         format: date-time
+ *                       occurrenceNumber:
+ *                         type: integer
+ *                         example: 1
+ *                       questions:
+ *                         type: array
+ *                         items:
+ *                           $ref: '#/components/schemas/SurveyQuestion'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User has no linked employee record
  */
-
