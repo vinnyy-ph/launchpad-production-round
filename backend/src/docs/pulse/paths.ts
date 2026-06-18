@@ -338,3 +338,231 @@
  *           Forbidden. Either the user is not HR role, or the authenticated
  *           HR user has no linked employee record.
  */
+
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     SurveyVisibilityConfig:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         surveyId:
+ *           type: string
+ *         teamId:
+ *           type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     PulseSurveyListItem:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: a1b2c3d4-0000-0000-0000-000000000001
+ *         name:
+ *           type: string
+ *           example: Q2 Wellbeing Check
+ *         recurringType:
+ *           type: string
+ *           enum: [ONE_TIME, WEEKLY, BI_WEEKLY, MONTHLY, BI_MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL]
+ *         audienceType:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, SPECIFIC_TEAMS]
+ *         isAnonymous:
+ *           type: boolean
+ *         visibility:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, TEAM_BASED, HR_ROOT_ONLY, SPECIFIC_TEAMS]
+ *         isActive:
+ *           type: boolean
+ *         occurrenceCount:
+ *           type: integer
+ *           description: Number of occurrences created for this survey.
+ *           example: 3
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     PulseSurveyDetail:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         createdBy:
+ *           type: string
+ *         name:
+ *           type: string
+ *         recurringType:
+ *           type: string
+ *           enum: [ONE_TIME, WEEKLY, BI_WEEKLY, MONTHLY, BI_MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL]
+ *         audienceType:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, SPECIFIC_TEAMS]
+ *         isAnonymous:
+ *           type: boolean
+ *         isActive:
+ *           type: boolean
+ *         visibility:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, TEAM_BASED, HR_ROOT_ONLY, SPECIFIC_TEAMS]
+ *         occurrenceCount:
+ *           type: integer
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *         questions:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SurveyQuestion'
+ *         audienceConfigs:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SurveyAudienceConfig'
+ *         visibilityConfigs:
+ *           type: array
+ *           description: Teams that can view survey results. Empty array if SPECIFIC_TEAMS is not used or migration has not been applied yet.
+ *           items:
+ *             $ref: '#/components/schemas/SurveyVisibilityConfig'
+ *         reminderConfig:
+ *           nullable: true
+ *           allOf:
+ *             - $ref: '#/components/schemas/SurveyReminderConfig'
+ */
+
+/**
+ * @openapi
+ * /api/v1/pulse/surveys:
+ *   get:
+ *     tags: [Pulse Surveys]
+ *     summary: List pulse surveys
+ *     description: |
+ *       **HR role only.** Returns a paginated list of pulse surveys.
+ *       Optionally filter by status:
+ *       - `draft` — `isActive` is false and no occurrences exist yet
+ *       - `active` — `isActive` is true
+ *       - `inactive` — `isActive` is false and at least one occurrence exists (was deactivated)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, active, inactive]
+ *         required: false
+ *         description: Filter surveys by status.
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         required: false
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         required: false
+ *     responses:
+ *       200:
+ *         description: Paginated list of surveys
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PulseSurveyListItem'
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                     total:
+ *                       type: integer
+ *                       example: 25
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
+ *       400:
+ *         description: Invalid status query parameter
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User is not HR role
+ */
+
+/**
+ * @openapi
+ * /api/v1/pulse/surveys/{surveyId}:
+ *   get:
+ *     tags: [Pulse Surveys]
+ *     summary: Get pulse survey detail
+ *     description: |
+ *       **HR role only.** Returns full survey detail including questions,
+ *       audience configs, visibility configs, reminder config, and occurrence count.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: surveyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the pulse survey
+ *     responses:
+ *       200:
+ *         description: Survey detail
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Pulse survey retrieved successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/PulseSurveyDetail'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User is not HR role
+ *       404:
+ *         description: Survey not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Pulse survey not found
+ *                 errorCode:
+ *                   type: string
+ *                   example: SURVEY_NOT_FOUND
+ */
