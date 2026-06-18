@@ -20,7 +20,7 @@ import { pulseSurveysRouter } from "./modules/performance/surveys";
 
 export const app = express();
 
-const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(",");
+const origins = (process.env.CORS_ORIGIN ?? "http://localhost:3000").split(",");
 
 app.use(cors({ origin: origins, credentials: true }));
 app.use(

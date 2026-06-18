@@ -10,7 +10,8 @@ export function useEmployees(filters: EmployeeFilters = {}) {
   });
 
   return {
-    employees: data ?? [],
+    employees: data?.data ?? [],
+    meta: data?.meta ?? null,
     loading: isLoading,
     error: error instanceof Error ? error.message : null,
     reload: refetch,

@@ -64,13 +64,14 @@ export class EmployeesRepository {
   async findMany(filters: ListEmployeesQueryDto) {
     const where = this.buildWhere(filters);
     const skip = (filters.page - 1) * filters.limit;
+    const orderBy = this.buildOrderBy(filters);
 
     const [employees, total] = await Promise.all([
       prisma.employee.findMany({
         where,
         skip,
         take: filters.limit,
-        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+        orderBy,
         include: {
           department: {
             select: {
@@ -213,5 +214,37 @@ export class EmployeesRepository {
     }
 
     return where;
+  }
+
+  /** Builds a stable order clause for employee directory sort controls. */
+  private buildOrderBy(filters: ListEmployeesQueryDto): Prisma.EmployeeOrderByWithRelationInput[] {
+    const direction = filters.sortDirection ?? "asc";
+    const fallback: Prisma.EmployeeOrderByWithRelationInput[] = [
+      { lastName: "asc" },
+      { firstName: "asc" },
+    ];
+
+    switch (filters.sortBy) {
+      case "jobTitle":
+        return [{ jobTitle: direction }, ...fallback];
+      case "department":
+        return [{ department: { name: direction } }, ...fallback];
+      case "supervisor":
+        return [
+          { supervisor: { lastName: direction } },
+          { supervisor: { firstName: direction } },
+          ...fallback,
+        ];
+      case "teams":
+        return [{ teamMemberships: { _count: direction } }, ...fallback];
+      case "status":
+        return [{ status: direction }, ...fallback];
+      case "employeeName":
+      default:
+        return [
+          { lastName: direction },
+          { firstName: direction },
+        ];
+    }
   }
 }

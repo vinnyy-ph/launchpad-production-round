@@ -1,4 +1,5 @@
-import { useState, useEffect, type ReactNode, type KeyboardEvent } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -7,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/primitives/table";
+import { Button } from "@/shared/ui/primitives/button";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import { ErrorState } from "./error-boundary";
 import { cn } from "@/shared/lib/utils";
@@ -15,6 +17,21 @@ export interface Column<T> {
   header: ReactNode;
   cell: (row: T) => ReactNode;
   className?: string;
+  sortable?: boolean;
+  sortKey?: string;
+}
+
+export type SortDirection = "asc" | "desc";
+
+export interface DataTableSort {
+  key: string;
+  direction: SortDirection;
+}
+
+interface DataTablePagination {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
 interface DataTableProps<T> {
@@ -26,15 +43,19 @@ interface DataTableProps<T> {
   emptyState: ReactNode;
   onRowClick?: (row: T) => void;
   getRowId?: (row: T) => string;
+  pagination?: DataTablePagination;
+  sort?: DataTableSort;
+  onSortChange?: (sort: DataTableSort) => void;
 }
 
 /**
  * True below the `md` breakpoint. Defaults to false (desktop) on the server and
  * wherever `matchMedia` is unavailable (jsdom), so SSR and unit tests render the
- * table — only the browser swaps to the card layout.
+ * table; only the browser swaps to the card layout.
  */
 function useIsCompact() {
   const [compact, setCompact] = useState(false);
+
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     const mq = window.matchMedia("(max-width: 767px)");
@@ -43,7 +64,100 @@ function useIsCompact() {
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
+
   return compact;
+}
+
+function pageRange(currentPage: number, totalPages: number) {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+  return Array.from({ length: 5 }, (_, index) => start + index);
+}
+
+function PaginationFooter({ page, totalPages, onPageChange }: DataTablePagination) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center border-t border-[color:var(--border-primary)] px-4 py-3">
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        disabled={page <= 1}
+        className="justify-self-start"
+        onClick={() => onPageChange(page - 1)}
+      >
+        <ArrowLeft /> Previous
+      </Button>
+
+      <div className="flex items-center gap-2">
+        {pageRange(page, totalPages).map((pageNumber) => (
+          <Button
+            key={pageNumber}
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-current={pageNumber === page ? "page" : undefined}
+            className={cn(
+              "border-transparent",
+              pageNumber === page && "bg-[color:var(--bg-secondary)] font-semibold",
+            )}
+            onClick={() => onPageChange(pageNumber)}
+          >
+            {pageNumber}
+          </Button>
+        ))}
+      </div>
+
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        disabled={page >= totalPages}
+        className="justify-self-end"
+        onClick={() => onPageChange(page + 1)}
+      >
+        Next <ArrowRight />
+      </Button>
+    </div>
+  );
+}
+
+function nextSortDirection(current: DataTableSort | undefined, key: string): SortDirection {
+  if (current?.key !== key) return "asc";
+  return current.direction === "asc" ? "desc" : "asc";
+}
+
+function SortIcon({
+  active,
+  direction,
+}: {
+  active: boolean;
+  direction?: SortDirection;
+}) {
+  return (
+    <span aria-hidden="true" className="inline-flex flex-col items-center gap-[2px]">
+      <span
+        className={cn(
+          "h-0 w-0 border-x-[3px] border-b-[4px] border-x-transparent",
+          active && direction === "asc"
+            ? "border-b-[color:var(--text-primary)]"
+            : "border-b-[color:var(--gray-neutral-300)]",
+        )}
+      />
+      <span
+        className={cn(
+          "h-0 w-0 border-x-[3px] border-t-[4px] border-x-transparent",
+          active && direction === "desc"
+            ? "border-t-[color:var(--text-primary)]"
+            : "border-t-[color:var(--gray-neutral-300)]",
+        )}
+      />
+    </span>
+  );
 }
 
 export function DataTable<T>({
@@ -55,27 +169,33 @@ export function DataTable<T>({
   emptyState,
   onRowClick,
   getRowId,
+  pagination,
+  sort,
+  onSortChange,
 }: DataTableProps<T>) {
   const compact = useIsCompact();
 
   if (error) return <ErrorState message={error} onRetry={onRetry} />;
 
   const clickable = !!onRowClick;
-  const onKey = (row: T) => (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
+  const onKey = (row: T) => (event: KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
       onRowClick!(row);
     }
   };
   const empty = !data || data.length === 0;
+  const handleSort = (key: string) => {
+    if (!onSortChange) return;
+    onSortChange({ key, direction: nextSortDirection(sort, key) });
+  };
 
-  // Mobile (< md): cards — a table that clips on a phone is a broken table.
   if (compact) {
     if (isLoading) {
       return (
         <ul className="divide-y divide-[color:var(--border-primary)]">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <li key={i} className="space-y-2 p-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <li key={index} className="space-y-2 p-4">
               <Skeleton className="h-5 w-1/2" />
               <Skeleton className="h-4 w-3/4" />
             </li>
@@ -83,94 +203,133 @@ export function DataTable<T>({
         </ul>
       );
     }
-    if (empty) return <>{emptyState}</>;
-    return (
-      <ul className="divide-y divide-[color:var(--border-primary)]">
-        {data!.map((row, i) => (
-          <li
-            key={getRowId ? getRowId(row) : i}
-            onClick={clickable ? () => onRowClick!(row) : undefined}
-            onKeyDown={clickable ? onKey(row) : undefined}
-            tabIndex={clickable ? 0 : undefined}
-            role={clickable ? "button" : undefined}
-            className={cn(
-              "p-4",
-              clickable &&
-                "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-            )}
-          >
-            {columns[0] && <div>{columns[0].cell(row)}</div>}
-            {columns.length > 1 && (
-              <dl className="mt-3 space-y-1.5">
-                {columns.slice(1).map((col, c) => (
-                  <div key={c} className="flex items-start justify-between gap-3">
-                    <dt className="pt-0.5 text-xs font-medium text-[color:var(--text-tertiary)]">
-                      {col.header}
-                    </dt>
-                    <dd className="min-w-0 text-right text-sm text-[color:var(--text-secondary)]">
-                      {col.cell(row)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </li>
-        ))}
-      </ul>
-    );
-  }
 
-  // Desktop (≥ md): table
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {columns.map((col, i) => (
-            <TableHead key={i} className={col.className}>
-              {col.header}
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {isLoading ? (
-          Array.from({ length: 5 }).map((_, r) => (
-            <TableRow key={r}>
-              {columns.map((_, c) => (
-                <TableCell key={c}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              ))}
-            </TableRow>
-          ))
-        ) : empty ? (
-          <TableRow className="hover:bg-transparent">
-            <TableCell colSpan={columns.length} className="p-0">
-              {emptyState}
-            </TableCell>
-          </TableRow>
-        ) : (
-          data!.map((row, i) => (
-            <TableRow
-              key={getRowId ? getRowId(row) : i}
+    if (empty) return <>{emptyState}</>;
+
+    return (
+      <>
+        <ul className="divide-y divide-[color:var(--border-primary)]">
+          {data.map((row, index) => (
+            <li
+              key={getRowId ? getRowId(row) : index}
               onClick={clickable ? () => onRowClick!(row) : undefined}
               onKeyDown={clickable ? onKey(row) : undefined}
               tabIndex={clickable ? 0 : undefined}
               role={clickable ? "button" : undefined}
               className={cn(
+                "p-4",
                 clickable &&
                   "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               )}
             >
-              {columns.map((col, c) => (
-                <TableCell key={c} className={col.className}>
-                  {col.cell(row)}
-                </TableCell>
-              ))}
+              {columns[0] && <div>{columns[0].cell(row)}</div>}
+              {columns.length > 1 && (
+                <dl className="mt-3 space-y-1.5">
+                  {columns.slice(1).map((col, colIndex) => (
+                    <div key={colIndex} className="flex items-start justify-between gap-3">
+                      <dt className="pt-0.5 text-xs font-medium text-[color:var(--text-tertiary)]">
+                        {col.header}
+                      </dt>
+                      <dd className="min-w-0 text-right text-sm text-[color:var(--text-secondary)]">
+                        {col.cell(row)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </li>
+          ))}
+        </ul>
+        {pagination ? <PaginationFooter {...pagination} /> : null}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((col, index) => (
+              <TableHead
+                key={index}
+                className={col.className}
+                aria-sort={
+                  col.sortable && col.sortKey && sort?.key === col.sortKey
+                    ? sort.direction === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : undefined
+                }
+              >
+                {col.sortable && col.sortKey ? (
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-sm font-medium text-inherit outline-none hover:text-[color:var(--text-primary)] focus-visible:ring-2 focus-visible:ring-ring",
+                      col.className?.includes("text-center") && "justify-center",
+                    )}
+                    onClick={() => handleSort(col.sortKey!)}
+                    aria-label={`Sort by ${String(col.header)} ${
+                      sort?.key === col.sortKey && sort.direction === "asc"
+                        ? "descending"
+                        : "ascending"
+                    }`}
+                  >
+                    <span>{col.header}</span>
+                    <SortIcon
+                      active={sort?.key === col.sortKey}
+                      direction={sort?.direction}
+                    />
+                  </button>
+                ) : (
+                  col.header
+                )}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+            Array.from({ length: 5 }).map((_, rowIndex) => (
+              <TableRow key={rowIndex}>
+                {columns.map((_, colIndex) => (
+                  <TableCell key={colIndex}>
+                    <Skeleton className="h-5 w-full" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : empty ? (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={columns.length} className="p-0">
+                {emptyState}
+              </TableCell>
             </TableRow>
-          ))
-        )}
-      </TableBody>
-    </Table>
+          ) : (
+            data.map((row, rowIndex) => (
+              <TableRow
+                key={getRowId ? getRowId(row) : rowIndex}
+                onClick={clickable ? () => onRowClick!(row) : undefined}
+                onKeyDown={clickable ? onKey(row) : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                role={clickable ? "button" : undefined}
+                className={cn(
+                  clickable &&
+                    "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                )}
+              >
+                {columns.map((col, colIndex) => (
+                  <TableCell key={colIndex} className={col.className}>
+                    {col.cell(row)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+      {pagination && !isLoading && !empty ? <PaginationFooter {...pagination} /> : null}
+    </>
   );
 }

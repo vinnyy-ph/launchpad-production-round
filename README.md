@@ -20,7 +20,7 @@ Those are added by the per-module skills.
    (There are no models yet, so there is nothing to migrate until a module skill adds them.)
 5. Start both dev servers: `npm run dev`
    - API: http://localhost:3001/health
-   - App: http://localhost:5173
+   - App: http://localhost:3000
 
 ## Where the next skills plug in
 | Concern        | Lands in                                              |

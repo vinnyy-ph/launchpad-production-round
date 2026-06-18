@@ -1,14 +1,24 @@
 import { EmployeeStatus } from "@prisma/client";
 import type {
+  EmployeeSortBy,
   GetEmployeeProfileParamsDto,
   ListEmployeesQueryDto,
+  SortDirection,
   UpdateEmployeeProfileParamsDto,
   UpdateEmployeeProfileRequestDto,
 } from "./dto";
 
 const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 25;
+const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
+const SORT_FIELDS: EmployeeSortBy[] = [
+  "employeeName",
+  "jobTitle",
+  "department",
+  "supervisor",
+  "teams",
+  "status",
+];
 
 export class EmployeesValidation {
   /**
@@ -28,6 +38,8 @@ export class EmployeesValidation {
       teamId: this.parseOptionalString(query.teamId),
       team: this.parseOptionalString(query.team),
       supervisorId: this.parseOptionalString(query.supervisorId),
+      sortBy: this.parseSortBy(query.sortBy),
+      sortDirection: this.parseSortDirection(query.sortDirection),
     };
   }
 
@@ -120,6 +132,23 @@ export class EmployeesValidation {
     }
 
     return status as EmployeeStatus;
+  }
+
+  /** Accepts known employee directory sort keys and ignores unsupported values. */
+  private parseSortBy(value: unknown): EmployeeSortBy | undefined {
+    const sortBy = this.parseOptionalString(value);
+    return SORT_FIELDS.includes(sortBy as EmployeeSortBy) ? (sortBy as EmployeeSortBy) : undefined;
+  }
+
+  /** Normalizes sort direction while defaulting invalid input to ascending behavior. */
+  private parseSortDirection(value: unknown): SortDirection | undefined {
+    const direction = this.parseOptionalString(value)?.toLowerCase();
+
+    if (direction === "asc" || direction === "desc") {
+      return direction;
+    }
+
+    return undefined;
   }
 
   /** Assigns a trimmed required-string-style field only when it is present in the request body. */

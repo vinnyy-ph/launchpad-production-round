@@ -10,7 +10,11 @@ export type { EmployeeSupervisorResponseDto } from "./employee-supervisor-respon
 export type { EmployeeTeamResponseDto } from "./employee-team-response.dto";
 export type { EmployeeUserResponseDto } from "./employee-user-response.dto";
 export type { GetEmployeeProfileParamsDto } from "./get-employee-profile-params.dto";
-export type { ListEmployeesQueryDto } from "./list-employees-query.dto";
+export type {
+  EmployeeSortBy,
+  ListEmployeesQueryDto,
+  SortDirection,
+} from "./list-employees-query.dto";
 export type { ListEmployeesResponseDto } from "./list-employees-response.dto";
 export type { UpdateEmployeeProfileParamsDto } from "./update-employee-profile-params.dto";
 export type { UpdateEmployeeProfileRequestDto } from "./update-employee-profile-request.dto";
