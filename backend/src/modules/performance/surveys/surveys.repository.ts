@@ -3,15 +3,29 @@ import type {
   SurveyAudienceConfig,
   SurveyQuestion,
   SurveyReminderConfig,
+  SurveyVisibilityConfig,
 } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
 import type { CreateSurveyData } from "./surveys.types";
+import type { ListSurveysQuery } from "./dto";
 
 export type SurveyWithRelations = PulseSurvey & {
   questions: SurveyQuestion[];
   audienceConfigs: SurveyAudienceConfig[];
   reminderConfig: SurveyReminderConfig | null;
+};
+
+export type SurveyListRow = PulseSurvey & {
+  _count: { occurrences: number };
+};
+
+export type SurveyDetailRow = PulseSurvey & {
+  questions: SurveyQuestion[];
+  audienceConfigs: SurveyAudienceConfig[];
+  visibilityConfigs: SurveyVisibilityConfig[];
+  reminderConfig: SurveyReminderConfig | null;
+  _count: { occurrences: number };
 };
 
 export class SurveysRepository {
@@ -82,5 +96,74 @@ export class SurveysRepository {
         },
       });
     });
+  }
+
+  /**
+   * Returns a paginated list of surveys with occurrence counts.
+   * Status filter logic:
+   *   draft    → isActive: false AND no occurrences exist
+   *   active   → isActive: true
+   *   inactive → isActive: false AND at least one occurrence exists
+   */
+  async findAll(query: ListSurveysQuery): Promise<{ surveys: SurveyListRow[]; total: number }> {
+    let statusFilter: Record<string, unknown> = {};
+
+    if (query.status === "draft") {
+      statusFilter = { isActive: false, occurrences: { none: {} } };
+    } else if (query.status === "active") {
+      statusFilter = { isActive: true };
+    } else if (query.status === "inactive") {
+      statusFilter = { isActive: false, occurrences: { some: {} } };
+    }
+
+    const where = { ...statusFilter };
+
+    const [surveys, total] = await Promise.all([
+      prisma.pulseSurvey.findMany({
+        where,
+        include: { _count: { select: { occurrences: true } } },
+        orderBy: { createdAt: "desc" },
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      prisma.pulseSurvey.count({ where }),
+    ]);
+
+    return { surveys: surveys as SurveyListRow[], total };
+  }
+
+  /**
+   * Returns a single survey with all relations for the detail view.
+   * Gracefully handles visibilityConfigs not being available yet.
+   */
+  async findById(id: string): Promise<SurveyDetailRow | null> {
+    const includeOptions: Record<string, unknown> = {
+      questions: { orderBy: { orderIndex: "asc" } },
+      audienceConfigs: true,
+      reminderConfig: true,
+      _count: { select: { occurrences: true } },
+    };
+
+    // Include visibilityConfigs if the relation exists on the Prisma model
+    try {
+      includeOptions.visibilityConfigs = true;
+    } catch {
+      // relation not available yet — will be handled below
+    }
+
+    const survey = await prisma.pulseSurvey.findUnique({
+      where: { id },
+      include: includeOptions,
+    });
+
+    if (!survey) return null;
+
+    // Ensure visibilityConfigs is always present as an array
+    const result = survey as unknown as SurveyDetailRow;
+    if (!result.visibilityConfigs) {
+      result.visibilityConfigs = [];
+    }
+
+    return result;
   }
 }

@@ -1,5 +1,6 @@
 import type { AudienceType, QuestionType, RecurringType, ReminderFrequency, SurveyVisibility } from "@prisma/client";
 import type { CreateSurveyInput } from "./dto";
+import type { ListSurveysQuery } from "./dto";
 import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
 
 const VALID_RECURRING_TYPES = new Set<string>([
@@ -33,7 +34,42 @@ const VALID_QUESTION_TYPES = new Set<string>([
 
 const VALID_REMINDER_FREQUENCIES = new Set<string>(["DAILY", "EVERY_X_DAYS", "WEEKLY"]);
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+const VALID_STATUSES = new Set<string>(["draft", "active", "inactive"]);
+
 export class SurveysValidation {
+  parseListQuery(query: Record<string, unknown>): ListSurveysQuery {
+    const rawPage = query.page;
+    const rawLimit = query.limit;
+    const rawStatus = query.status;
+
+    const page =
+      typeof rawPage === "string" && Number.isInteger(Number(rawPage)) && Number(rawPage) > 0
+        ? Number(rawPage)
+        : DEFAULT_PAGE;
+
+    const limit = Math.min(
+      typeof rawLimit === "string" && Number.isInteger(Number(rawLimit)) && Number(rawLimit) > 0
+        ? Number(rawLimit)
+        : DEFAULT_LIMIT,
+      MAX_LIMIT,
+    );
+
+    if (rawStatus !== undefined && !VALID_STATUSES.has(rawStatus as string)) {
+      throw new Error(SURVEY_ERROR_MESSAGES.INVALID_STATUS);
+    }
+
+    const result: ListSurveysQuery = { page, limit };
+    if (rawStatus) {
+      result.status = rawStatus as ListSurveysQuery["status"];
+    }
+
+    return result;
+  }
+
   parseCreateBody(body: unknown): CreateSurveyInput {
     if (!body || typeof body !== "object") {
       throw new Error("Request body is required");

@@ -5,7 +5,7 @@ import {
   API_ERROR_MESSAGES,
   HTTP_STATUS_CODES,
 } from "../../../core/globals";
-import type { SurveyResponseDto } from "./dto";
+import type { ListSurveysResponseDto, SurveyDetailResponseDto, SurveyResponseDto } from "./dto";
 import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
 import { SurveysService } from "./surveys.service";
 import { SurveysValidation } from "./surveys.validation";
@@ -15,6 +15,70 @@ export class SurveysController {
     private readonly surveysService = new SurveysService(),
     private readonly surveysValidation = new SurveysValidation(),
   ) {}
+
+  listSurveys = async (
+    req: Request,
+    res: Response<ListSurveysResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const query = this.surveysValidation.parseListQuery(req.query as Record<string, unknown>);
+      const result = await this.surveysService.list(query);
+
+      return res.json(result);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === SURVEY_ERROR_MESSAGES.INVALID_STATUS
+      ) {
+        return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: API_ERROR_MESSAGES.VALIDATION_FAILED,
+          errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+          errors: [{ field: "status", message: error.message, code: API_ERROR_CODES.VALIDATION_FAILED }],
+        });
+      }
+
+      return next(error);
+    }
+  };
+
+  getSurvey = async (
+    req: Request,
+    res: Response<ApiSuccessResponseDto<SurveyDetailResponseDto> | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { surveyId } = req.params;
+      const result = await this.surveysService.get(surveyId);
+
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND) {
+        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+          success: false,
+          message: API_ERROR_MESSAGES.SURVEY_NOT_FOUND,
+          errorCode: API_ERROR_CODES.SURVEY_NOT_FOUND,
+        });
+      }
+
+      return next(error);
+    }
+  };
 
   createSurvey = async (
     req: Request,

@@ -31,6 +31,14 @@ export interface SurveyAudienceConfigResponseDto {
   updatedAt: Date;
 }
 
+export interface SurveyVisibilityConfigResponseDto {
+  id: string;
+  surveyId: string;
+  teamId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface SurveyReminderConfigResponseDto {
   id: string;
   surveyId: string;
@@ -53,5 +61,11 @@ export interface SurveyResponseDto {
   updatedAt: Date;
   questions: SurveyQuestionResponseDto[];
   audienceConfigs: SurveyAudienceConfigResponseDto[];
+  visibilityConfigs: SurveyVisibilityConfigResponseDto[];
   reminderConfig: SurveyReminderConfigResponseDto | null;
+}
+
+/** Extended response DTO for the detail endpoint — adds occurrenceCount. */
+export interface SurveyDetailResponseDto extends SurveyResponseDto {
+  occurrenceCount: number;
 }
