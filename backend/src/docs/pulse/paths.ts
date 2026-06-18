@@ -1092,4 +1092,235 @@
  *         description: Occurrence not found
  *       409:
  *         description: Conflict. Occurrence is closed, deadline passed, or employee already responded.
+ *
+ * /api/v1/pulse/surveys/{id}/results:
+ *   get:
+ *     tags: [Pulse Surveys]
+ *     summary: Get aggregated results for a survey
+ *     description: |
+ *       Returns aggregated results across all occurrences of a survey. Access is governed by the survey's `visibility` setting:
+ *       - `EVERYONE` — any authenticated user
+ *       - `SUPERVISOR_BASED` — HR + supervisors whose downward chain includes audience members
+ *       - `TEAM_BASED` — HR + team members belonging to the survey's audience teams
+ *       - `HR_ROOT_ONLY` — HR + the root node employee (no supervisor)
+ *       - `SPECIFIC_TEAMS` — HR + members of teams listed in the survey's visibility config
+ *
+ *       For anonymous surveys, `SHORT_ANSWER` and `LONG_ANSWER` responses are always returned as an empty array.
+ *       When a filter (`teamId` or `supervisorId`) is active on an anonymous survey and the filtered group has
+ *       fewer than 3 responses, the result is suppressed (`suppressed: true`, `questions: []`).
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the survey
+ *       - in: query
+ *         name: teamId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter results to responses from this team only. Cannot be combined with supervisorId.
+ *       - in: query
+ *         name: supervisorId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter results to responses from this supervisor's full downward chain. Cannot be combined with teamId.
+ *     responses:
+ *       200:
+ *         description: Aggregated survey results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     surveyId:
+ *                       type: string
+ *                       example: survey-uuid-123
+ *                     isAnonymous:
+ *                       type: boolean
+ *                       example: false
+ *                     totalResponses:
+ *                       type: integer
+ *                       example: 42
+ *                     filter:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         teamId:
+ *                           type: string
+ *                         supervisorId:
+ *                           type: string
+ *                     suppressed:
+ *                       type: boolean
+ *                       example: false
+ *                     questions:
+ *                       type: array
+ *                       description: Empty when suppressed is true
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *                             enum: [SHORT_ANSWER, LONG_ANSWER, LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX]
+ *                           questionText:
+ *                             type: string
+ *                           responseCount:
+ *                             type: integer
+ *                           responses:
+ *                             type: array
+ *                             description: Text responses — only for SHORT_ANSWER/LONG_ANSWER. Empty for anonymous surveys.
+ *                             items:
+ *                               type: string
+ *                           average:
+ *                             type: number
+ *                             description: Only for LINEAR_SCALE
+ *                           min:
+ *                             type: number
+ *                             description: Only for LINEAR_SCALE
+ *                           max:
+ *                             type: number
+ *                             description: Only for LINEAR_SCALE
+ *                           distribution:
+ *                             type: object
+ *                             description: Only for LINEAR_SCALE. Key = scale value, value = count.
+ *                             additionalProperties:
+ *                               type: integer
+ *                           counts:
+ *                             type: object
+ *                             description: Only for MULTIPLE_CHOICE/CHECKBOX. Key = option label, value = count.
+ *                             additionalProperties:
+ *                               type: integer
+ *       400:
+ *         description: Both teamId and supervisorId were provided
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Caller does not meet the survey's visibility requirements
+ *       404:
+ *         description: Survey not found
+ *
+ * /api/v1/pulse/surveys/occurrences/{occurrenceId}/results:
+ *   get:
+ *     tags: [Pulse Surveys]
+ *     summary: Get aggregated results for a specific occurrence
+ *     description: |
+ *       Same as the survey-level results endpoint but scoped to a single occurrence.
+ *       All visibility, anonymity, and minimum-group-size rules apply identically.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: occurrenceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the survey occurrence
+ *       - in: query
+ *         name: teamId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter results to responses from this team only. Cannot be combined with supervisorId.
+ *       - in: query
+ *         name: supervisorId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter results to responses from this supervisor's full downward chain. Cannot be combined with teamId.
+ *     responses:
+ *       200:
+ *         description: Aggregated occurrence results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     surveyId:
+ *                       type: string
+ *                       example: survey-uuid-123
+ *                     occurrenceId:
+ *                       type: string
+ *                       example: occ-uuid-123
+ *                     isAnonymous:
+ *                       type: boolean
+ *                       example: false
+ *                     totalResponses:
+ *                       type: integer
+ *                       example: 18
+ *                     filter:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         teamId:
+ *                           type: string
+ *                         supervisorId:
+ *                           type: string
+ *                     suppressed:
+ *                       type: boolean
+ *                       example: false
+ *                     questions:
+ *                       type: array
+ *                       description: Empty when suppressed is true
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *                             enum: [SHORT_ANSWER, LONG_ANSWER, LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX]
+ *                           questionText:
+ *                             type: string
+ *                           responseCount:
+ *                             type: integer
+ *                           responses:
+ *                             type: array
+ *                             description: Text responses — only for SHORT_ANSWER/LONG_ANSWER. Empty for anonymous surveys.
+ *                             items:
+ *                               type: string
+ *                           average:
+ *                             type: number
+ *                             description: Only for LINEAR_SCALE
+ *                           min:
+ *                             type: number
+ *                             description: Only for LINEAR_SCALE
+ *                           max:
+ *                             type: number
+ *                             description: Only for LINEAR_SCALE
+ *                           distribution:
+ *                             type: object
+ *                             description: Only for LINEAR_SCALE. Key = scale value, value = count.
+ *                             additionalProperties:
+ *                               type: integer
+ *                           counts:
+ *                             type: object
+ *                             description: Only for MULTIPLE_CHOICE/CHECKBOX. Key = option label, value = count.
+ *                             additionalProperties:
+ *                               type: integer
+ *       400:
+ *         description: Both teamId and supervisorId were provided
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Caller does not meet the survey's visibility requirements
+ *       404:
+ *         description: Occurrence not found
  */
