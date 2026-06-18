@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { visibleSections, WORKSPACE_NAME } from "./nav-config";
+import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { cn } from "@/shared/lib/utils";
 
 export function Sidebar({
@@ -30,8 +31,13 @@ export function Sidebar({
       )}
       style={{ background: "var(--gray-50)" }}
     >
+      {/* Brand mark (Jia logomark) */}
+      <div className="flex justify-center pt-4">
+        <ManageJiaLogo markOnly size={32} />
+      </div>
+
       {/* Workspace switcher */}
-      <div className="px-5 mt-[20px] mb-6 border-b border-[color:var(--border-primary)] pb-4">
+      <div className="px-5 mt-4 mb-6 border-b border-[color:var(--border-primary)] pb-4">
         <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-[color:var(--border-primary)]">
           <div
             className="w-7 h-7 rounded-lg flex-shrink-0"
@@ -50,7 +56,7 @@ export function Sidebar({
         {sections.map((section) => {
           return (
             <div key={section.title} className="mb-4">
-              <span className="block px-5 pb-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[color:var(--text-quaternary)]">
+              <span className="block px-5 pb-1 text-xs font-bold uppercase tracking-[0.04em] text-[#A4A7AE]">
                 {section.title}
               </span>
               <div className="flex flex-col px-2 pb-4">
@@ -63,20 +69,14 @@ export function Sidebar({
                       href={item.href}
                       onClick={onNavigate}
                       className={cn(
-                        "flex items-center py-[7px] px-4 rounded-md transition-all duration-100 group gap-[9px]",
+                        "flex items-center gap-2 rounded-md px-3 py-2 transition-colors duration-100",
                         active
-                          ? "bg-[color:var(--bg-secondary)] text-[color:var(--text-primary)]"
-                          : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
+                          ? "bg-[#EFF1F5] text-[#252B37]"
+                          : "text-[color:var(--text-secondary)] hover:bg-[#EFF1F5]"
                       )}
                     >
-                      <Icon
-                        size={16}
-                        className={cn(
-                          "flex-shrink-0 transition-colors",
-                          active ? "text-[color:var(--text-primary)]" : "text-[color:var(--text-quaternary)] group-hover:text-[color:var(--text-primary)]"
-                        )}
-                      />
-                      <span className={cn("truncate text-[14px] flex-1", active ? "font-bold" : "font-medium")}>
+                      <Icon size={18} className="flex-shrink-0 text-[#A4A7AE]" />
+                      <span className="flex-1 truncate text-[14px] font-medium">
                         {item.label}
                       </span>
                       {item.badge != null && item.badge > 0 && (
@@ -97,7 +97,7 @@ export function Sidebar({
       <div className="mt-auto flex flex-col">
         <div className="px-4 py-4 text-center">
           <p className="text-[12px] font-medium text-[color:var(--text-tertiary)]">
-            © 2026 Manage Jia
+            © 2026 White Cloak Technologies, Inc.
           </p>
         </div>
       </div>

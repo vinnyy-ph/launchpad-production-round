@@ -1,79 +1,43 @@
 type Tone = "dark" | "light";
 
 interface ManageJiaLogoProps {
-  /** dark = wordmark in ink (on white surfaces); light = white wordmark (on gradient/dark). */
+  /** dark = ink wordmark (on light surfaces); light = white wordmark (on dark/gradient). */
   tone?: Tone;
-  /** Mark size in px (square). Wordmark scales relative to this. */
+  /** Logo height in px. The full lockup keeps its 2:1 aspect; the mark is square. */
   size?: number;
   className?: string;
+  /** Render just the gradient mark (no wordmark). */
   markOnly?: boolean;
 }
 
-/** 135° Jia gradient stops (peach → pink → lilac → blue) — mirrors --gradient-jia. */
-function JiaGradientDef({ id }: { id: string }) {
-  return (
-    <defs>
-      <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#fccec0" />
-        <stop offset="33%" stopColor="#ebacc9" />
-        <stop offset="66%" stopColor="#ceb6da" />
-        <stop offset="100%" stopColor="#9fcaed" />
-      </linearGradient>
-    </defs>
-  );
-}
-
 /**
- * Manage Jia brand lockup: Jia-gradient rising-bars mark + "Manage Jia" wordmark + ✦.
- * The mark tile carries the brand gradient; bars are white; wordmark follows the tone.
+ * Manage Jia brand lockup — uses the Jia design-system logo assets
+ * (Manage Jia rides on the Jia brand mark). Assets live in /public/brand.
  */
 export function ManageJiaLogo({ tone = "dark", size = 38, className, markOnly = false }: ManageJiaLogoProps) {
-  const gradId = "mj-jia-grad";
-  const text = tone === "dark" ? "#181D27" : "#FFFFFF";
-
   if (markOnly) {
     return (
-      <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" focusable="false" className={className}>
-        <JiaGradientDef id={gradId} />
-        <rect width="40" height="40" rx="9" fill={`url(#${gradId})`} />
-        <g fill="#FFFFFF">
-          <rect x="12" y="22" width="4.2" height="8" rx="2.1" />
-          <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1" />
-          <rect x="23.8" y="11" width="4.2" height="19" rx="2.1" />
-        </g>
-      </svg>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src="/brand/jia-logomark.svg"
+        alt="Manage Jia"
+        width={size}
+        height={size}
+        className={className}
+        style={{ width: size, height: size }}
+      />
     );
   }
 
+  const src = tone === "light" ? "/brand/jia-logo-on-dark.svg" : "/brand/jia-logo.svg";
   return (
-    <div className={className} style={{ display: "flex", alignItems: "center", gap: 11 }}>
-      <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" focusable="false">
-        <JiaGradientDef id={gradId} />
-        <rect width="40" height="40" rx="9" fill={`url(#${gradId})`} />
-        <g fill="#FFFFFF">
-          <rect x="12" y="22" width="4.2" height="8" rx="2.1" />
-          <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1" />
-          <rect x="23.8" y="11" width="4.2" height="19" rx="2.1" />
-        </g>
-      </svg>
-      <span
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontWeight: 700,
-          fontSize: Math.round(size * 0.56),
-          letterSpacing: "-0.02em",
-          color: text,
-          lineHeight: 1,
-        }}
-      >
-        Manage Jia
-      </span>
-      <span
-        aria-hidden="true"
-        style={{ color: text, fontSize: Math.round(size * 0.32), alignSelf: "flex-start", marginTop: Math.round(size * 0.08) }}
-      >
-        {"✦"}
-      </span>
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt="Manage Jia"
+      height={size}
+      className={className}
+      style={{ height: size, width: "auto" }}
+    />
   );
 }
