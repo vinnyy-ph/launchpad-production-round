@@ -1,5 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" role="img" aria-label="Manage Jia mark">
-  <rect width="40" height="40" rx="9" fill="#181D27"/>
+  <defs>
+    <linearGradient id="jia" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fccec0"/>
+      <stop offset="33%" stop-color="#ebacc9"/>
+      <stop offset="66%" stop-color="#ceb6da"/>
+      <stop offset="100%" stop-color="#9fcaed"/>
+    </linearGradient>
+  </defs>
+  <rect width="40" height="40" rx="9" fill="url(#jia)"/>
   <g fill="#FFFFFF">
     <rect x="12" y="22" width="4.2" height="8" rx="2.1"/>
     <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1"/>
