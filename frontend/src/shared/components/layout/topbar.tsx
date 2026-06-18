@@ -17,7 +17,7 @@ import {
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
-import { breadcrumbForPath, findNav } from "./nav-config";
+import { breadcrumbForPath, findNav, type NavIcon } from "./nav-config";
 
 const ROLE_ACRONYMS = new Set(["ADMIN", "HR"]);
 const TOPBAR_HISTORY_KEY = "swiftwork:topbar-history";
@@ -61,7 +61,7 @@ function useClock(): { time: string; date: string } {
   };
 }
 
-function iconForPath(pathname: string): LucideIcon {
+function iconForPath(pathname: string): LucideIcon | NavIcon {
   const navMatch = findNav(pathname);
   if (navMatch) return navMatch.item.icon;
 
