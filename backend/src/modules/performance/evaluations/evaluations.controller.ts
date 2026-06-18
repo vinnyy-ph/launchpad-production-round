@@ -414,12 +414,44 @@ export class EvaluationsController {
     }
   };
 
+  listReviewees = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const result = await this.evaluationsService.listReviewees(req.user);
+
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE) {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: API_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE,
+          errorCode: API_ERROR_CODES.REVIEWER_NOT_EMPLOYEE,
+        });
+      }
+
+      return next(error);
+    }
+  };
+
   private isValidationError(error: Error): boolean {
     return (
       error.message.endsWith("is required") ||
       error.message.startsWith("grade must") ||
       error.message.startsWith("send must") ||
       error.message.endsWith("must be a string") ||
+      error.message.endsWith("must be a valid date") ||
+      error.message.endsWith("must be an array of strings") ||
+      error.message === "periodEnd must be on or after periodStart" ||
       error.message === "Request body is required" ||
       error.message === "No fields provided to update"
     );

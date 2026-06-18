@@ -16,7 +16,11 @@ import { authRoutes } from "./modules/auth";
 import { dashboardRoutes } from "./modules/dashboard";
 import { evaluationsRouter } from "./modules/performance/evaluations";
 import { usersRouter } from "./modules/people/users";
+import { onboardingRouter } from "./modules/people/onboarding";
+import { employeeOnboardingRouter } from "./modules/people/onboarding/employee-onboarding";
 import { pulseSurveysRouter } from "./modules/performance/surveys";
+import { notificationsRouter } from "./modules/notifications";
+import { supervisorOnboardingRouter } from "./modules/people/onboarding/supervisor-onboarding";
 
 export const app = express();
 
@@ -70,4 +74,20 @@ app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
 app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/teams`, teamsRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/onboarding`, authenticate, onboardingRouter);
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/employee-onboarding`,
+  authenticate,
+  employeeOnboardingRouter,
+);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/pulse`, pulseSurveysRouter);
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/notifications`,
+  authenticate,
+  notificationsRouter,
+);
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/supervisor-onboarding`,
+  authenticate,
+  supervisorOnboardingRouter,
+);

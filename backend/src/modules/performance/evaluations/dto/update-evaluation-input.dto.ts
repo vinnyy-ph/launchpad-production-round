@@ -1,9 +1,10 @@
 export interface UpdateEvaluationInput {
   revieweeId?: string;
-  evaluationPeriod?: string;
+  periodStart?: Date;
+  periodEnd?: Date;
   grade?: number;
-  highlights?: string;
-  lowlights?: string;
+  highlights?: string[];
+  lowlights?: string[];
   evaluation?: string;
   recommendation?: string;
   supportingDocUrl?: string;

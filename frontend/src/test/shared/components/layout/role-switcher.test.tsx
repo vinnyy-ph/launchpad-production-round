@@ -13,7 +13,7 @@ describe("RoleSwitcher", () => {
     render(<RoleSwitcher />);
     expect(screen.getByText("Admin")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /viewing as/i }));
-    await userEvent.click(screen.getByRole("menuitemradio", { name: /HR/i }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "HR" }));
     expect(pushMock).toHaveBeenCalledWith("/hr/directory");
   });
 });

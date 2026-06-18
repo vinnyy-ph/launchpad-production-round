@@ -1,10 +1,15 @@
 /** @type {import('next').NextConfig} */
+
+// Same-origin proxy to the Express API so the browser calls /api/* (no CORS) and the
+// Next server forwards to the backend. Target is server-side only (not NEXT_PUBLIC).
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:3001";
+
 const nextConfig = {
   reactStrictMode: true,
-  // Proxy browser calls to the Express backend while keeping API_PROXY_TARGET server-only.
   async rewrites() {
-    const target = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:3001";
-    return [{ source: "/api/:path*", destination: `${target}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${API_PROXY_TARGET}/api/:path*` },
+    ];
   },
 };
 

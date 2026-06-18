@@ -37,7 +37,8 @@ jest.mock("../../core/database/prisma.service", () => ({
 
 const VALID_BODY = {
   revieweeId: "emp-reviewee-id",
-  evaluationPeriod: "Q1 2026",
+  periodStart: "2026-01-01",
+  periodEnd: "2026-03-31",
   grade: 4,
 };
 
@@ -67,20 +68,30 @@ describe("POST /api/v1/evaluations", () => {
   it("returns 400 when revieweeId is missing", async () => {
     const response = await request(app)
       .post("/api/v1/evaluations")
-      .send({ evaluationPeriod: "Q1 2026", grade: 4 })
+      .send({ periodStart: "2026-01-01", periodEnd: "2026-03-31", grade: 4 })
       .expect(400);
 
     expect(response.body.errors[0].message).toBe("revieweeId is required");
     expect(evalCreateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when evaluationPeriod is missing", async () => {
+  it("returns 400 when periodStart is missing", async () => {
     const response = await request(app)
       .post("/api/v1/evaluations")
-      .send({ revieweeId: "emp-reviewee-id", grade: 4 })
+      .send({ revieweeId: "emp-reviewee-id", periodEnd: "2026-03-31", grade: 4 })
       .expect(400);
 
-    expect(response.body.errors[0].message).toBe("evaluationPeriod is required");
+    expect(response.body.errors[0].message).toBe("periodStart is required");
+    expect(evalCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when periodEnd is before periodStart", async () => {
+    const response = await request(app)
+      .post("/api/v1/evaluations")
+      .send({ ...VALID_BODY, periodStart: "2026-03-31", periodEnd: "2026-01-01" })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toBe("periodEnd must be on or after periodStart");
     expect(evalCreateMock).not.toHaveBeenCalled();
   });
 
@@ -230,8 +241,8 @@ describe("POST /api/v1/evaluations", () => {
     const reviewee = buildRevieweeEmployee(reviewer.id);
     const withOptionals = {
       ...buildEvaluationRecord({ reviewerId: reviewer.id, revieweeId: reviewee.id }),
-      highlights: "Delivered ahead of schedule",
-      lowlights: "Could improve documentation",
+      highlights: ["Delivered ahead of schedule"],
+      lowlights: ["Could improve documentation"],
     };
 
     employeeFindUniqueMock
@@ -241,12 +252,12 @@ describe("POST /api/v1/evaluations", () => {
 
     const response = await request(app)
       .post("/api/v1/evaluations")
-      .send({ ...VALID_BODY, highlights: "Delivered ahead of schedule", lowlights: "Could improve documentation" })
+      .send({ ...VALID_BODY, highlights: ["Delivered ahead of schedule"], lowlights: ["Could improve documentation"] })
       .expect(201);
 
     expect(response.body.data).toMatchObject({
-      highlights: "Delivered ahead of schedule",
-      lowlights: "Could improve documentation",
+      highlights: ["Delivered ahead of schedule"],
+      lowlights: ["Could improve documentation"],
     });
   });
 });

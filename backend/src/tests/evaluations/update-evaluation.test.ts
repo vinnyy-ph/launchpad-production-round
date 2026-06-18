@@ -82,13 +82,13 @@ describe("PATCH /api/v1/evaluations/:evaluationId", () => {
     expect(response.body.errors[0].message).toBe("grade must be an integer between 1 and 5");
   });
 
-  it("returns 400 when a string field is the wrong type", async () => {
+  it("returns 400 when an itemized field is the wrong type", async () => {
     const response = await request(app)
       .patch(`/api/v1/evaluations/${EVAL_ID}`)
       .send({ highlights: 123 })
       .expect(400);
 
-    expect(response.body.errors[0].message).toBe("highlights must be a string");
+    expect(response.body.errors[0].message).toBe("highlights must be an array of strings");
   });
 
   it("returns 404 when the evaluation does not exist", async () => {
@@ -151,7 +151,7 @@ describe("PATCH /api/v1/evaluations/:evaluationId", () => {
   it("updates and returns the evaluation with changed fields", async () => {
     const reviewer = buildReviewerEmployee();
     const existing = buildEvaluationRecord({ reviewerId: reviewer.id });
-    const updated = { ...existing, grade: 5, highlights: "Outstanding results" };
+    const updated = { ...existing, grade: 5, highlights: ["Outstanding results"] };
 
     evalFindFirstMock.mockResolvedValue(existing);
     employeeFindUniqueMock.mockResolvedValue(reviewer);
@@ -159,12 +159,12 @@ describe("PATCH /api/v1/evaluations/:evaluationId", () => {
 
     const response = await request(app)
       .patch(`/api/v1/evaluations/${EVAL_ID}`)
-      .send({ grade: 5, highlights: "Outstanding results" })
+      .send({ grade: 5, highlights: ["Outstanding results"] })
       .expect(200);
 
     expect(response.body).toMatchObject({
       success: true,
-      data: { grade: 5, highlights: "Outstanding results" },
+      data: { grade: 5, highlights: ["Outstanding results"] },
     });
   });
 

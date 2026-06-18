@@ -2,36 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, Menu, User } from "lucide-react";
+import { ChevronDown, LogOut, Menu, User } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { RoleSwitcher } from "./role-switcher";
+import { breadcrumbForPath } from "./nav-config";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
-
-const BREADCRUMB_MAP: Record<string, string[]> = {
-  "/": ["Dashboard"],
-  "/performance": ["Performance"],
-  "/offboarding": ["Offboarding"],
-  "/supervisor/reports": ["My Team", "Overview"],
-  "/supervisor/evaluations": ["My Team", "Evaluations"],
-  "/hr/directory": ["Organization", "People"],
-  "/hr/teams": ["Organization", "Structure"],
-  "/hr/surveys": ["Organization", "Surveys"],
-  "/admin/users": ["Admin", "Users"],
-  "/employee/profile": ["Me", "My profile"],
-  "/employee/onboarding": ["Me", "My onboarding"],
-  "/employee/surveys": ["Me", "Surveys"],
-  "/employee/clearance": ["Me", "My clearances"],
-};
-
-function useBreadcrumb(): string[] {
-  const pathname = usePathname() ?? "/";
-  // Exact match first, then prefix match (longest first)
-  if (BREADCRUMB_MAP[pathname]) return BREADCRUMB_MAP[pathname];
-  const sorted = Object.keys(BREADCRUMB_MAP).sort((a, b) => b.length - a.length);
-  const match = sorted.find((k) => k !== "/" && pathname.startsWith(k));
-  return match ? BREADCRUMB_MAP[match] : [];
-}
 
 const ROLE_ACRONYMS = new Set(["ADMIN", "HR"]);
 
@@ -60,7 +36,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const breadcrumb = useBreadcrumb();
+  const pathname = usePathname() ?? "/";
+  const breadcrumb = breadcrumbForPath(pathname);
   const clock = useClock();
 
   const initials = appUser?.displayName
@@ -135,20 +112,21 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <div ref={menuRef} className="relative">
         <button
           onClick={() => setMenuOpen((p) => !p)}
-          className="flex items-center gap-2 h-8 pl-1 pr-3 border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] rounded-full cursor-pointer transition-colors duration-150 hover:bg-[color:var(--bg-tertiary)]"
+          className="flex items-center gap-2 h-9 pl-1 pr-2.5 border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] rounded-full cursor-pointer transition-colors duration-150 hover:bg-[color:var(--bg-tertiary)]"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           aria-label="Account menu"
         >
           <span
-            className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold tracking-[0.01em] text-[color:var(--text-primary)] flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-bold tracking-[0.01em] text-white flex-shrink-0"
+            style={{ background: "#111322" }}
           >
             {initials}
           </span>
           <span className="hidden sm:block text-[13px] font-medium text-[color:var(--text-primary)] whitespace-nowrap">
             {shortName}{roleLabel ? ` · ${roleLabel}` : ""}
           </span>
+          <ChevronDown size={14} className="flex-shrink-0 text-[color:var(--text-tertiary)]" aria-hidden="true" />
         </button>
         {menuOpen && (
           <div

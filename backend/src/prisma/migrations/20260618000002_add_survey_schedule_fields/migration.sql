@@ -1,0 +1,4 @@
+ALTER TABLE "pulse_surveys" ADD COLUMN "releaseDate" TIMESTAMP(3) NOT NULL DEFAULT NOW();
+ALTER TABLE "pulse_surveys" ADD COLUMN "deadline" TIMESTAMP(3) NOT NULL DEFAULT NOW();
+ALTER TABLE "pulse_surveys" ALTER COLUMN "releaseDate" DROP DEFAULT;
+ALTER TABLE "pulse_surveys" ALTER COLUMN "deadline" DROP DEFAULT;
