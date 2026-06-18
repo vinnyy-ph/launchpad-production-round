@@ -15,6 +15,10 @@ export interface Column<T> {
   header: ReactNode;
   cell: (row: T) => ReactNode;
   className?: string;
+  /** Plain label for compact card rows (avoids sort controls in the label slot). */
+  mobileLabel?: ReactNode;
+  /** Render below the detail list, full width — e.g. row actions. */
+  mobileFooter?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -84,6 +88,8 @@ export function DataTable<T>({
       );
     }
     if (empty) return <>{emptyState}</>;
+    const detailColumns = columns.slice(1).filter((col) => !col.mobileFooter);
+    const footerColumns = columns.slice(1).filter((col) => col.mobileFooter);
     return (
       <ul className="divide-y divide-[color:var(--border-primary)]">
         {data!.map((row, i) => (
@@ -100,12 +106,12 @@ export function DataTable<T>({
             )}
           >
             {columns[0] && <div>{columns[0].cell(row)}</div>}
-            {columns.length > 1 && (
+            {detailColumns.length > 0 && (
               <dl className="mt-3 space-y-1.5">
-                {columns.slice(1).map((col, c) => (
+                {detailColumns.map((col, c) => (
                   <div key={c} className="flex items-start justify-between gap-3">
-                    <dt className="pt-0.5 text-xs font-medium text-[color:var(--text-tertiary)]">
-                      {col.header}
+                    <dt className="shrink-0 pt-0.5 text-xs font-medium text-[color:var(--text-tertiary)]">
+                      {col.mobileLabel ?? col.header}
                     </dt>
                     <dd className="min-w-0 text-right text-sm text-[color:var(--text-secondary)]">
                       {col.cell(row)}
@@ -114,6 +120,17 @@ export function DataTable<T>({
                 ))}
               </dl>
             )}
+            {footerColumns.map((col, c) => (
+              <div
+                key={c}
+                className={cn(
+                  "flex justify-end",
+                  detailColumns.length > 0 || columns[0] ? "mt-3 border-t border-[color:var(--border-primary)] pt-3" : "",
+                )}
+              >
+                {col.cell(row)}
+              </div>
+            ))}
           </li>
         ))}
       </ul>
