@@ -120,6 +120,12 @@
  *           type: string
  *           enum: [EVERYONE, SUPERVISOR_BASED, TEAM_BASED, HR_ROOT_ONLY, SPECIFIC_TEAMS]
  *           example: HR_ROOT_ONLY
+ *         releaseDate:
+ *           type: string
+ *           format: date-time
+ *         deadline:
+ *           type: string
+ *           format: date-time
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -140,11 +146,19 @@
  *             - $ref: '#/components/schemas/SurveyReminderConfig'
  *     CreatePulseSurveyRequest:
  *       type: object
- *       required: [name, questions]
+ *       required: [name, questions, releaseDate, deadline]
  *       properties:
  *         name:
  *           type: string
  *           example: Q2 Wellbeing Check
+ *         releaseDate:
+ *           type: string
+ *           format: date-time
+ *           example: 2026-06-18T00:00:00.000Z
+ *         deadline:
+ *           type: string
+ *           format: date-time
+ *           example: 2026-06-19T00:00:00.000Z
  *         recurringType:
  *           type: string
  *           enum: [ONE_TIME, WEEKLY, BI_WEEKLY, MONTHLY, BI_MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL]
@@ -230,6 +244,14 @@
  *         name:
  *           type: string
  *           example: Q2 Wellbeing Check
+ *         releaseDate:
+ *           type: string
+ *           format: date-time
+ *           example: 2026-06-18T00:00:00.000Z
+ *         deadline:
+ *           type: string
+ *           format: date-time
+ *           example: 2026-06-19T00:00:00.000Z
  *         recurringType:
  *           type: string
  *           enum: [ONE_TIME, WEEKLY, BI_WEEKLY, MONTHLY, BI_MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL]
@@ -478,6 +500,12 @@
  *         visibility:
  *           type: string
  *           enum: [EVERYONE, SUPERVISOR_BASED, TEAM_BASED, HR_ROOT_ONLY, SPECIFIC_TEAMS]
+ *         releaseDate:
+ *           type: string
+ *           format: date-time
+ *         deadline:
+ *           type: string
+ *           format: date-time
  *         occurrenceCount:
  *           type: integer
  *         createdAt:
@@ -709,5 +737,86 @@
  *         description: Survey not found
  *       409:
  *         description: Conflict. Cannot delete survey after it has been activated.
+ *
+ * /api/v1/pulse/surveys/{id}/activate:
+ *   patch:
+ *     tags: [Pulse Surveys]
+ *     summary: Activate a pulse survey
+ *     description: |
+ *       **HR role only.** Activates a draft pulse survey, starting its first scheduled occurrence
+ *       and snapshotting the target audience based on audienceType and audienceConfigs.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the pulse survey
+ *     responses:
+ *       200:
+ *         description: Survey activated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Pulse survey activated successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/PulseSurveyDetail'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User is not HR role
+ *       404:
+ *         description: Survey not found
+ *       409:
+ *         description: Conflict. Survey is already active, or survey has already been activated before.
+ *
+ * /api/v1/pulse/surveys/{id}/deactivate:
+ *   patch:
+ *     tags: [Pulse Surveys]
+ *     summary: Deactivate a pulse survey
+ *     description: |
+ *       **HR role only.** Deactivates an active pulse survey and closes its open occurrence.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the pulse survey
+ *     responses:
+ *       200:
+ *         description: Survey deactivated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Pulse survey deactivated successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/PulseSurveyDetail'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User is not HR role
+ *       404:
+ *         description: Survey not found
+ *       409:
+ *         description: Conflict. Survey is already inactive.
  */
 
