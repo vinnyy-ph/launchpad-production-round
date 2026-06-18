@@ -14,6 +14,7 @@ export type NotificationType =
 export interface Notification {
   id: string;
   type: NotificationType;
+  recipientEmployeeId: string;
   subject: string;
   body: string;
   linkUrl: string | null;

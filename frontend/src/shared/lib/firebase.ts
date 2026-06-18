@@ -1,5 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 
 // Public Firebase web config (see frontend/.env.example).
 const firebaseConfig = {
@@ -11,6 +11,18 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+let authInstance: Auth | null = null;
+
+// Lazily initialize Firebase on the client. Must NOT run during SSR/prerender:
+// there are no Firebase env vars at build time, so getAuth() throws
+// auth/invalid-api-key. This module is only ever reached via dynamic import()
+// from the auth service/store, both of which run client-side at runtime.
+export function getFirebaseAuth(): Auth {
+  if (!authInstance) {
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    authInstance = getAuth(app);
+  }
+  return authInstance;
+}
+
 export const googleProvider = new GoogleAuthProvider();

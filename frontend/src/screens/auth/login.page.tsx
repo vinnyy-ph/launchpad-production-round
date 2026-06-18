@@ -6,6 +6,30 @@ import { signInWithGoogle } from "@/modules/auth/services/auth.service";
 import { mapSignInError } from "@/modules/auth/services/auth-errors";
 import "./login.css";
 
+/** The poster thesis — the one gradient moment, carrying the product's spine. */
+function PosterThesis({ size }: { size: "band" | "full" }) {
+  return (
+    <div className="max-w-[440px]">
+      <p
+        className="jia-eyebrow"
+        style={{ color: "rgba(255,255,255,0.82)" }}
+      >
+        Onboarding · Performance · Offboarding
+      </p>
+      <h2
+        className={
+          size === "full"
+            ? "sw-thesis mt-4 text-[44px] leading-[1.04] lg:text-[60px]"
+            : "sw-thesis mt-2 text-[28px] leading-[1.08]"
+        }
+      >
+        Your people, in motion.{" "}
+        <span aria-hidden="true" className="sw-thesis__mark">✦</span>
+      </h2>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const loading = status === "loading";
@@ -21,19 +45,17 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen md:grid md:grid-cols-2">
+    <main className="min-h-screen md:grid md:grid-cols-[minmax(360px,40%)_1fr]">
       {/* Mobile gradient band (hidden on desktop) */}
-      <div className="sw-poster flex h-[150px] items-end p-6 md:hidden">
-        <p className="max-w-[230px] text-lg font-bold leading-tight tracking-[-0.02em] text-white">
-          Where your people and performance live in one place.
-        </p>
+      <div className="sw-poster flex min-h-[220px] items-end p-6 md:hidden">
+        <PosterThesis size="band" />
       </div>
 
-      {/* Form pane */}
+      {/* Form rail */}
       <div className="flex items-center justify-center bg-white px-6 py-12 md:p-16">
         <div className="flex w-full max-w-[380px] flex-col">
           <SwiftWorkLogo />
-          <h1 className="mt-10 text-[28px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-4xl">
+          <h1 className="mt-10 text-[30px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-4xl">
             Welcome back
           </h1>
           <p className="mt-3 text-base leading-relaxed text-[color:var(--text-secondary)]">
@@ -57,11 +79,9 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Desktop poster (hidden on mobile) */}
+      {/* Desktop poster (hidden on mobile) — dominant gradient canvas */}
       <div className="sw-poster hidden items-end p-14 md:flex md:order-last">
-        <p className="max-w-[380px] text-3xl font-bold leading-snug tracking-[-0.02em] text-white">
-          Where your people and performance live in one place.
-        </p>
+        <PosterThesis size="full" />
       </div>
     </main>
   );

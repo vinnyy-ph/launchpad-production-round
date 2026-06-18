@@ -1,7 +1,6 @@
 /**
  * @jest-environment node
  */
-jest.mock("@/shared/lib/firebase", () => ({ auth: { currentUser: null } }));
 
 import { apiFetch } from "./api-client";
 
