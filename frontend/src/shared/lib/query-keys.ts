@@ -19,4 +19,8 @@ export const queryKeys = {
       status ? (["evaluations", "list", status] as const) : (["evaluations", "list"] as const),
     reviewees: ["evaluations", "reviewees"] as const,
   },
+  surveys: {
+    all: ["surveys"] as const,
+    list: () => ["surveys", "list"] as const,
+  },
 } as const;

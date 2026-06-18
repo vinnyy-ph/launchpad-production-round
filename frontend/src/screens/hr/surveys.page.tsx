@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ClipboardList,
   Plus,
@@ -52,7 +52,8 @@ import {
   type ComboboxOption,
 } from "@/shared/ui";
 import { EmptyState, DataTable, FormField, type Column } from "@/shared/ui/patterns";
-import { readCollection, writeCollection } from "@/shared/mock/db";
+import { readCollection } from "@/shared/mock/db";
+import { useSurveys } from "@/modules/performance/surveys";
 import type {
   Survey,
   SurveyQuestion,
@@ -187,61 +188,6 @@ function defaultQuestion(): SurveyQuestion {
 
 function audienceLabel(type: AudienceType): string {
   return AUDIENCE_TYPE_LABEL[type];
-}
-
-// ─── Hooks ───────────────────────────────────────────────────────────────────
-
-function useSurveys() {
-  const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = readCollection<Survey>("surveys");
-      setSurveys([...data].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-    } catch {
-      setError("Could not load surveys.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const save = useCallback((survey: Survey) => {
-    const all = readCollection<Survey>("surveys");
-    const idx = all.findIndex((s) => s.id === survey.id);
-    const next = idx >= 0 ? all.map((s, i) => (i === idx ? survey : s)) : [...all, survey];
-    writeCollection("surveys", next);
-    setSurveys([...next].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-  }, []);
-
-  const remove = useCallback((id: string) => {
-    const next = readCollection<Survey>("surveys").filter((s) => s.id !== id);
-    writeCollection("surveys", next);
-    setSurveys([...next].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-  }, []);
-
-  const activate = useCallback((id: string) => {
-    const all = readCollection<Survey>("surveys").map((s) =>
-      s.id === id ? { ...s, status: "ACTIVE" as SurveyStatus } : s,
-    );
-    writeCollection("surveys", all);
-    setSurveys([...all].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-  }, []);
-
-  const deactivate = useCallback((id: string) => {
-    const all = readCollection<Survey>("surveys").map((s) =>
-      s.id === id ? { ...s, status: "CLOSED" as SurveyStatus } : s,
-    );
-    writeCollection("surveys", all);
-    setSurveys([...all].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-  }, []);
-
-  return { surveys, loading, error, reload: load, save, remove, activate, deactivate };
 }
 
 // ─── Audience preview ─────────────────────────────────────────────────────────
