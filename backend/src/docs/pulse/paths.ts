@@ -1023,4 +1023,73 @@
  *         description: Missing or invalid bearer token
  *       403:
  *         description: User has no linked employee record
+ *
+ * /api/v1/pulse/occurrences/{occurrenceId}/respond:
+ *   post:
+ *     tags: [Pulse Surveys]
+ *     summary: Submit response answers for a pulse survey occurrence
+ *     description: |
+ *       **Any authenticated employee.** Submits answers to questions in a specific survey occurrence for the signed-in employee. If the survey is anonymous, the link to the employee record is omitted in the response storage, but completion is still marked to prevent double submission and trace reminder status.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: occurrenceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the survey occurrence
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [answers]
+ *             properties:
+ *               answers:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [questionId]
+ *                   properties:
+ *                     questionId:
+ *                       type: string
+ *                       example: 7a1b2c3d-0000-0000-0000-000000000001
+ *                     answerText:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "I am feeling great."
+ *                     answerData:
+ *                       type: object
+ *                       nullable: true
+ *                       example: null
+ *     responses:
+ *       201:
+ *         description: Response submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Response submitted
+ *                 data:
+ *                   type: object
+ *                   nullable: true
+ *                   example: null
+ *       400:
+ *         description: Bad request. Invalid input parameters (e.g. missing answers or invalid answer format).
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Forbidden. Employee is not in the survey audience or creator has no employee record.
+ *       404:
+ *         description: Occurrence not found
+ *       409:
+ *         description: Conflict. Occurrence is closed, deadline passed, or employee already responded.
  */
