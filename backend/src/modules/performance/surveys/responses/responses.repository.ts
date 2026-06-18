@@ -26,7 +26,19 @@ export class ResponsesRepository implements ResponsesRepositoryPort {
   async findOccurrence(occurrenceId: string): Promise<OccurrenceForResponse | null> {
     const occurrence = await prisma.surveyOccurrence.findUnique({
       where: { id: occurrenceId },
-      select: { id: true, isClosed: true, deadline: true, survey: { select: { isAnonymous: true } } },
+      select: {
+        id: true,
+        isClosed: true,
+        deadline: true,
+        survey: {
+          select: {
+            isAnonymous: true,
+            questions: {
+              select: { id: true, type: true, isRequired: true, options: true, scaleMin: true, scaleMax: true },
+            },
+          },
+        },
+      },
     });
     if (!occurrence) return null;
     return {
@@ -34,6 +46,7 @@ export class ResponsesRepository implements ResponsesRepositoryPort {
       isClosed: occurrence.isClosed,
       deadline: occurrence.deadline,
       isAnonymous: occurrence.survey.isAnonymous,
+      questions: occurrence.survey.questions,
     };
   }
 

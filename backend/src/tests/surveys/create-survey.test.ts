@@ -169,6 +169,57 @@ describe("POST /api/v1/pulse/surveys", () => {
     expect(response.body.errors[0].message).toMatch(/supervisorId or teamId/);
   });
 
+  it("returns 400 when audienceType=SUPERVISOR_BASED but no audienceConfigs are provided", async () => {
+    const response = await request(app)
+      .post(URL)
+      .send({ ...VALID_BODY, audienceType: "SUPERVISOR_BASED" })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toMatch(/at least one supervisorId/);
+    expect(surveyTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when audienceType=SUPERVISOR_BASED but audienceConfigs is empty", async () => {
+    const response = await request(app)
+      .post(URL)
+      .send({ ...VALID_BODY, audienceType: "SUPERVISOR_BASED", audienceConfigs: [] })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toMatch(/at least one supervisorId/);
+  });
+
+  it("returns 400 when audienceType=SPECIFIC_TEAMS but no team configs are provided", async () => {
+    const response = await request(app)
+      .post(URL)
+      .send({ ...VALID_BODY, audienceType: "SPECIFIC_TEAMS", audienceConfigs: [{ supervisorId: "sup-1" }] })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toMatch(/at least one teamId/);
+  });
+
+  it("creates a SUPERVISOR_BASED survey when a supervisor is provided", async () => {
+    const hr = buildHrEmployee();
+    const survey = buildSurveyRecord({ createdBy: hr.id });
+
+    employeeFindUniqueMock.mockResolvedValue(hr);
+    surveyTransactionMock.mockImplementation(async (fn: Function) => fn({
+      pulseSurvey: {
+        create: jest.fn().mockResolvedValue({ id: survey.id }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue(survey),
+      },
+      surveyQuestion: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      surveyAudienceConfig: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      surveyReminderConfig: { create: jest.fn() },
+    }));
+
+    const response = await request(app)
+      .post(URL)
+      .send({ ...VALID_BODY, audienceType: "SUPERVISOR_BASED", audienceConfigs: [{ supervisorId: "sup-1" }] })
+      .expect(201);
+
+    expect(response.body.success).toBe(true);
+  });
+
   it("returns 400 when isAnonymous is not a boolean", async () => {
     const response = await request(app)
       .post(URL)

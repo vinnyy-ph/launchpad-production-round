@@ -4,3 +4,11 @@ export type { SurveyResponseDto, SurveyDetailResponseDto, SurveyQuestionResponse
 export type { ListSurveysQuery } from "./list-surveys-query.dto";
 export type { SurveyListItemDto } from "./survey-list-item.dto";
 export { ListSurveysResponseDto } from "./list-surveys-response.dto";
+export type {
+  AudienceSupervisorOptionDto,
+  AudienceTeamOptionDto,
+  AudienceOptionsResponseDto,
+  AudiencePreviewInput,
+  AudiencePreviewMemberDto,
+  AudiencePreviewResponseDto,
+} from "./audience.dto";

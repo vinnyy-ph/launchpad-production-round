@@ -101,6 +101,19 @@ describe("PATCH /api/v1/pulse/surveys/:surveyId", () => {
     }
   });
 
+  it("returns 400 when changing a draft's audienceType to SUPERVISOR_BASED without configs", async () => {
+    const survey = buildSurveyDetail({ occurrenceCount: 0 }); // audienceType EVERYONE, no configs
+    surveyFindFirstMock.mockResolvedValueOnce(survey);
+
+    const response = await request(app)
+      .patch(`${URL}/${survey.id}`)
+      .send({ audienceType: "SUPERVISOR_BASED" })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toMatch(/at least one supervisorId/);
+    expect(surveyTransactionMock).not.toHaveBeenCalled();
+  });
+
   // ─── Success Path ──────────────────────────────────────────────────────────
 
   it("updates name successfully on an active survey", async () => {

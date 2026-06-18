@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   ClipboardList,
   CheckCircle2,
@@ -19,11 +19,6 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-  Textarea,
-  RadioGroup,
-  RadioGroupItem,
-  Checkbox,
-  Slider,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -34,24 +29,24 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
-import { readCollection, writeCollection } from "@/shared/mock/db";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import type {
-  Survey,
-  SurveyResponse,
-  SurveyQuestion,
-  DemoEmployee,
-  AudienceType,
-} from "@/shared/mock/types";
 import { useEvaluations } from "@/modules/performance/evaluations/hooks/use-evaluations";
 import { useAcknowledgeEvaluation } from "@/modules/performance/evaluations/hooks/use-acknowledge-evaluation";
 import type { Evaluation as PerfEvaluation } from "@/modules/performance/evaluations/types/evaluations.types";
+import { useMySurveys } from "@/modules/performance/surveys/hooks/use-my-surveys";
+import { useSubmitResponse } from "@/modules/performance/surveys/hooks/use-submit-response";
+import {
+  QuestionField,
+  type AnswerValue,
+} from "@/modules/performance/surveys/components/questions/question-field";
+import { SurveyCard } from "@/modules/performance/surveys/components/survey-card";
+import type {
+  PendingSurvey,
+  AnswerInput,
+  Question,
+} from "@/modules/performance/surveys/types/surveys.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function uid(): string {
-  return Math.random().toString(36).slice(2, 10);
-}
 
 const GRADE_LABELS: Record<number, string> = {
   1: "Unsatisfactory",
@@ -72,84 +67,28 @@ function isPendingAck(ev: PerfEvaluation): boolean {
   return ev.isSent && !ack?.acknowledgedAt && !ack?.isDeemedAck;
 }
 
-// ─── Audience filtering ───────────────────────────────────────────────────────
-
-function employeeSeessurvey(survey: Survey, employee: DemoEmployee): boolean {
-  const audience: AudienceType = survey.audienceType ?? "EVERYONE";
-
-  if (audience === "EVERYONE") return true;
-
-  if (audience === "SUPERVISOR_BASED") {
-    const targetId = survey.audienceSupervisorId;
-    if (!targetId) return false;
-    // Include if this employee IS the supervisor target, or if this employee reports to that supervisor
-    return (
-      employee.employeeId === targetId ||
-      employee.supervisorId === targetId
-    );
-  }
-
-  if (audience === "SPECIFIC_TEAMS") {
-    const teamIds = survey.audienceTeamIds ?? [];
-    return employee.teamId !== null && teamIds.includes(employee.teamId);
-  }
-
-  return false;
-}
-
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-
-interface ActiveSurveyEntry {
-  survey: Survey;
-  alreadyAnswered: boolean;
-}
-
-function useActiveSurveys(employeeId: string) {
-  const [entries, setEntries] = useState<ActiveSurveyEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      const employees = readCollection<DemoEmployee>("employees");
-      const employee = employees.find(
-        (e) => e.employeeId === employeeId && e.employeeStatus === "ACTIVE",
-      );
-
-      if (!employee) {
-        setEntries([]);
-        return;
-      }
-
-      const surveys = readCollection<Survey>("surveys");
-      const responses = readCollection<SurveyResponse>("surveyResponses");
-
-      const active = surveys.filter(
-        (s) => s.status === "ACTIVE" && employeeSeessurvey(s, employee),
-      );
-
-      const result: ActiveSurveyEntry[] = active.map((s) => ({
-        survey: s,
-        alreadyAnswered: responses.some(
-          (r) => r.surveyId === s.id && r.employeeId === employeeId,
-        ),
-      }));
-
-      setEntries(result);
-    } catch {
-      setError("Could not load surveys.");
-    } finally {
-      setLoading(false);
+/** Build the wire payload for one question from its in-form value. Returns null when an
+ *  optional question was left blank (so it is simply omitted). */
+function toAnswerInput(question: Question, value: AnswerValue): AnswerInput | null {
+  switch (question.type) {
+    case "SHORT_ANSWER":
+    case "LONG_ANSWER": {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text === "" ? null : { questionId: question.id, answerText: text };
     }
-  }, [employeeId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  return { entries, loading, error, reload: load };
+    case "LINEAR_SCALE":
+      return typeof value === "number" ? { questionId: question.id, answerData: value } : null;
+    case "MULTIPLE_CHOICE":
+      return typeof value === "string" && value !== ""
+        ? { questionId: question.id, answerData: value }
+        : null;
+    case "CHECKBOX":
+      return Array.isArray(value) && value.length > 0
+        ? { questionId: question.id, answerData: value }
+        : null;
+    default:
+      return null;
+  }
 }
 
 function useMyEvaluations(employeeId: string) {
@@ -162,15 +101,12 @@ function useMyEvaluations(employeeId: string) {
     [data, employeeId],
   );
 
-  const acknowledge = useCallback(
-    (evaluationId: string) => {
-      ackMutation.mutate(evaluationId, {
-        onSuccess: () => toast.success("Evaluation acknowledged."),
-        onError: () => toast.error("Could not acknowledge — please try again."),
-      });
-    },
-    [ackMutation],
-  );
+  const acknowledge = (evaluationId: string) => {
+    ackMutation.mutate(evaluationId, {
+      onSuccess: () => toast.success("Evaluation acknowledged."),
+      onError: () => toast.error("Could not acknowledge — please try again."),
+    });
+  };
 
   return {
     evals,
@@ -183,56 +119,50 @@ function useMyEvaluations(employeeId: string) {
 
 // ─── Survey taker ─────────────────────────────────────────────────────────────
 
-interface SurveyTakerProps {
-  survey: Survey;
-  employeeId: string;
+function SurveyTaker({
+  survey,
+  onSubmitted,
+  onCancel,
+}: {
+  survey: PendingSurvey;
   onSubmitted: () => void;
-  onCancel?: () => void;
-}
-
-function SurveyTaker({ survey, employeeId, onSubmitted, onCancel }: SurveyTakerProps) {
-  const [answers, setAnswers] = useState<Record<string, string | string[] | number>>({});
+  onCancel: () => void;
+}) {
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const submit = useSubmitResponse();
 
-  const setAnswer = (qid: string, value: string | string[] | number) =>
+  const setAnswer = (qid: string, value: AnswerValue) =>
     setAnswers((prev) => ({ ...prev, [qid]: value }));
-
-  const toggleMulti = (qid: string, option: string, checked: boolean) => {
-    setAnswers((prev) => {
-      const current = (prev[qid] as string[] | undefined) ?? [];
-      return {
-        ...prev,
-        [qid]: checked ? [...current, option] : current.filter((o) => o !== option),
-      };
-    });
-  };
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    survey.questions.forEach((q) => {
-      if (!q.required) return;
-      const ans = answers[q.id];
-      if (ans === undefined || ans === "" || (Array.isArray(ans) && ans.length === 0)) {
-        errs[q.id] = "Please answer this question.";
-      }
-    });
+    for (const q of survey.questions) {
+      if (!q.isRequired) continue;
+      const a = answers[q.id];
+      const empty = a === undefined || a === "" || (Array.isArray(a) && a.length === 0);
+      if (empty) errs[q.id] = "Please answer this question.";
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = () => {
     if (!validate()) return;
-    const responses = readCollection<SurveyResponse>("surveyResponses");
-    const newResponse: SurveyResponse = {
-      id: uid(),
-      surveyId: survey.id,
-      employeeId,
-      answers,
-      submittedAt: new Date().toISOString(),
-    };
-    writeCollection("surveyResponses", [...responses, newResponse]);
-    toast.success("Response submitted — thank you!");
-    onSubmitted();
+    const payload = survey.questions
+      .map((q) => toAnswerInput(q, answers[q.id]))
+      .filter((a): a is AnswerInput => a !== null);
+
+    submit.mutate(
+      { occurrenceId: survey.occurrenceId, answers: payload },
+      {
+        onSuccess: () => {
+          toast.success("Response submitted — thank you.");
+          onSubmitted();
+        },
+        onError: (e) => toast.error(e.message),
+      },
+    );
   };
 
   return (
@@ -242,187 +172,44 @@ function SurveyTaker({ survey, employeeId, onSubmitted, onCancel }: SurveyTakerP
         style={{ boxShadow: "var(--shadow-xs)" }}
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-[color:var(--text-primary)]">{survey.title}</h2>
-            {survey.description && (
-              <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">{survey.description}</p>
-            )}
-            <div className="mt-2 flex flex-wrap gap-2">
-              {survey.audience && <Badge variant="neutral">{survey.audience}</Badge>}
-              {survey.anonymous && <Badge variant="success">Anonymous</Badge>}
-              {survey.deadline && (
-                <Badge variant="neutral">
-                  Due {new Date(survey.deadline).toLocaleDateString()}
-                </Badge>
-              )}
-            </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-[color:var(--text-primary)]">
+              {survey.surveyName}
+            </h2>
+            <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">
+              {survey.questions.length}{" "}
+              {survey.questions.length === 1 ? "question" : "questions"} · Due{" "}
+              {new Date(survey.deadline).toLocaleDateString()}
+            </p>
           </div>
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="text-xs text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
-            >
-              Cancel
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submit.isPending}
+            className="text-xs text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
+          >
+            Cancel
+          </button>
         </div>
       </div>
 
       {survey.questions.map((q, idx) => (
-        <QuestionInput
+        <QuestionField
           key={q.id}
-          q={q}
-          idx={idx}
-          answer={answers[q.id]}
+          question={q}
+          index={idx}
+          value={answers[q.id]}
           error={errors[q.id]}
-          onChange={setAnswer}
-          onToggleMulti={toggleMulti}
+          onChange={(v) => setAnswer(q.id, v)}
+          disabled={submit.isPending}
         />
       ))}
 
       <div className="flex justify-end">
-        <Button onClick={handleSubmit} size="lg">
-          Submit response
+        <Button onClick={handleSubmit} size="lg" disabled={submit.isPending}>
+          {submit.isPending ? "Submitting…" : "Submit response"}
         </Button>
       </div>
-    </div>
-  );
-}
-
-// ─── Question input ───────────────────────────────────────────────────────────
-
-interface QuestionInputProps {
-  q: SurveyQuestion;
-  idx: number;
-  answer: string | string[] | number | undefined;
-  error?: string;
-  onChange: (qid: string, value: string | string[] | number) => void;
-  onToggleMulti: (qid: string, option: string, checked: boolean) => void;
-}
-
-function QuestionInput({ q, idx, answer, error, onChange, onToggleMulti }: QuestionInputProps) {
-  return (
-    <div
-      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-      style={{ boxShadow: "var(--shadow-xs)" }}
-    >
-      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-        Q{idx + 1}{q.required && <span className="ml-1 text-[color:var(--color-error-500)]">*</span>}
-      </p>
-      <p className="mb-4 text-sm font-medium text-[color:var(--text-primary)]">{q.prompt}</p>
-
-      {q.type === "RATING" && (() => {
-        const min = q.scaleMin ?? 1;
-        const max = q.scaleMax ?? 5;
-        const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-        const currentVal = typeof answer === "number" ? answer : undefined;
-        return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Slider
-                min={min}
-                max={max}
-                step={1}
-                value={[currentVal ?? min]}
-                onValueChange={([v]) => onChange(q.id, v)}
-                className="flex-1"
-              />
-              <span className="w-6 text-center text-base font-bold text-[color:var(--text-primary)]">
-                {currentVal !== undefined ? currentVal : "—"}
-              </span>
-            </div>
-            <div className="flex justify-between text-[11px] text-[color:var(--text-quaternary)]">
-              <span>{q.scaleMinLabel ?? String(min)}</span>
-              <span>{q.scaleMaxLabel ?? String(max)}</span>
-            </div>
-            <div className="flex gap-1 pt-1">
-              {steps.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => onChange(q.id, v)}
-                  aria-label={`Rate ${v}`}
-                  className={[
-                    "flex-1 rounded-lg border py-2 text-sm font-bold transition",
-                    answer === v
-                      ? "border-transparent bg-[color:var(--gray-neutral-900)] text-white"
-                      : "border-[color:var(--border-primary)] hover:bg-[color:var(--bg-secondary)]",
-                  ].join(" ")}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
-      {q.type === "SINGLE" && (
-        <RadioGroup
-          value={typeof answer === "string" ? answer : ""}
-          onValueChange={(v) => onChange(q.id, v)}
-          className="space-y-2"
-        >
-          {(q.options ?? []).map((opt) => (
-            <label
-              key={opt}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-[color:var(--border-primary)] px-4 py-2.5 hover:bg-[color:var(--bg-secondary)]"
-            >
-              <RadioGroupItem value={opt} id={`${q.id}-${opt}`} aria-label={opt} />
-              <span className="text-sm">{opt}</span>
-            </label>
-          ))}
-        </RadioGroup>
-      )}
-
-      {q.type === "MULTI" && (
-        <div className="space-y-2">
-          {(q.options ?? []).map((opt) => {
-            const selected = Array.isArray(answer) ? answer.includes(opt) : false;
-            return (
-              <label
-                key={opt}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border border-[color:var(--border-primary)] px-4 py-2.5 hover:bg-[color:var(--bg-secondary)]"
-              >
-                <Checkbox
-                  checked={selected}
-                  onCheckedChange={(v) => onToggleMulti(q.id, opt, !!v)}
-                  id={`${q.id}-${opt}`}
-                  aria-label={opt}
-                />
-                <span className="text-sm">{opt}</span>
-              </label>
-            );
-          })}
-        </div>
-      )}
-
-      {q.type === "TEXT" &&
-        (q.multiline ? (
-          <Textarea
-            placeholder={q.required ? "Your answer…" : "Share your thoughts… (optional)"}
-            value={typeof answer === "string" ? answer : ""}
-            onChange={(e) => onChange(q.id, e.target.value)}
-            rows={4}
-            maxLength={q.maxChars}
-          />
-        ) : (
-          <input
-            type="text"
-            placeholder={q.required ? "Your answer…" : "Share your thoughts… (optional)"}
-            value={typeof answer === "string" ? answer : ""}
-            onChange={(e) => onChange(q.id, e.target.value)}
-            maxLength={q.maxChars}
-            className="w-full rounded-lg border border-[color:var(--border-primary)] bg-white px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-quaternary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--border-focus)]"
-          />
-        ))}
-
-      {error && (
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-[color:var(--color-error-500)]">
-          <AlertCircle size={12} /> {error}
-        </p>
-      )}
     </div>
   );
 }
@@ -430,32 +217,25 @@ function QuestionInput({ q, idx, answer, error, onChange, onToggleMulti }: Quest
 // ─── Survey list (Pulse surveys tab) ─────────────────────────────────────────
 
 interface SurveysTabProps {
-  entries: ActiveSurveyEntry[];
-  employeeId: string;
+  pending: PendingSurvey[];
   loading: boolean;
   error: string | null;
   onReload: () => void;
-  initialSurveyId?: string | null;
+  initialOccurrenceId?: string | null;
 }
 
-function SurveysTab({ entries, employeeId, loading, error, onReload, initialSurveyId }: SurveysTabProps) {
+function SurveysTab({ pending, loading, error, onReload, initialOccurrenceId }: SurveysTabProps) {
   const [takingId, setTakingId] = useState<string | null>(null);
-  const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set());
 
-  // Auto-open the taker once when arriving from a "new pulse" notification.
+  // Auto-open the taker once when arriving from a "new pulse" notification/banner.
   const deepLinkApplied = useRef(false);
   useEffect(() => {
     if (deepLinkApplied.current) return;
-    if (initialSurveyId && entries.some((e) => e.survey.id === initialSurveyId)) {
-      setTakingId(initialSurveyId);
+    if (initialOccurrenceId && pending.some((p) => p.occurrenceId === initialOccurrenceId)) {
+      setTakingId(initialOccurrenceId);
       deepLinkApplied.current = true;
     }
-  }, [initialSurveyId, entries]);
-
-  const handleSubmitted = (surveyId: string) => {
-    setSubmittedIds((prev) => new Set(prev).add(surveyId));
-    setTakingId(null);
-  };
+  }, [initialOccurrenceId, pending]);
 
   if (loading) {
     return (
@@ -488,28 +268,26 @@ function SurveysTab({ entries, employeeId, loading, error, onReload, initialSurv
     );
   }
 
-  if (entries.length === 0) {
+  if (pending.length === 0) {
     return (
       <div className="pt-4">
         <EmptyState
           icon={ClipboardList}
-          title="No active surveys"
-          body="There are no pulse surveys open for you right now. Check back later."
+          title="You're all caught up"
+          body="No pulse surveys are open for you right now. Check back later."
         />
       </div>
     );
   }
 
-  // If currently taking a survey, show only that survey taker
   if (takingId) {
-    const entry = entries.find((e) => e.survey.id === takingId);
-    if (entry) {
+    const survey = pending.find((p) => p.occurrenceId === takingId);
+    if (survey) {
       return (
         <div className="pt-4">
           <SurveyTaker
-            survey={entry.survey}
-            employeeId={employeeId}
-            onSubmitted={() => handleSubmitted(takingId)}
+            survey={survey}
+            onSubmitted={() => setTakingId(null)}
             onCancel={() => setTakingId(null)}
           />
         </div>
@@ -519,50 +297,9 @@ function SurveysTab({ entries, employeeId, loading, error, onReload, initialSurv
 
   return (
     <div className="space-y-3 pt-4">
-      {entries.map(({ survey, alreadyAnswered }) => {
-        const isDone = alreadyAnswered || submittedIds.has(survey.id);
-
-        return (
-          <div
-            key={survey.id}
-            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-semibold text-[color:var(--text-primary)]">
-                    {survey.title}
-                  </h3>
-                  {survey.anonymous && <Badge variant="success">Anonymous</Badge>}
-                  {isDone && <Badge variant="success">Submitted</Badge>}
-                </div>
-                {survey.description && (
-                  <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">
-                    {survey.description}
-                  </p>
-                )}
-                {survey.deadline && (
-                  <p className="mt-1 text-xs text-[color:var(--text-quaternary)]">
-                    Due {new Date(survey.deadline).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-
-              {isDone ? (
-                <div className="flex items-center gap-1.5 text-sm text-[color:var(--text-tertiary)]">
-                  <CheckCircle2 size={15} className="text-green-500" />
-                  Response submitted
-                </div>
-              ) : (
-                <Button size="sm" onClick={() => setTakingId(survey.id)}>
-                  Take survey
-                </Button>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {pending.map((p) => (
+        <SurveyCard key={p.occurrenceId} survey={p} onTake={() => setTakingId(p.occurrenceId)} />
+      ))}
     </div>
   );
 }
@@ -845,8 +582,8 @@ export default function EmployeeSurveysPage() {
   const { appUser } = useAuth();
   const employeeId = appUser?.employeeId ?? "e-emp";
 
-  const { entries, loading: surveyLoading, error: surveyError, reload: reloadSurveys } =
-    useActiveSurveys(employeeId);
+  const mySurveys = useMySurveys();
+  const pending = mySurveys.data ?? [];
 
   const {
     evals,
@@ -858,21 +595,20 @@ export default function EmployeeSurveysPage() {
 
   // Notification click-to-land: open the exact tab/item the link points at.
   const [tab, setTab] = useState<"survey" | "acknowledgements">("survey");
-  const [deepLink, setDeepLink] = useState<{ survey: string | null; eval: string | null }>({
-    survey: null,
+  const [deepLink, setDeepLink] = useState<{ pulse: string | null; eval: string | null }>({
+    pulse: null,
     eval: null,
   });
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const ev = p.get("eval");
-    const sv = p.get("survey");
+    const pulse = p.get("pulse");
     if (p.get("tab") === "acknowledgements" || ev) setTab("acknowledgements");
-    setDeepLink({ survey: sv, eval: ev });
+    setDeepLink({ pulse, eval: ev });
   }, []);
 
   const pendingAcks = evals.filter(isPendingAck).length;
-
-  const unansweredCount = entries.filter((e) => !e.alreadyAnswered).length;
+  const unansweredCount = pending.length;
 
   return (
     <div>
@@ -894,12 +630,11 @@ export default function EmployeeSurveysPage() {
 
         <TabsContent value="survey" className="mt-5">
           <SurveysTab
-            entries={entries}
-            employeeId={employeeId}
-            loading={surveyLoading}
-            error={surveyError}
-            onReload={reloadSurveys}
-            initialSurveyId={deepLink.survey}
+            pending={pending}
+            loading={mySurveys.isLoading}
+            error={mySurveys.isError ? (mySurveys.error?.message ?? "Could not load surveys.") : null}
+            onReload={() => void mySurveys.refetch()}
+            initialOccurrenceId={deepLink.pulse}
           />
         </TabsContent>
 

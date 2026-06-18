@@ -5,7 +5,13 @@ import {
   API_ERROR_MESSAGES,
   HTTP_STATUS_CODES,
 } from "../../../core/globals";
-import type { ListSurveysResponseDto, SurveyDetailResponseDto, SurveyResponseDto } from "./dto";
+import type {
+  AudienceOptionsResponseDto,
+  AudiencePreviewResponseDto,
+  ListSurveysResponseDto,
+  SurveyDetailResponseDto,
+  SurveyResponseDto,
+} from "./dto";
 import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
 import { SurveysService } from "./surveys.service";
 import { SurveysValidation } from "./surveys.validation";
@@ -345,6 +351,55 @@ export class SurveysController {
         }
       }
       next(error);
+    }
+  };
+
+  getAudienceOptions = async (
+    req: Request,
+    res: Response<ApiSuccessResponseDto<AudienceOptionsResponseDto> | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const result = await this.surveysService.getAudienceOptions();
+      return res.json(result);
+    } catch (error) {
+      return next(error);
+    }
+  };
+
+  previewAudience = async (
+    req: Request,
+    res: Response<ApiSuccessResponseDto<AudiencePreviewResponseDto> | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const input = this.surveysValidation.parseAudiencePreviewBody(req.body);
+      const result = await this.surveysService.previewAudience(input);
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof Error && this.isValidationError(error)) {
+        return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: API_ERROR_MESSAGES.VALIDATION_FAILED,
+          errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+          errors: [{ field: "", message: error.message, code: API_ERROR_CODES.VALIDATION_FAILED }],
+        });
+      }
+      return next(error);
     }
   };
 

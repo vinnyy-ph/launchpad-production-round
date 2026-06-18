@@ -17,6 +17,10 @@ jest.mock("../../core/database/prisma.service", () => ({
     surveyAudienceMember: {
       findMany: jest.fn(),
     },
+    // Read by the lazy occurrence scheduler invoked at the start of getPendingSurveys.
+    pulseSurvey: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   },
 }));
 

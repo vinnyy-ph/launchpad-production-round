@@ -1,4 +1,5 @@
 import type { SurveyResponseRow } from "../rules/response-firewall";
+import type { ValidatableQuestion } from "../rules/answer-validation";
 
 export interface AnswerInput {
   questionId: string;
@@ -24,6 +25,8 @@ export interface OccurrenceForResponse {
   isClosed: boolean;
   deadline: Date;
   isAnonymous: boolean;
+  /** The survey's questions, used to validate the submitted answers server-side. */
+  questions: ValidatableQuestion[];
 }
 
 /**
