@@ -41,7 +41,7 @@ function Poster({ variant }: { variant: "band" | "full" }) {
 
   const lede = (
     <div className="max-w-[460px]">
-      <p className="jia-eyebrow text-white/80">People operations, end to end</p>
+      <p className="jia-eyebrow text-white/80">Manage Jia</p>
       <h2
         className={
           full
@@ -49,17 +49,13 @@ function Poster({ variant }: { variant: "band" | "full" }) {
             : "sw-thesis mt-2 text-[26px] leading-[1.1]"
         }
       >
-        Every hire, review, and goodbye — handled with care.{" "}
+        From first day to last.{" "}
         <span aria-hidden="true" className="sw-thesis__mark">✦</span>
       </h2>
 
       {full && (
         <>
-          <p className="mt-5 max-w-[420px] text-[15px] leading-relaxed text-white/85">
-            Manage Jia keeps onboarding, performance, and offboarding in one calm
-            workspace — less paperwork, more people.
-          </p>
-          <ul className="mt-9 space-y-5">
+          <ul className="mt-10 space-y-5">
             {PILLARS.map(({ icon: Icon, title, body }) => (
               <li key={title} className="flex items-start gap-3.5">
                 <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-white/15 ring-1 ring-inset ring-white/25">
@@ -228,11 +224,8 @@ export default function LoginPage() {
         <div className="flex w-full max-w-[380px] flex-col">
           <ManageJiaLogo />
           <h1 className="mt-10 text-[30px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-4xl">
-            Welcome back
+            Sign in
           </h1>
-          <p className="mt-3 text-base leading-relaxed text-[color:var(--text-secondary)]">
-            Sign in with your work Google account to pick up where your team left off.
-          </p>
 
           {status === "error" && (
             <div className="sw-alert mt-8" role="alert">
