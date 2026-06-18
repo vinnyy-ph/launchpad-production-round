@@ -10,6 +10,7 @@ node_modules/
 
 # next.js
 /.next/
+/frontend/.next/
 /out/
 
 # production
@@ -32,6 +33,10 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.testing
+
+# claude
+.claude/
 
 # vercel
 .vercel
@@ -39,3 +44,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.claude/
+.superpowers/
+
+.cursor/
+
+CONTEXT.md
+/.playwright-mcp

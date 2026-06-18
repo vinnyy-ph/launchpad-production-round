@@ -1,0 +1,83 @@
+/// HR/People data for a user
+model Employee {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  companyEmail     String      @unique
+  firstName        String
+  lastName         String
+  middleName       String?
+  personalEmail    String?
+  birthday         DateTime?
+  jobTitle         String?
+  departmentId     String?
+  department       Department? @relation(fields: [departmentId], references: [id])
+
+  /// Self-referential supervisor tree
+  supervisorId  String?
+  supervisor    Employee?  @relation("SupervisorTree", fields: [supervisorId], references: [id])
+  directReports Employee[] @relation("SupervisorTree")
+
+  status    EmployeeStatus @default(ONBOARDING)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // ── Relations ──
+  address                    EmployeeAddress?
+  emergencyContact           EmployeeEmergencyContact?
+  teamMemberships            TeamMember[]
+  ledTeams                   Team[]                         @relation("TeamLeader")
+  editsPerformed             ActivityLog[]                  @relation("Editor")
+  editsReceived              ActivityLog[]                  @relation("Target")
+  onboardingRecord           OnboardingRecord?
+  bulkOnboardingJobs         BulkOnboardingJob[]
+  reviewedDocuments          OnboardingDocumentSubmission[]
+  offboardingRecord          OffboardingRecord?             @relation("OffboardingSubject")
+  offboardingsInitiated      OffboardingRecord[]            @relation("OffboardingInitiator")
+  clearanceSignatories       ClearanceSignatory[]
+  clearanceSignatures        ClearanceSignatureRequest[]
+  evaluationsGiven           PerformanceEvaluation[]        @relation("Reviewer")
+  evaluationsReceived        PerformanceEvaluation[]        @relation("Reviewee")
+  evaluationAcknowledgements EvaluationAcknowledgement[]
+  surveysCreated             PulseSurvey[]
+  surveyResponses            SurveyResponse[]
+  surveyCompletions          SurveyCompletion[]
+  surveyAudienceMemberships  SurveyAudienceMember[]
+  surveyAudienceTargets      SurveyAudienceConfig[]
+  notifications              Notification[]
+
+  @@map("employees")
+}
+
+/// Structured home address associated with one employee profile.
+model EmployeeAddress {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  address  String?
+  city     String?
+  province String?
+  country  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employee_addresses")
+}
+
+/// Emergency contact details associated with one employee profile.
+model EmployeeEmergencyContact {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  emergencyContactName   String?
+  emergencyContactNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employee_emergency_contacts")
+}

@@ -1,0 +1,14 @@
+model SurveyAnswer {
+  id         String         @id @default(uuid())
+  responseId String
+  response   SurveyResponse @relation(fields: [responseId], references: [id])
+  questionId String
+  question   SurveyQuestion @relation(fields: [questionId], references: [id])
+  answerText String? // for SHORT/LONG_ANSWER
+  answerData Json? // for LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("survey_answers")
+}

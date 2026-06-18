@@ -1,0 +1,14 @@
+model EvaluationAcknowledgement {
+  id             String                @id @default(uuid())
+  evaluationId   String                @unique
+  evaluation     PerformanceEvaluation @relation(fields: [evaluationId], references: [id])
+  employeeId     String
+  employee       Employee              @relation(fields: [employeeId], references: [id])
+  isDeemedAck    Boolean               @default(false)
+  acknowledgedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("evaluation_acknowledgements")
+}

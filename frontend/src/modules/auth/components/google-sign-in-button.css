@@ -1,0 +1,33 @@
+/* "Continue with Google" button — Jia secondary (white) button + loading spinner. */
+.sw-gbtn {
+  height: 44px;
+  width: 100%;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition: background var(--dur-short) var(--ease-standard), transform var(--dur-micro) var(--ease-standard);
+}
+.sw-gbtn:hover:not(:disabled) { background: var(--bg-secondary); }
+.sw-gbtn:active:not(:disabled) { transform: scale(0.97); }
+.sw-gbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-xs), 0 0 0 3px rgba(24, 29, 39, 0.06);
+}
+.sw-gbtn:disabled { cursor: not-allowed; color: var(--text-quaternary); }
+
+.sw-spin {
+  width: 18px;
+  height: 18px;
+  animation: sw-spin 0.7s linear infinite;
+}
+@keyframes sw-spin { to { transform: rotate(360deg); } }

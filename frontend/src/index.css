@@ -3,60 +3,207 @@
 @tailwind utilities;
 
 /*
-  shadcn/ui design tokens (slate base). These are sensible defaults.
-
-  === JIA BRANDBOOK ===
-  Replace the values below with the Jia brand palette/radius. Keep the variable
-  NAMES; only change the values so every shadcn component re-themes at once.
+  shadcn/ui design tokens — Jia brandbook applied.
+  Values map to the Jia palette/radius (frontend-swiftwork jia-design-system reference);
+  variable NAMES are kept so every shadcn component re-themes at once.
+  Source palette: src/shared/styles/jia-tokens.css.
+  Light-only by design — the Jia brandbook defines no dark theme (no .dark block).
 */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 100%;            /* #FFFFFF */
+    --foreground: 228 27% 9%;           /* #181D27 — gray-neutral-900 */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 228 27% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-  }
+    --popover-foreground: 228 27% 9%;
+    --primary: 230 33% 10%;             /* #111322 — primary button (brandbook recipe) */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 226 25% 25%;       /* #30374F — primary button hover */
+    --secondary: 220 13% 95%;           /* #EFF1F5 — gray-cool-100 */
+    --secondary-foreground: 228 27% 9%;
+    --muted: 220 13% 95%;
+    --muted-foreground: 220 9% 46%;     /* #717680 — tertiary text */
+    --accent: 220 13% 95%;
+    --accent-foreground: 228 27% 9%;
+    --destructive: 4 86% 58%;           /* #F04438 — error-500 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 7% 92%;               /* #E9EAEB — neutral-200 */
+    --input: 220 5% 84%;                /* #D5D7DA — neutral-300 */
+    --ring: 228 27% 9%;                 /* #181D27 */
+    --radius: 0.5rem;                   /* 8px base */
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Chart categorical palette — cool neutrals + one brand accent. */
+    --chart-1: 230 33% 10%;   /* #111322 */
+    --chart-2: 222 25% 38%;   /* #4A5578 */
+    --chart-3: 221 28% 66%;   /* #B9C0D4 */
+    --chart-4: 18 92% 87%;    /* #FCCEC0 — peach (gradient stop) */
+    --chart-5: 327 56% 80%;   /* #EBACC9 — pink */
+    --chart-6: 205 70% 78%;   /* #9FCAED — sky */
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+}
+
+@layer base {
+  /* Brandbook interaction: focus-visible ring (2px #111322, 2px offset). */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+  /* On gradient surfaces, switch the ring to white. */
+  .on-gradient :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline-color: #ffffff;
+  }
+
+  /* Disabled baseline (brandbook: 38% opacity, not-allowed). */
+  :where(button, input, select, textarea):disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+
+  /* Selection — cool neutral. */
+  ::selection { background: var(--gray-200); color: var(--text-primary); }
+
+  /* Scrollbar — thin cool-neutral. */
+  * { scrollbar-width: thin; scrollbar-color: var(--gray-300) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb {
+    background: var(--gray-300); border-radius: 9999px;
+    border: 2px solid transparent; background-clip: content-box;
+  }
+  *::-webkit-scrollbar-track { background: transparent; }
+
+  /* Reduced motion — kill ambient gradient drift + long transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* The ONE gradient moment for a status pill (pipeline "active/current"). Use sparingly. */
+  .jia-badge-active {
+    background: var(--gradient-jia);
+    color: var(--text-primary);
+    border-color: transparent;
+  }
+
+  /* ── Checkbox — ported verbatim from brandbook .jia-cb, adapted to Radix ──
+     Radix Checkbox Root is a <button>; we drive visuals off [data-state] and
+     draw the mark with ::after (identical geometry to the book). */
+  .jia-cb-root {
+    box-sizing: border-box;
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    border: 1.5px solid var(--gray-neutral-300);
+    background: #fff;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: background 140ms var(--ease), border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .jia-cb-root[data-state="checked"],
+  .jia-cb-root[data-state="indeterminate"] {
+    background: var(--gradient-jia);   /* 135° — matches book .jia-cb:checked */
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(159, 202, 237, .22);
+  }
+  .jia-cb-root[data-state="checked"]::after {
+    content: ""; position: absolute; left: 4px; top: 1.5px;
+    width: 5px; height: 8px;
+    border: 2px solid #fff; border-top: none; border-left: none;
+    transform: rotate(45deg);
+  }
+  .jia-cb-root[data-state="indeterminate"]::after {
+    content: ""; position: absolute; left: 3px; top: 6px;
+    width: 8px; height: 2px; background: #fff; border-radius: 1px;
+  }
+  .jia-cb-root:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(159, 202, 237, .38); }
+  .jia-cb-root:disabled { opacity: .38; cursor: not-allowed; }
+
+  /* ── Radio — ported from brandbook .jia-rb ── */
+  .jia-rb-root {
+    box-sizing: border-box;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid var(--gray-neutral-300);
+    background: #fff;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: background 140ms var(--ease), border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .jia-rb-root[data-state="checked"] {
+    background: var(--gradient-jia);
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(159, 202, 237, .22);
+  }
+  .jia-rb-root[data-state="checked"]::after {
+    content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #fff;
+  }
+  .jia-rb-root:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(159, 202, 237, .38); }
+  .jia-rb-root:disabled { opacity: .38; cursor: not-allowed; }
+
+  /* ── Circular progress — ported verbatim from brandbook .circle-prog ──
+     Showcase-only: size + conic-gradient are passed inline per instance. */
+  .circle-prog { border-radius: 50%; position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .circle-prog::after { content: ""; position: absolute; border-radius: 50%; background: #fff; }
+  .circle-prog.cp-sm::after { inset: 5px; }
+  .circle-prog.cp-md::after { inset: 7px; }
+  .circle-prog.cp-lg::after { inset: 9px; }
+  .cp-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+  .cp-val { font-weight: 700; color: var(--text-primary); }
+  .cp-sub { color: var(--text-tertiary); font-weight: 500; }
+
+  .directory-profile-dialog[data-state="open"] {
+    animation: directory-profile-dialog-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  }
+
+  .directory-profile-dialog[data-state="closed"] {
+    animation: directory-profile-dialog-out 90ms ease-in both !important;
+  }
+
+  .employee-unsaved-alert-shake {
+    animation: employee-unsaved-alert-shake 420ms cubic-bezier(.36,.07,.19,.97) both;
+  }
+}
+
+@keyframes directory-profile-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes directory-profile-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+}
+
+@keyframes employee-unsaved-alert-shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-6px); }
+  30%, 60%, 90% { transform: translateX(6px); }
 }
