@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, UserPlus, LineChart, DoorOpen, ShieldCheck } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { GoogleSignInButton } from "@/modules/auth/components/google-sign-in-button";
 import { signInWithGoogle } from "@/modules/auth/services/auth.service";
@@ -17,70 +17,60 @@ import "./login.css";
 
 // ─── Poster ────────────────────────────────────────────────────────────────────
 
-const PILLARS = [
-  {
-    icon: UserPlus,
-    title: "Onboarding that runs itself",
-    body: "Invitations, documents, and first-day clearances tracked end to end.",
-  },
-  {
-    icon: LineChart,
-    title: "Performance worth reading",
-    body: "Pulse surveys and evaluations that turn into action, not noise.",
-  },
-  {
-    icon: DoorOpen,
-    title: "Clean exits, every time",
-    body: "Clearances, sign-offs, and access closed out without the scramble.",
-  },
-] as const;
-
-/** The poster — the one gradient moment, carrying the product's spine. */
+/** The poster — the one gradient moment: a big display line over a tilted
+ *  preview card of a real Manage Jia artifact. */
 function Poster({ variant }: { variant: "band" | "full" }) {
   const full = variant === "full";
 
-  const lede = (
-    <div className="max-w-[460px]">
-      <p className="jia-eyebrow text-white/80">Manage Jia</p>
+  const intro = (
+    <div>
+      <p className="text-[12px] font-bold uppercase tracking-[2px] text-white/90">
+        One workspace for your people <span aria-hidden="true">✦</span>
+      </p>
       <h2
         className={
           full
-            ? "sw-thesis mt-4 text-[40px] leading-[1.05] lg:text-[52px]"
-            : "sw-thesis mt-2 text-[26px] leading-[1.1]"
+            ? "mt-6 text-[clamp(40px,4.4vw,66px)] font-bold leading-[0.98] tracking-[-0.03em] text-white"
+            : "mt-3 text-[32px] font-bold leading-[1.0] tracking-[-0.02em] text-white"
         }
       >
-        From first day to last.{" "}
-        <span aria-hidden="true" className="sw-thesis__mark">✦</span>
+        Your team,
+        <br />
+        start to
+        <br />
+        finish.
       </h2>
-
       {full && (
-        <>
-          <ul className="mt-10 space-y-5">
-            {PILLARS.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="flex items-start gap-3.5">
-                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-white/15 ring-1 ring-inset ring-white/25">
-                  <Icon size={18} className="text-white" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-[14px] font-semibold text-white">{title}</p>
-                  <p className="mt-0.5 text-[13px] leading-snug text-white/75">{body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </>
+        <p className="mt-5 max-w-[380px] text-[15px] font-medium leading-relaxed text-white/90">
+          Onboarding, performance, and offboarding — one place for the whole
+          employee journey.
+        </p>
       )}
     </div>
   );
 
-  if (!full) return lede;
+  if (!full) return intro;
 
   return (
     <div className="flex h-full w-full flex-col justify-between">
-      {lede}
-      <p className="mt-10 text-[13px] text-white/65">
-        © 2026 Manage Jia · People &amp; performance, in one place.
-      </p>
+      {intro}
+      {/* Tilted preview card — a real Manage Jia artifact, not a stock image. */}
+      <div className="mt-12 w-[300px] max-w-full self-end rotate-3 rounded-3xl bg-white p-7 text-[color:var(--text-primary)] shadow-2xl">
+        <p className="text-[26px] font-bold leading-[1.05] tracking-[-0.02em]">
+          Q2 performance
+          <br />
+          review
+        </p>
+        <p className="mt-2 text-[11px] font-bold uppercase tracking-[2px] text-[color:var(--text-tertiary)]">
+          Maria Santos · RN <span aria-hidden="true">✦</span>
+        </p>
+        <div className="my-5 h-px bg-[color:var(--border-primary)]" />
+        <div className="flex flex-col gap-2.5">
+          {[100, 72, 100, 56, 88, 64].map((w, i) => (
+            <div key={i} className="h-1.5 rounded-full bg-gray-200" style={{ width: `${w}%` }} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -213,19 +203,22 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen md:grid md:grid-cols-[minmax(360px,40%)_1fr]">
+    <main className="min-h-screen md:grid md:grid-cols-2">
       {/* Mobile gradient band (hidden on desktop) */}
       <div className="sw-poster flex min-h-[200px] items-end p-6 md:hidden">
         <Poster variant="band" />
       </div>
 
       {/* Form rail */}
-      <div className="flex items-center justify-center bg-white px-6 py-12 md:p-16">
-        <div className="flex w-full max-w-[380px] flex-col">
+      <div className="flex items-center justify-center bg-white px-6 py-12 md:p-16 lg:p-20">
+        <div className="flex w-full max-w-[400px] flex-col">
           <ManageJiaLogo />
-          <h1 className="mt-10 text-[30px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-4xl">
-            Sign in
+          <h1 className="mt-12 text-[34px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-[38px]">
+            Welcome back
           </h1>
+          <p className="mt-2 text-[15px] font-medium text-[color:var(--text-secondary)]">
+            Sign in to continue to your workspace.
+          </p>
 
           {status === "error" && (
             <div className="sw-alert mt-8" role="alert">
@@ -235,11 +228,6 @@ export default function LoginPage() {
           )}
 
           <GoogleSignInButton className="mt-8" onClick={handleSignIn} loading={loading} />
-
-          <p className="mt-4 flex items-center gap-1.5 text-[13px] text-[color:var(--text-tertiary)]">
-            <ShieldCheck size={14} className="flex-none" aria-hidden="true" />
-            Use the Google account your workspace invited you with.
-          </p>
 
           <p className="mt-8 text-[13px] leading-relaxed text-[color:var(--text-tertiary)]">
             By continuing you agree to Manage Jia&apos;s{" "}

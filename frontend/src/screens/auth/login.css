@@ -1,14 +1,13 @@
 /* Swift Work login — layout via Tailwind in login.page.tsx.
    The Google button's own styles live with the GoogleSignInButton component. */
 
-/* The poster is the one gradient moment: a dominant canvas that drifts slowly
-   (the only ambient motion the brand allows). Uses the darker brand gradient
-   variant so white body copy + pillars sit at AA contrast across the panel,
-   with a bottom scrim for extra depth under the footer line. */
+/* The poster is the one gradient moment: the signature Jia gradient (per the
+   UI-kit login), drifting slowly (the only ambient motion the brand allows).
+   The big display title + the tilted white preview card carry the contrast. */
 .sw-poster {
   position: relative;
   overflow: hidden;
-  background: var(--gradient-jia-dark); /* 135deg muted terracotta→mauve→purple→steel (AA white) */
+  background: var(--gradient-jia); /* 135deg peach→pink→lilac→blue */
   background-size: 200% 200%;
   background-position: 0% 50%;
   animation: sw-drift 22s var(--ease-standard, ease) infinite alternate;
