@@ -77,12 +77,12 @@ describe("POST /api/v1/users - errors", () => {
     expect(findUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when role is ADMIN on create", async () => {
+  it("returns 400 when role is invalid on create", async () => {
     const response = await request(app)
       .post("/api/v1/users")
       .send({
-        email: "admin.attempt@example.com",
-        role: "ADMIN",
+        email: "invalid.role@example.com",
+        role: "SUPERVISOR",
         firstName: "Jane",
         lastName: "Doe",
       })

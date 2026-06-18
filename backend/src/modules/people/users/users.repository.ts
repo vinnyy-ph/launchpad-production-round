@@ -73,7 +73,7 @@ export class UsersRepository {
         where,
         skip,
         take: filters.limit,
-        orderBy: [{ createdAt: "desc" }],
+        orderBy: this.buildOrderBy(filters),
         include: userWithEmployeeInclude,
       }),
       prisma.user.count({ where }),
@@ -142,5 +142,26 @@ export class UsersRepository {
     }
 
     return where;
+  }
+
+  private buildOrderBy(filters: ListUsersQueryDto): Prisma.UserOrderByWithRelationInput[] {
+    const direction = filters.sortOrder ?? "asc";
+
+    switch (filters.sortBy) {
+      case "name":
+        return [
+          { employee: { firstName: direction } },
+          { employee: { lastName: direction } },
+          { email: direction },
+        ];
+      case "role":
+        return [{ role: direction }];
+      case "status":
+        return [{ isActive: direction }];
+      case "lastLogin":
+        return [{ lastLoginAt: direction }];
+      default:
+        return [{ createdAt: "desc" }];
+    }
   }
 }

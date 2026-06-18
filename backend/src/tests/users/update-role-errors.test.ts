@@ -39,7 +39,7 @@ describe("PATCH /api/v1/users/:userId/role - errors", () => {
   it("returns 400 for an invalid role", async () => {
     const response = await request(app)
       .patch(`/api/v1/users/${TARGET_USER_ID}/role`)
-      .send({ role: "ADMIN" })
+      .send({ role: "SUPERVISOR" })
       .expect(400);
 
     expect(response.body).toEqual({

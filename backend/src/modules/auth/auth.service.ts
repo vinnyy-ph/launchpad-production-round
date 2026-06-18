@@ -62,3 +62,11 @@ export async function bindGoogleId(user: User, firebaseUid: string): Promise<boo
   }
   return true;
 }
+
+/** Records the user's most recent sign-in time. */
+export async function recordLastLogin(userId: string): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { lastLoginAt: new Date() },
+  });
+}

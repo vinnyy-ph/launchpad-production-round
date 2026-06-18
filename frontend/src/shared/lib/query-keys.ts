@@ -17,7 +17,11 @@ export const queryKeys = {
     list: (filters?: Record<string, unknown>) =>
       filters ? (["teams", "list", filters] as const) : (["teams", "list"] as const),
   },
-  users: { all: ["users"] as const },
+  users: {
+    all: ["users"] as const,
+    list: (filters?: Record<string, unknown>) =>
+      filters ? (["users", "list", filters] as const) : (["users", "list"] as const),
+  },
   evaluations: {
     all: ["evaluations"] as const,
     list: (status?: string) =>
