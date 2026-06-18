@@ -37,8 +37,9 @@ function resolveRoute(n: Notification): string | null {
     case "ONBOARDING_INVITE":
       return "/employee/onboarding";
     case "ONBOARDING_COMPLETE":
-    case "ONBOARDING_STATUS":
       return "/hr/directory";
+    case "ONBOARDING_STATUS":
+      return n.linkUrl?.startsWith("/hr/onboarding") ? n.linkUrl : "/hr/directory";
     default:
       return n.linkUrl?.startsWith("/") ? n.linkUrl : null;
   }

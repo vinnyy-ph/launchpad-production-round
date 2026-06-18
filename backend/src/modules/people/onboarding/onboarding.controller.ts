@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import type { ApiErrorResponseDto } from "../../../core/dto";
 import {
   API_ERROR_CODES,
@@ -131,6 +132,31 @@ export class OnboardingController {
             },
           ],
         });
+      }
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2002") {
+          return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+            success: false,
+            message: API_ERROR_MESSAGES.EMPLOYEE_ALREADY_EXISTS,
+            errorCode: API_ERROR_CODES.EMPLOYEE_ALREADY_EXISTS,
+            errors: [
+              {
+                field: ONBOARDING_FIELDS.COMPANY_EMAIL,
+                message: API_ERROR_MESSAGES.EMPLOYEE_ALREADY_EXISTS,
+                code: API_ERROR_CODES.EMPLOYEE_ALREADY_EXISTS,
+              },
+            ],
+          });
+        }
+
+        if (error.code === "P2028") {
+          return res.status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: API_ERROR_MESSAGES.ONBOARDING_FAILED,
+            errorCode: API_ERROR_CODES.ONBOARDING_FAILED,
+          });
+        }
       }
 
       return next(error);

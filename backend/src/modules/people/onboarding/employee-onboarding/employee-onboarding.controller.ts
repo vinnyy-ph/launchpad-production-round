@@ -110,13 +110,15 @@ export class EmployeeOnboardingController {
       const params = this.employeeOnboardingValidation.parseSubmitDocumentParams(
         req.params,
       );
-      const body = this.employeeOnboardingValidation.parseSubmitDocumentBody(
-        req.body,
-      );
+
+      if (!req.file) {
+        throw new Error(`${EMPLOYEE_ONBOARDING_FIELDS.FILE} is required`);
+      }
+
       const result = await this.employeeOnboardingService.submitDocument(
         req.user!,
         params,
-        body,
+        req.file,
       );
 
       return res.status(HTTP_STATUS_CODES.CREATED).json(result);
@@ -226,6 +228,13 @@ export class EmployeeOnboardingController {
             code: API_ERROR_CODES.VALIDATION_FAILED,
           },
         ],
+      });
+    }
+
+    if (error.message === "Cloudinary is not configured") {
+      return res.status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: "File upload is not configured on the server",
       });
     }
 
@@ -341,7 +350,7 @@ export class EmployeeOnboardingController {
         errorCode: API_ERROR_CODES.INVALID_FILE_TYPE,
         errors: [
           {
-            field: EMPLOYEE_ONBOARDING_FIELDS.FILE_URL,
+            field: EMPLOYEE_ONBOARDING_FIELDS.FILE,
             message: API_ERROR_MESSAGES.INVALID_FILE_TYPE,
             code: API_ERROR_CODES.INVALID_FILE_TYPE,
           },

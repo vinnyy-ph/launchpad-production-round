@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../../../../core/middleware/roles.middleware";
 import { EmployeeOnboardingController } from "./employee-onboarding.controller";
+import { onboardingDocumentUpload } from "./middleware/onboarding-upload.middleware";
 
 const employeeOnboardingController = new EmployeeOnboardingController();
 
@@ -34,10 +35,11 @@ employeeOnboardingRouter.post(
   employeeOnboardingController.submitCustomFields,
 );
 
-/** Employee only — upload or re-upload a required document. */
+/** Employee only — upload or re-upload a required document (multipart file → Cloudinary). */
 employeeOnboardingRouter.post(
   "/documents/:documentId/submit",
   requireRole("EMPLOYEE"),
+  onboardingDocumentUpload,
   employeeOnboardingController.submitDocument,
 );
 

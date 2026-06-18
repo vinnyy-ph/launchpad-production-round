@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "./button";
 import { Calendar } from "./calendar";
+import { Input } from "./input";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { cn } from "@/shared/lib/utils";
 
@@ -13,10 +14,135 @@ export interface DatePickerProps {
   onChange?: (date?: Date) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** When true, uses a typeable date field with year/month pickers (birthdates). */
+  disableFuture?: boolean;
   className?: string;
 }
 
-export function DatePicker({ value, onChange, placeholder = "Pick a date", disabled, className }: DatePickerProps) {
+const BIRTHDATE_START = new Date(1940, 0, 1);
+
+function toDateInputValue(date?: Date): string {
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return format(date, "yyyy-MM-dd");
+}
+
+function todayInputMax(): string {
+  return format(new Date(), "yyyy-MM-dd");
+}
+
+function parseDateInputValue(raw: string): Date | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!match) return undefined;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return undefined;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  parsed.setHours(0, 0, 0, 0);
+  if (parsed > today) return undefined;
+
+  return parsed;
+}
+
+/** Birthdate field: type YYYY-MM-DD or use the browser date picker (year/month dropdowns). */
+function BirthdatePicker({
+  value,
+  onChange,
+  disabled,
+  className,
+}: Pick<DatePickerProps, "value" | "onChange" | "disabled" | "className">) {
+  const [open, setOpen] = React.useState(false);
+  const [draft, setDraft] = React.useState(() => toDateInputValue(value));
+
+  React.useEffect(() => {
+    setDraft(toDateInputValue(value));
+  }, [value]);
+
+  return (
+    <div className={cn("flex gap-2", className)}>
+      <Input
+        type="date"
+        disabled={disabled}
+        min={toDateInputValue(BIRTHDATE_START)}
+        max={todayInputMax()}
+        value={draft}
+        className="min-w-0 flex-1"
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          const next = parseDateInputValue(raw);
+          if (next) onChange?.(next);
+          else if (!raw.trim()) onChange?.(undefined);
+        }}
+      />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            disabled={disabled}
+            aria-label="Open calendar"
+            className="shrink-0"
+          >
+            <CalendarIcon className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="end">
+          <Calendar
+            mode="single"
+            selected={value}
+            captionLayout="dropdown"
+            startMonth={BIRTHDATE_START}
+            endMonth={new Date()}
+            defaultMonth={value ?? new Date(2000, 0, 1)}
+            disabled={{ after: new Date() }}
+            onSelect={(date) => {
+              onChange?.(date);
+              setDraft(toDateInputValue(date));
+              setOpen(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+export function DatePicker({
+  value,
+  onChange,
+  placeholder = "Pick a date",
+  disabled,
+  disableFuture,
+  className,
+}: DatePickerProps) {
+  if (disableFuture) {
+    return (
+      <BirthdatePicker
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        className={className}
+      />
+    );
+  }
+
   return (
     <Popover>
       <PopoverTrigger asChild>

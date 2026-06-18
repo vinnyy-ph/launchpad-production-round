@@ -217,6 +217,15 @@ export class EmployeeOnboardingValidation {
       throw new Error("Invalid birthday");
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const birthdayDate = new Date(parsed);
+    birthdayDate.setHours(0, 0, 0, 0);
+
+    if (birthdayDate > today) {
+      throw new Error("Invalid birthday");
+    }
+
     return trimmed;
   }
 
