@@ -14,12 +14,15 @@ dashboardRoutes.get("/", authenticate, async (req, res, next) => {
     const session = await resolveSession(req.user!);
 
     if (session.role === "ADMIN" || session.role === "HR") {
-      const [activeEmployees, pendingOnboarding, pendingOffboarding] = await Promise.all([
-        prisma.employee.count({ where: { status: "ACTIVE" } }),
-        prisma.employee.count({ where: { status: "ONBOARDING" } }),
-        prisma.employee.count({ where: { status: "OFFBOARDING" } }),
-      ]);
-      return res.json({ activeEmployees, pendingOnboarding, pendingOffboarding });
+      const [activeEmployees, pendingOnboarding, pendingOffboarding, pendingClearances] =
+        await Promise.all([
+          prisma.employee.count({ where: { status: "ACTIVE" } }),
+          prisma.employee.count({ where: { status: "ONBOARDING" } }),
+          prisma.employee.count({ where: { status: "OFFBOARDING" } }),
+          // Org-wide clearance sign-offs still awaiting a signatory.
+          prisma.clearanceSignatureRequest.count({ where: { status: "PENDING" } }),
+        ]);
+      return res.json({ activeEmployees, pendingOnboarding, pendingOffboarding, pendingClearances });
     }
 
     if (session.isSupervisor && session.employeeId) {
