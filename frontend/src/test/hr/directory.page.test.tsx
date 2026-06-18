@@ -12,6 +12,20 @@ jest.mock("@/modules/people/employees/hooks/use-employee-profile", () => ({
   useEmployeeProfile: (employeeId: string | null) => mockUseEmployeeProfile(employeeId),
 }));
 
+const mockUpdateEmployee = jest.fn();
+jest.mock("@/modules/people/employees/hooks/use-update-employee", () => ({
+  useUpdateEmployee: () => ({
+    update: mockUpdateEmployee,
+    saving: false,
+    error: null,
+  }),
+}));
+
+const mockUseDepartments = jest.fn();
+jest.mock("@/modules/people/departments/hooks/use-departments", () => ({
+  useDepartments: () => mockUseDepartments(),
+}));
+
 const mockUseTeams = jest.fn();
 jest.mock("@/modules/people/teams/hooks/use-teams", () => ({
   useTeams: (filters: unknown) => mockUseTeams(filters),
@@ -111,6 +125,16 @@ describe("DirectoryPage", () => {
       error: null,
       reload: jest.fn(),
     });
+    mockUseDepartments.mockReturnValue({
+      departments: [
+        { id: "dept-1", name: "R&D" },
+        { id: "dept-2", name: "People Operations" },
+      ],
+      loading: false,
+      error: null,
+      reload: jest.fn(),
+    });
+    mockUpdateEmployee.mockResolvedValue({ data: sampleProfile });
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -124,7 +148,8 @@ describe("DirectoryPage", () => {
     expect(screen.getByText("R&D")).toBeInTheDocument();
     expect(screen.getByText("Charles Babbage")).toBeInTheDocument();
     expect(screen.getByText("Platform")).toBeInTheDocument();
-    expect(screen.getByText("3+")).toBeInTheDocument();
+    expect(screen.getByText("Research")).toBeInTheDocument();
+    expect(screen.getByText("+1")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "View Ada Byron Lovelace" })).not.toBeInTheDocument();
   });
 
@@ -136,50 +161,54 @@ describe("DirectoryPage", () => {
 
     expect(mockUseEmployeeProfile).toHaveBeenLastCalledWith("1");
     expect(screen.getAllByText("Ada Byron Lovelace").length).toBeGreaterThan(0);
-    expect(screen.getByRole("tab", { name: "Personal Information" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.getByRole("tab", { name: "Employment" })).toHaveAttribute(
-      "aria-selected",
-      "false",
-    );
-    expect(screen.getByRole("tab", { name: "Documents" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Activity" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Employee details sections" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Personal Information" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Employment Details" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Teams" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Documents" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activity History" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Process offboarding" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /download file/i })).toBeInTheDocument();
     expect(screen.getByText("Ada Byron Lovelace File")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save changes/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /discard/i })).not.toBeInTheDocument();
     expect(screen.getAllByText("Personal Information").length).toBeGreaterThan(0);
-    expect(screen.getByText("Government & Compliance")).toBeInTheDocument();
-    expect(screen.getByText("Company Email")).toBeInTheDocument();
-    expect(screen.getByText("ada.lovelace@example.test")).toBeInTheDocument();
-    expect(screen.getByText("12 Analytical Engine Lane, London, Greater London, United Kingdom")).toBeInTheDocument();
-    expect(screen.getByText("Charles Babbage, +44 20 5555 0100")).toBeInTheDocument();
+    expect(screen.queryByText("Government & Compliance")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("First name")).toHaveValue("Ada");
+    expect(screen.getByLabelText("Middle name")).toHaveValue("Byron");
+    expect(screen.getByLabelText("Last name")).toHaveValue("Lovelace");
+    expect(screen.getByLabelText("Personal email")).toHaveValue("ada.lovelace@example.test");
+    expect(screen.getByLabelText("Company email")).toHaveValue("ada@acme.test");
+    expect(screen.getByLabelText("Country")).toHaveValue("United Kingdom");
+    expect(screen.getByLabelText("Province")).toHaveValue("Greater London");
+    expect(screen.getByLabelText("City")).toHaveValue("London");
+    expect(screen.getByLabelText("Address")).toHaveValue("12 Analytical Engine Lane");
+    expect(screen.getByLabelText("Contact Name")).toHaveValue("Charles Babbage");
+    expect(screen.getByLabelText("Contact Number")).toHaveValue("+44 20 5555 0100");
     expect(screen.queryByText("System Role")).not.toBeInTheDocument();
     expect(screen.queryByText("Created")).not.toBeInTheDocument();
     expect(screen.queryByText("Last Updated")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("tab", { name: "Employment" }));
-
-    expect(screen.getByRole("tab", { name: "Employment" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.getByText("Direct Manager")).toBeInTheDocument();
+    expect(screen.getAllByText("Supervisor").length).toBeGreaterThan(0);
+    expect(screen.getByText("Supervisor name")).toBeInTheDocument();
     expect(screen.getByText("Mathematics")).toBeInTheDocument();
+    expect(screen.getByText("No documents yet")).toBeInTheDocument();
+    expect(screen.getByText("Employment Timeline")).toBeInTheDocument();
+    expect(screen.getByText("Onboarded")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("tab", { name: "Activity" }));
-    expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("No activity history yet")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("First name"), "s");
+
+    expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /discard/i })).toBeInTheDocument();
   });
 
-  it("lists all teams in the team tooltip", async () => {
+  it("lists overflow teams in the team tooltip", async () => {
     mockUseEmployees.mockReturnValue(employeeHookResult());
     renderPage();
 
-    await userEvent.hover(screen.getByText("Platform"));
+    await userEvent.hover(screen.getByRole("button", { name: "1 more teams" }));
 
-    expect((await screen.findAllByText("Research")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("More Teams:")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Analytics").length).toBeGreaterThan(0);
   });
 
