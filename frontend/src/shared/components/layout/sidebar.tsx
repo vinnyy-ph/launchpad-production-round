@@ -83,7 +83,12 @@ export function Sidebar({
                     )}
                   >
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
-                      <Icon size={18} className="text-[#A4A7AE]" aria-hidden="true" />
+                      <Icon
+                        size={18}
+                        strokeWidth={2.5}
+                        className={active ? "text-[#414651]" : "text-[#717680]"}
+                        aria-hidden="true"
+                      />
                     </span>
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.badge != null && item.badge > 0 && (
