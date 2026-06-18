@@ -9,18 +9,22 @@
 // (single `role` enum + derived `isSupervisor`) — the role model itself is owned by
 // people-management-engineer.
 
+import type { FC, SVGProps } from "react";
 import {
-  LayoutDashboard,
-  TrendingUp,
-  LayoutGrid,
+  LayoutAlt01,
+  BarChartSquare02,
+  Grid01,
+  UserSquare,
   ClipboardCheck,
-  Users,
-  Network,
-  ClipboardList,
-  UserCog,
-  type LucideIcon,
-} from "lucide-react";
+  Users01,
+  Dataflow03,
+  MessageSquare01,
+  UsersPlus,
+} from "@untitledui/icons";
 import type { AppUser } from "@/modules/auth/types/auth.types";
+
+/** Untitled UI icon component shape — `size` + standard SVG props; stroke uses currentColor. */
+export type NavIcon = FC<SVGProps<SVGSVGElement> & { size?: number; color?: string }>;
 
 /** Workspace label shown in the sidebar card. */
 export const WORKSPACE_NAME = "DG Technologies";
@@ -32,7 +36,7 @@ export interface NavItem {
   /** Stable id; also the key used for active validation and the header map. */
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: NavIcon;
   href: string;
   /** Optional pending-count pill (e.g. unsigned clearances). Unset = no pill. */
   badge?: number;
@@ -54,16 +58,16 @@ export const NAV_SECTIONS: NavSection[] = [
     role: "employee",
     title: "General",
     items: [
-      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
-      { id: "performance", label: "Performance", icon: TrendingUp, href: "/employee/surveys" },
+      { id: "dashboard", label: "Dashboard", icon: LayoutAlt01, href: "/" },
+      { id: "performance", label: "Performance", icon: BarChartSquare02, href: "/employee/surveys" },
     ],
   },
   {
     role: "supervisor",
     title: "My Team",
     items: [
-      { id: "overview", label: "Overview", icon: LayoutGrid, href: "/supervisor/reports" },
-      { id: "roster", label: "Roster", icon: Users, href: "/supervisor/roster" },
+      { id: "overview", label: "Overview", icon: Grid01, href: "/supervisor/reports" },
+      { id: "roster", label: "Roster", icon: UserSquare, href: "/supervisor/roster" },
       { id: "evaluations", label: "Evaluations", icon: ClipboardCheck, href: "/supervisor/evaluations" },
     ],
   },
@@ -71,15 +75,15 @@ export const NAV_SECTIONS: NavSection[] = [
     role: "hr",
     title: "Organization",
     items: [
-      { id: "people", label: "People", icon: Users, href: "/hr/directory" },
-      { id: "orgchart", label: "Structure", icon: Network, href: "/hr/teams" },
-      { id: "surveys", label: "Surveys", icon: ClipboardList, href: "/hr/surveys" },
+      { id: "people", label: "People", icon: Users01, href: "/hr/directory" },
+      { id: "orgchart", label: "Structure", icon: Dataflow03, href: "/hr/teams" },
+      { id: "surveys", label: "Surveys", icon: MessageSquare01, href: "/hr/surveys" },
     ],
   },
   {
     role: "admin",
     title: "Admin",
-    items: [{ id: "users", label: "Users", icon: UserCog, href: "/admin/users" }],
+    items: [{ id: "users", label: "Users", icon: UsersPlus, href: "/admin/users" }],
   },
 ];
 
