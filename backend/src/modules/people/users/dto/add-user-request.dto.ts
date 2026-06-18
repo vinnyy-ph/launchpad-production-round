@@ -5,7 +5,7 @@ import type { Role } from "@prisma/client";
  */
 export interface AddUserRequestDto {
   email: string;
-  role: Extract<Role, "HR" | "EMPLOYEE">;
+  role: Extract<Role, "ADMIN" | "HR" | "EMPLOYEE">;
   firstName: string;
   lastName: string;
 }

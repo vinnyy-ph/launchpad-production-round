@@ -11,5 +11,6 @@ export interface UserListItemDto {
   lastName: string | null;
   fullName: string | null;
   employeeStatus: string | null;
+  lastLoginAt: Date | null;
   createdAt: Date;
 }
