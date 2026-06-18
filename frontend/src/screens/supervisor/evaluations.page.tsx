@@ -13,7 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/shared/components/layout/page-header";
+import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import {
   Button,
   Badge,
@@ -610,10 +610,8 @@ export default function EvaluationsPage() {
 
   return (
     <div>
-      <PageHeader
-        level="page"
-        title="Evaluations"
-        subtitle="Create and manage performance evaluations for your direct reports."
+      <ScreenHeader
+        id="evaluations"
         action={
           <Button onClick={openCreate}>
             <Plus /> New evaluation
