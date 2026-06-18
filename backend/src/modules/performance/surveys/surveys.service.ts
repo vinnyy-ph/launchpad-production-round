@@ -1,6 +1,10 @@
+import type { AudienceType } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import type {
+  AudienceOptionsResponseDto,
+  AudiencePreviewInput,
+  AudiencePreviewResponseDto,
   CreateSurveyInput,
   ListSurveysQuery,
   ListSurveysResponseDto,
@@ -135,6 +139,20 @@ export class SurveysService {
       input.audienceConfigs = [];
     }
 
+    // Require audience configs when the resulting audience is non-EVERYONE. Only checked
+    // when the request actually touches the audience, so name-only edits never trip it.
+    if (input.audienceType !== undefined || input.audienceConfigs !== undefined) {
+      const finalAudienceType = input.audienceType ?? survey.audienceType;
+      const finalConfigs =
+        input.audienceConfigs !== undefined
+          ? input.audienceConfigs
+          : survey.audienceConfigs.map((c) => ({
+              supervisorId: c.supervisorId ?? undefined,
+              teamId: c.teamId ?? undefined,
+            }));
+      this.assertAudienceConfigsPresent(finalAudienceType, finalConfigs);
+    }
+
     if (input.reminderConfig && input.reminderConfig !== null) {
       input.reminderConfig = {
         frequency: input.reminderConfig.frequency ?? "DAILY",
@@ -176,64 +194,16 @@ export class SurveysService {
       throw new Error(SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED);
     }
 
-    // Prisma-backed implementation of AudienceDb adapter
-    const db: AudienceDb = {
-      async activeEmployeeIds(): Promise<string[]> {
-        const employees = await prisma.employee.findMany({
-          where: { status: "ACTIVE" },
-          select: { id: true },
-        });
-        return employees.map((e) => e.id);
-      },
-      async activeAmong(ids: string[]): Promise<string[]> {
-        const employees = await prisma.employee.findMany({
-          where: {
-            id: { in: ids },
-            status: "ACTIVE",
-          },
-          select: { id: true },
-        });
-        return employees.map((e) => e.id);
-      },
-      async childrenOf(parentIds: string[]): Promise<string[]> {
-        const employees = await prisma.employee.findMany({
-          where: {
-            supervisorId: { in: parentIds },
-          },
-          select: { id: true },
-        });
-        return employees.map((e) => e.id);
-      },
-      async activeTeamMemberIds(teamIds: string[]): Promise<string[]> {
-        const members = await prisma.teamMember.findMany({
-          where: {
-            teamId: { in: teamIds },
-            employee: { status: "ACTIVE" },
-          },
-          select: { employeeId: true },
-        });
-        return members.map((m) => m.employeeId);
-      },
-    };
-
-    // Construct AudienceSpec from survey configuration
-    let spec: AudienceSpec;
-    if (survey.audienceType === "SUPERVISOR_BASED") {
-      const supervisorIds = survey.audienceConfigs
-        .map((c) => c.supervisorId)
-        .filter((id): id is string => !!id);
-      spec = { type: "SUPERVISOR_BASED", supervisorIds };
-    } else if (survey.audienceType === "SPECIFIC_TEAMS") {
-      const teamIds = survey.audienceConfigs
-        .map((c) => c.teamId)
-        .filter((id): id is string => !!id);
-      spec = { type: "SPECIFIC_TEAMS", teamIds };
-    } else {
-      spec = { type: "EVERYONE" };
-    }
-
-    // Resolve audience members
-    const audienceIds = await resolveAudience(spec, db);
+    // Resolve the audience using the same adapter + spec mapping the preview endpoint
+    // uses, so "who will receive this" is identical before and at activation.
+    const spec = this.toAudienceSpec(
+      survey.audienceType,
+      survey.audienceConfigs.map((c) => ({
+        supervisorId: c.supervisorId ?? undefined,
+        teamId: c.teamId ?? undefined,
+      })),
+    );
+    const audienceIds = await resolveAudience(spec, this.buildAudienceDb());
 
     // Call repository to save activation state atomically
     const occurrenceData = {
@@ -318,6 +288,148 @@ export class SurveysService {
         totalPages: Math.ceil(total / query.limit),
       },
     };
+  }
+
+  /**
+   * Supervisors (active employees with at least one direct report) and teams, for the
+   * audience builder. Minimal projection — keeps PII out of the picker payload.
+   */
+  async getAudienceOptions(): Promise<ApiSuccessResponseDto<AudienceOptionsResponseDto>> {
+    const [supervisors, teams] = await Promise.all([
+      prisma.employee.findMany({
+        where: { status: "ACTIVE", directReports: { some: {} } },
+        select: { id: true, firstName: true, lastName: true, jobTitle: true },
+        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      }),
+      prisma.team.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: "Audience options retrieved successfully",
+      data: {
+        supervisors: supervisors.map((s) => ({
+          id: s.id,
+          name: `${s.firstName} ${s.lastName}`.trim(),
+          jobTitle: s.jobTitle,
+        })),
+        teams,
+      },
+    };
+  }
+
+  /**
+   * Resolves who would receive a survey for a given audience spec, WITHOUT persisting
+   * anything. Uses the exact same resolver + DB adapter as activation, so the preview
+   * matches what occurrence 1 will snapshot. `count` is authoritative; `members` is
+   * capped for payload size.
+   */
+  async previewAudience(
+    input: AudiencePreviewInput,
+  ): Promise<ApiSuccessResponseDto<AudiencePreviewResponseDto>> {
+    const MEMBER_CAP = 200;
+    const spec = this.toAudienceSpec(input.audienceType, input.audienceConfigs);
+    const ids = await resolveAudience(spec, this.buildAudienceDb());
+
+    const members = await prisma.employee.findMany({
+      where: { id: { in: ids.slice(0, MEMBER_CAP) } },
+      select: { id: true, firstName: true, lastName: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    });
+
+    return {
+      success: true,
+      message: "Audience preview resolved successfully",
+      data: {
+        count: ids.length,
+        members: members.map((m) => ({
+          id: m.id,
+          name: `${m.firstName} ${m.lastName}`.trim(),
+        })),
+      },
+    };
+  }
+
+  /** Maps a survey's audienceType + configs to the resolver's AudienceSpec. */
+  private toAudienceSpec(
+    audienceType: AudienceType,
+    audienceConfigs: { supervisorId?: string; teamId?: string }[],
+  ): AudienceSpec {
+    if (audienceType === "SUPERVISOR_BASED") {
+      const supervisorIds = audienceConfigs
+        .map((c) => c.supervisorId)
+        .filter((id): id is string => !!id);
+      return { type: "SUPERVISOR_BASED", supervisorIds };
+    }
+    if (audienceType === "SPECIFIC_TEAMS") {
+      const teamIds = audienceConfigs
+        .map((c) => c.teamId)
+        .filter((id): id is string => !!id);
+      return { type: "SPECIFIC_TEAMS", teamIds };
+    }
+    return { type: "EVERYONE" };
+  }
+
+  /**
+   * Prisma-backed AudienceDb adapter. Applies the ACTIVE-employee predicate server-side;
+   * shared by activation and the preview endpoint so both resolve identically.
+   */
+  private buildAudienceDb(): AudienceDb {
+    return {
+      async activeEmployeeIds(): Promise<string[]> {
+        const employees = await prisma.employee.findMany({
+          where: { status: "ACTIVE" },
+          select: { id: true },
+        });
+        return employees.map((e) => e.id);
+      },
+      async activeAmong(ids: string[]): Promise<string[]> {
+        const employees = await prisma.employee.findMany({
+          where: { id: { in: ids }, status: "ACTIVE" },
+          select: { id: true },
+        });
+        return employees.map((e) => e.id);
+      },
+      async childrenOf(parentIds: string[]): Promise<string[]> {
+        const employees = await prisma.employee.findMany({
+          where: { supervisorId: { in: parentIds } },
+          select: { id: true },
+        });
+        return employees.map((e) => e.id);
+      },
+      async activeTeamMemberIds(teamIds: string[]): Promise<string[]> {
+        const members = await prisma.teamMember.findMany({
+          where: { teamId: { in: teamIds }, employee: { status: "ACTIVE" } },
+          select: { employeeId: true },
+        });
+        return members.map((m) => m.employeeId);
+      },
+    };
+  }
+
+  /** Throws a validation error when a non-EVERYONE audience has no matching config. */
+  private assertAudienceConfigsPresent(
+    audienceType: AudienceType,
+    configs: { supervisorId?: string; teamId?: string }[],
+  ): void {
+    if (audienceType === "SUPERVISOR_BASED") {
+      const hasSupervisor = configs.some(
+        (c) => typeof c.supervisorId === "string" && c.supervisorId.length > 0,
+      );
+      if (!hasSupervisor) {
+        throw new Error(SURVEY_ERROR_MESSAGES.AUDIENCE_CONFIG_REQUIRED_SUPERVISOR);
+      }
+    } else if (audienceType === "SPECIFIC_TEAMS") {
+      const hasTeam = configs.some(
+        (c) => typeof c.teamId === "string" && c.teamId.length > 0,
+      );
+      if (!hasTeam) {
+        throw new Error(SURVEY_ERROR_MESSAGES.AUDIENCE_CONFIG_REQUIRED_TEAM);
+      }
+    }
   }
 
   private toListItem(survey: SurveyListRow): SurveyListItemDto {

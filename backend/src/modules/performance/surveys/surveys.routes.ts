@@ -7,6 +7,12 @@ const router = Router();
 const controller = new SurveysController();
 const resultsController = new ResultsController();
 
+/** GET /api/v1/pulse/surveys/audience/options — HR only. Supervisors + teams for the audience picker. */
+router.get("/audience/options", requireRole("HR"), controller.getAudienceOptions);
+
+/** POST /api/v1/pulse/surveys/audience/preview — HR only. Resolves who would receive a survey for a given audience spec (dry run). */
+router.post("/audience/preview", requireRole("HR"), controller.previewAudience);
+
 /** GET /api/v1/pulse/surveys/occurrences/:occurrenceId/results — Returns aggregated results for an occurrence. */
 router.get("/occurrences/:occurrenceId/results", resultsController.getOccurrenceResults);
 

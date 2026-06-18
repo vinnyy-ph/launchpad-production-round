@@ -1,4 +1,5 @@
 import type { AudienceType, QuestionType, RecurringType, ReminderFrequency, SurveyVisibility } from "@prisma/client";
+import type { AudiencePreviewInput } from "./dto";
 import type { CreateSurveyInput } from "./dto";
 import type { ListSurveysQuery } from "./dto";
 import type { UpdateSurveyInput } from "./dto";
@@ -216,6 +217,24 @@ export class SurveysValidation {
       });
     }
     // When audienceType = EVERYONE, audienceConfigs are silently ignored.
+
+    // A non-EVERYONE audience must name at least one matching target, otherwise it would
+    // silently resolve to an empty audience and nobody would receive the survey.
+    if (resolvedAudienceType === "SUPERVISOR_BASED") {
+      const hasSupervisor = (audienceConfigs ?? []).some(
+        (c) => typeof c.supervisorId === "string" && c.supervisorId.length > 0,
+      );
+      if (!hasSupervisor) {
+        throw new Error(SURVEY_ERROR_MESSAGES.AUDIENCE_CONFIG_REQUIRED_SUPERVISOR);
+      }
+    } else if (resolvedAudienceType === "SPECIFIC_TEAMS") {
+      const hasTeam = (audienceConfigs ?? []).some(
+        (c) => typeof c.teamId === "string" && c.teamId.length > 0,
+      );
+      if (!hasTeam) {
+        throw new Error(SURVEY_ERROR_MESSAGES.AUDIENCE_CONFIG_REQUIRED_TEAM);
+      }
+    }
 
     // --- reminderConfig ---
     let reminderConfig: CreateSurveyInput["reminderConfig"] = undefined;
@@ -436,5 +455,48 @@ export class SurveysValidation {
     }
 
     return result;
+  }
+
+  /**
+   * Parses the audience-preview body. Unlike create, an empty/absent audienceConfigs is
+   * allowed (it simply resolves to a count of 0 — useful while the HR user is still
+   * picking), so the only hard requirement here is a valid audienceType.
+   */
+  parseAudiencePreviewBody(body: unknown): AudiencePreviewInput {
+    if (!body || typeof body !== "object") {
+      throw new Error("Request body is required");
+    }
+
+    const b = body as Record<string, unknown>;
+
+    if (typeof b.audienceType !== "string" || !VALID_AUDIENCE_TYPES.has(b.audienceType)) {
+      throw new Error(SURVEY_ERROR_MESSAGES.INVALID_AUDIENCE_TYPE);
+    }
+    const audienceType = b.audienceType as AudienceType;
+
+    let audienceConfigs: AudiencePreviewInput["audienceConfigs"] = [];
+    if (b.audienceConfigs !== undefined) {
+      if (!Array.isArray(b.audienceConfigs)) {
+        throw new Error("audienceConfigs must be an array");
+      }
+      audienceConfigs = b.audienceConfigs.map((cfg: unknown, idx: number) => {
+        if (!cfg || typeof cfg !== "object") {
+          throw new Error(`audienceConfigs[${idx}] must be an object`);
+        }
+        const cfgObj = cfg as Record<string, unknown>;
+        const hasSupervisor =
+          typeof cfgObj.supervisorId === "string" && cfgObj.supervisorId.length > 0;
+        const hasTeam = typeof cfgObj.teamId === "string" && cfgObj.teamId.length > 0;
+        if (!hasSupervisor && !hasTeam) {
+          throw new Error(`audienceConfigs[${idx}]: ${SURVEY_ERROR_MESSAGES.INVALID_AUDIENCE_CONFIG}`);
+        }
+        return {
+          ...(hasSupervisor && { supervisorId: cfgObj.supervisorId as string }),
+          ...(hasTeam && { teamId: cfgObj.teamId as string }),
+        };
+      });
+    }
+
+    return { audienceType, audienceConfigs };
   }
 }

@@ -1,12 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { createSurvey } from "../services/surveys.service";
-import type { CreateSurveyInput } from "../types/surveys.types";
+import { deactivateSurvey } from "../services/surveys.service";
 
-export function useCreateSurvey() {
+export function useDeactivateSurvey() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateSurveyInput) => createSurvey(input),
+    mutationFn: (id: string) => deactivateSurvey(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.surveys.all }),
   });
 }
