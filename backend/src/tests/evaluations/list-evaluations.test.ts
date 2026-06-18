@@ -16,6 +16,11 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
   }),
 }));
 
+jest.mock("../../modules/shared", () => ({
+  downwardChain: jest.fn().mockResolvedValue([]),
+  upwardChain: jest.fn().mockResolvedValue([]),
+}));
+
 jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
     employee: { findUnique: jest.fn() },
@@ -26,6 +31,11 @@ jest.mock("../../core/database/prisma.service", () => ({
       create: jest.fn(),
       update: jest.fn(),
     },
+    evaluationAcknowledgement: {
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -169,5 +179,63 @@ describe("GET /api/v1/evaluations", () => {
       errorCode: "VALIDATION_FAILED",
     });
     expect(evalFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("allows HR users to list all sent evaluations plus their own drafts", async () => {
+    const authMock = jest.requireMock("../../core/middleware/auth.middleware");
+    authMock.authenticate.mockImplementationOnce(
+      (req: any, _res: unknown, next: () => void) => {
+        req.user = { id: "test-reviewer-user-id", role: "HR" };
+        next();
+      },
+    );
+
+    const reviewer = buildReviewerEmployee();
+    employeeFindUniqueMock.mockResolvedValue(reviewer);
+    evalFindManyMock.mockResolvedValue([]);
+    evalCountMock.mockResolvedValue(0);
+
+    await request(app).get("/api/v1/evaluations").expect(200);
+
+    const [[{ where }]] = evalFindManyMock.mock.calls;
+    expect(where).toMatchObject({
+      deletedAt: null,
+      OR: [
+        { reviewerId: reviewer.id },
+        { isSent: true },
+      ],
+    });
+  });
+
+  it("lists sent evaluations for downward reports when user is Employee", async () => {
+    const authMock = jest.requireMock("../../core/middleware/auth.middleware");
+    authMock.authenticate.mockImplementationOnce(
+      (req: any, _res: unknown, next: () => void) => {
+        req.user = { id: "test-reviewer-user-id", role: "EMPLOYEE" };
+        next();
+      },
+    );
+
+    const reviewer = buildReviewerEmployee();
+    const sharedMock = jest.requireMock("../../modules/shared");
+    sharedMock.downwardChain.mockResolvedValueOnce(["report-emp-id"]);
+
+    employeeFindUniqueMock.mockResolvedValue(reviewer);
+    evalFindManyMock.mockResolvedValue([]);
+    evalCountMock.mockResolvedValue(0);
+
+    await request(app).get("/api/v1/evaluations").expect(200);
+
+    const [[{ where }]] = evalFindManyMock.mock.calls;
+    expect(where).toMatchObject({
+      deletedAt: null,
+      OR: [
+        { reviewerId: reviewer.id },
+        {
+          isSent: true,
+          revieweeId: { in: [reviewer.id, "report-emp-id"] },
+        },
+      ],
+    });
   });
 });

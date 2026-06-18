@@ -21,17 +21,58 @@ export class EvaluationsRepository {
     });
   }
 
-  async findByReviewer(reviewerId: string, query: ListEvaluationsQuery) {
+  async findVisible(
+    employeeId: string,
+    role: string,
+    query: ListEvaluationsQuery,
+    downwardIds: string[]
+  ) {
+    let visibilityFilter: any;
+
+    if (role === "HR" || role === "ADMIN") {
+      visibilityFilter = {
+        OR: [
+          { reviewerId: employeeId },
+          { isSent: true },
+        ],
+      };
+    } else {
+      const allowedRevieweeIds = [employeeId, ...downwardIds];
+      visibilityFilter = {
+        OR: [
+          { reviewerId: employeeId },
+          {
+            isSent: true,
+            revieweeId: { in: allowedRevieweeIds },
+          },
+        ],
+      };
+    }
+
+    let statusFilter: any;
+    if (query.status === "draft") {
+      statusFilter = {
+        isSent: false,
+        reviewerId: employeeId,
+      };
+    } else if (query.status === "sent") {
+      statusFilter = {
+        isSent: true,
+        ...visibilityFilter,
+      };
+    } else {
+      statusFilter = visibilityFilter;
+    }
+
     const where = {
-      reviewerId,
       deletedAt: null,
-      ...(query.status === "draft" && { isSent: false }),
-      ...(query.status === "sent" && { isSent: true }),
+      ...statusFilter,
     };
 
     const [evaluations, total] = await Promise.all([
       prisma.performanceEvaluation.findMany({
         where,
+        include: { acknowledgement: true },
         orderBy: { createdAt: "desc" },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
@@ -43,13 +84,23 @@ export class EvaluationsRepository {
   }
 
   async findById(id: string) {
-    return prisma.performanceEvaluation.findFirst({ where: { id, deletedAt: null } });
+    return prisma.performanceEvaluation.findFirst({
+      where: { id, deletedAt: null },
+      include: { acknowledgement: true },
+    });
   }
 
   async softDelete(id: string) {
     return prisma.performanceEvaluation.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  async markAsSent(id: string, sentAt: Date, ackDeadline: Date) {
+    return prisma.performanceEvaluation.update({
+      where: { id },
+      data: { isSent: true, sentAt, ackDeadline },
     });
   }
 
@@ -69,6 +120,19 @@ export class EvaluationsRepository {
         ...(data.sentAt !== undefined && { sentAt: data.sentAt }),
         ...(data.ackDeadline !== undefined && { ackDeadline: data.ackDeadline }),
       },
+    });
+  }
+
+  async createAcknowledgement(evaluationId: string, employeeId: string) {
+    return prisma.evaluationAcknowledgement.create({
+      data: { evaluationId, employeeId, isDeemedAck: false },
+    });
+  }
+
+  async acknowledgeById(evaluationId: string) {
+    return prisma.evaluationAcknowledgement.update({
+      where: { evaluationId },
+      data: { acknowledgedAt: new Date() },
     });
   }
 }

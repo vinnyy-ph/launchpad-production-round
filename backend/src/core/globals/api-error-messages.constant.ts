@@ -26,6 +26,10 @@ export const API_ERROR_MESSAGES = {
   EVALUATION_NOT_FOUND: "Evaluation not found",
   EVALUATION_ALREADY_SENT: "This evaluation has already been sent and cannot be edited",
   NOT_EVALUATION_REVIEWER: "You are not the reviewer for this evaluation",
+  NOT_EVALUATION_REVIEWEE: "You are not the reviewee for this evaluation",
+  EVALUATION_NOT_SENT: "This evaluation has not been sent yet",
+  EVALUATION_ALREADY_ACKNOWLEDGED: "This evaluation has already been acknowledged",
+  REVIEWEE_NOT_EMPLOYEE: "Your account is not linked to an employee record",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];
