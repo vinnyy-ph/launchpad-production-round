@@ -268,7 +268,7 @@ export default function KitPage() {
             <div className="mb-10 flex items-center gap-2.5">
               <span className="h-8 w-8 rounded-lg bg-gradient-jia" />
               <span className="text-[17px] font-bold tracking-[-0.02em]">
-                SwiftWork
+                Manage Jia
               </span>
               <span aria-hidden className="text-[color:var(--text-tertiary)]">
                 ✦
@@ -278,10 +278,10 @@ export default function KitPage() {
               Component library
             </p>
             <h1 className="mb-5 max-w-[16ch] text-[clamp(38px,5.5vw,64px)] font-bold leading-[1.0] tracking-[-0.03em]">
-              The SwiftWork UI kit
+              The Manage Jia UI kit
             </h1>
             <p className="max-w-[620px] text-[18px] font-medium leading-[1.6] text-[color:var(--text-tertiary)]">
-              Every component, themed to the SwiftWork brandbook. Monochrome
+              Every component, themed to the Manage Jia brandbook. Monochrome
               chrome, one gradient moment, Satoshi throughout. Import from{" "}
               <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[14px]">
                 @/shared/ui
@@ -440,7 +440,7 @@ export default function KitPage() {
               <FormField
                 label="Work email"
                 htmlFor="ff-email"
-                hint="This is the email used to sign in to SwiftWork."
+                hint="This is the email used to sign in to Manage Jia."
               >
                 <Input
                   id="ff-email"
@@ -568,7 +568,7 @@ export default function KitPage() {
                   <div className="mb-1 text-[11px] font-bold uppercase tracking-[1.5px] opacity-80">
                     Brand (scrim)
                   </div>
-                  <div className="text-sm font-semibold">Welcome to SwiftWork</div>
+                  <div className="text-sm font-semibold">Welcome to Manage Jia</div>
                   <div className="mt-0.5 text-[13px] font-medium opacity-90">
                     One atmospheric moment per surface.
                   </div>

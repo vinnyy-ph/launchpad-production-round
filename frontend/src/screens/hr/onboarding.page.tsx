@@ -378,7 +378,7 @@ function StartOnboardingDialog({
               type="email"
               value={companyEmail}
               onChange={(e) => setCompanyEmail(e.target.value)}
-              placeholder="name@swiftwork.demo"
+              placeholder="name@managejia.demo"
             />
           </FormField>
           <FormField

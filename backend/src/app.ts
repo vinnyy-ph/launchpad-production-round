@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { authenticate } from "./core/middleware/auth.middleware";
 import { API_ROUTES } from "./core/globals";
 import { employeesRouter } from "./modules/people/employees";
+import { departmentsRouter } from "./modules/people/departments";
 import { teamsRouter } from "./modules/people/teams";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -77,6 +78,7 @@ app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
 );
 
 app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/departments`, authenticate, departmentsRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, authenticate, employeesRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/teams`, authenticate, teamsRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/onboarding`, authenticate, onboardingRouter);

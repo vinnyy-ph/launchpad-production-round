@@ -1,21 +1,25 @@
-// frontend/src/pages/home.page.tsx
-import { AlertCircle, RefreshCw, Bell } from "lucide-react";
+// frontend/src/screens/home.page.tsx
+import {
+  AlertCircle,
+  RefreshCw,
+  Bell,
+  UserPlus,
+  UserMinus,
+  Users,
+  ShieldCheck,
+  ClipboardCheck,
+  MessageSquare,
+  CheckCircle2,
+  FileText,
+  TrendingUp,
+} from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
 import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
 import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
-import { StatCard, type StatCardProps } from "@/shared/ui/patterns";
+import { KpiCard, type KpiCardProps } from "@/shared/ui/patterns";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
-
-function StatCardSkeleton() {
-  return (
-    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
-      <div className="h-7 w-16 rounded bg-[color:var(--bg-tertiary)]" />
-      <div className="mt-2 h-3 w-24 rounded bg-[color:var(--bg-tertiary)]" />
-    </div>
-  );
-}
 
 export default function HomePage() {
   const { appUser } = useAuth();
@@ -24,22 +28,18 @@ export default function HomePage() {
   const { notifications, loading: notifLoading, error: notifError, reload: reloadNotifs } = useNotifications(5);
   const { markRead } = useMarkRead(() => void reloadNotifs());
 
-  const statCards = buildStatCards(appUser?.role, appUser?.isSupervisor, stats);
+  const cards = buildCards(appUser?.role, appUser?.isSupervisor, stats);
 
   return (
     <div className="min-w-0 space-y-6">
       <ScreenHeader id="dashboard" level="page" />
 
-      {/* Stat cards */}
+      {/* KPI cards */}
       <section>
         <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
           At a glance
         </h2>
-        {statsLoading ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => <StatCardSkeleton key={i} />)}
-          </div>
-        ) : statsError ? (
+        {statsError ? (
           <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
             <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
             <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{statsError}</span>
@@ -51,9 +51,9 @@ export default function HomePage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {statCards.map((card) => (
-              <StatCard key={card.label} {...card} />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {cards.map((card) => (
+              <KpiCard key={card.label} {...card} loading={statsLoading} />
             ))}
           </div>
         )}
@@ -111,73 +111,59 @@ export default function HomePage() {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function buildStatCards(
+const PERIOD = "Right now";
+
+function buildCards(
   role: string | undefined,
   isSupervisor: boolean | undefined,
-  stats: DashboardStats | null
-): StatCardProps[] {
-  if (!stats) return [];
+  stats: DashboardStats | null,
+): KpiCardProps[] {
+  // While stats are loading the value is ignored (the card shows a skeleton);
+  // once loaded, an absent metric falls back to "—".
+  const num = (n: number | undefined): string | number => (stats ? (n ?? "—") : 0);
 
   if (role === "ADMIN" || role === "HR") {
     return [
-      {
-        label: "Pending onboarding",
-        value: stats.pendingOnboarding ?? "—",
-        variant: (stats.pendingOnboarding ?? 0) > 0 ? "warn" : "default",
-      },
-      {
-        label: "Pending offboarding",
-        value: stats.pendingOffboarding ?? "—",
-        variant: (stats.pendingOffboarding ?? 0) > 0 ? "alert" : "default",
-      },
-      { label: "Active employees", value: stats.activeEmployees ?? "—", variant: "brand" },
-      {
-        label: "Clearance awaiting",
-        value: stats.pendingClearances ?? "—",
-        variant: (stats.pendingClearances ?? 0) > 0 ? "warn" : "default",
-      },
+      { icon: UserPlus, label: "Pending onboarding", period: PERIOD, value: num(stats?.pendingOnboarding) },
+      { icon: UserMinus, label: "Pending offboarding", period: PERIOD, value: num(stats?.pendingOffboarding) },
+      { icon: Users, label: "Active employees", period: PERIOD, value: num(stats?.activeEmployees) },
+      { icon: ShieldCheck, label: "Clearance awaiting", period: PERIOD, value: num(stats?.pendingClearances) },
     ];
   }
 
   if (isSupervisor) {
     return [
+      { icon: ClipboardCheck, label: "Pending evaluations", period: PERIOD, value: num(stats?.pendingEvaluations) },
+      { icon: Users, label: "Direct reports", period: PERIOD, value: num(stats?.directReports) },
+      { icon: MessageSquare, label: "Unanswered surveys", period: PERIOD, value: num(stats?.unreadSurveys) },
       {
-        label: "Pending evaluations",
-        value: stats.pendingEvaluations ?? "—",
-        variant: (stats.pendingEvaluations ?? 0) > 0 ? "warn" : "default",
-      },
-      { label: "Direct reports", value: stats.directReports ?? "—", variant: "brand" },
-      {
-        label: "Unanswered surveys",
-        value: stats.unreadSurveys ?? "—",
-        variant: (stats.unreadSurveys ?? 0) > 0 ? "warn" : "default",
-      },
-      {
+        icon: CheckCircle2,
         label: "Evals complete",
-        value: stats.totalEvaluations
-          ? `${stats.completedEvaluations ?? 0}/${stats.totalEvaluations}`
-          : "—",
+        period: PERIOD,
+        value: stats
+          ? stats.totalEvaluations
+            ? `${stats.completedEvaluations ?? 0}/${stats.totalEvaluations}`
+            : "—"
+          : 0,
       },
     ];
   }
 
   // EMPLOYEE
   return [
+    { icon: FileText, label: "Documents pending", period: PERIOD, value: num(stats?.pendingDocuments) },
     {
-      label: "Documents pending",
-      value: stats.pendingDocuments ?? "—",
-      variant: (stats.pendingDocuments ?? 0) > 0 ? "warn" : "default",
-    },
-    {
+      icon: TrendingUp,
       label: "Onboarding progress",
-      value: stats.onboardingProgress != null ? `${stats.onboardingProgress}%` : "—",
-      variant: "brand",
+      period: PERIOD,
+      value: stats ? (stats.onboardingProgress != null ? `${stats.onboardingProgress}%` : "—") : 0,
     },
+    { icon: MessageSquare, label: "Unanswered surveys", period: PERIOD, value: num(stats?.unreadSurveys) },
     {
-      label: "Unanswered surveys",
-      value: stats.unreadSurveys ?? "—",
-      variant: (stats.unreadSurveys ?? 0) > 0 ? "warn" : "default",
+      icon: ShieldCheck,
+      label: "Clearance status",
+      period: PERIOD,
+      value: stats ? (stats.clearanceStatus ?? "—") : 0,
     },
-    { label: "Clearance status", value: stats.clearanceStatus ?? "—" },
   ];
 }
