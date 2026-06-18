@@ -5,12 +5,13 @@ export type SeededSurveys = {
   survey1Id: string
   survey2Id: string
   survey2CurrentOccId: string
+  survey3Id: string
 }
 
 type AnswerInput = { text?: string; data?: Prisma.InputJsonValue }
 
 export async function seedSurveys(prisma: PrismaClient, users: SeededUsers): Promise<SeededSurveys> {
-  const { placeholders } = users
+  const { staff } = users
 
   // Anonymity-safe grouping snapshot: lets anonymous results be grouped by
   // supervisor/team WITHOUT storing who answered on the response row.
@@ -29,6 +30,8 @@ export async function seedSurveys(prisma: PrismaClient, users: SeededUsers): Pro
       isAnonymous: false,
       visibility: 'SUPERVISOR_BASED',
       isActive: false,
+      releaseDate: new Date('2026-05-15'),
+      deadline: new Date('2026-06-08'),
     },
   })
 
@@ -53,14 +56,14 @@ export async function seedSurveys(prisma: PrismaClient, users: SeededUsers): Pro
     data: { surveyId: survey1.id, occurrenceNumber: 1, releaseDate: new Date('2026-05-15'), deadline: new Date('2026-06-08'), isClosed: true },
   })
 
-  // Respondents: Alex, Sam, Jordan (under Vn) + Riley, Taylor, Drew (under Thea)
+  // Respondents: Alex (staff[0]), Sam (staff[1]), Jordan (staff[2]), Riley (staff[4]), Taylor (staff[5]), Drew (staff[6])
   const s1AnswerSets: { emp: Employee; answers: AnswerInput[] }[] = [
-    { emp: placeholders[0], answers: [{ data: { value: 4 } }, { text: 'Better async communication' }, { text: 'Balancing multiple sprint tasks while maintaining code quality.' }, { data: { selected: ['Town Hall', 'Team Lunch'] } }, { data: { selected: 'Good' } }] },
-    { emp: placeholders[1], answers: [{ data: { value: 3 } }, { text: 'More structured feedback cycles' }, { text: 'Getting alignment on product requirements before development starts.' }, { data: { selected: ['Training Workshop'] } }, { data: { selected: 'Fair' } }] },
-    { emp: placeholders[2], answers: [{ data: { value: 5 } }, { text: 'Clearer release criteria' }, { text: 'Keeping regression coverage high when features ship fast.' }, { data: { selected: ['Town Hall', 'Training Workshop', 'Company Outing'] } }, { data: { selected: 'Excellent' } }] },
-    { emp: placeholders[5], answers: [{ data: { value: 4 } }, { text: 'More design review time' }, { text: 'Translating user research insights into designs within tight timelines.' }, { data: { selected: ['Team Lunch', 'Company Outing'] } }, { data: { selected: 'Good' } }] },
-    { emp: placeholders[6], answers: [{ data: { value: 3 } }, { text: 'Cleaner handoff between design and dev' }, { text: 'Prioritizing competing feature requests from multiple stakeholders.' }, { data: { selected: ['Town Hall'] } }, { data: { selected: 'Fair' } }] },
-    { emp: placeholders[7], answers: [{ data: { value: 4 } }, { text: 'More thorough API documentation' }, { text: 'Debugging production issues without sufficient logging in place.' }, { data: { selected: ['Town Hall', 'Team Lunch', 'Training Workshop'] } }, { data: { selected: 'Good' } }] },
+    { emp: staff[0], answers: [{ data: { value: 4 } }, { text: 'Better async communication' }, { text: 'Balancing multiple sprint tasks while maintaining code quality.' }, { data: { selected: ['Town Hall', 'Team Lunch'] } }, { data: { selected: 'Good' } }] },
+    { emp: staff[1], answers: [{ data: { value: 3 } }, { text: 'More structured feedback cycles' }, { text: 'Getting alignment on product requirements before development starts.' }, { data: { selected: ['Training Workshop'] } }, { data: { selected: 'Fair' } }] },
+    { emp: staff[2], answers: [{ data: { value: 5 } }, { text: 'Clearer release criteria' }, { text: 'Keeping regression coverage high when features ship fast.' }, { data: { selected: ['Town Hall', 'Training Workshop', 'Company Outing'] } }, { data: { selected: 'Excellent' } }] },
+    { emp: staff[4], answers: [{ data: { value: 4 } }, { text: 'More design review time' }, { text: 'Translating user research insights into designs within tight timelines.' }, { data: { selected: ['Team Lunch', 'Company Outing'] } }, { data: { selected: 'Good' } }] },
+    { emp: staff[5], answers: [{ data: { value: 3 } }, { text: 'Cleaner handoff between design and dev' }, { text: 'Prioritizing competing feature requests from multiple stakeholders.' }, { data: { selected: ['Town Hall'] } }, { data: { selected: 'Fair' } }] },
+    { emp: staff[6], answers: [{ data: { value: 4 } }, { text: 'More thorough API documentation' }, { text: 'Debugging production issues without sufficient logging in place.' }, { data: { selected: ['Town Hall', 'Team Lunch', 'Training Workshop'] } }, { data: { selected: 'Good' } }] },
   ]
 
   for (const { emp, answers } of s1AnswerSets) {
@@ -91,6 +94,8 @@ export async function seedSurveys(prisma: PrismaClient, users: SeededUsers): Pro
       isAnonymous: true,
       visibility: 'HR_ROOT_ONLY',
       isActive: true,
+      releaseDate: new Date('2026-06-08'),
+      deadline: new Date('2026-06-22'),
     },
   })
 
@@ -109,14 +114,13 @@ export async function seedSurveys(prisma: PrismaClient, users: SeededUsers): Pro
   const s2Past = await prisma.surveyOccurrence.create({
     data: { surveyId: survey2.id, occurrenceNumber: 1, releaseDate: new Date('2026-06-01'), deadline: new Date('2026-06-07'), isClosed: true },
   })
-  for (const emp of [placeholders[0], placeholders[1], placeholders[2], placeholders[5], placeholders[6], placeholders[7]]) {
+  for (const emp of [staff[0], staff[1], staff[2], staff[4], staff[5], staff[6]]) {
     const snap = await snapshot(emp)
     const response = await prisma.surveyResponse.create({
-      data: { occurrenceId: s2Past.id, employeeId: null, ...snap }, // anonymous: employeeId null, snapshots set
+      data: { occurrenceId: s2Past.id, employeeId: null, ...snap },
     })
     await prisma.surveyAnswer.create({ data: { responseId: response.id, questionId: s2Q1.id, answerData: { value: 4 } } })
     await prisma.surveyAnswer.create({ data: { responseId: response.id, questionId: s2Q2.id, answerText: 'No major blockers.' } })
-    // completion is tracked by employee even though the response is anonymous
     await prisma.surveyCompletion.create({ data: { occurrenceId: s2Past.id, employeeId: emp.id } })
   }
 
@@ -124,7 +128,7 @@ export async function seedSurveys(prisma: PrismaClient, users: SeededUsers): Pro
   const s2Current = await prisma.surveyOccurrence.create({
     data: { surveyId: survey2.id, occurrenceNumber: 2, releaseDate: new Date('2026-06-08'), deadline: new Date('2026-06-22'), isClosed: false },
   })
-  for (const emp of [placeholders[0], placeholders[5]]) {
+  for (const emp of [staff[0], staff[4]]) {
     const snap = await snapshot(emp)
     const response = await prisma.surveyResponse.create({
       data: { occurrenceId: s2Current.id, employeeId: null, ...snap },
@@ -135,10 +139,56 @@ export async function seedSurveys(prisma: PrismaClient, users: SeededUsers): Pro
   }
 
   // Per-occurrence audience snapshot for the open occurrence (EVERYONE = active employees).
-  const active = [users.kurt, users.vn, users.thea, users.darben, users.loreto, ...placeholders].filter((e) => e.status === 'ACTIVE')
+  const active = [users.kurt, users.loreto, users.vn, users.theaV, users.darben, users.theaS, users.asha, users.ximen, ...staff].filter((e) => e.status === 'ACTIVE')
   for (const emp of active) {
     await prisma.surveyAudienceMember.create({ data: { occurrenceId: s2Current.id, employeeId: emp.id } })
   }
 
-  return { survey1Id: survey1.id, survey2Id: survey2.id, survey2CurrentOccId: s2Current.id }
+  // ── Survey 3: Monthly Team Health — MONTHLY, active, not anonymous, TEAM_BASED ──
+  const survey3 = await prisma.pulseSurvey.create({
+    data: {
+      createdBy: users.theaS.id,
+      name: 'Monthly Team Health',
+      recurringType: 'MONTHLY',
+      audienceType: 'SPECIFIC_TEAMS',
+      isAnonymous: false,
+      visibility: 'TEAM_BASED',
+      isActive: true,
+      releaseDate: new Date('2026-06-01'),
+      deadline: new Date('2026-06-30'),
+    },
+  })
+
+  // Find the team Alpha
+  const teamAlpha = await prisma.team.findFirst({ where: { name: 'Team Alpha' } })
+  if (teamAlpha) {
+    await prisma.surveyAudienceConfig.create({
+      data: { surveyId: survey3.id, teamId: teamAlpha.id },
+    })
+  }
+
+  const s3Q1 = await prisma.surveyQuestion.create({
+    data: { surveyId: survey3.id, type: 'LINEAR_SCALE', questionText: 'How aligned are we on our sprint goals?', isRequired: true, scaleMin: 1, scaleMax: 5, scaleMinLabel: 'Misaligned', scaleMaxLabel: 'Fully Aligned', orderIndex: 1 },
+  })
+
+  const s3Occurrence = await prisma.surveyOccurrence.create({
+    data: { surveyId: survey3.id, occurrenceNumber: 1, releaseDate: new Date('2026-06-01'), deadline: new Date('2026-06-30'), isClosed: false },
+  })
+
+  // Add some responses for Team Alpha members: Asha, Alex, Sam
+  for (const emp of [users.asha, staff[0], staff[1]]) {
+    const response = await prisma.surveyResponse.create({
+      data: { occurrenceId: s3Occurrence.id, employeeId: emp.id },
+    })
+    await prisma.surveyAnswer.create({ data: { responseId: response.id, questionId: s3Q1.id, answerData: { value: 5 } } })
+    await prisma.surveyCompletion.create({ data: { occurrenceId: s3Occurrence.id, employeeId: emp.id } })
+  }
+
+  // Audience config mapping
+  const alphaMembers = await prisma.teamMember.findMany({ where: { teamId: teamAlpha?.id } })
+  for (const tm of alphaMembers) {
+    await prisma.surveyAudienceMember.create({ data: { occurrenceId: s3Occurrence.id, employeeId: tm.employeeId } })
+  }
+
+  return { survey1Id: survey1.id, survey2Id: survey2.id, survey2CurrentOccId: s2Current.id, survey3Id: survey3.id }
 }

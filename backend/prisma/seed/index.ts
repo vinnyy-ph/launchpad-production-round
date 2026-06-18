@@ -27,13 +27,7 @@ if (!databaseUrl) {
 }
 
 function createSeedAdapter(connectionString: string) {
-  const hostname = new URL(connectionString).hostname
-  const isNeonHost = hostname.includes('neon.tech')
-
-  if (isNeonHost) {
-    return new PrismaNeonHttp(connectionString, {})
-  }
-
+  // Always use PrismaPg to support transactions during seeding, even for Neon hosts.
   return new PrismaPg(connectionString)
 }
 
@@ -49,6 +43,7 @@ async function clearAll() {
   await prisma.surveyAudienceMember.deleteMany()
   await prisma.evaluationAcknowledgement.deleteMany()
   await prisma.performanceEvaluation.deleteMany()
+  await prisma.surveyVisibilityConfig.deleteMany()
   await prisma.surveyReminderConfig.deleteMany()
   await prisma.surveyAudienceConfig.deleteMany()
   await prisma.surveyQuestion.deleteMany()

@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { SeededUsers } from './users'
 
 export async function seedOnboarding(prisma: PrismaClient, users: SeededUsers): Promise<void> {
-  const casey = users.placeholders[3] // ONBOARDING status
+  const casey = users.staff[3] // ONBOARDING status
 
   const template = await prisma.onboardingTemplate.create({
     data: { name: 'Standard Onboarding', isDefault: true },

@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { SeededUsers } from './users'
 
 export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers): Promise<void> {
-  const blake = users.placeholders[9] // OFFBOARDING status
+  const blake = users.staff[8] // OFFBOARDING status
 
   const template = await prisma.clearanceTemplate.create({
     data: { name: 'Standard Clearance', isDefault: true },
@@ -17,10 +17,10 @@ export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers):
       requirements: 'Confirm no outstanding company assets, equipment, or system access remain assigned.',
     },
   })
-  const theaSig = await prisma.clearanceSignatory.create({
+  const theaVSig = await prisma.clearanceSignatory.create({
     data: {
       templateId: template.id,
-      employeeId: users.thea.id,
+      employeeId: users.theaV.id,
       order: 2,
       purpose: 'Supervisor clearance',
       requirements: 'Confirm handover of all in-progress work and team responsibilities.',
@@ -55,9 +55,9 @@ export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers):
   await prisma.clearanceSignatureRequest.create({
     data: {
       offboardingId: offboarding.id,
-      signatoryId: users.thea.id,
-      purpose: theaSig.purpose,
-      requirements: theaSig.requirements,
+      signatoryId: users.theaV.id,
+      purpose: theaVSig.purpose,
+      requirements: theaVSig.requirements,
       status: 'PENDING',
     },
   })
