@@ -19,6 +19,46 @@ export class NotificationsService {
   ) {}
 
   /**
+   * Notifies all HR users when an employee submits onboarding for document review.
+   * Failures are swallowed so submission is never blocked.
+   */
+  async notifyHrOnboardingSubmittedForReview(
+    employeeName: string,
+    employeeId: string,
+  ): Promise<void> {
+    try {
+      const hrEmployees = await this.notificationsRepository.findAllHrEmployees();
+
+      if (hrEmployees.length === 0) {
+        return;
+      }
+
+      const subject = "Onboarding ready for review";
+      const body = `${employeeName} submitted their onboarding for document review.`;
+      const linkUrl = `/hr/onboarding/${employeeId}`;
+
+      for (const hrEmployee of hrEmployees) {
+        const notification = await this.notificationsRepository.create({
+          recipientId: hrEmployee.id,
+          type: "ONBOARDING_STATUS",
+          subject,
+          body,
+          linkUrl,
+          sourceType: "Employee",
+          sourceId: employeeId,
+        });
+
+        this.inAppChannel.deliver(
+          hrEmployee.userId,
+          this.toNotificationDto(notification),
+        );
+      }
+    } catch {
+      // Fire-and-forget: submission must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
    * Notifies all HR users when an employee completes onboarding and becomes active.
    * Failures are swallowed so onboarding completion is never blocked.
    */
