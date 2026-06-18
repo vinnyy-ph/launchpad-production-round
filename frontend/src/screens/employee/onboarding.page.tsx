@@ -336,7 +336,7 @@ export default function EmployeeOnboardingPage() {
       onSuccess: () => {
         // Release the in-session onboarding gate and route home.
         markEmployeeActive();
-        toast.success("You're all set — welcome to SwiftWork!");
+        toast.success("You're all set — welcome to Manage Jia!");
         router.replace("/");
       },
       onError: (e) =>

@@ -97,7 +97,7 @@ export function Sidebar({
       <div className="mt-auto flex flex-col">
         <div className="px-4 py-4 text-center">
           <p className="text-[12px] font-medium text-[color:var(--text-tertiary)]">
-            © 2026 SwiftWork
+            © 2026 Manage Jia
           </p>
         </div>
       </div>

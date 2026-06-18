@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
-import { SwiftWorkLogo } from "@/shared/components/brand/swift-work-logo";
+import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { GoogleSignInButton } from "@/modules/auth/components/google-sign-in-button";
 import { signInWithGoogle } from "@/modules/auth/services/auth.service";
 import { mapSignInError } from "@/modules/auth/services/auth-errors";
@@ -54,7 +54,7 @@ export default function LoginPage() {
       {/* Form rail */}
       <div className="flex items-center justify-center bg-white px-6 py-12 md:p-16">
         <div className="flex w-full max-w-[380px] flex-col">
-          <SwiftWorkLogo />
+          <ManageJiaLogo />
           <h1 className="mt-10 text-[30px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-4xl">
             Welcome back
           </h1>
@@ -65,14 +65,14 @@ export default function LoginPage() {
           {status === "error" && (
             <div className="sw-alert mt-8" role="alert">
               <AlertCircle size={16} aria-hidden="true" />
-              <span>SwiftWork couldn't sign you in. Try again.</span>
+              <span>Manage Jia couldn't sign you in. Try again.</span>
             </div>
           )}
 
           <GoogleSignInButton className="mt-8" onClick={handleSignIn} loading={loading} />
 
           <p className="mt-6 text-[13px] leading-relaxed text-[color:var(--text-tertiary)]">
-            By continuing you agree to SwiftWork's{" "}
+            By continuing you agree to Manage Jia's{" "}
             <a href="#" className="text-[color:var(--text-secondary)] underline underline-offset-2">Terms</a> and{" "}
             <a href="#" className="text-[color:var(--text-secondary)] underline underline-offset-2">Privacy Policy</a>.
           </p>

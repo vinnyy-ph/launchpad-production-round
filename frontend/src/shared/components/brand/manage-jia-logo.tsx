@@ -1,6 +1,6 @@
 type Tone = "dark" | "light";
 
-interface SwiftWorkLogoProps {
+interface ManageJiaLogoProps {
   /** dark = dark tile/white bars (on white surfaces); light = inverted (on gradient/dark). */
   tone?: Tone;
   /** Mark size in px (square). Wordmark scales relative to this. */
@@ -10,10 +10,10 @@ interface SwiftWorkLogoProps {
 }
 
 /**
- * Swift Work brand lockup: rising-bars mark + "Swift Work" wordmark + ✦.
+ * Manage Jia brand lockup: rising-bars mark + "Manage Jia" wordmark + ✦.
  * Monochrome by design — the brand gradient is reserved for the login poster.
  */
-export function SwiftWorkLogo({ tone = "dark", size = 38, className, markOnly = false }: SwiftWorkLogoProps) {
+export function ManageJiaLogo({ tone = "dark", size = 38, className, markOnly = false }: ManageJiaLogoProps) {
   const tile = tone === "dark" ? "#181D27" : "#FFFFFF";
   const bars = tone === "dark" ? "#FFFFFF" : "#181D27";
   const text = tone === "dark" ? "#181D27" : "#FFFFFF";
@@ -51,7 +51,7 @@ export function SwiftWorkLogo({ tone = "dark", size = 38, className, markOnly = 
           lineHeight: 1,
         }}
       >
-        SwiftWork
+        Manage Jia
       </span>
       <span
         aria-hidden="true"
