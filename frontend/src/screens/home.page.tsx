@@ -27,8 +27,8 @@ export default function HomePage() {
   const statCards = buildStatCards(appUser?.role, appUser?.isSupervisor, stats);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <ScreenHeader id="dashboard" />
+    <div className="min-w-0 space-y-6">
+      <ScreenHeader id="dashboard" level="page" />
 
       {/* Stat cards */}
       <section>

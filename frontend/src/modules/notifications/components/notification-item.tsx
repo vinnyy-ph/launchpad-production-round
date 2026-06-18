@@ -9,14 +9,48 @@ interface Props {
   onRead: (id: string) => void;
 }
 
+// The backend stamps `linkUrl`s that don't match the client routes (e.g.
+// `/surveys/:id`, `/evaluations/:id`, `/clearance`, `/offboarding/me`), so
+// click-to-land is driven off the notification TYPE. Where the destination
+// screen supports a deep-link query (the employee Performance hub expands the
+// exact evaluation via `?tab=acknowledgements&eval=<id>`), the trailing id from
+// the server `linkUrl` is reused. Unmapped types fall back to the server link.
+function resolveRoute(n: Notification): string | null {
+  const id = n.linkUrl?.split("/").filter(Boolean).pop();
+  switch (n.type) {
+    case "NEW_PULSE":
+    case "PULSE_REMINDER":
+      // The page keys pulses off the OCCURRENCE id, which the notification
+      // doesn't carry, so we can only land on the surveys tab (not auto-open).
+      return "/employee/surveys";
+    case "NEW_EVALUATION":
+    case "EVAL_ACK_REMINDER":
+      return id
+        ? `/employee/surveys?tab=acknowledgements&eval=${id}`
+        : "/employee/surveys?tab=acknowledgements";
+    case "CLEARANCE_SIGN_REQUEST":
+    case "CLEARANCE_REJECTED":
+      return "/employee/clearance";
+    case "OFFBOARDING_STARTED":
+    case "OFFBOARDING_STATUS":
+      return "/offboarding";
+    case "ONBOARDING_INVITE":
+      return "/employee/onboarding";
+    case "ONBOARDING_COMPLETE":
+    case "ONBOARDING_STATUS":
+      return "/hr/directory";
+    default:
+      return n.linkUrl?.startsWith("/") ? n.linkUrl : null;
+  }
+}
+
 export function NotificationItem({ notification, onRead }: Props) {
   const router = useRouter();
 
   const handleClick = () => {
     if (!notification.isRead) onRead(notification.id);
-    if (notification.linkUrl && notification.linkUrl.startsWith("/")) {
-      router.push(notification.linkUrl);
-    }
+    const route = resolveRoute(notification);
+    if (route) router.push(route);
   };
 
   return (

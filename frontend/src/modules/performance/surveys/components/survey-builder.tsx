@@ -180,6 +180,23 @@ function buildAudienceConfigs(state: BuilderState): AudienceConfigInput[] {
   return [];
 }
 
+/**
+ * Coerce a question's stored `options` into the editor's `string[]`. API-created
+ * questions store a JSON array, but seeded questions store `{ choices: [...] }`,
+ * and the detail DTO types the field as `unknown` — so handle string[], object[]
+ * (use `label`), and the `{ choices }` shape, falling back to an empty list.
+ */
+function normalizeOptions(raw: unknown): string[] {
+  const arr: unknown[] = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object" && Array.isArray((raw as { choices?: unknown }).choices)
+      ? (raw as { choices: unknown[] }).choices
+      : [];
+  return arr.map((o) =>
+    typeof o === "string" ? o : String((o as { label?: unknown })?.label ?? o ?? ""),
+  );
+}
+
 // ─── Multi-select checkbox list (searchable) ─────────────────────────────────
 
 interface MultiSelectProps {
@@ -320,7 +337,7 @@ export function SurveyBuilderDialog({
             type: q.type,
             questionText: q.questionText,
             isRequired: q.isRequired,
-            options: q.options ? [...q.options] : [],
+            options: normalizeOptions(q.options),
             scaleMin: q.scaleMin ?? 1,
             scaleMax: q.scaleMax ?? 5,
             scaleMinLabel: q.scaleMinLabel ?? "",
@@ -508,7 +525,17 @@ export function SurveyBuilderDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+        onInteractOutside={(e) => {
+          // Selects and date pickers render in a portal OUTSIDE this dialog, so
+          // clicking an option / calendar day reads as an "outside" interaction
+          // and would slam the builder shut mid-edit. Ignore any interaction that
+          // originates inside a Radix popper.
+          const origin = e.detail.originalEvent.target as Element | null;
+          if (origin?.closest("[data-radix-popper-content-wrapper]")) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{initial ? "Edit survey" : "Create survey"}</DialogTitle>
           <DialogDescription>

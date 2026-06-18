@@ -614,7 +614,7 @@ export default function EmployeeSurveysPage() {
     <div>
       <PageHeader
         level="page"
-        title="Surveys & acknowledgements"
+        title="Performance"
         subtitle="Answer active pulse surveys and acknowledge your performance evaluations."
       />
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ClipboardList,
@@ -10,13 +10,20 @@ import {
   Play,
   Square,
   BarChart3,
-  AlertCircle,
-  RefreshCw,
+  Filter,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { Button, Badge } from "@/shared/ui";
 import {
+  Button,
+  Badge,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -26,7 +33,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui";
-import { EmptyState, DataTable, type Column } from "@/shared/ui/patterns";
+import {
+  EmptyState,
+  DataTable,
+  type Column,
+  type DataTableSort,
+  FilterBar,
+  TablePagination,
+} from "@/shared/ui/patterns";
 import { SurveyBuilderDialog } from "@/modules/performance/surveys/components/survey-builder";
 import { useSurveys } from "@/modules/performance/surveys/hooks/use-surveys";
 import { useSurvey } from "@/modules/performance/surveys/hooks/use-survey";
@@ -53,10 +67,23 @@ const STATUS_VARIANT: Record<SurveyStatus, "success" | "warning" | "neutral"> = 
   closed: "warning",
 };
 
+const PAGE_SIZE = 10;
+const STATUS_OPTIONS: { value: SurveyStatus | "ALL"; label: string }[] = [
+  { value: "ALL", label: "All statuses" },
+  { value: "active", label: STATUS_LABEL.active },
+  { value: "draft", label: STATUS_LABEL.draft },
+  { value: "closed", label: STATUS_LABEL.closed },
+];
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: "name", label: "Name" },
+  { value: "occurrences", label: "Occurrences" },
+  { value: "status", label: "Status" },
+];
+
 export default function HRSurveysPage() {
   const router = useRouter();
   const surveysQuery = useSurveys();
-  const surveys = surveysQuery.data ?? [];
+  const surveys = useMemo(() => surveysQuery.data ?? [], [surveysQuery.data]);
 
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -64,12 +91,50 @@ export default function HRSurveysPage() {
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
 
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<SurveyStatus | "ALL">("ALL");
+  const [sort, setSort] = useState<DataTableSort>({ key: "name", direction: "asc" });
+  const [page, setPage] = useState(1);
+
   const detailQuery = useSurvey(editingId);
   const createSurvey = useCreateSurvey();
   const updateSurvey = useUpdateSurvey();
   const deleteSurvey = useDeleteSurvey();
   const activateSurvey = useActivateSurvey();
   const deactivateSurvey = useDeactivateSurvey();
+
+  // Search + status filter, then sort — all client-side over the survey list.
+  const filtered = useMemo(() => {
+    let list = surveys;
+    if (statusFilter !== "ALL") list = list.filter((s) => deriveStatus(s) === statusFilter);
+    const q = search.trim().toLowerCase();
+    if (q) list = list.filter((s) => s.name.toLowerCase().includes(q));
+    return list;
+  }, [surveys, statusFilter, search]);
+
+  const sorted = useMemo(() => {
+    const dir = sort.direction === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      switch (sort.key) {
+        case "occurrences":
+          return dir * (a.occurrenceCount - b.occurrenceCount);
+        case "status":
+          return dir * deriveStatus(a).localeCompare(deriveStatus(b));
+        case "name":
+        default:
+          return dir * a.name.localeCompare(b.name);
+      }
+    });
+  }, [filtered, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasFilters = Boolean(search || statusFilter !== "ALL");
+
+  // Reset to the first page whenever the result set changes underneath us.
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, sort]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -148,6 +213,8 @@ export default function HRSurveysPage() {
   const columns: Column<SurveyListItem>[] = [
     {
       header: "Name",
+      sortable: true,
+      sortKey: "name",
       cell: (s) => (
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
@@ -163,6 +230,7 @@ export default function HRSurveysPage() {
     },
     {
       header: "Anonymity",
+      mobileLabel: "Anonymity",
       cell: (s) => (
         <Badge variant={s.isAnonymous ? "success" : "neutral"}>
           {s.isAnonymous ? "Anonymous" : "Named"}
@@ -171,12 +239,18 @@ export default function HRSurveysPage() {
     },
     {
       header: "Occurrences",
+      mobileLabel: "Occurrences",
+      sortable: true,
+      sortKey: "occurrences",
       cell: (s) => (
         <span className="text-sm text-[color:var(--text-secondary)]">{s.occurrenceCount}</span>
       ),
     },
     {
       header: "Status",
+      mobileLabel: "Status",
+      sortable: true,
+      sortKey: "status",
       cell: (s) => {
         const status = deriveStatus(s);
         return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
@@ -184,72 +258,86 @@ export default function HRSurveysPage() {
     },
     {
       header: "",
+      mobileFooter: true,
+      className: "w-[1%] whitespace-nowrap text-right",
       cell: (s) => {
         const status = deriveStatus(s);
         return (
-          <div className="flex items-center justify-end gap-1">
-            {status === "active" ? (
-              <button
-                type="button"
+          <div className="flex w-full justify-end">
+            <div className="inline-flex items-center gap-1">
+              {status !== "draft" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/hr/surveys/${s.id}/results`);
+                  }}
+                  aria-label="View results"
+                  title="View results"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                </Button>
+              )}
+              {status === "active" ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeactivatingId(s.id);
+                  }}
+                  aria-label="Deactivate survey"
+                  title="Deactivate survey"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-[color:hsl(var(--primary))] hover:bg-gray-50 hover:text-[color:hsl(var(--primary))]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivatingId(s.id);
+                  }}
+                  aria-label="Activate survey"
+                  title="Activate survey"
+                >
+                  <Play className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setDeactivatingId(s.id);
+                  openEdit(s);
                 }}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-                aria-label="Deactivate survey"
+                aria-label="Edit survey"
+                title="Edit survey"
               >
-                <Square size={12} /> Deactivate
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActivatingId(s.id);
-                }}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-                aria-label="Activate survey"
-              >
-                <Play size={12} /> Activate
-              </button>
-            )}
-            {status !== "draft" && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  router.push(`/hr/surveys/${s.id}/results`);
-                }}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-                aria-label="View results"
-              >
-                <BarChart3 size={12} /> Results
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                openEdit(s);
-              }}
-              className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)]"
-              aria-label="Edit survey"
-            >
-              <Pencil size={14} />
-            </button>
-            {status === "draft" && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeletingId(s.id);
-                }}
-                className="rounded-lg p-1.5 text-[color:var(--color-error-500)] hover:bg-[color:var(--bg-secondary)]"
-                aria-label="Delete survey"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
+                <Pencil className="h-4 w-4" />
+              </Button>
+              {status === "draft" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeletingId(s.id);
+                  }}
+                  aria-label="Delete survey"
+                  title="Delete survey"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         );
       },
@@ -257,74 +345,112 @@ export default function HRSurveysPage() {
   ];
 
   return (
-    <div>
+    <div className="min-w-0">
       <PageHeader
         level="page"
         title="Pulse surveys"
         subtitle="Build and manage surveys across the organisation."
-        action={
-          <Button onClick={openCreate}>
-            <Plus /> Create survey
-          </Button>
-        }
       />
 
-      {/* Loading skeletons */}
-      {surveysQuery.isLoading && (
-        <div className="space-y-2">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3"
-            >
-              <div className="flex-1 space-y-1.5">
-                <div className="h-3.5 w-48 rounded bg-[color:var(--bg-tertiary)]" />
-                <div className="h-2.5 w-32 rounded bg-[color:var(--bg-tertiary)]" />
-              </div>
-              <div className="h-5 w-16 rounded-full bg-[color:var(--bg-tertiary)]" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Error */}
-      {surveysQuery.isError && (
-        <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
-          <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-          <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
-            {surveysQuery.error.message}
-          </span>
-          <button
-            onClick={() => void surveysQuery.refetch()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-          >
-            <RefreshCw size={12} /> Retry
-          </button>
-        </div>
-      )}
-
-      {/* Table */}
-      {!surveysQuery.isLoading && !surveysQuery.isError && (
-        <div
-          className="rounded-xl border border-[color:var(--border-primary)] bg-white"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        >
-          <DataTable
-            columns={columns}
-            data={surveys}
-            getRowId={(s) => s.id}
-            onRowClick={(s) => openEdit(s)}
-            emptyState={
-              <EmptyState
-                icon={ClipboardList}
-                title="No surveys yet"
-                body="Create your first pulse survey to start gathering insights."
-                action={{ label: "Create survey", onClick: openCreate }}
-              />
-            }
+      <FilterBar aria-label="Filter surveys" className="gap-3">
+        <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <Input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name…"
+            aria-label="Search surveys"
+            className="w-full sm:max-w-[320px]"
           />
+          <div className="flex w-full gap-2 md:hidden">
+            <Select
+              value={sort.key}
+              onValueChange={(v: string) => setSort((cur) => ({ key: v, direction: cur.direction }))}
+            >
+              <SelectTrigger className="w-full min-w-0" aria-label="Sort by">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              onClick={() =>
+                setSort((cur) => ({
+                  key: cur.key,
+                  direction: cur.direction === "asc" ? "desc" : "asc",
+                }))
+              }
+              aria-label={`Sort ${sort.direction === "asc" ? "descending" : "ascending"}`}
+            >
+              <ArrowUpDown className="h-4 w-4" />
+            </Button>
+          </div>
+          <Select
+            value={statusFilter}
+            onValueChange={(v: string) => setStatusFilter(v as SurveyStatus | "ALL")}
+          >
+            <SelectTrigger className="relative w-full pl-9 sm:w-[180px]" aria-label="Filter by status">
+              <Filter
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
+                aria-hidden="true"
+              />
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      )}
+        <Button onClick={openCreate} className="w-full shrink-0 sm:ml-auto sm:w-auto">
+          <Plus aria-hidden="true" />
+          Create survey
+        </Button>
+      </FilterBar>
+
+      <div
+        className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      >
+        <DataTable
+          columns={columns}
+          data={pageItems}
+          isLoading={surveysQuery.isLoading}
+          error={surveysQuery.isError ? (surveysQuery.error?.message ?? "Could not load surveys.") : null}
+          onRetry={() => void surveysQuery.refetch()}
+          getRowId={(s) => s.id}
+          onRowClick={(s) => openEdit(s)}
+          sort={sort}
+          onSortChange={setSort}
+          emptyState={
+            <EmptyState
+              icon={ClipboardList}
+              title={hasFilters ? "No matching surveys" : "No surveys yet"}
+              body={
+                hasFilters
+                  ? "Try a different search or status filter."
+                  : "Create your first pulse survey to start gathering insights."
+              }
+              action={hasFilters ? undefined : { label: "Create survey", onClick: openCreate }}
+            />
+          }
+        />
+        {totalPages > 1 && (
+          <TablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        )}
+      </div>
 
       {/* Builder dialog */}
       <SurveyBuilderDialog

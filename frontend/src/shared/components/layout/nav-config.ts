@@ -47,7 +47,7 @@ export interface NavSection {
 
 /**
  * Sidebar sections in fixed stacking order: General → My Team → Organization → Admin.
- * Exactly four sections / eight items — one section per role lane.
+ * Four sections, one per role lane.
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -55,7 +55,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "General",
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" },
-      { id: "performance", label: "Performance", icon: TrendingUp, href: "/performance" },
+      { id: "performance", label: "Performance", icon: TrendingUp, href: "/employee/surveys" },
     ],
   },
   {
@@ -63,6 +63,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "My Team",
     items: [
       { id: "overview", label: "Overview", icon: LayoutGrid, href: "/supervisor/reports" },
+      { id: "roster", label: "Roster", icon: Users, href: "/supervisor/roster" },
       { id: "evaluations", label: "Evaluations", icon: ClipboardCheck, href: "/supervisor/evaluations" },
     ],
   },
@@ -85,8 +86,9 @@ export const NAV_SECTIONS: NavSection[] = [
 /** Per-nav-item content header: { title, subtitle }, with `{workspaceName}` interpolated. */
 export const SCREEN_HEADERS: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "Dashboard", subtitle: "Your day at a glance across {workspaceName}." },
-  performance: { title: "Performance", subtitle: "Goals, reviews, and feedback cycles." },
+  performance: { title: "Performance", subtitle: "Your performance evaluations and pulse surveys." },
   overview: { title: "Team overview", subtitle: "How your direct reports are tracking." },
+  roster: { title: "Roster", subtitle: "Everyone who reports to you." },
   evaluations: { title: "Evaluations", subtitle: "Reviews you own as a supervisor." },
   people: { title: "People", subtitle: "The {workspaceName} employee directory." },
   orgchart: { title: "Structure", subtitle: "Reporting lines and team structure." },
@@ -103,7 +105,6 @@ const EXTRA_CRUMBS: Record<string, string[]> = {
   "/employee/profile": ["My profile"],
   "/employee/onboarding": ["My onboarding"],
   "/employee/clearance": ["My clearances"],
-  "/employee/surveys": ["Surveys"],
   "/offboarding": ["My offboarding"],
   "/hr/onboarding": ["Organization", "Onboarding"],
   "/hr/offboarding": ["Organization", "Offboarding"],

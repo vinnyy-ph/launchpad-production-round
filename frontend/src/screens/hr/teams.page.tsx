@@ -140,17 +140,8 @@ export default function TeamsPage() {
   }, [addTeam, employees]);
 
   return (
-    <div className="relative">
-      {/* Gradient blur accent — page header area only */}
-      <div className="pointer-events-none absolute left-0 top-0 h-48 w-full overflow-hidden" aria-hidden="true">
-        <div
-          className="absolute -left-10 -top-10 h-64 w-96 rounded-full opacity-30 blur-3xl"
-          style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-blue, #93c5fd))" }}
-        />
-      </div>
-
-      <div className="relative">
-        <PageHeader
+    <div className="min-w-0">
+      <PageHeader
           level="page"
           title="Teams"
           subtitle="Organizational structure and team membership."
@@ -211,7 +202,6 @@ export default function TeamsPage() {
             ))}
           </div>
         ) : null}
-      </div>
 
       {/* Create team dialog */}
       <CreateTeamDialog
