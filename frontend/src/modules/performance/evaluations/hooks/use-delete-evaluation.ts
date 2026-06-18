@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { sendEvaluation } from "../services/evaluations.service";
+import { deleteEvaluation } from "../services/evaluations.service";
 
-export function useSendEvaluation() {
+export function useDeleteEvaluation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => sendEvaluation(id),
+    mutationFn: (id: string) => deleteEvaluation(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.evaluations.all }),
   });
 }

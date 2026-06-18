@@ -5,3 +5,4 @@ export type { UpdateEvaluationData } from "./update-evaluation-data.dto";
 export type { ListEvaluationsQuery } from "./list-evaluations-query.dto";
 export type { EvaluationResponseDto } from "./evaluation-response.dto";
 export { ListEvaluationsResponseDto } from "./list-evaluations-response.dto";
+export type { RevieweeResponseDto, ListRevieweesResponseDto } from "./reviewee-response.dto";
