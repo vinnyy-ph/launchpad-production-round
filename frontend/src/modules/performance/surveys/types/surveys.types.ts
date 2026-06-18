@@ -62,6 +62,23 @@ export interface Question {
   orderIndex: number;
 }
 
+/**
+ * Coerce a question's stored `options` into a clean string[]. The API returns a
+ * JSON array for survey-created questions, but seeded questions store
+ * `{ choices: [...] }` — so handle string[], the `{ choices }` shape, and
+ * object[] (`{ label }`), falling back to an empty list.
+ */
+export function normalizeQuestionOptions(raw: unknown): string[] {
+  const arr: unknown[] = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object" && Array.isArray((raw as { choices?: unknown }).choices)
+      ? (raw as { choices: unknown[] }).choices
+      : [];
+  return arr.map((o) =>
+    typeof o === "string" ? o : String((o as { label?: unknown })?.label ?? o ?? ""),
+  );
+}
+
 export interface AudienceConfig {
   id: string;
   surveyId: string;

@@ -13,6 +13,7 @@ import type {
   SurveyResults,
   ResultsFilter,
 } from "../types/surveys.types";
+import { normalizeQuestionOptions } from "../types/surveys.types";
 
 const BASE = "/api/v1/pulse/surveys";
 const PULSE = "/api/v1/pulse";
@@ -33,7 +34,13 @@ export async function fetchSurveys(status?: SurveyStatus): Promise<SurveyListIte
 /** Full detail of one survey, including questions and audience config. */
 export async function getSurvey(id: string): Promise<SurveyDetail> {
   const res = await apiFetch<{ data: SurveyDetail }>(`${BASE}/${id}`);
-  return res.data;
+  return {
+    ...res.data,
+    questions: res.data.questions.map((q) => ({
+      ...q,
+      options: normalizeQuestionOptions(q.options),
+    })),
+  };
 }
 
 export async function createSurvey(input: CreateSurveyInput): Promise<SurveyDetail> {
@@ -96,7 +103,13 @@ export async function previewAudience(
 /** The signed-in employee's open pulses to answer. */
 export async function fetchMySurveys(): Promise<PendingSurvey[]> {
   const res = await apiFetch<{ data: PendingSurvey[] }>(`${PULSE}/me/surveys`);
-  return res.data;
+  return res.data.map((s) => ({
+    ...s,
+    questions: s.questions.map((q) => ({
+      ...q,
+      options: normalizeQuestionOptions(q.options),
+    })),
+  }));
 }
 
 /** Submit answers to a pulse occurrence. Anonymity + validation enforced server-side. */
