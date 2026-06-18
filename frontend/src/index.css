@@ -32,6 +32,14 @@
     --input: 220 5% 84%;                /* #D5D7DA — neutral-300 */
     --ring: 228 27% 9%;                 /* #181D27 */
     --radius: 0.5rem;                   /* 8px base */
+
+    /* Chart categorical palette — cool neutrals + one brand accent. */
+    --chart-1: 230 33% 10%;   /* #111322 */
+    --chart-2: 222 25% 38%;   /* #4A5578 */
+    --chart-3: 221 28% 66%;   /* #B9C0D4 */
+    --chart-4: 18 92% 87%;    /* #FCCEC0 — peach (gradient stop) */
+    --chart-5: 327 56% 80%;   /* #EBACC9 — pink */
+    --chart-6: 205 70% 78%;   /* #9FCAED — sky */
   }
 }
 
@@ -89,4 +97,73 @@
     color: var(--text-primary);
     border-color: transparent;
   }
+
+  /* ── Checkbox — ported verbatim from brandbook .jia-cb, adapted to Radix ──
+     Radix Checkbox Root is a <button>; we drive visuals off [data-state] and
+     draw the mark with ::after (identical geometry to the book). */
+  .jia-cb-root {
+    box-sizing: border-box;
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    border: 1.5px solid var(--gray-neutral-300);
+    background: #fff;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: background 140ms var(--ease), border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .jia-cb-root[data-state="checked"],
+  .jia-cb-root[data-state="indeterminate"] {
+    background: var(--gradient-jia);   /* 135° — matches book .jia-cb:checked */
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(159, 202, 237, .22);
+  }
+  .jia-cb-root[data-state="checked"]::after {
+    content: ""; position: absolute; left: 4px; top: 1.5px;
+    width: 5px; height: 8px;
+    border: 2px solid #fff; border-top: none; border-left: none;
+    transform: rotate(45deg);
+  }
+  .jia-cb-root[data-state="indeterminate"]::after {
+    content: ""; position: absolute; left: 3px; top: 6px;
+    width: 8px; height: 2px; background: #fff; border-radius: 1px;
+  }
+  .jia-cb-root:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(159, 202, 237, .38); }
+  .jia-cb-root:disabled { opacity: .38; cursor: not-allowed; }
+
+  /* ── Radio — ported from brandbook .jia-rb ── */
+  .jia-rb-root {
+    box-sizing: border-box;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid var(--gray-neutral-300);
+    background: #fff;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: background 140ms var(--ease), border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .jia-rb-root[data-state="checked"] {
+    background: var(--gradient-jia);
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(159, 202, 237, .22);
+  }
+  .jia-rb-root[data-state="checked"]::after {
+    content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #fff;
+  }
+  .jia-rb-root:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(159, 202, 237, .38); }
+  .jia-rb-root:disabled { opacity: .38; cursor: not-allowed; }
+
+  /* ── Circular progress — ported verbatim from brandbook .circle-prog ──
+     Showcase-only: size + conic-gradient are passed inline per instance. */
+  .circle-prog { border-radius: 50%; position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .circle-prog::after { content: ""; position: absolute; border-radius: 50%; background: #fff; }
+  .circle-prog.cp-sm::after { inset: 5px; }
+  .circle-prog.cp-md::after { inset: 7px; }
+  .circle-prog.cp-lg::after { inset: 9px; }
+  .cp-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+  .cp-val { font-weight: 700; color: var(--text-primary); }
+  .cp-sub { color: var(--text-tertiary); font-weight: 500; }
 }

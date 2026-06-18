@@ -1,25 +1,31 @@
-jest.mock("@/shared/lib/api-client", () => ({
-  apiFetch: jest.fn(() => Promise.resolve([])),
-}));
-
-import { apiFetch } from "@/shared/lib/api-client";
 import { getEmployees } from "./employees.service";
+import { resetDemo } from "@/shared/mock/db";
 
-describe("getEmployees", () => {
-  afterEach(() => jest.clearAllMocks());
+describe("getEmployees (mock)", () => {
+  beforeEach(() => resetDemo());
 
-  it("calls the bare endpoint when no filters are given", async () => {
-    await getEmployees();
-    expect(apiFetch).toHaveBeenCalledWith("/api/employees");
+  it("returns the seeded employees mapped to directory rows", async () => {
+    const rows = await getEmployees();
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0]).toEqual(
+      expect.objectContaining({
+        id: expect.any(String),
+        companyEmail: expect.any(String),
+        employeeStatus: expect.any(String),
+      }),
+    );
   });
 
-  it("appends search and status as query params", async () => {
-    await getEmployees({ search: "ada", status: "ACTIVE" });
-    expect(apiFetch).toHaveBeenCalledWith("/api/employees?search=ada&status=ACTIVE");
+  it("filters by status", async () => {
+    const active = await getEmployees({ status: "ACTIVE" });
+    expect(active.every((r) => r.employeeStatus === "ACTIVE")).toBe(true);
   });
 
-  it("omits empty filter values", async () => {
-    await getEmployees({ search: "", status: "ACTIVE" });
-    expect(apiFetch).toHaveBeenCalledWith("/api/employees?status=ACTIVE");
+  it("filters by search across name and email", async () => {
+    const all = await getEmployees();
+    const target = all[0];
+    const query = target.companyEmail.split("@")[0].slice(0, 3);
+    const hits = await getEmployees({ search: query });
+    expect(hits.some((r) => r.id === target.id)).toBe(true);
   });
 });

@@ -2,8 +2,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Plus } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { Button } from "@/shared/components/ui/button";
-import { DataTable, EmptyState, StatusBadge, type Column } from "@/shared/components/common";
+import { Button } from "@/shared/ui/primitives/button";
+import { Input } from "@/shared/ui/primitives/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/primitives/select";
+import { DataTable, EmptyState, FilterBar, StatusBadge, type Column } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import type {
@@ -11,8 +19,9 @@ import type {
   EmployeeStatus,
 } from "@/modules/people/employees/types/employees.types";
 
-const STATUS_OPTIONS: { value: "" | EmployeeStatus; label: string }[] = [
-  { value: "", label: "All statuses" },
+const ALL = "ALL";
+const STATUS_OPTIONS: { value: typeof ALL | EmployeeStatus; label: string }[] = [
+  { value: ALL, label: "All statuses" },
   { value: "ONBOARDING", label: "Onboarding" },
   { value: "ACTIVE", label: "Active" },
   { value: "OFFBOARDING", label: "Offboarding" },
@@ -46,7 +55,10 @@ export default function DirectoryPage() {
       header: "Name",
       cell: (e) => (
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[11px] font-bold text-white">
+          <span
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-[color:var(--text-primary)]"
+            style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+          >
             {initials(e)}
           </span>
           <div className="min-w-0">
@@ -84,6 +96,7 @@ export default function DirectoryPage() {
   return (
     <div>
       <PageHeader
+        level="page"
         title="Directory"
         subtitle="Search and manage employees across the organization."
         action={
@@ -93,28 +106,31 @@ export default function DirectoryPage() {
         }
       />
 
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <input
+      <FilterBar aria-label="Filter employees">
+        <Input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or email…"
           aria-label="Search employees"
-          className="h-10 w-full rounded-lg border border-[color:var(--border-secondary)] bg-white px-3.5 text-sm text-[color:var(--text-primary)] shadow-[var(--shadow-inset-brand)] outline-none focus:border-[color:var(--border-strong)] sm:max-w-[320px]"
+          className="sm:max-w-[320px]"
         />
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as "" | EmployeeStatus)}
-          aria-label="Filter by status"
-          className="h-10 rounded-lg border border-[color:var(--border-secondary)] bg-white px-3 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--border-strong)]"
+        <Select
+          value={status || ALL}
+          onValueChange={(v) => setStatus(v === ALL ? "" : (v as EmployeeStatus))}
         >
-          {STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          <SelectTrigger className="sm:w-[200px]" aria-label="Filter by status">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FilterBar>
 
       <div
         className="rounded-xl border border-[color:var(--border-primary)] bg-white"

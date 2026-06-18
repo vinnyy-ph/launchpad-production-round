@@ -1,8 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { redirect } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../hooks/use-auth";
+import { roleHome } from "../role-home";
 import type { Role } from "../types/auth.types";
 
 interface Props {
@@ -12,13 +13,25 @@ interface Props {
 
 export function RequireRole({ allowedRoles, children }: Props) {
   const { appUser, loading } = useAuth();
-  if (loading) return null;
-  if (!appUser) redirect("/login");
+  const router = useRouter();
 
   const hasRole =
-    allowedRoles.includes(appUser.role) ||
-    (allowedRoles.includes("SUPERVISOR") && appUser.isSupervisor);
+    !!appUser &&
+    (allowedRoles.includes(appUser.role) ||
+      (allowedRoles.includes("SUPERVISOR") && appUser.isSupervisor));
 
-  if (!hasRole) redirect("/");
+  // Redirect in an effect, never during render. On a role mismatch send the
+  // user to their OWN home (roleHome) — the same target the role switcher
+  // pushes to — so the two navigations agree instead of racing to "/".
+  useEffect(() => {
+    if (loading) return;
+    if (!appUser) {
+      router.replace("/login");
+    } else if (!hasRole) {
+      router.replace(roleHome(appUser));
+    }
+  }, [loading, appUser, hasRole, router]);
+
+  if (loading || !appUser || !hasRole) return null;
   return <>{children}</>;
 }

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, DoorOpen, LayoutGrid, ClipboardCheck,
-  Users, Network, ClipboardList, UserCog, ChevronsUpDown, type LucideIcon
+  Users, Network, ClipboardList, UserCog, UserCircle, BookOpen, ShieldCheck,
+  UserPlus, UserMinus, GitBranch,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Role } from "@/modules/auth/types/auth.types";
@@ -26,13 +28,23 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ALL"] },
       { label: "Performance", icon: TrendingUp, href: "/performance", roles: ["ALL"] },
-      { label: "Offboarding", icon: DoorOpen, href: "/offboarding", roles: ["ALL"], badge: 1 },
+      { label: "Offboarding", icon: DoorOpen, href: "/offboarding", roles: ["ALL"] },
+    ],
+  },
+  {
+    title: "Me",
+    items: [
+      { label: "My profile", icon: UserCircle, href: "/employee/profile", roles: ["ALL"] },
+      { label: "My onboarding", icon: BookOpen, href: "/employee/onboarding", roles: ["ALL"] },
+      { label: "My clearances", icon: ShieldCheck, href: "/employee/clearance", roles: ["ALL"] },
+      { label: "Surveys", icon: ClipboardList, href: "/employee/surveys", roles: ["ALL"] },
     ],
   },
   {
     title: "My Team",
     items: [
       { label: "Overview", icon: LayoutGrid, href: "/supervisor/reports", roles: ["SUPERVISOR"] },
+      { label: "Hierarchy status", icon: GitBranch, href: "/supervisor/status", roles: ["SUPERVISOR"] },
       { label: "Evaluations", icon: ClipboardCheck, href: "/supervisor/evaluations", roles: ["SUPERVISOR"] },
     ],
   },
@@ -40,6 +52,8 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     title: "Organization",
     items: [
       { label: "People", icon: Users, href: "/hr/directory", roles: ["HR"] },
+      { label: "Onboarding", icon: UserPlus, href: "/hr/onboarding", roles: ["HR"] },
+      { label: "Offboarding", icon: UserMinus, href: "/hr/offboarding", roles: ["HR"] },
       { label: "Structure", icon: Network, href: "/hr/teams", roles: ["HR"] },
       { label: "Surveys", icon: ClipboardList, href: "/hr/surveys", roles: ["HR"] },
     ],
@@ -82,26 +96,17 @@ export function Sidebar({
       style={{ background: "var(--gray-50)" }}
     >
       {/* Workspace switcher */}
-      <div className="px-5 mt-[20px] mb-6">
-        <div className="flex items-center gap-2 p-3 bg-white rounded-xl shadow-[inset_0_0_0_1px_rgb(233,234,235)]">
+      <div className="px-5 mt-[20px] mb-6 border-b border-[color:var(--border-primary)] pb-4">
+        <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-[color:var(--border-primary)]">
           <div
-            className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center"
+            className="w-7 h-7 rounded-lg flex-shrink-0"
             style={{ background: "var(--gradient-jia)" }}
-          >
-            <span className="text-white font-bold text-[15px] tracking-[0.01em] leading-none font-sans">
-              SW
-            </span>
-          </div>
+          />
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-medium text-[color:var(--text-primary)] truncate leading-tight">
-              SwiftWork
+              SwiftWork ✦
             </p>
           </div>
-          <ChevronsUpDown
-            size={16}
-            className="flex-shrink-0 text-[color:var(--text-tertiary)]"
-            aria-hidden="true"
-          />
         </div>
       </div>
 
@@ -113,7 +118,7 @@ export function Sidebar({
           return (
             <div key={section.title || "home"} className="mb-4">
               {section.title && (
-                <span className="block px-5 pb-1 text-[12px] font-bold uppercase tracking-[0.04em] text-[color:var(--text-quaternary)]">
+                <span className="block px-5 pb-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[color:var(--text-quaternary)]">
                   {section.title}
                 </span>
               )}
@@ -127,20 +132,20 @@ export function Sidebar({
                       href={item.href}
                       onClick={onNavigate}
                       className={cn(
-                        "flex items-center h-[36px] px-3 rounded-md transition-all duration-100 group gap-2",
+                        "flex items-center py-[7px] px-4 rounded-md transition-all duration-100 group gap-[9px]",
                         active
-                          ? "bg-[rgb(239,241,245)] text-[rgb(37,43,55)]"
-                          : "text-[rgb(65,70,81)] hover:bg-[rgb(239,241,245)]"
+                          ? "bg-[color:var(--bg-secondary)] text-[color:var(--text-primary)]"
+                          : "text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
                       )}
                     >
                       <Icon
-                        size={20}
+                        size={16}
                         className={cn(
                           "flex-shrink-0 transition-colors",
-                          active ? "text-[rgb(37,43,55)]" : "text-[#A4A7AE] group-hover:text-[rgb(37,43,55)]"
+                          active ? "text-[color:var(--text-primary)]" : "text-[color:var(--text-quaternary)] group-hover:text-[color:var(--text-primary)]"
                         )}
                       />
-                      <span className="truncate text-[14px] font-medium flex-1">
+                      <span className={cn("truncate text-[14px] flex-1", active ? "font-bold" : "font-medium")}>
                         {item.label}
                       </span>
                       {item.badge != null && item.badge > 0 && (
@@ -161,7 +166,7 @@ export function Sidebar({
       <div className="mt-auto flex flex-col">
         <div className="px-4 py-4 text-center">
           <p className="text-[12px] font-medium text-[color:var(--text-tertiary)]">
-            © 2026 White Cloak Technologies, Inc.
+            © 2026 SwiftWork
           </p>
         </div>
       </div>
