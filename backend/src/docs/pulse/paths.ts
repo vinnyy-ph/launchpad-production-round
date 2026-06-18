@@ -680,4 +680,34 @@
  *         description: Survey not found
  *       409:
  *         description: Conflict. Cannot update questions/audience/anonymity/recurrence after activation.
+ *
+ * /api/v1/pulse/surveys/{id}:
+ *   delete:
+ *     tags: [Pulse Surveys]
+ *     summary: Soft-delete a pulse survey
+ *     description: |
+ *       **HR role only.** Soft-deletes a pulse survey.
+ *       Only draft surveys (not active and with 0 occurrences) can be deleted.
+ *       Attempting to delete an active survey or one with occurrences returns a 409 Conflict.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the pulse survey
+ *     responses:
+ *       204:
+ *         description: Survey deleted successfully (No Content)
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: User is not HR role
+ *       404:
+ *         description: Survey not found
+ *       409:
+ *         description: Conflict. Cannot delete survey after it has been activated.
  */
+
