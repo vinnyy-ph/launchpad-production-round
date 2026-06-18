@@ -47,6 +47,16 @@ export function buildEmployeeRecord(overrides: {
       id: "department-technology",
       name: "Technology",
     },
+    address: {
+      address: "123 Example Street",
+      city: "Manila",
+      province: "Metro Manila",
+      country: "Philippines",
+    },
+    emergencyContact: {
+      emergencyContactName: "Jamie Reed",
+      emergencyContactNumber: "+1 555 0100",
+    },
     status: overrides.status,
     teamMemberships: [
       {
@@ -81,8 +91,16 @@ export function buildEmployeeProfileRecord() {
     }),
     birthday: new Date("1992-04-12T00:00:00.000Z"),
     personalEmail: "marcus.personal@example.com",
-    address: "123 Example Street",
-    emergencyContact: "Jamie Reed, +1 555 0100",
+    address: {
+      address: "123 Example Street",
+      city: "Manila",
+      province: "Metro Manila",
+      country: "Philippines",
+    },
+    emergencyContact: {
+      emergencyContactName: "Jamie Reed",
+      emergencyContactNumber: "+1 555 0100",
+    },
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     user: {

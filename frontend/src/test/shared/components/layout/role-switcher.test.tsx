@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { RoleSwitcher } from "./role-switcher";
+import { RoleSwitcher } from "@/shared/components/layout/role-switcher";
 import { setView } from "@/modules/auth/stores/auth.store";
 
 const pushMock = jest.fn();

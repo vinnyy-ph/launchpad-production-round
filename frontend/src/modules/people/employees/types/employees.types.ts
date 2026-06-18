@@ -1,18 +1,99 @@
-export type EmployeeStatus = "ONBOARDING" | "ACTIVE" | "OFFBOARDING" | "INACTIVE";
+export type EmployeeStatus = "onboarding" | "active" | "offboarding" | "inactive";
+export type EmployeeSortBy =
+  | "employeeName"
+  | "jobTitle"
+  | "department"
+  | "supervisor"
+  | "teams"
+  | "status";
+export type SortDirection = "asc" | "desc";
 
-/** A row in the HR directory list (GET /api/employees). Sensitive fields are not listed here. */
+export interface EmployeeTeam {
+  id: string;
+  name: string;
+}
+
+export interface EmployeeSupervisor {
+  id: string;
+  firstName: string;
+  lastName: string;
+  companyEmail: string;
+  fullName: string;
+  jobTitle: string | null;
+}
+
+export interface EmployeeAddress {
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+}
+
+export interface EmployeeEmergencyContact {
+  emergencyContactName: string | null;
+  emergencyContactNumber: string | null;
+}
+
+/** A row in the HR directory list (GET /api/employees). */
 export interface EmployeeListItem {
   id: string;
-  firstName: string | null;
-  lastName: string | null;
+  userId: string;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
+  fullName: string;
   companyEmail: string;
   jobTitle: string | null;
-  departmentName: string | null;
-  supervisorName: string | null;
-  employeeStatus: EmployeeStatus;
+  department: string | null;
+  address: EmployeeAddress | null;
+  emergencyContact: EmployeeEmergencyContact | null;
+  teams: EmployeeTeam[];
+  supervisor: EmployeeSupervisor | null;
+  status: EmployeeStatus;
+}
+
+export interface EmployeeUser {
+  id: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
+
+export interface EmployeeDirectReport {
+  id: string;
+  firstName: string;
+  lastName: string;
+  companyEmail: string;
+  fullName: string;
+  jobTitle: string | null;
+  status: EmployeeStatus;
+}
+
+export interface EmployeeProfile extends EmployeeListItem {
+  user: EmployeeUser;
+  personalEmail: string | null;
+  birthday: string | null;
+  ledTeams: EmployeeTeam[];
+  directReports: EmployeeDirectReport[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface EmployeeFilters {
   search?: string;
   status?: EmployeeStatus;
+  teamId?: string;
+  team?: string;
+  supervisorId?: string;
+  sortBy?: EmployeeSortBy;
+  sortDirection?: SortDirection;
+  page?: number;
+  limit?: number;
+}
+
+export interface EmployeeListMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }

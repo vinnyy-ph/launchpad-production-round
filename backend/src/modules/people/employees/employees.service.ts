@@ -2,6 +2,8 @@ import type { EmployeeStatus } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EmployeesRepository } from "./employees.repository";
 import type {
+  EmployeeAddressResponseDto,
+  EmployeeEmergencyContactResponseDto,
   EmployeeProfileResponseDto,
   EmployeeListItemResponseDto,
   EmployeeStatusDto,
@@ -111,6 +113,8 @@ export class EmployeesService {
       fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
+      address: this.toAddressResponse(employee.address),
+      emergencyContact: this.toEmergencyContactResponse(employee.emergencyContact),
       status: this.toStatusDto(employee.status),
       teams: employee.teamMemberships.map((membership) => ({
         id: membership.team.id,
@@ -154,8 +158,8 @@ export class EmployeesService {
       fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
       personalEmail: employee.personalEmail,
       birthday: employee.birthday,
-      address: employee.address,
-      emergencyContact: employee.emergencyContact,
+      address: this.toAddressResponse(employee.address),
+      emergencyContact: this.toEmergencyContactResponse(employee.emergencyContact),
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
       status: this.toStatusDto(employee.status),
@@ -198,6 +202,44 @@ export class EmployeesService {
   /** Builds a display name while safely skipping missing middle names. */
   private buildFullName(firstName: string, middleName: string | null, lastName: string): string {
     return [firstName, middleName, lastName].filter(Boolean).join(" ");
+  }
+
+  /** Maps the optional employee address relation into the public DTO shape. */
+  private toAddressResponse(
+    address: {
+      address: string | null;
+      city: string | null;
+      province: string | null;
+      country: string | null;
+    } | null,
+  ): EmployeeAddressResponseDto | null {
+    if (!address) {
+      return null;
+    }
+
+    return {
+      address: address.address,
+      city: address.city,
+      province: address.province,
+      country: address.country,
+    };
+  }
+
+  /** Maps the optional emergency contact relation into the public DTO shape. */
+  private toEmergencyContactResponse(
+    emergencyContact: {
+      emergencyContactName: string | null;
+      emergencyContactNumber: string | null;
+    } | null,
+  ): EmployeeEmergencyContactResponseDto | null {
+    if (!emergencyContact) {
+      return null;
+    }
+
+    return {
+      emergencyContactName: emergencyContact.emergencyContactName,
+      emergencyContactNumber: emergencyContact.emergencyContactNumber,
+    };
   }
 
   /** Maps Prisma's uppercase status enum to the lowercase API response contract. */

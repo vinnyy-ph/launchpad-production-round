@@ -68,6 +68,8 @@ async function clearAll() {
   await prisma.bulkOnboardingJob.deleteMany()
   await prisma.teamMember.deleteMany()
   await prisma.team.deleteMany()
+  await prisma.employeeEmergencyContact.deleteMany()
+  await prisma.employeeAddress.deleteMany()
   // updateMany uses implicit transactions that are not supported in HTTP mode, so use raw SQL.
   await prisma.$executeRawUnsafe('UPDATE employees SET "supervisorId" = NULL')
   await prisma.employee.deleteMany()

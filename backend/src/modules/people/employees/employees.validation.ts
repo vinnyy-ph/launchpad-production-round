@@ -1,14 +1,26 @@
 import { EmployeeStatus } from "@prisma/client";
 import type {
+  EmployeeSortBy,
   GetEmployeeProfileParamsDto,
   ListEmployeesQueryDto,
+  SortDirection,
+  UpdateEmployeeAddressRequestDto,
+  UpdateEmployeeEmergencyContactRequestDto,
   UpdateEmployeeProfileParamsDto,
   UpdateEmployeeProfileRequestDto,
 } from "./dto";
 
 const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 25;
+const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
+const SORT_FIELDS: EmployeeSortBy[] = [
+  "employeeName",
+  "jobTitle",
+  "department",
+  "supervisor",
+  "teams",
+  "status",
+];
 
 export class EmployeesValidation {
   /**
@@ -28,6 +40,8 @@ export class EmployeesValidation {
       teamId: this.parseOptionalString(query.teamId),
       team: this.parseOptionalString(query.team),
       supervisorId: this.parseOptionalString(query.supervisorId),
+      sortBy: this.parseSortBy(query.sortBy),
+      sortDirection: this.parseSortDirection(query.sortDirection),
     };
   }
 
@@ -70,8 +84,8 @@ export class EmployeesValidation {
     this.assignOptionalNullableString(update, "middleName", body.middleName);
     this.assignOptionalNullableString(update, "personalEmail", body.personalEmail);
     this.assignOptionalNullableDate(update, "birthday", body.birthday);
-    this.assignOptionalNullableString(update, "address", body.address);
-    this.assignOptionalNullableString(update, "emergencyContact", body.emergencyContact);
+    this.assignOptionalNullableAddress(update, "address", body.address);
+    this.assignOptionalNullableEmergencyContact(update, "emergencyContact", body.emergencyContact);
     this.assignOptionalNullableString(update, "jobTitle", body.jobTitle);
     this.assignOptionalNullableString(update, "department", body.department);
     this.assignOptionalNullableString(update, "supervisorId", body.supervisorId);
@@ -120,6 +134,23 @@ export class EmployeesValidation {
     }
 
     return status as EmployeeStatus;
+  }
+
+  /** Accepts known employee directory sort keys and ignores unsupported values. */
+  private parseSortBy(value: unknown): EmployeeSortBy | undefined {
+    const sortBy = this.parseOptionalString(value);
+    return SORT_FIELDS.includes(sortBy as EmployeeSortBy) ? (sortBy as EmployeeSortBy) : undefined;
+  }
+
+  /** Normalizes sort direction while defaulting invalid input to ascending behavior. */
+  private parseSortDirection(value: unknown): SortDirection | undefined {
+    const direction = this.parseOptionalString(value)?.toLowerCase();
+
+    if (direction === "asc" || direction === "desc") {
+      return direction;
+    }
+
+    return undefined;
   }
 
   /** Assigns a trimmed required-string-style field only when it is present in the request body. */
@@ -186,5 +217,78 @@ export class EmployeesValidation {
     }
 
     target[key] = parsed as T[keyof T];
+  }
+
+  /** Parses a nullable structured address update from the request body. */
+  private assignOptionalNullableAddress<T extends Record<string, unknown>>(
+    target: T,
+    key: keyof T,
+    value: unknown,
+  ) {
+    if (value === undefined) {
+      return;
+    }
+
+    if (value === null) {
+      target[key] = null as T[keyof T];
+      return;
+    }
+
+    const source = this.parseObject(value);
+    const parsed: Record<string, unknown> = {};
+    this.assignOptionalNullableString(parsed, "address", source.address);
+    this.assignOptionalNullableString(parsed, "city", source.city);
+    this.assignOptionalNullableString(parsed, "province", source.province);
+    this.assignOptionalNullableString(parsed, "country", source.country);
+
+    if (Object.keys(parsed).length === 0) {
+      throw new Error("Invalid employee profile update");
+    }
+
+    target[key] = parsed as UpdateEmployeeAddressRequestDto as T[keyof T];
+  }
+
+  /** Parses a nullable structured emergency contact update from the request body. */
+  private assignOptionalNullableEmergencyContact<T extends Record<string, unknown>>(
+    target: T,
+    key: keyof T,
+    value: unknown,
+  ) {
+    if (value === undefined) {
+      return;
+    }
+
+    if (value === null) {
+      target[key] = null as T[keyof T];
+      return;
+    }
+
+    const source = this.parseObject(value);
+    const parsed: Record<string, unknown> = {};
+    this.assignOptionalNullableString(
+      parsed,
+      "emergencyContactName",
+      source.emergencyContactName,
+    );
+    this.assignOptionalNullableString(
+      parsed,
+      "emergencyContactNumber",
+      source.emergencyContactNumber,
+    );
+
+    if (Object.keys(parsed).length === 0) {
+      throw new Error("Invalid employee profile update");
+    }
+
+    target[key] = parsed as UpdateEmployeeEmergencyContactRequestDto as T[keyof T];
+  }
+
+  /** Ensures nested update payloads are plain request objects. */
+  private parseObject(value: unknown): Record<string, unknown> {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new Error("Invalid employee profile update");
+    }
+
+    return value as Record<string, unknown>;
   }
 }

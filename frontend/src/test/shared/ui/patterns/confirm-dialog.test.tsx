@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ConfirmProvider, useConfirm } from "./confirm-dialog";
+import { ConfirmProvider, useConfirm } from "@/shared/ui/patterns/confirm-dialog";
 
 function Harness({ onResult }: { onResult: (value: boolean) => void }) {
   const confirm = useConfirm();

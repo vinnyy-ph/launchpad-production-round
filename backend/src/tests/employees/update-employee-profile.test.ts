@@ -46,6 +46,16 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
       .send({
         firstName: "Marco",
         jobTitle: "Senior Backend Engineer",
+        address: {
+          address: "456 Updated Street",
+          city: "Makati",
+          province: "Metro Manila",
+          country: "Philippines",
+        },
+        emergencyContact: {
+          emergencyContactName: "Jules Reed",
+          emergencyContactNumber: "+1 555 0111",
+        },
         status: "active",
       })
       .expect(200);
@@ -56,6 +66,34 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
         data: expect.objectContaining({
           firstName: "Marco",
           jobTitle: "Senior Backend Engineer",
+          address: {
+            upsert: {
+              create: {
+                address: "456 Updated Street",
+                city: "Makati",
+                province: "Metro Manila",
+                country: "Philippines",
+              },
+              update: {
+                address: "456 Updated Street",
+                city: "Makati",
+                province: "Metro Manila",
+                country: "Philippines",
+              },
+            },
+          },
+          emergencyContact: {
+            upsert: {
+              create: {
+                emergencyContactName: "Jules Reed",
+                emergencyContactNumber: "+1 555 0111",
+              },
+              update: {
+                emergencyContactName: "Jules Reed",
+                emergencyContactNumber: "+1 555 0111",
+              },
+            },
+          },
           status: "ACTIVE",
         }),
       }),
@@ -70,6 +108,16 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
         jobTitle: "Senior Backend Engineer",
         status: "active",
         personalEmail: "marcus.personal@example.com",
+        address: {
+          address: "123 Example Street",
+          city: "Manila",
+          province: "Metro Manila",
+          country: "Philippines",
+        },
+        emergencyContact: {
+          emergencyContactName: "Jamie Reed",
+          emergencyContactNumber: "+1 555 0100",
+        },
       },
     });
   });
@@ -118,9 +166,9 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
     });
     expect(findFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
+        where: expect.objectContaining({
           id: "missing-supervisor",
-        },
+        }),
       }),
     );
     expect(updateMock).not.toHaveBeenCalled();

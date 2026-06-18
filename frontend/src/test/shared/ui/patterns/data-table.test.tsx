@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Inbox } from "lucide-react";
-import { DataTable, type Column } from "./data-table";
-import { EmptyState } from "./empty-state";
+import { DataTable, type Column } from "@/shared/ui/patterns/data-table";
+import { EmptyState } from "@/shared/ui/patterns/empty-state";
 
 interface Row {
   id: string;
@@ -59,5 +59,43 @@ describe("DataTable", () => {
       <DataTable columns={columns} data={undefined} isLoading emptyState={emptyState} />,
     );
     expect(screen.queryByText("No rows yet")).not.toBeInTheDocument();
+  });
+
+  it("renders pagination controls and requests page changes", async () => {
+    const onPageChange = jest.fn();
+    render(
+      <DataTable
+        columns={columns}
+        data={[{ id: "1", name: "Ada" }]}
+        emptyState={emptyState}
+        pagination={{ page: 1, totalPages: 2, onPageChange }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /previous/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "1" })).toHaveAttribute("aria-current", "page");
+    await userEvent.click(screen.getByRole("button", { name: /next/i }));
+    expect(onPageChange).toHaveBeenCalledWith(2);
+  });
+
+  it("renders sortable headers and toggles sort direction", async () => {
+    const onSortChange = jest.fn();
+    render(
+      <DataTable
+        columns={[{ header: "Name", cell: (r: Row) => r.name, sortable: true, sortKey: "name" }]}
+        data={[{ id: "1", name: "Ada" }]}
+        emptyState={emptyState}
+        sort={{ key: "name", direction: "asc" }}
+        onSortChange={onSortChange}
+      />,
+    );
+
+    const sortButton = screen.getByRole("button", { name: /sort by name descending/i });
+    expect(screen.getByRole("columnheader", { name: /name/i })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    await userEvent.click(sortButton);
+    expect(onSortChange).toHaveBeenCalledWith({ key: "name", direction: "desc" });
   });
 });

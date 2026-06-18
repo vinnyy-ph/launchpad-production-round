@@ -1,4 +1,7 @@
-import { fetchNotifications, markNotificationRead } from "./notifications.service";
+import {
+  fetchNotifications,
+  markNotificationRead,
+} from "@/modules/notifications/services/notifications.service";
 import { resetDemo } from "@/shared/mock/db";
 
 describe("notifications service (mock)", () => {

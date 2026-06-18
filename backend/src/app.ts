@@ -3,6 +3,7 @@ import express from "express";
 import { authenticate } from "./core/middleware/auth.middleware";
 import { API_ROUTES } from "./core/globals";
 import { employeesRouter } from "./modules/people/employees";
+import { teamsRouter } from "./modules/people/teams";
 import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
@@ -23,7 +24,7 @@ import { supervisorOnboardingRouter } from "./modules/people/onboarding/supervis
 
 export const app = express();
 
-const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(",");
+const origins = (process.env.CORS_ORIGIN ?? "http://localhost:3000").split(",");
 
 app.use(cors({ origin: origins, credentials: true }));
 app.use(
@@ -72,6 +73,7 @@ app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
 
 app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/teams`, teamsRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/onboarding`, authenticate, onboardingRouter);
 app.use(
   `${API_ROUTES.VERSIONED_ROOT}/employee-onboarding`,
