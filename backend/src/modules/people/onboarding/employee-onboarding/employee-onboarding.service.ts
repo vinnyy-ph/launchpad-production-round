@@ -18,6 +18,7 @@ import type {
 } from "./dto";
 import { REQUIRED_PROFILE_FIELDS } from "./employee-onboarding.constants";
 import { EmployeeOnboardingRepository } from "./employee-onboarding.repository";
+import { NotificationsService } from "../../../notifications/notifications.service";
 
 type OnboardingRecordWithRelations = NonNullable<
   Awaited<ReturnType<EmployeeOnboardingRepository["findRecordByUserId"]>>
@@ -29,6 +30,7 @@ type OnboardingRecordWithRelations = NonNullable<
 export class EmployeeOnboardingService {
   constructor(
     private readonly employeeOnboardingRepository = new EmployeeOnboardingRepository(),
+    private readonly notificationsService = new NotificationsService(),
   ) {}
 
   /**
@@ -237,6 +239,11 @@ export class EmployeeOnboardingService {
 
     await this.employeeOnboardingRepository.completeOnboarding(
       record.id,
+      record.employee.id,
+    );
+
+    await this.notificationsService.notifyHrOnboardingComplete(
+      `${record.employee.firstName} ${record.employee.lastName}`,
       record.employee.id,
     );
 
