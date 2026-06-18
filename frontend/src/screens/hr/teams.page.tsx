@@ -157,8 +157,8 @@ export default function TeamsPage() {
 
         {/* Stats row */}
         <div className="mb-6 grid grid-cols-2 gap-4">
-          <StatCard label="Total teams" value={loading ? "—" : teams.length} />
-          <StatCard label="Team members" value={loading ? "—" : totalMembers} />
+          <StatCard label="Total teams" value={teams.length} loading={loading} />
+          <StatCard label="Team members" value={totalMembers} loading={loading} />
         </div>
 
         {/* Error state */}

@@ -1,5 +1,6 @@
 import { Info } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -15,9 +16,11 @@ export interface StatCardProps {
   delta?: string;
   /** Optional helper text shown via an info-icon tooltip next to the label. */
   hint?: string;
+  /** While true, the value renders as a skeleton instead of a placeholder dash. */
+  loading?: boolean;
 }
 
-export function StatCard({ label, value, variant = "default", delta, hint }: StatCardProps) {
+export function StatCard({ label, value, variant = "default", delta, hint, loading = false }: StatCardProps) {
   const color =
     variant === "alert" ? "var(--color-error-600)"
     : variant === "warn" ? "var(--color-warning-600)"
@@ -32,7 +35,11 @@ export function StatCard({ label, value, variant = "default", delta, hint }: Sta
       )}
       style={{ boxShadow: variant === "brand" ? "var(--shadow-inset-brand)" : "var(--shadow-xs)" }}
     >
-      <p className="text-2xl font-bold tracking-[-0.02em]" style={{ color }}>{value}</p>
+      {loading ? (
+        <Skeleton className="h-8 w-12" />
+      ) : (
+        <p className="text-2xl font-bold tracking-[-0.02em]" style={{ color }}>{value}</p>
+      )}
       <div className="mt-1 flex items-center gap-1">
         <p className="text-xs font-medium uppercase tracking-wider text-[color:var(--text-tertiary)]">{label}</p>
         {hint && (
