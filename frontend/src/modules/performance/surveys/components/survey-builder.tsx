@@ -527,14 +527,12 @@ export function SurveyBuilderDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
-        onInteractOutside={(e) => {
-          // Selects and date pickers render in a portal OUTSIDE this dialog, so
-          // clicking an option / calendar day reads as an "outside" interaction
-          // and would slam the builder shut mid-edit. Ignore any interaction that
-          // originates inside a Radix popper.
-          const origin = e.detail.originalEvent.target as Element | null;
-          if (origin?.closest("[data-radix-popper-content-wrapper]")) e.preventDefault();
-        }}
+        // The builder hosts portaled Selects and date pickers; toggling those reads
+        // as an "outside" interaction and was slamming the dialog shut mid-edit.
+        // A multi-field form shouldn't close on an outside click anyway, so block
+        // every outside-interaction close — only X / Cancel / Esc dismiss it.
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>{initial ? "Edit survey" : "Create survey"}</DialogTitle>
