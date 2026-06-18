@@ -166,7 +166,7 @@ export default function ReportsPage() {
       {/* Team table */}
       <section>
         <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          ✦ Direct reports
+          Direct reports
         </h2>
         <div
           className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"

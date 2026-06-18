@@ -338,8 +338,9 @@ function UsersPageInner() {
         const alreadyInactive = !row.user.isActive;
         return (
           <Button
-            variant="destructive"
+            variant="ghost"
             size="sm"
+            className="text-[color:var(--color-error-600)] hover:bg-[color:var(--color-error-50)] hover:text-[color:var(--color-error-600)]"
             disabled={locked || alreadyInactive}
             onClick={() => void handleDeactivate(row)}
             title={

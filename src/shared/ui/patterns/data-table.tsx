@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, useEffect, type ReactNode, type KeyboardEvent } from "react";
 import {
   Table,
   TableBody,
@@ -28,6 +28,24 @@ interface DataTableProps<T> {
   getRowId?: (row: T) => string;
 }
 
+/**
+ * True below the `md` breakpoint. Defaults to false (desktop) on the server and
+ * wherever `matchMedia` is unavailable (jsdom), so SSR and unit tests render the
+ * table — only the browser swaps to the card layout.
+ */
+function useIsCompact() {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setCompact(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return compact;
+}
+
 export function DataTable<T>({
   columns,
   data,
@@ -38,8 +56,71 @@ export function DataTable<T>({
   onRowClick,
   getRowId,
 }: DataTableProps<T>) {
+  const compact = useIsCompact();
+
   if (error) return <ErrorState message={error} onRetry={onRetry} />;
 
+  const clickable = !!onRowClick;
+  const onKey = (row: T) => (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onRowClick!(row);
+    }
+  };
+  const empty = !data || data.length === 0;
+
+  // Mobile (< md): cards — a table that clips on a phone is a broken table.
+  if (compact) {
+    if (isLoading) {
+      return (
+        <ul className="divide-y divide-[color:var(--border-primary)]">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <li key={i} className="space-y-2 p-4">
+              <Skeleton className="h-5 w-1/2" />
+              <Skeleton className="h-4 w-3/4" />
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    if (empty) return <>{emptyState}</>;
+    return (
+      <ul className="divide-y divide-[color:var(--border-primary)]">
+        {data!.map((row, i) => (
+          <li
+            key={getRowId ? getRowId(row) : i}
+            onClick={clickable ? () => onRowClick!(row) : undefined}
+            onKeyDown={clickable ? onKey(row) : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            role={clickable ? "button" : undefined}
+            className={cn(
+              "p-4",
+              clickable &&
+                "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+            )}
+          >
+            {columns[0] && <div>{columns[0].cell(row)}</div>}
+            {columns.length > 1 && (
+              <dl className="mt-3 space-y-1.5">
+                {columns.slice(1).map((col, c) => (
+                  <div key={c} className="flex items-start justify-between gap-3">
+                    <dt className="pt-0.5 text-xs font-medium text-[color:var(--text-tertiary)]">
+                      {col.header}
+                    </dt>
+                    <dd className="min-w-0 text-right text-sm text-[color:var(--text-secondary)]">
+                      {col.cell(row)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  // Desktop (≥ md): table
   return (
     <Table>
       <TableHeader>
@@ -62,44 +143,32 @@ export function DataTable<T>({
               ))}
             </TableRow>
           ))
-        ) : !data || data.length === 0 ? (
+        ) : empty ? (
           <TableRow className="hover:bg-transparent">
             <TableCell colSpan={columns.length} className="p-0">
               {emptyState}
             </TableCell>
           </TableRow>
         ) : (
-          data.map((row, i) => {
-            const clickable = !!onRowClick;
-            return (
-              <TableRow
-                key={getRowId ? getRowId(row) : i}
-                onClick={clickable ? () => onRowClick!(row) : undefined}
-                onKeyDown={
-                  clickable
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          onRowClick!(row);
-                        }
-                      }
-                    : undefined
-                }
-                tabIndex={clickable ? 0 : undefined}
-                role={clickable ? "button" : undefined}
-                className={cn(
-                  clickable &&
-                    "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                )}
-              >
-                {columns.map((col, c) => (
-                  <TableCell key={c} className={col.className}>
-                    {col.cell(row)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            );
-          })
+          data!.map((row, i) => (
+            <TableRow
+              key={getRowId ? getRowId(row) : i}
+              onClick={clickable ? () => onRowClick!(row) : undefined}
+              onKeyDown={clickable ? onKey(row) : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              role={clickable ? "button" : undefined}
+              className={cn(
+                clickable &&
+                  "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+              )}
+            >
+              {columns.map((col, c) => (
+                <TableCell key={c} className={col.className}>
+                  {col.cell(row)}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))
         )}
       </TableBody>
     </Table>

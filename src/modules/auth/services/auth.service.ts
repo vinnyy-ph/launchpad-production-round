@@ -7,6 +7,12 @@ export async function signInWithGoogle(): Promise<void> {
   setView(DEFAULT_VIEW);
 }
 
+// Cold-start demo: sign in as a brand-new hire. The /login guard redirects to
+// the onboarding wizard (roleHome → /employee/onboarding for ONBOARDING status).
+export async function signInAsNewHire(): Promise<void> {
+  setView("NEWHIRE");
+}
+
 export async function signOutUser(): Promise<void> {
   clearSession();
 }

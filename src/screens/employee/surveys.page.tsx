@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   ClipboardList,
   CheckCircle2,
@@ -459,11 +459,22 @@ interface SurveysTabProps {
   loading: boolean;
   error: string | null;
   onReload: () => void;
+  initialSurveyId?: string | null;
 }
 
-function SurveysTab({ entries, employeeId, loading, error, onReload }: SurveysTabProps) {
+function SurveysTab({ entries, employeeId, loading, error, onReload, initialSurveyId }: SurveysTabProps) {
   const [takingId, setTakingId] = useState<string | null>(null);
   const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set());
+
+  // Auto-open the taker once when arriving from a "new pulse" notification.
+  const deepLinkApplied = useRef(false);
+  useEffect(() => {
+    if (deepLinkApplied.current) return;
+    if (initialSurveyId && entries.some((e) => e.survey.id === initialSurveyId)) {
+      setTakingId(initialSurveyId);
+      deepLinkApplied.current = true;
+    }
+  }, [initialSurveyId, entries]);
 
   const handleSubmitted = (surveyId: string) => {
     setSubmittedIds((prev) => new Set(prev).add(surveyId));
@@ -565,7 +576,7 @@ function SurveysTab({ entries, employeeId, loading, error, onReload }: SurveysTa
               {isDone ? (
                 <div className="flex items-center gap-1.5 text-sm text-[color:var(--text-tertiary)]">
                   <CheckCircle2 size={15} className="text-green-500" />
-                  Response submitted ✦
+                  Response submitted
                 </div>
               ) : (
                 <Button size="sm" onClick={() => setTakingId(survey.id)}>
@@ -590,6 +601,7 @@ interface AcksTabProps {
   onReload: () => void;
   onAcknowledge: (evaluationId: string) => void;
   supervisorName: (id: string) => string;
+  initialExpandedId?: string | null;
 }
 
 function AcknowledgementsTab({
@@ -600,9 +612,20 @@ function AcknowledgementsTab({
   onReload,
   onAcknowledge,
   supervisorName,
+  initialExpandedId,
 }: AcksTabProps) {
   const [ackingId, setAckingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Expand the exact evaluation once when arriving from a "new evaluation" notification.
+  const deepLinkApplied = useRef(false);
+  useEffect(() => {
+    if (deepLinkApplied.current) return;
+    if (initialExpandedId && evals.some((e) => e.id === initialExpandedId)) {
+      setExpandedId(initialExpandedId);
+      deepLinkApplied.current = true;
+    }
+  }, [initialExpandedId, evals]);
 
   const ackFor = (evaluationId: string) => acks.find((a) => a.evaluationId === evaluationId);
 
@@ -874,6 +897,20 @@ export default function EmployeeSurveysPage() {
     setEmployees(readCollection<DemoEmployee>("employees"));
   }, []);
 
+  // Notification click-to-land: open the exact tab/item the link points at.
+  const [tab, setTab] = useState<"survey" | "acknowledgements">("survey");
+  const [deepLink, setDeepLink] = useState<{ survey: string | null; eval: string | null }>({
+    survey: null,
+    eval: null,
+  });
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const ev = p.get("eval");
+    const sv = p.get("survey");
+    if (p.get("tab") === "acknowledgements" || ev) setTab("acknowledgements");
+    setDeepLink({ survey: sv, eval: ev });
+  }, []);
+
   const supervisorName = useCallback(
     (id: string) => employees.find((e) => e.employeeId === id)?.displayName ?? id,
     [employees],
@@ -895,7 +932,7 @@ export default function EmployeeSurveysPage() {
         subtitle="Answer active pulse surveys and acknowledge your performance evaluations."
       />
 
-      <Tabs defaultValue="survey">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "survey" | "acknowledgements")}>
         <TabsList>
           <TabsTrigger value="survey">
             Pulse surveys{unansweredCount > 0 ? ` (${unansweredCount})` : ""}
@@ -912,6 +949,7 @@ export default function EmployeeSurveysPage() {
             loading={surveyLoading}
             error={surveyError}
             onReload={reloadSurveys}
+            initialSurveyId={deepLink.survey}
           />
         </TabsContent>
 
@@ -924,6 +962,7 @@ export default function EmployeeSurveysPage() {
             onReload={reloadEvals}
             onAcknowledge={acknowledge}
             supervisorName={supervisorName}
+            initialExpandedId={deepLink.eval}
           />
         </TabsContent>
       </Tabs>

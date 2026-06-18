@@ -1,4 +1,4 @@
-import { DEMO_PROFILES } from "./identity";
+import { DEMO_PROFILES, NEW_HIRE_PROFILE } from "./identity";
 import type {
   Acknowledgement,
   DemoEmployee,
@@ -60,6 +60,27 @@ const EXTRA: [string, string, string, string, string, DemoEmployee["employeeStat
   ["e16", "Diego Cruz", "Sales", "t-sales", "SDR", "OFFBOARDING", "e8", false],
 ];
 
+// The cold-start persona's employee row. Mirrors NEW_HIRE_PROFILE so "me" lookups
+// resolve, and carries ONBOARDING status so the gate locks it into the wizard.
+function newHireRow(): DemoEmployee {
+  const p = NEW_HIRE_PROFILE;
+  return {
+    employeeId: p.employeeId,
+    userId: p.userId,
+    displayName: p.displayName ?? p.email,
+    email: p.email,
+    role: "EMPLOYEE",
+    isSupervisor: false,
+    isActive: true,
+    jobTitle: "Associate Engineer",
+    department: "Engineering",
+    employeeStatus: "ONBOARDING",
+    supervisorId: "e-sup",
+    teamId: "t-eng",
+    startDate: "2026-06-18",
+  };
+}
+
 function seedEmployees(): DemoEmployee[] {
   const extra: DemoEmployee[] = EXTRA.map(([id, name, dept, team, title, status, supId, isSup]) => ({
     employeeId: id,
@@ -76,7 +97,7 @@ function seedEmployees(): DemoEmployee[] {
     teamId: team,
     startDate: "2023-09-15",
   }));
-  return [...demoRows(), ...extra];
+  return [...demoRows(), newHireRow(), ...extra];
 }
 
 // ─── users (admin user management) ───────────────────────────────────────────
@@ -129,6 +150,25 @@ function seedOnboarding(): OnboardingCase[] {
     mk("ob3", "e15", "INVITED", 10, [
       { name: "Signed contract", status: "PENDING" },
     ]),
+    // The cold-start persona (e-new): empty fields + un-uploaded docs so the
+    // wizard has real work to do from a true first-run state.
+    {
+      id: "ob-new",
+      employeeId: "e-new",
+      status: "IN_PROGRESS",
+      progress: 20,
+      customFields: [
+        { label: "T-shirt size", value: "" },
+        { label: "Emergency contact", value: "" },
+        { label: "Dietary preference", value: "" },
+      ],
+      documents: [
+        { name: "Signed contract", status: "PENDING" },
+        { name: "Government ID", status: "PENDING" },
+        { name: "Tax form", status: "PENDING" },
+      ],
+      invitedAt: "2026-06-18T08:00:00.000Z",
+    },
   ];
 }
 
@@ -253,19 +293,22 @@ function seedAcknowledgements(): Acknowledgement[] {
 // ─── notifications ───────────────────────────────────────────────────────────
 function seedNotifications(): Notification[] {
   return [
-    // All employees get the pulse open notification
-    { id: "n1", type: "NEW_PULSE", subject: "New pulse survey", body: "Q2 engagement pulse is open.", recipientEmployeeId: "e-emp", linkUrl: "/employee/surveys", isRead: false, createdAt: "2026-06-16T09:00:00.000Z" },
-    // Evaluation ack reminder goes to the employee whose evaluation was shared
-    { id: "n2", type: "NEW_EVALUATION", subject: "Evaluation shared", body: "Your H1 evaluation is ready to acknowledge.", recipientEmployeeId: "e-emp", linkUrl: "/employee/surveys", isRead: false, createdAt: "2026-06-15T14:30:00.000Z" },
-    // Clearance sign-off goes to the supervisor (IT clearance owner = e-sup)
+    // Click-to-land: every link opens the exact item, not a list/tab.
+    // New pulse → open the survey's answer flow (?survey lands on the taker).
+    { id: "n1", type: "NEW_PULSE", subject: "New pulse survey", body: "Q2 engagement pulse is open.", recipientEmployeeId: "e-emp", linkUrl: "/employee/surveys?survey=sv1", isRead: false, createdAt: "2026-06-16T09:00:00.000Z" },
+    // New evaluation → open the Evaluations tab with that evaluation expanded.
+    { id: "n2", type: "NEW_EVALUATION", subject: "Evaluation shared", body: "Your H1 evaluation is ready to acknowledge.", recipientEmployeeId: "e-emp", linkUrl: "/employee/surveys?tab=acknowledgements&eval=ev1", isRead: false, createdAt: "2026-06-15T14:30:00.000Z" },
+    // Clearance sign-off → the signatory inbox (my pending items sort to the top).
     { id: "n3", type: "CLEARANCE_SIGN_REQUEST", subject: "Clearance needs your sign-off", body: "M. Tan's IT clearance is awaiting you.", recipientEmployeeId: "e-sup", linkUrl: "/employee/clearance", isRead: false, createdAt: "2026-06-15T11:00:00.000Z" },
-    // Onboarding status update goes to HR
-    { id: "n4", type: "ONBOARDING_COMPLETE", subject: "Onboarding update", body: "H. Reyes reached document review.", recipientEmployeeId: "e-hr", linkUrl: "/hr/onboarding", isRead: true, createdAt: "2026-06-14T08:00:00.000Z" },
-    // Pulse reminder goes to the employee (broadening: also relevant to supervisor)
-    { id: "n5", type: "PULSE_REMINDER", subject: "Pulse reminder", body: "2 days left to submit the engagement pulse.", recipientEmployeeId: "e-sup", linkUrl: "/employee/surveys", isRead: true, createdAt: "2026-06-13T08:00:00.000Z" },
-    // Admin (default login) — onboarding completion to review + the open pulse to answer
-    { id: "n6", type: "ONBOARDING_COMPLETE", subject: "New hire in document review", body: "H. Reyes reached document review.", recipientEmployeeId: "e-admin", linkUrl: "/hr/onboarding", isRead: false, createdAt: "2026-06-16T10:00:00.000Z" },
-    { id: "n7", type: "NEW_PULSE", subject: "New pulse survey", body: "Q2 engagement pulse is open.", recipientEmployeeId: "e-admin", linkUrl: "/employee/surveys", isRead: true, createdAt: "2026-06-16T09:00:00.000Z" },
+    // Onboarding update → the specific onboarding case detail.
+    { id: "n4", type: "ONBOARDING_COMPLETE", subject: "Onboarding update", body: "H. Reyes reached document review.", recipientEmployeeId: "e-hr", linkUrl: "/hr/onboarding/ob1", isRead: true, createdAt: "2026-06-14T08:00:00.000Z" },
+    // Pulse reminder → the same survey's answer flow.
+    { id: "n5", type: "PULSE_REMINDER", subject: "Pulse reminder", body: "2 days left to submit the engagement pulse.", recipientEmployeeId: "e-sup", linkUrl: "/employee/surveys?survey=sv1", isRead: true, createdAt: "2026-06-13T08:00:00.000Z" },
+    // Admin (default login) — onboarding case to review + the open pulse to answer.
+    { id: "n6", type: "ONBOARDING_COMPLETE", subject: "New hire in document review", body: "H. Reyes reached document review.", recipientEmployeeId: "e-admin", linkUrl: "/hr/onboarding/ob1", isRead: false, createdAt: "2026-06-16T10:00:00.000Z" },
+    { id: "n7", type: "NEW_PULSE", subject: "New pulse survey", body: "Q2 engagement pulse is open.", recipientEmployeeId: "e-admin", linkUrl: "/employee/surveys?survey=sv1", isRead: true, createdAt: "2026-06-16T09:00:00.000Z" },
+    // New hire (e-new) — their first pulse, waiting once they finish onboarding.
+    { id: "n8", type: "NEW_PULSE", subject: "New pulse survey", body: "Q2 engagement pulse is open — share how you're settling in.", recipientEmployeeId: "e-new", linkUrl: "/employee/surveys?survey=sv1", isRead: false, createdAt: "2026-06-18T09:00:00.000Z" },
   ];
 }
 

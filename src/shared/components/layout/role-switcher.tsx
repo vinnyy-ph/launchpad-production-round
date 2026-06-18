@@ -6,17 +6,19 @@ import { ChevronDown, Eye, RotateCcw } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { setView } from "@/modules/auth/stores/auth.store";
 import { roleHome } from "@/modules/auth/role-home";
-import { DEMO_VIEWS, DEMO_PROFILES, type DemoView } from "@/shared/mock/identity";
+import { DEMO_VIEWS, VIEW_PROFILES, type DemoView } from "@/shared/mock/identity";
+import type { AppUser } from "@/modules/auth/types/auth.types";
 import { resetDemo } from "@/shared/mock/db";
 
 const LABELS: Record<DemoView, string> = {
-  ADMIN: "Admin", HR: "HR", SUPERVISOR: "Supervisor", EMPLOYEE: "Employee",
+  ADMIN: "Admin", HR: "HR", SUPERVISOR: "Supervisor", EMPLOYEE: "Employee", NEWHIRE: "New hire",
 };
 
-function currentView(role?: string, isSupervisor?: boolean): DemoView {
-  if (role === "ADMIN") return "ADMIN";
-  if (role === "HR") return "HR";
-  if (isSupervisor) return "SUPERVISOR";
+function currentView(user: AppUser): DemoView {
+  if (user.employeeId === "e-new") return "NEWHIRE";
+  if (user.role === "ADMIN") return "ADMIN";
+  if (user.role === "HR") return "HR";
+  if (user.isSupervisor) return "SUPERVISOR";
   return "EMPLOYEE";
 }
 
@@ -35,12 +37,12 @@ export function RoleSwitcher() {
   }, []);
 
   if (!appUser) return null;
-  const active = currentView(appUser.role, appUser.isSupervisor);
+  const active = currentView(appUser);
 
   const pick = (view: DemoView) => {
     setOpen(false);
     setView(view);
-    router.push(roleHome(DEMO_PROFILES[view]));
+    router.push(roleHome(VIEW_PROFILES[view]));
   };
 
   const onReset = () => {

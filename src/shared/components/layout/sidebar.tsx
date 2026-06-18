@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, DoorOpen, LayoutGrid, ClipboardCheck,
   Users, Network, ClipboardList, UserCog, UserCircle, BookOpen, ShieldCheck,
+  UserPlus, UserMinus, GitBranch,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -43,6 +44,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     title: "My Team",
     items: [
       { label: "Overview", icon: LayoutGrid, href: "/supervisor/reports", roles: ["SUPERVISOR"] },
+      { label: "Hierarchy status", icon: GitBranch, href: "/supervisor/status", roles: ["SUPERVISOR"] },
       { label: "Evaluations", icon: ClipboardCheck, href: "/supervisor/evaluations", roles: ["SUPERVISOR"] },
     ],
   },
@@ -50,6 +52,8 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     title: "Organization",
     items: [
       { label: "People", icon: Users, href: "/hr/directory", roles: ["HR"] },
+      { label: "Onboarding", icon: UserPlus, href: "/hr/onboarding", roles: ["HR"] },
+      { label: "Offboarding", icon: UserMinus, href: "/hr/offboarding", roles: ["HR"] },
       { label: "Structure", icon: Network, href: "/hr/teams", roles: ["HR"] },
       { label: "Surveys", icon: ClipboardList, href: "/hr/surveys", roles: ["HR"] },
     ],
