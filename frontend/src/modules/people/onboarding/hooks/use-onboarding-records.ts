@@ -1,13 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { getEmployees } from "@/modules/people/employees/services/employees.service";
 import type { EmployeeFilters } from "@/modules/people/employees/types/employees.types";
-import { getDocumentReviews } from "../services/onboarding.service";
+import type { OnboardingInvitationStatus } from "../types/onboarding.types";
+import {
+  getDocumentReviews,
+  getOnboardingStatusForEmployee,
+} from "../services/onboarding.service";
 
 /**
  * HR list of onboarding cases. Onboarding employees come from the employee
  * directory filtered to `status=onboarding`; per-employee document submissions
  * (used to derive coarse progress) come from the document-reviews feed.
+ * Invitation status comes from each employee's HR-scoped onboarding status.
  */
 export function useOnboardingRecords(filters: EmployeeFilters = {}) {
   const employeesQuery = useQuery({
@@ -20,14 +25,39 @@ export function useOnboardingRecords(filters: EmployeeFilters = {}) {
     queryFn: () => getDocumentReviews(),
   });
 
+  const employeeIds = employeesQuery.data?.data.map((e) => e.id) ?? [];
+
+  const statusQueries = useQueries({
+    queries: employeeIds.map((employeeId) => ({
+      queryKey: queryKeys.onboarding.status(employeeId),
+      queryFn: () => getOnboardingStatusForEmployee(employeeId),
+      enabled: Boolean(employeeId),
+    })),
+  });
+
+  const invitationStatusByEmployeeId = new Map<string, OnboardingInvitationStatus | null>();
+  employeeIds.forEach((employeeId, index) => {
+    invitationStatusByEmployeeId.set(
+      employeeId,
+      statusQueries[index]?.data?.invitationStatus ?? null,
+    );
+  });
+
+  const statusesLoading =
+    employeeIds.length > 0 && statusQueries.some((query) => query.isLoading);
+
   return {
     employees: employeesQuery.data?.data ?? [],
     reviews: reviewsQuery.data ?? [],
-    loading: employeesQuery.isLoading,
+    invitationStatusByEmployeeId,
+    loading: employeesQuery.isLoading || statusesLoading,
     error: employeesQuery.error instanceof Error ? employeesQuery.error.message : null,
     reload: () => {
       void employeesQuery.refetch();
       void reviewsQuery.refetch();
+      statusQueries.forEach((query) => {
+        void query.refetch();
+      });
     },
   };
 }

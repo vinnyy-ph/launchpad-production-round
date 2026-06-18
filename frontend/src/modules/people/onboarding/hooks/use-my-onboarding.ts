@@ -1,18 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import {
-  completeMyOnboarding,
-  getMyOnboardingStatus,
+  loadMyOnboardingStatus,
   submitCustomFields,
   submitDocument,
+  submitMyOnboardingForReview,
+  updateMyProfile,
 } from "../services/onboarding.service";
-import type { SubmitCustomFieldAnswer } from "../types/onboarding.types";
+import type { SubmitCustomFieldAnswer, UpdateMyProfileInput } from "../types/onboarding.types";
 
 /** The signed-in employee's own onboarding checklist. */
 export function useMyOnboarding(enabled = true) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.onboarding.mine,
-    queryFn: () => getMyOnboardingStatus(),
+    queryFn: () => loadMyOnboardingStatus(),
     enabled,
   });
 
@@ -29,7 +30,20 @@ export function useSubmitCustomFields() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (fields: SubmitCustomFieldAnswer[]) => submitCustomFields(fields),
-    onSuccess: (data) => queryClient.setQueryData(queryKeys.onboarding.mine, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.mine });
+    },
+  });
+}
+
+/** Employee confirms or updates HR pre-filled profile data. */
+export function useUpdateMyProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateMyProfileInput) => updateMyProfile(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.mine });
+    },
   });
 }
 
@@ -37,17 +51,21 @@ export function useSubmitCustomFields() {
 export function useSubmitDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { documentId: string; fileUrl: string }) =>
-      submitDocument(vars.documentId, vars.fileUrl),
-    onSuccess: (data) => queryClient.setQueryData(queryKeys.onboarding.mine, data),
+    mutationFn: (vars: { documentId: string; file: File }) =>
+      submitDocument(vars.documentId, vars.file),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.mine });
+    },
   });
 }
 
-/** Employee marks their own onboarding complete. */
-export function useCompleteMyOnboarding() {
+/** Employee submits onboarding to HR for review (does not self-activate). */
+export function useSubmitMyOnboardingForReview() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => completeMyOnboarding(),
-    onSuccess: (data) => queryClient.setQueryData(queryKeys.onboarding.mine, data),
+    mutationFn: () => submitMyOnboardingForReview(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.mine });
+    },
   });
 }

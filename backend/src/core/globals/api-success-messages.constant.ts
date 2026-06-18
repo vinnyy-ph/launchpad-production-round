@@ -38,6 +38,8 @@ export const API_SUCCESS_MESSAGES = {
   DOCUMENT_APPROVED: "Document submission approved successfully",
   DOCUMENT_REJECTED: "Document submission rejected successfully",
   ONBOARDING_COMPLETED: "Onboarding completed successfully",
+  ONBOARDING_SUBMITTED_FOR_REVIEW:
+    "Your onboarding has been submitted to HR for review.",
   HR_ONBOARDING_COMPLETED: "Employee onboarding completed successfully",
   NOTIFICATIONS_RETRIEVED: "Notifications retrieved successfully",
   NOTIFICATION_MARKED_AS_READ: "Notification marked as read",

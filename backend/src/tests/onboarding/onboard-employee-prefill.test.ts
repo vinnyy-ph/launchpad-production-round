@@ -8,7 +8,7 @@ import {
   buildOnboardBodyWithPrefill,
   buildSupervisorRecord,
   employeeFindFirstMock,
-  employeeFindManyMock,
+  emergencyContactFindManyMock,
   mockOnboardingTransaction,
   resetOnboardingMocks,
   userFindUniqueMock,
@@ -24,7 +24,8 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
     user: { findUnique: jest.fn() },
-    employee: { findFirst: jest.fn(), findMany: jest.fn() },
+    employee: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn() },
+    employeeEmergencyContact: { findMany: jest.fn().mockResolvedValue([]) },
     $transaction: jest.fn(),
   },
 }));
@@ -155,6 +156,28 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
     expect(userFindUniqueMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 when birthday is in the future", async () => {
+    const response = await request(app)
+      .post("/api/v1/onboarding")
+      .send({
+        ...buildOnboardBody(),
+        birthday: "2099-12-31",
+      })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      errorCode: "VALIDATION_FAILED",
+      errors: [
+        expect.objectContaining({
+          field: "birthday",
+          message: "Invalid birthday",
+        }),
+      ],
+    });
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when emergency contact phone is not a valid Philippine mobile number", async () => {
     const response = await request(app)
       .post("/api/v1/onboarding")
@@ -180,8 +203,8 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
   it("returns 409 when the emergency contact phone is already assigned to another employee", async () => {
     userFindUniqueMock.mockResolvedValue(null);
     employeeFindFirstMock.mockResolvedValue(buildSupervisorRecord());
-    employeeFindManyMock.mockResolvedValue([
-      { emergencyContact: { emergencyContactNumber: "Existing Person - +63 917 123 4567" } },
+    emergencyContactFindManyMock.mockResolvedValue([
+      { emergencyContactNumber: "Existing Person - +63 917 123 4567" },
     ]);
 
     const response = await request(app)
@@ -207,8 +230,8 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
   it("treats differently formatted Philippine numbers as the same phone for duplicate checks", async () => {
     userFindUniqueMock.mockResolvedValue(null);
     employeeFindFirstMock.mockResolvedValue(buildSupervisorRecord());
-    employeeFindManyMock.mockResolvedValue([
-      { emergencyContact: { emergencyContactNumber: "+63 917 123 4567" } },
+    emergencyContactFindManyMock.mockResolvedValue([
+      { emergencyContactNumber: "+63 917 123 4567" },
     ]);
 
     const response = await request(app)

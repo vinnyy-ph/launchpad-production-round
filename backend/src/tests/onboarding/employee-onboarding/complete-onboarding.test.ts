@@ -4,9 +4,7 @@ import {
   buildEmployeeUser,
   buildOnboardingRecord,
   buildSubmissionRecord,
-  employeeUpdateMock,
   onboardingRecordFindFirstMock,
-  onboardingRecordUpdateMock,
   resetEmployeeOnboardingMocks,
 } from "./employee-onboarding-test.helpers";
 
@@ -35,21 +33,12 @@ describe("POST /api/v1/employee-onboarding/complete", () => {
     resetEmployeeOnboardingMocks();
   });
 
-  it("marks onboarding complete when all requirements are satisfied", async () => {
+  it("submits onboarding for HR review without activating the employee", async () => {
     onboardingRecordFindFirstMock.mockResolvedValue(
       buildOnboardingRecord({
         documentSubmissions: [buildSubmissionRecord({ status: "PENDING" })],
       }),
     );
-    onboardingRecordUpdateMock.mockResolvedValue({
-      id: "onboarding-record-id",
-      isComplete: true,
-      completedAt: new Date("2026-06-17T12:00:00.000Z"),
-    });
-    employeeUpdateMock.mockResolvedValue({
-      id: "employee-id",
-      status: "ACTIVE",
-    });
 
     const response = await request(app)
       .post("/api/v1/employee-onboarding/complete")
@@ -57,11 +46,11 @@ describe("POST /api/v1/employee-onboarding/complete", () => {
 
     expect(response.body).toMatchObject({
       success: true,
-      message: "Onboarding completed successfully",
+      message: "Your onboarding has been submitted to HR for review.",
       data: {
         recordId: "onboarding-record-id",
-        isComplete: true,
-        employeeStatus: "active",
+        isComplete: false,
+        submittedForReview: true,
       },
     });
   });
