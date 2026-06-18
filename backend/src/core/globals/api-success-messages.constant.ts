@@ -43,6 +43,12 @@ export const API_SUCCESS_MESSAGES = {
   NOTIFICATION_MARKED_AS_READ: "Notification marked as read",
   SUPERVISOR_ONBOARDING_STATUSES_RETRIEVED:
     "Supervisor onboarding statuses retrieved successfully",
+  EVALUATION_CREATED: "Evaluation created successfully",
+  EVALUATION_UPDATED: "Evaluation updated successfully",
+  EVALUATION_DELETED: "Evaluation deleted successfully",
+  EVALUATION_SENT: "Evaluation sent successfully",
+  EVALUATION_ACKNOWLEDGED: "Evaluation acknowledged successfully",
+  EVALUATIONS_RETRIEVED: "Evaluations retrieved successfully",
 } as const;
 
 export type ApiSuccessMessage =

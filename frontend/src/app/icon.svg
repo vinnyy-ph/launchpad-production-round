@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" role="img" aria-label="SwiftWork mark">
+  <rect width="40" height="40" rx="9" fill="#181D27"/>
+  <g fill="#FFFFFF">
+    <rect x="12" y="22" width="4.2" height="8" rx="2.1"/>
+    <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1"/>
+    <rect x="23.8" y="11" width="4.2" height="19" rx="2.1"/>
+  </g>
+</svg>

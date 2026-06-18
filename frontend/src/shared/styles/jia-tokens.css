@@ -91,6 +91,17 @@
       var(--brand-blue) 100%
     );
 
+  /* 45° variant — the brandbook's `--grad`. Used where the book renders the
+     gradient at 45° (progress fill, card brand-scrim, gradient-border ring). */
+  --gradient-jia-45:
+    linear-gradient(
+      45deg,
+      var(--brand-peach)  0%,
+      var(--brand-pink)  33%,
+      var(--brand-lilac) 66%,
+      var(--brand-blue) 100%
+    );
+
   /* ─── WHITE-TEXT VARIANTS ──────────────────────────────────── */
   /* For surfaces where white text must sit on brand gradient. */
   /* Option A: darker gradient — same hues, deeper values (AA white) */

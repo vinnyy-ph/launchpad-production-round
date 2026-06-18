@@ -56,6 +56,15 @@ export const API_ERROR_MESSAGES = {
   EMPLOYEE_PROFILE_NOT_FOUND:
     "No employee profile was found for this account",
   NOT_A_SUPERVISOR: "You must be a supervisor to access this resource",
+  NOT_SUPERVISOR: "You are not the direct supervisor of this employee",
+  REVIEWER_NOT_EMPLOYEE: "Your account is not linked to an employee record",
+  EVALUATION_NOT_FOUND: "Evaluation not found",
+  EVALUATION_ALREADY_SENT: "This evaluation has already been sent and cannot be edited",
+  NOT_EVALUATION_REVIEWER: "You are not the reviewer for this evaluation",
+  NOT_EVALUATION_REVIEWEE: "You are not the reviewee for this evaluation",
+  EVALUATION_NOT_SENT: "This evaluation has not been sent yet",
+  EVALUATION_ALREADY_ACKNOWLEDGED: "This evaluation has already been acknowledged",
+  REVIEWEE_NOT_EMPLOYEE: "Your account is not linked to an employee record",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];
