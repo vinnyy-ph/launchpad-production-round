@@ -1,9 +1,17 @@
 import { Router } from "express";
 import { requireRole } from "../../../core/middleware/roles.middleware";
 import { SurveysController } from "./surveys.controller";
+import { ResultsController } from "./results/results.controller";
 
 const router = Router();
 const controller = new SurveysController();
+const resultsController = new ResultsController();
+
+/** GET /api/v1/pulse/surveys/occurrences/:occurrenceId/results — Returns aggregated results for an occurrence. */
+router.get("/occurrences/:occurrenceId/results", resultsController.getOccurrenceResults);
+
+/** GET /api/v1/pulse/surveys/:id/results — Returns aggregated results for a survey. */
+router.get("/:id/results", resultsController.getSurveyResults);
 
 /** GET /api/v1/pulse/surveys — HR only. Lists pulse surveys with optional status filter and pagination. */
 router.get("/", requireRole("HR"), controller.listSurveys);
