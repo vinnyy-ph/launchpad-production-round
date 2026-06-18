@@ -7,10 +7,11 @@ export class EvaluationsRepository {
       data: {
         reviewerId: data.reviewerId,
         revieweeId: data.revieweeId,
-        evaluationPeriod: data.evaluationPeriod,
+        periodStart: data.periodStart,
+        periodEnd: data.periodEnd,
         grade: data.grade,
-        highlights: data.highlights ?? null,
-        lowlights: data.lowlights ?? null,
+        highlights: data.highlights ?? [],
+        lowlights: data.lowlights ?? [],
         evaluation: data.evaluation ?? null,
         recommendation: data.recommendation ?? null,
         supportingDocUrl: data.supportingDocUrl ?? null,
@@ -72,7 +73,11 @@ export class EvaluationsRepository {
     const [evaluations, total] = await Promise.all([
       prisma.performanceEvaluation.findMany({
         where,
-        include: { acknowledgement: true },
+        include: {
+          acknowledgement: true,
+          reviewee: { select: { id: true, firstName: true, lastName: true } },
+          reviewer: { select: { id: true, firstName: true, lastName: true } },
+        },
         orderBy: { createdAt: "desc" },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
@@ -86,7 +91,11 @@ export class EvaluationsRepository {
   async findById(id: string) {
     return prisma.performanceEvaluation.findFirst({
       where: { id, deletedAt: null },
-      include: { acknowledgement: true },
+      include: {
+        acknowledgement: true,
+        reviewee: { select: { id: true, firstName: true, lastName: true } },
+        reviewer: { select: { id: true, firstName: true, lastName: true } },
+      },
     });
   }
 
@@ -109,7 +118,8 @@ export class EvaluationsRepository {
       where: { id },
       data: {
         ...(data.revieweeId !== undefined && { revieweeId: data.revieweeId }),
-        ...(data.evaluationPeriod !== undefined && { evaluationPeriod: data.evaluationPeriod }),
+        ...(data.periodStart !== undefined && { periodStart: data.periodStart }),
+        ...(data.periodEnd !== undefined && { periodEnd: data.periodEnd }),
         ...(data.grade !== undefined && { grade: data.grade }),
         ...(data.highlights !== undefined && { highlights: data.highlights }),
         ...(data.lowlights !== undefined && { lowlights: data.lowlights }),
@@ -133,6 +143,20 @@ export class EvaluationsRepository {
     return prisma.evaluationAcknowledgement.update({
       where: { evaluationId },
       data: { acknowledgedAt: new Date() },
+    });
+  }
+
+  async markDeemedAcknowledged(evaluationId: string) {
+    return prisma.evaluationAcknowledgement.update({
+      where: { evaluationId },
+      data: { isDeemedAck: true },
+    });
+  }
+
+  async markManyDeemedAcknowledged(evaluationIds: string[]) {
+    return prisma.evaluationAcknowledgement.updateMany({
+      where: { evaluationId: { in: evaluationIds } },
+      data: { isDeemedAck: true },
     });
   }
 }

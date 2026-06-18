@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
 import {
   ClipboardCheck,
   Plus,
@@ -12,7 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/shared/components/layout/page-header";
+import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import {
   Button,
   Badge,
@@ -36,97 +37,53 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  DateRangePicker,
+  type DateRange,
 } from "@/shared/ui";
 import { EmptyState, DataTable, FormField, type Column } from "@/shared/ui/patterns";
-import { readCollection, writeCollection } from "@/shared/mock/db";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import type {
-  Evaluation,
-  EvaluationStatus,
-  DemoEmployee,
-  Acknowledgement,
-} from "@/shared/mock/types";
+import {
+  useEvaluations,
+  useMyDirectReports,
+  useCreateEvaluation,
+  useUpdateEvaluation,
+  useDeleteEvaluation,
+  useSendEvaluation,
+  GRADE_LABELS,
+  type Evaluation,
+  type EvaluationInput,
+  type Reviewee,
+} from "@/modules/performance/evaluations";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function uid(): string {
-  return Math.random().toString(36).slice(2, 10);
+function formatPeriod(startIso: string, endIso: string): string {
+  const from = new Date(startIso);
+  const to = new Date(endIso);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return "—";
+  return `${format(from, "LLL d, yyyy")} – ${format(to, "LLL d, yyyy")}`;
 }
 
-const STATUS_VARIANT: Record<EvaluationStatus, "neutral" | "warning" | "success"> = {
-  DRAFT: "neutral",
-  SHARED: "warning",
-  ACKNOWLEDGED: "success",
-  DEEMED_ACKNOWLEDGED: "neutral",
-};
-
-const STATUS_LABEL: Record<EvaluationStatus, string> = {
-  DRAFT: "Draft",
-  SHARED: "Shared",
-  ACKNOWLEDGED: "Acknowledged",
-  DEEMED_ACKNOWLEDGED: "Deemed ack.",
-};
-
-const GRADE_LABEL: Record<number, string> = {
-  1: "Unsatisfactory",
-  2: "Needs improvement",
-  3: "Meets expectations",
-  4: "Exceeds expectations",
-  5: "Exceptional",
-};
-
-const PERIODS = ["H1 2026", "H2 2025", "H1 2025", "Q2 2026", "Q1 2026"];
-
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-
-function useDirectReports(supervisorId: string) {
-  const [reports, setReports] = useState<DemoEmployee[]>([]);
-  useEffect(() => {
-    const all = readCollection<DemoEmployee>("employees");
-    setReports(all.filter((e) => e.supervisorId === supervisorId && e.isActive));
-  }, [supervisorId]);
-  return reports;
+function isValidUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
-function useEvaluations(supervisorId: string) {
-  const [evals, setEvals] = useState<Evaluation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type AckLabel = "Pending" | "Acknowledged" | "Deemed ack." | null;
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      const all = readCollection<Evaluation>("evaluations");
-      setEvals(all.filter((e) => e.supervisorId === supervisorId));
-    } catch {
-      setError("Could not load evaluations.");
-    } finally {
-      setLoading(false);
-    }
-  }, [supervisorId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const save = useCallback((ev: Evaluation) => {
-    const all = readCollection<Evaluation>("evaluations");
-    const idx = all.findIndex((e) => e.id === ev.id);
-    const next = idx >= 0 ? all.map((e, i) => (i === idx ? ev : e)) : [...all, ev];
-    writeCollection("evaluations", next);
-    setEvals(next.filter((e) => e.supervisorId === supervisorId));
-  }, [supervisorId]);
-
-  const remove = useCallback((id: string) => {
-    const all = readCollection<Evaluation>("evaluations");
-    const next = all.filter((e) => e.id !== id);
-    writeCollection("evaluations", next);
-    setEvals(next.filter((e) => e.supervisorId === supervisorId));
-  }, [supervisorId]);
-
-  return { evals, loading, error, reload: load, save, remove };
+function ackInfo(ev: Evaluation): { label: AckLabel; variant: "warning" | "success" | "neutral" } {
+  if (!ev.isSent) return { label: null, variant: "neutral" };
+  const ack = ev.acknowledgement;
+  if (ack?.acknowledgedAt && !ack.isDeemedAck) return { label: "Acknowledged", variant: "success" };
+  if (ack?.isDeemedAck) return { label: "Deemed ack.", variant: "neutral" };
+  return { label: "Pending", variant: "warning" };
 }
 
-// ─── Dynamic list helper ──────────────────────────────────────────────────────
+// ─── Itemized text list (highlights / lowlights) ────────────────────────────────
 
 interface DynamicListProps {
   label: string;
@@ -138,46 +95,53 @@ interface DynamicListProps {
 }
 
 function DynamicList({ label, htmlFor, items, onChange, placeholder, readOnly }: DynamicListProps) {
-  const update = (idx: number, val: string) =>
-    onChange(items.map((v, i) => (i === idx ? val : v)));
+  const update = (idx: number, val: string) => onChange(items.map((v, i) => (i === idx ? val : v)));
   const remove = (idx: number) => onChange(items.filter((_, i) => i !== idx));
   const add = () => onChange([...items, ""]);
+
+  if (readOnly) {
+    return (
+      <FormField label={label} htmlFor={htmlFor}>
+        {items.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-5">
+            {items.map((val, idx) => (
+              <li key={idx} className="text-sm text-[color:var(--text-secondary)]">
+                {val}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-[color:var(--text-tertiary)]">—</p>
+        )}
+      </FormField>
+    );
+  }
 
   return (
     <FormField label={label} htmlFor={htmlFor}>
       <div className="space-y-2">
         {items.map((val, idx) => (
           <div key={idx} className="flex items-center gap-2">
-            {readOnly ? (
-              <p className="flex-1 rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm">
-                {val}
-              </p>
-            ) : (
-              <>
-                <Input
-                  id={idx === 0 ? htmlFor : undefined}
-                  value={val}
-                  onChange={(e) => update(idx, e.target.value)}
-                  placeholder={placeholder}
-                  className="flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => remove(idx)}
-                  className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)]"
-                  aria-label="Remove item"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </>
-            )}
+            <Input
+              id={idx === 0 ? htmlFor : undefined}
+              value={val}
+              onChange={(e) => update(idx, e.target.value)}
+              placeholder={placeholder}
+              className="flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)]"
+              aria-label="Remove item"
+            >
+              <Trash2 size={14} />
+            </button>
           </div>
         ))}
-        {!readOnly && (
-          <Button variant="secondary" size="sm" type="button" onClick={add}>
-            <Plus size={12} /> Add
-          </Button>
-        )}
+        <Button variant="secondary" size="sm" type="button" onClick={add}>
+          <Plus size={12} /> Add
+        </Button>
       </div>
     </FormField>
   );
@@ -189,132 +153,107 @@ interface EditorProps {
   open: boolean;
   onClose: () => void;
   initial: Evaluation | null;
-  supervisorId: string;
-  onSave: (ev: Evaluation) => void;
+  reviewees: Reviewee[];
+  saving: boolean;
+  onSubmit: (input: EvaluationInput) => void;
 }
 
-function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }: EditorProps) {
-  const reports = useDirectReports(supervisorId);
-
-  const [employeeId, setEmployeeId] = useState("");
-  const [period, setPeriod] = useState("H1 2026");
+function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onSubmit }: EditorProps) {
+  const [revieweeId, setRevieweeId] = useState("");
+  const [period, setPeriod] = useState<DateRange | undefined>();
   const [grade, setGrade] = useState<number | null>(null);
   const [highlights, setHighlights] = useState<string[]>([]);
   const [lowlights, setLowlights] = useState<string[]>([]);
   const [evaluationText, setEvaluationText] = useState("");
   const [recommendationText, setRecommendationText] = useState("");
-  const [supportingDocs, setSupportingDocs] = useState<string[]>([]);
-  const [newDoc, setNewDoc] = useState("");
+  const [supportingDocUrl, setSupportingDocUrl] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const isViewOnly =
-    initial?.status === "SHARED" ||
-    initial?.status === "ACKNOWLEDGED" ||
-    initial?.status === "DEEMED_ACKNOWLEDGED";
+  const isViewOnly = initial?.isSent ?? false;
 
   useEffect(() => {
-    if (open) {
-      if (initial) {
-        setEmployeeId(initial.employeeId);
-        setPeriod(initial.period);
-        setGrade(initial.grade ?? null);
-        setHighlights(initial.highlights ?? []);
-        setLowlights(initial.lowlights ?? []);
-        setEvaluationText(initial.evaluationText ?? "");
-        setRecommendationText(initial.recommendationText ?? "");
-        setSupportingDocs(initial.supportingDocs ?? []);
-      } else {
-        setEmployeeId(reports[0]?.employeeId ?? "");
-        setPeriod("H1 2026");
-        setGrade(null);
-        setHighlights([]);
-        setLowlights([]);
-        setEvaluationText("");
-        setRecommendationText("");
-        setSupportingDocs([]);
-      }
-      setNewDoc("");
-      setErrors({});
+    if (!open) return;
+    if (initial) {
+      setRevieweeId(initial.revieweeId);
+      setPeriod({ from: new Date(initial.periodStart), to: new Date(initial.periodEnd) });
+      setGrade(initial.grade ?? null);
+      setHighlights(initial.highlights ?? []);
+      setLowlights(initial.lowlights ?? []);
+      setEvaluationText(initial.evaluation ?? "");
+      setRecommendationText(initial.recommendation ?? "");
+      setSupportingDocUrl(initial.supportingDocUrl ?? "");
+    } else {
+      setRevieweeId(reviewees[0]?.id ?? "");
+      setPeriod(undefined);
+      setGrade(null);
+      setHighlights([]);
+      setLowlights([]);
+      setEvaluationText("");
+      setRecommendationText("");
+      setSupportingDocUrl("");
     }
-  }, [open, initial, reports]);
+    setErrors({});
+  }, [open, initial, reviewees]);
 
-  const validate = () => {
+  const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!employeeId) errs.employee = "Select an employee.";
+    if (!revieweeId) errs.reviewee = "Select a direct report.";
+    if (!period?.from || !period?.to) errs.period = "Select an evaluation period.";
     if (!grade) errs.grade = "Select a grade.";
+    if (supportingDocUrl.trim() && !isValidUrl(supportingDocUrl.trim()))
+      errs.doc = "Enter a valid URL (http:// or https://).";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleAddDoc = () => {
-    const trimmed = newDoc.trim();
-    if (!trimmed) return;
-    setSupportingDocs((d) => [...d, trimmed]);
-    setNewDoc("");
-  };
-
-  const handleSave = () => {
-    if (!validate()) return;
-    const ev: Evaluation = {
-      id: initial?.id ?? uid(),
-      employeeId,
-      supervisorId,
-      period,
-      status: "DRAFT",
-      sharedAt: initial?.sharedAt ?? null,
-      grade: grade ?? undefined,
-      highlights,
-      lowlights,
-      evaluationText: evaluationText.trim() || undefined,
-      recommendationText: recommendationText.trim() || undefined,
-      supportingDocs: supportingDocs.length > 0 ? supportingDocs : undefined,
-      ratings: initial?.ratings,
-      summary: initial?.summary,
+  const handleSubmit = () => {
+    if (!validate() || !period?.from || !period?.to) return;
+    const input: EvaluationInput = {
+      revieweeId,
+      periodStart: period.from.toISOString(),
+      periodEnd: period.to.toISOString(),
+      grade: grade as number,
+      highlights: highlights.map((h) => h.trim()).filter(Boolean),
+      lowlights: lowlights.map((l) => l.trim()).filter(Boolean),
+      evaluation: evaluationText.trim() || undefined,
+      recommendation: recommendationText.trim() || undefined,
+      supportingDocUrl: supportingDocUrl.trim() || undefined,
     };
-    onSave(ev);
-    onClose();
+    onSubmit(input);
   };
 
-  const reportName = (id: string) =>
-    reports.find((r) => r.employeeId === id)?.displayName ?? id;
+  const revieweeName = (id: string) => reviewees.find((r) => r.id === id)?.fullName ?? id;
 
-  const dialogTitle = isViewOnly
-    ? "View evaluation"
-    : initial
-    ? "Edit evaluation"
-    : "New evaluation";
-
-  const dialogDescription = isViewOnly
-    ? "This evaluation has been shared and is now read-only."
-    : "Fill in the evaluation details for your direct report.";
+  const title = isViewOnly ? "View evaluation" : initial ? "Edit draft" : "New evaluation";
+  const description = isViewOnly
+    ? "This evaluation has been sent and is now read-only."
+    : "Fill in the evaluation details for your direct report. It stays editable until you send it.";
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{dialogTitle}</DialogTitle>
-          <DialogDescription>{dialogDescription}</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="mt-4 space-y-5">
-          {/* Employee */}
-          <FormField label="Employee" htmlFor="ev-emp" error={errors.employee} required>
+          {/* Reviewee */}
+          <FormField label="Reviewee" htmlFor="ev-reviewee" error={errors.reviewee} required>
             {isViewOnly ? (
               <p className="rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm">
-                {reportName(employeeId)}
+                {initial?.reviewee?.fullName ?? revieweeName(revieweeId)}
               </p>
             ) : (
-              <Select value={employeeId} onValueChange={setEmployeeId} disabled={!!initial}>
-                <SelectTrigger
-                  id="ev-emp"
-                  className={errors.employee ? "border-[#D92D20]" : undefined}
-                >
+              <Select value={revieweeId} onValueChange={setRevieweeId}>
+                <SelectTrigger id="ev-reviewee" className={errors.reviewee ? "border-[#D92D20]" : undefined}>
                   <SelectValue placeholder="Select direct report…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {reports.map((r) => (
-                    <SelectItem key={r.employeeId} value={r.employeeId}>
-                      {r.displayName}
+                  {reviewees.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.fullName}
+                      {r.jobTitle ? ` · ${r.jobTitle}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -322,23 +261,16 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
             )}
           </FormField>
 
-          {/* Period */}
-          <FormField label="Period" htmlFor="ev-period">
+          {/* Evaluation period */}
+          <FormField label="Evaluation period" htmlFor="ev-period" error={errors.period} required>
             {isViewOnly ? (
               <p className="rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm">
-                {period}
+                {period?.from && period?.to
+                  ? `${format(period.from, "LLL d, yyyy")} – ${format(period.to, "LLL d, yyyy")}`
+                  : "—"}
               </p>
             ) : (
-              <Select value={period} onValueChange={setPeriod}>
-                <SelectTrigger id="ev-period">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERIODS.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <DateRangePicker value={period} onChange={setPeriod} />
             )}
           </FormField>
 
@@ -346,7 +278,7 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
           <FormField label="Grade" htmlFor="ev-grade" error={errors.grade} required>
             {isViewOnly ? (
               <p className="rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm">
-                {grade ? `${grade} — ${GRADE_LABEL[grade]}` : "—"}
+                {grade ? `${grade} — ${GRADE_LABELS[grade]}` : "—"}
               </p>
             ) : (
               <div className="space-y-2">
@@ -365,14 +297,14 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
                       ]
                         .filter(Boolean)
                         .join(" ")}
-                      aria-label={`Grade ${g}: ${GRADE_LABEL[g]}`}
+                      aria-label={`Grade ${g}: ${GRADE_LABELS[g]}`}
                     >
                       {g}
                     </button>
                   ))}
                 </div>
                 {grade && (
-                  <p className="text-xs text-[color:var(--text-tertiary)]">{GRADE_LABEL[grade]}</p>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">{GRADE_LABELS[grade]}</p>
                 )}
               </div>
             )}
@@ -380,7 +312,7 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
 
           {/* Highlights */}
           <DynamicList
-            label="Key highlights"
+            label="Highlights"
             htmlFor="ev-highlights"
             items={highlights}
             onChange={setHighlights}
@@ -390,7 +322,7 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
 
           {/* Lowlights */}
           <DynamicList
-            label="Areas for growth"
+            label="Lowlights"
             htmlFor="ev-lowlights"
             items={lowlights}
             onChange={setLowlights}
@@ -398,16 +330,16 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
             readOnly={isViewOnly}
           />
 
-          {/* Evaluation text */}
-          <FormField label="Evaluation narrative" htmlFor="ev-text">
+          {/* Evaluation narrative */}
+          <FormField label="Evaluation" htmlFor="ev-text">
             {isViewOnly ? (
-              <p className="rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm leading-relaxed">
+              <p className="whitespace-pre-line rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm leading-relaxed">
                 {evaluationText || "—"}
               </p>
             ) : (
               <Textarea
                 id="ev-text"
-                placeholder="Written narrative of performance…"
+                placeholder="Written assessment of performance…"
                 value={evaluationText}
                 onChange={(e) => setEvaluationText(e.target.value)}
                 rows={4}
@@ -415,10 +347,10 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
             )}
           </FormField>
 
-          {/* Recommendation text */}
+          {/* Recommendation */}
           <FormField label="Recommendation" htmlFor="ev-rec">
             {isViewOnly ? (
-              <p className="rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm leading-relaxed">
+              <p className="whitespace-pre-line rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm leading-relaxed">
                 {recommendationText || "—"}
               </p>
             ) : (
@@ -432,50 +364,36 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
             )}
           </FormField>
 
-          {/* Supporting docs */}
-          <FormField label="Supporting documents" htmlFor="ev-doc">
-            <div className="space-y-2">
-              {supportingDocs.map((doc, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <p className="flex-1 rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm">
-                    {doc}
-                  </p>
-                  {!isViewOnly && (
-                    <button
-                      type="button"
-                      onClick={() => setSupportingDocs((d) => d.filter((_, i) => i !== idx))}
-                      className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)]"
-                      aria-label="Remove document"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {!isViewOnly && (
-                <div className="flex gap-2">
-                  <Input
-                    id="ev-doc"
-                    value={newDoc}
-                    onChange={(e) => setNewDoc(e.target.value)}
-                    placeholder="Document name…"
-                    className="flex-1"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddDoc();
-                      }
-                    }}
-                  />
-                  <Button variant="secondary" type="button" onClick={handleAddDoc}>
-                    Add
-                  </Button>
-                </div>
-              )}
-              {isViewOnly && supportingDocs.length === 0 && (
+          {/* Supporting document URL */}
+          <FormField
+            label="Supporting document"
+            htmlFor="ev-doc"
+            error={errors.doc}
+            hint={isViewOnly ? undefined : "Optional link (http:// or https://)"}
+          >
+            {isViewOnly ? (
+              supportingDocUrl ? (
+                <a
+                  href={supportingDocUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="break-all text-sm text-[color:var(--color-brand-600)] underline"
+                >
+                  {supportingDocUrl}
+                </a>
+              ) : (
                 <p className="text-sm text-[color:var(--text-tertiary)]">—</p>
-              )}
-            </div>
+              )
+            ) : (
+              <Input
+                id="ev-doc"
+                type="url"
+                value={supportingDocUrl}
+                onChange={(e) => setSupportingDocUrl(e.target.value)}
+                placeholder="https://drive.example.com/report"
+                className={errors.doc ? "border-[#D92D20]" : undefined}
+              />
+            )}
           </FormField>
         </div>
 
@@ -484,8 +402,8 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
             {isViewOnly ? "Close" : "Cancel"}
           </Button>
           {!isViewOnly && (
-            <Button onClick={handleSave}>
-              {initial ? "Save changes" : "Create draft"}
+            <Button onClick={handleSubmit} disabled={saving}>
+              {saving ? "Saving…" : initial ? "Save changes" : "Create draft"}
             </Button>
           )}
         </div>
@@ -498,202 +416,202 @@ function EvaluationEditorDialog({ open, onClose, initial, supervisorId, onSave }
 
 export default function EvaluationsPage() {
   const { appUser } = useAuth();
-  const supervisorId = appUser?.employeeId ?? "e-sup";
 
-  const { evals, loading, error, reload, save, remove } = useEvaluations(supervisorId);
-  const reports = useDirectReports(supervisorId);
+  const { data: allEvals, isLoading, isError, refetch } = useEvaluations();
+  const { data: reviewees } = useMyDirectReports();
+
+  const createMutation = useCreateEvaluation();
+  const updateMutation = useUpdateEvaluation();
+  const deleteMutation = useDeleteEvaluation();
+  const sendMutation = useSendEvaluation();
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Evaluation | null>(null);
-  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Read acknowledgements once for ack sub-status display
-  const [acks, setAcks] = useState<Acknowledgement[]>([]);
-  useEffect(() => {
-    setAcks(readCollection<Acknowledgement>("acknowledgements"));
-  }, [evals]);
+  // The supervisor's own issued evaluations (drafts + sent).
+  const evals = useMemo(() => {
+    const list = allEvals ?? [];
+    return appUser?.employeeId
+      ? list.filter((e) => e.reviewerId === appUser.employeeId)
+      : list;
+  }, [allEvals, appUser?.employeeId]);
 
-  const reportName = (id: string) =>
-    reports.find((r) => r.employeeId === id)?.displayName ?? id;
+  const revieweeList = reviewees ?? [];
+  const revieweeName = (id: string) => revieweeList.find((r) => r.id === id)?.fullName ?? "—";
 
   const openCreate = () => {
     setEditing(null);
     setEditorOpen(true);
   };
-
-  const openEdit = (ev: Evaluation) => {
+  const openRow = (ev: Evaluation) => {
     setEditing(ev);
     setEditorOpen(true);
   };
 
-  const handleSave = (ev: Evaluation) => {
-    save(ev);
-    toast.success(editing ? "Evaluation saved." : "Draft evaluation created.");
+  const handleSubmit = (input: EvaluationInput) => {
+    if (editing) {
+      updateMutation.mutate(
+        { id: editing.id, input },
+        {
+          onSuccess: () => {
+            toast.success("Draft saved.");
+            setEditorOpen(false);
+          },
+          onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save draft."),
+        },
+      );
+    } else {
+      createMutation.mutate(input, {
+        onSuccess: () => {
+          toast.success("Draft evaluation created.");
+          setEditorOpen(false);
+        },
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create draft."),
+      });
+    }
   };
 
-  const handleShare = () => {
-    if (!sharingId) return;
-    const all = readCollection<Evaluation>("evaluations");
-    const ev = all.find((e) => e.id === sharingId);
-    if (!ev) return;
-
-    const sharedAt = new Date().toISOString();
-    const ackDeadline = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-    const updated: Evaluation = { ...ev, status: "SHARED", sharedAt, ackDeadline };
-    save(updated);
-
-    const existingAcks = readCollection<Acknowledgement>("acknowledgements");
-    const exists = existingAcks.some((a) => a.evaluationId === sharingId);
-    if (!exists) {
-      writeCollection("acknowledgements", [
-        ...existingAcks,
-        {
-          id: uid(),
-          evaluationId: sharingId,
-          employeeId: ev.employeeId,
-          acknowledgedAt: null,
-          deemedAt: null,
-        },
-      ]);
-    }
-
-    setSharingId(null);
-    toast.success("Evaluation shared with the employee.");
+  const handleSend = () => {
+    if (!sendingId) return;
+    sendMutation.mutate(sendingId, {
+      onSuccess: () => {
+        toast.success("Evaluation sent. It is now read-only.");
+        setSendingId(null);
+      },
+      onError: (e) => {
+        toast.error(e instanceof Error ? e.message : "Could not send evaluation.");
+        setSendingId(null);
+      },
+    });
   };
 
   const handleDelete = () => {
     if (!deletingId) return;
-    remove(deletingId);
-    setDeletingId(null);
-    toast.success("Draft deleted.");
-  };
-
-  const getAckSubStatus = (ev: Evaluation): "Pending" | "Acknowledged" | "Deemed" | null => {
-    if (ev.status !== "SHARED") return null;
-    const ack = acks.find((a) => a.evaluationId === ev.id);
-    if (!ack) return "Pending";
-    if (ack.acknowledgedAt) return "Acknowledged";
-    if (ack.deemedAt) return "Deemed";
-    return "Pending";
+    deleteMutation.mutate(deletingId, {
+      onSuccess: () => {
+        toast.success("Draft deleted.");
+        setDeletingId(null);
+      },
+      onError: (e) => {
+        toast.error(e instanceof Error ? e.message : "Could not delete draft.");
+        setDeletingId(null);
+      },
+    });
   };
 
   const columns: Column<Evaluation>[] = [
     {
-      header: "Employee",
+      header: "Reviewee",
       cell: (ev) => (
         <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-          {reportName(ev.employeeId)}
+          {ev.reviewee?.fullName ?? revieweeName(ev.revieweeId)}
         </p>
       ),
     },
     {
       header: "Period",
       cell: (ev) => (
-        <span className="text-sm text-[color:var(--text-secondary)]">{ev.period}</span>
-      ),
-    },
-    {
-      header: "Grade",
-      cell: (ev) =>
-        ev.grade ? (
-          <div>
-            <span className="text-sm font-semibold text-[color:var(--text-primary)]">
-              {ev.grade}
-            </span>
-            <span className="ml-1.5 text-xs text-[color:var(--text-tertiary)]">
-              {GRADE_LABEL[ev.grade]}
-            </span>
-          </div>
-        ) : (
-          <span className="text-xs text-[color:var(--text-quaternary)]">—</span>
-        ),
-    },
-    {
-      header: "Status",
-      cell: (ev) => (
-        <Badge variant={STATUS_VARIANT[ev.status]}>{STATUS_LABEL[ev.status]}</Badge>
-      ),
-    },
-    {
-      header: "Shared",
-      cell: (ev) => (
-        <span className="text-xs text-[color:var(--text-tertiary)]">
-          {ev.sharedAt ? new Date(ev.sharedAt).toLocaleDateString() : "—"}
+        <span className="text-sm text-[color:var(--text-secondary)]">
+          {formatPeriod(ev.periodStart, ev.periodEnd)}
         </span>
       ),
     },
     {
-      header: "Ack status",
+      header: "Grade",
+      cell: (ev) => (
+        <div>
+          <span className="text-sm font-semibold text-[color:var(--text-primary)]">{ev.grade}</span>
+          <span className="ml-1.5 text-xs text-[color:var(--text-tertiary)]">
+            {GRADE_LABELS[ev.grade]}
+          </span>
+        </div>
+      ),
+    },
+    {
+      header: "Status",
+      cell: (ev) => (
+        <Badge variant={ev.isSent ? "warning" : "neutral"}>{ev.isSent ? "Sent" : "Draft"}</Badge>
+      ),
+    },
+    {
+      header: "Acknowledgement",
       cell: (ev) => {
-        const sub = getAckSubStatus(ev);
-        if (!sub) return <span className="text-xs text-[color:var(--text-quaternary)]">—</span>;
-        const variant =
-          sub === "Acknowledged" ? "success" : sub === "Deemed" ? "neutral" : "warning";
-        return <Badge variant={variant}>{sub}</Badge>;
+        const { label, variant } = ackInfo(ev);
+        return label ? (
+          <Badge variant={variant}>{label}</Badge>
+        ) : (
+          <span className="text-xs text-[color:var(--text-quaternary)]">—</span>
+        );
       },
     },
     {
       header: "",
       cell: (ev) => (
         <div className="flex items-center justify-end gap-1">
-          {ev.status === "DRAFT" && (
-            <>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); openEdit(ev); }}
-                className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)]"
-                aria-label="Edit evaluation"
-              >
-                <Pencil size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setDeletingId(ev.id); }}
-                className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)]"
-                aria-label="Delete evaluation"
-              >
-                <Trash2 size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setSharingId(ev.id); }}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-                aria-label="Share evaluation"
-              >
-                <Send size={12} /> Share
-              </button>
-            </>
-          )}
-          {(ev.status === "SHARED" ||
-            ev.status === "ACKNOWLEDGED" ||
-            ev.status === "DEEMED_ACKNOWLEDGED") && (
+          {ev.isSent ? (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); openEdit(ev); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                openRow(ev);
+              }}
               className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
               aria-label="View evaluation"
             >
               View <ChevronRight size={12} />
             </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openRow(ev);
+                }}
+                className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)]"
+                aria-label="Edit draft"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeletingId(ev.id);
+                }}
+                className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)]"
+                aria-label="Delete draft"
+              >
+                <Trash2 size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSendingId(ev.id);
+                }}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
+                aria-label="Send evaluation"
+              >
+                <Send size={12} /> Send
+              </button>
+            </>
           )}
         </div>
       ),
     },
   ];
 
-  const drafts = evals.filter((e) => e.status === "DRAFT").length;
-  const sharedPending = evals.filter((e) => e.status === "SHARED").length;
-  const acknowledged = evals.filter(
-    (e) => e.status === "ACKNOWLEDGED" || e.status === "DEEMED_ACKNOWLEDGED",
-  ).length;
+  const draftCount = evals.filter((e) => !e.isSent).length;
+  const sentCount = evals.filter((e) => e.isSent).length;
+  const ackedCount = evals.filter((e) => e.acknowledgement?.acknowledgedAt).length;
 
   return (
     <div>
-      <PageHeader
-        level="page"
-        title="Evaluations"
-        subtitle="Manage performance evaluations for your direct reports."
+      <ScreenHeader
+        id="evaluations"
         action={
           <Button onClick={openCreate}>
             <Plus /> New evaluation
@@ -702,14 +620,14 @@ export default function EvaluationsPage() {
       />
 
       {/* Summary strip */}
-      {!loading && !error && evals.length > 0 && (
+      {!isLoading && !isError && evals.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-3">
           {(
             [
               { label: "Total", value: evals.length },
-              { label: "Drafts", value: drafts },
-              { label: "Shared pending ack", value: sharedPending },
-              { label: "Acknowledged", value: acknowledged },
+              { label: "Drafts", value: draftCount },
+              { label: "Sent", value: sentCount },
+              { label: "Acknowledged", value: ackedCount },
             ] as { label: string; value: number }[]
           ).map(({ label, value }) => (
             <div
@@ -725,7 +643,7 @@ export default function EvaluationsPage() {
       )}
 
       {/* Loading */}
-      {loading && (
+      {isLoading && (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
             <div
@@ -743,12 +661,14 @@ export default function EvaluationsPage() {
       )}
 
       {/* Error */}
-      {!loading && error && (
+      {!isLoading && isError && (
         <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
           <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-          <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{error}</span>
+          <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
+            Could not load evaluations.
+          </span>
           <button
-            onClick={() => void reload()}
+            onClick={() => void refetch()}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
           >
             <RefreshCw size={12} /> Retry
@@ -757,7 +677,7 @@ export default function EvaluationsPage() {
       )}
 
       {/* Table */}
-      {!loading && !error && (
+      {!isLoading && !isError && (
         <div
           className="rounded-xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: "var(--shadow-xs)" }}
@@ -766,7 +686,7 @@ export default function EvaluationsPage() {
             columns={columns}
             data={evals}
             getRowId={(ev) => ev.id}
-            onRowClick={(ev) => openEdit(ev)}
+            onRowClick={(ev) => openRow(ev)}
             emptyState={
               <EmptyState
                 icon={ClipboardCheck}
@@ -784,23 +704,25 @@ export default function EvaluationsPage() {
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
         initial={editing}
-        supervisorId={supervisorId}
-        onSave={handleSave}
+        reviewees={revieweeList}
+        saving={createMutation.isPending || updateMutation.isPending}
+        onSubmit={handleSubmit}
       />
 
-      {/* Share confirm */}
-      <AlertDialog open={!!sharingId} onOpenChange={(o) => !o && setSharingId(null)}>
+      {/* Send confirm */}
+      <AlertDialog open={!!sendingId} onOpenChange={(o) => !o && setSendingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Share this evaluation?</AlertDialogTitle>
+            <AlertDialogTitle>Send this evaluation?</AlertDialogTitle>
             <AlertDialogDescription>
-              Once shared, the evaluation is visible to the employee and cannot be edited or deleted.
+              Once sent, the evaluation is delivered to the employee and can no longer be edited or
+              deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleShare}>
-              <Send size={14} className="mr-1" /> Share evaluation
+            <AlertDialogAction onClick={handleSend} disabled={sendMutation.isPending}>
+              <Send size={14} className="mr-1" /> {sendMutation.isPending ? "Sending…" : "Send evaluation"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -817,7 +739,9 @@ export default function EvaluationsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

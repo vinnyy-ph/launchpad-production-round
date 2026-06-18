@@ -10,8 +10,6 @@ model Employee {
   middleName       String?
   personalEmail    String?
   birthday         DateTime?
-  address          String?
-  emergencyContact String?
   jobTitle         String?
   departmentId     String?
   department       Department? @relation(fields: [departmentId], references: [id])
@@ -26,6 +24,8 @@ model Employee {
   updatedAt DateTime       @updatedAt
 
   // ── Relations ──
+  address                    EmployeeAddress?
+  emergencyContact           EmployeeEmergencyContact?
   teamMemberships            TeamMember[]
   ledTeams                   Team[]                         @relation("TeamLeader")
   editsPerformed             ActivityLog[]                  @relation("Editor")
@@ -48,4 +48,36 @@ model Employee {
   notifications              Notification[]
 
   @@map("employees")
+}
+
+/// Structured home address associated with one employee profile.
+model EmployeeAddress {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  address  String?
+  city     String?
+  province String?
+  country  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employee_addresses")
+}
+
+/// Emergency contact details associated with one employee profile.
+model EmployeeEmergencyContact {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  emergencyContactName   String?
+  emergencyContactNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employee_emergency_contacts")
 }

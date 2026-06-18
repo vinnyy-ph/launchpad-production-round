@@ -36,6 +36,7 @@ const options: swaggerJsdoc.Options = {
         description: "In-app notifications delivered in real time via Socket.IO",
       },
       { name: "Evaluations", description: "Performance evaluation management for supervisors" },
+      { name: "Pulse Surveys", description: "HR-managed pulse surveys and employee responses" },
     ],
     components: {
       securitySchemes: {

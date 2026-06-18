@@ -1,4 +1,4 @@
-import type { User } from "@prisma/client";
+import type { User, EmployeeStatus } from "@prisma/client";
 import { prisma } from "../../core/database/prisma.service";
 
 export interface SessionUser {
@@ -7,6 +7,7 @@ export interface SessionUser {
   role: "ADMIN" | "HR" | "EMPLOYEE";
   isSupervisor: boolean;
   isActive: boolean;
+  employeeStatus: EmployeeStatus | null;
   email: string;
   displayName: string | null;
 }
@@ -37,6 +38,7 @@ export async function resolveSession(user: User): Promise<SessionUser> {
     role: normalizeRole(user.role),
     isSupervisor,
     isActive: user.isActive && employee?.status !== "INACTIVE",
+    employeeStatus: employee?.status ?? null,
     email: user.email,
     displayName: employee ? `${employee.firstName} ${employee.lastName}` : null,
   };

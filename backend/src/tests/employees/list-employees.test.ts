@@ -61,12 +61,33 @@ describe("GET /api/v1/employees - view all employees", () => {
 
     const response = await request(app).get("/api/v1/employees").expect(200);
 
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          user: {
+            role: {
+              in: ["HR", "EMPLOYEE"],
+            },
+          },
+        }),
+      }),
+    );
+    expect(countMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        user: {
+          role: {
+            in: ["HR", "EMPLOYEE"],
+          },
+        },
+      }),
+    });
+
     // The response should use the shared paginated success envelope.
     expect(response.body).toMatchObject({
       success: true,
       meta: {
         page: 1,
-        limit: 25,
+        limit: 10,
         total: 4,
         totalPages: 1,
       },

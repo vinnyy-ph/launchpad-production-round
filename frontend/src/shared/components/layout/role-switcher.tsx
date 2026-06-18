@@ -11,13 +11,19 @@ import type { AppUser } from "@/modules/auth/types/auth.types";
 import { resetDemo } from "@/shared/mock/db";
 
 const LABELS: Record<DemoView, string> = {
-  ADMIN: "Admin", HR: "HR", SUPERVISOR: "Supervisor", EMPLOYEE: "Employee", NEWHIRE: "New hire",
+  ADMIN: "Admin",
+  ADMIN_SUPERVISOR: "Admin + Supervisor",
+  HR: "HR",
+  HR_SUPERVISOR: "HR + Supervisor",
+  SUPERVISOR: "Supervisor",
+  EMPLOYEE: "Employee",
+  NEWHIRE: "New hire",
 };
 
 function currentView(user: AppUser): DemoView {
   if (user.employeeId === "e-new") return "NEWHIRE";
-  if (user.role === "ADMIN") return "ADMIN";
-  if (user.role === "HR") return "HR";
+  if (user.role === "ADMIN") return user.isSupervisor ? "ADMIN_SUPERVISOR" : "ADMIN";
+  if (user.role === "HR") return user.isSupervisor ? "HR_SUPERVISOR" : "HR";
   if (user.isSupervisor) return "SUPERVISOR";
   return "EMPLOYEE";
 }

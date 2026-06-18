@@ -1,0 +1,13 @@
+/// Defines which teams can view survey results (when visibility = SPECIFIC_TEAMS)
+model SurveyVisibilityConfig {
+  id       String      @id @default(uuid())
+  surveyId String
+  survey   PulseSurvey @relation(fields: [surveyId], references: [id])
+  teamId   String
+  team     Team        @relation(fields: [teamId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("survey_visibility_configs")
+}

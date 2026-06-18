@@ -1,5 +1,7 @@
 import type { ApiSuccessResponseDto } from "../../../../core/dto";
+import type { EmployeeAddressResponseDto } from "./employee-address-response.dto";
 import type { EmployeeDirectReportResponseDto } from "./employee-direct-report-response.dto";
+import type { EmployeeEmergencyContactResponseDto } from "./employee-emergency-contact-response.dto";
 import type { EmployeeLedTeamResponseDto } from "./employee-led-team-response.dto";
 import type { EmployeeStatusDto } from "./employee-status.dto";
 import type { EmployeeSupervisorResponseDto } from "./employee-supervisor-response.dto";
@@ -21,8 +23,8 @@ export interface EmployeeProfileDto {
   fullName: string;
   personalEmail: string | null;
   birthday: Date | null;
-  address: string | null;
-  emergencyContact: string | null;
+  address: EmployeeAddressResponseDto | null;
+  emergencyContact: EmployeeEmergencyContactResponseDto | null;
   jobTitle: string | null;
   department: string | null;
   status: EmployeeStatusDto;

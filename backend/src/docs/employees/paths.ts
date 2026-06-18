@@ -72,6 +72,10 @@
  *           type: string
  *           nullable: true
  *           example: Engineering
+ *         address:
+ *           $ref: '#/components/schemas/EmployeeAddress'
+ *         emergencyContact:
+ *           $ref: '#/components/schemas/EmployeeEmergencyContact'
  *         status:
  *           $ref: '#/components/schemas/EmployeeStatus'
  *         teams:
@@ -149,6 +153,38 @@
  *           example: Software Engineer
  *         status:
  *           $ref: '#/components/schemas/EmployeeStatus'
+ *     EmployeeAddress:
+ *       type: object
+ *       nullable: true
+ *       properties:
+ *         address:
+ *           type: string
+ *           nullable: true
+ *           example: 123 Example Street
+ *         city:
+ *           type: string
+ *           nullable: true
+ *           example: Manila
+ *         province:
+ *           type: string
+ *           nullable: true
+ *           example: Metro Manila
+ *         country:
+ *           type: string
+ *           nullable: true
+ *           example: Philippines
+ *     EmployeeEmergencyContact:
+ *       type: object
+ *       nullable: true
+ *       properties:
+ *         emergencyContactName:
+ *           type: string
+ *           nullable: true
+ *           example: Jamie Reed
+ *         emergencyContactNumber:
+ *           type: string
+ *           nullable: true
+ *           example: "+1 555 0100"
  *     EmployeeProfile:
  *       type: object
  *       description: Unredacted HR employee profile payload.
@@ -187,13 +223,9 @@
  *           format: date-time
  *           nullable: true
  *         address:
- *           type: string
- *           nullable: true
- *           example: 123 Example Street
+ *           $ref: '#/components/schemas/EmployeeAddress'
  *         emergencyContact:
- *           type: string
- *           nullable: true
- *           example: Jamie Reed, +1 555 0100
+ *           $ref: '#/components/schemas/EmployeeEmergencyContact'
  *         jobTitle:
  *           type: string
  *           nullable: true
@@ -268,13 +300,9 @@
  *           format: date-time
  *           nullable: true
  *         address:
- *           type: string
- *           nullable: true
- *           example: 123 Example Street
+ *           $ref: '#/components/schemas/EmployeeAddress'
  *         emergencyContact:
- *           type: string
- *           nullable: true
- *           example: Jamie Reed, +1 555 0100
+ *           $ref: '#/components/schemas/EmployeeEmergencyContact'
  *         jobTitle:
  *           type: string
  *           nullable: true

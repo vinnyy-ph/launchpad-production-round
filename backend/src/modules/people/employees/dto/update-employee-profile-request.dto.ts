@@ -1,4 +1,6 @@
 import type { EmployeeStatus } from "@prisma/client";
+import type { UpdateEmployeeAddressRequestDto } from "./update-employee-address-request.dto";
+import type { UpdateEmployeeEmergencyContactRequestDto } from "./update-employee-emergency-contact-request.dto";
 
 /**
  * Request body for HR employee profile edits.
@@ -11,8 +13,8 @@ export interface UpdateEmployeeProfileRequestDto {
   middleName?: string | null;
   personalEmail?: string | null;
   birthday?: Date | null;
-  address?: string | null;
-  emergencyContact?: string | null;
+  address?: UpdateEmployeeAddressRequestDto | null;
+  emergencyContact?: UpdateEmployeeEmergencyContactRequestDto | null;
   jobTitle?: string | null;
   department?: string | null;
   supervisorId?: string | null;

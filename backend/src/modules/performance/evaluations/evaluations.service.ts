@@ -3,17 +3,20 @@ import { prisma } from "../../../core/database/prisma.service";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
 import { EvaluationsRepository } from "./evaluations.repository";
-import { downwardChain, upwardChain } from "../../shared";
+import { downwardChain, upwardChain, ACTIVE_EMPLOYEE } from "../../shared";
 import type {
   CreateEvaluationInput,
   EvaluationResponseDto,
   ListEvaluationsQuery,
   ListEvaluationsResponseDto,
+  ListRevieweesResponseDto,
   UpdateEvaluationInput,
 } from "./dto";
 
 type EvaluationWithAck = PerformanceEvaluation & {
   acknowledgement: Pick<EvaluationAcknowledgement, "isDeemedAck" | "acknowledgedAt"> | null;
+  reviewee?: { id: string; firstName: string; lastName: string } | null;
+  reviewer?: { id: string; firstName: string; lastName: string } | null;
 };
 
 export class EvaluationsService {
@@ -36,9 +39,11 @@ export class EvaluationsService {
       downwardIds,
     );
 
+    const settled = await this.settleDeemedAckMany(evaluations);
+
     return {
       success: true,
-      data: evaluations.map((evaluation) => this.toResponse(evaluation)),
+      data: settled.map((evaluation) => this.toResponse(evaluation)),
       meta: {
         page: query.page,
         limit: query.limit,
@@ -52,27 +57,29 @@ export class EvaluationsService {
     const evaluation = await this.evaluationsRepository.findById(evaluationId);
     if (!evaluation) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND);
 
+    const settled = await this.settleDeemedAck(evaluation);
+
     const employee = await prisma.employee.findUnique({ where: { userId: currentUser.id } });
 
-    if (!evaluation.isSent) {
-      if (!employee || evaluation.reviewerId !== employee.id) {
+    if (!settled.isSent) {
+      if (!employee || settled.reviewerId !== employee.id) {
         throw new Error(EVAL_ERROR_MESSAGES.NOT_AUTHORIZED);
       }
     } else {
       const isHr = currentUser.role === "HR" || currentUser.role === "ADMIN";
       if (isHr) {
-        return this.toResponse(evaluation);
+        return this.toResponse(settled);
       }
 
       if (!employee) {
         throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
       }
 
-      const isReviewer = evaluation.reviewerId === employee.id;
-      const isReviewee = evaluation.revieweeId === employee.id;
+      const isReviewer = settled.reviewerId === employee.id;
+      const isReviewee = settled.revieweeId === employee.id;
 
       if (!isReviewer && !isReviewee) {
-        const uChain = await upwardChain(evaluation.revieweeId);
+        const uChain = await upwardChain(settled.revieweeId);
         const isUpwardSupervisor = uChain.includes(employee.id);
         if (!isUpwardSupervisor) {
           throw new Error(EVAL_ERROR_MESSAGES.NOT_AUTHORIZED);
@@ -80,7 +87,7 @@ export class EvaluationsService {
       }
     }
 
-    return this.toResponse(evaluation);
+    return this.toResponse(settled);
   }
 
   async create(input: CreateEvaluationInput, userId: string) {
@@ -106,10 +113,11 @@ export class EvaluationsService {
     const createData = {
       reviewerId: reviewer.id,
       revieweeId: input.revieweeId,
-      evaluationPeriod: input.evaluationPeriod,
+      periodStart: input.periodStart,
+      periodEnd: input.periodEnd,
       grade: input.grade,
-      highlights: input.highlights ?? null,
-      lowlights: input.lowlights ?? null,
+      highlights: input.highlights ?? [],
+      lowlights: input.lowlights ?? [],
       evaluation: input.evaluation ?? null,
       recommendation: input.recommendation ?? null,
       supportingDocUrl: input.supportingDocUrl ?? null,
@@ -180,7 +188,8 @@ export class EvaluationsService {
           where: { id: evaluationId },
           data: {
             ...(updateData.revieweeId !== undefined && { revieweeId: updateData.revieweeId }),
-            ...(updateData.evaluationPeriod !== undefined && { evaluationPeriod: updateData.evaluationPeriod }),
+            ...(updateData.periodStart !== undefined && { periodStart: updateData.periodStart }),
+            ...(updateData.periodEnd !== undefined && { periodEnd: updateData.periodEnd }),
             ...(updateData.grade !== undefined && { grade: updateData.grade }),
             ...(updateData.highlights !== undefined && { highlights: updateData.highlights }),
             ...(updateData.lowlights !== undefined && { lowlights: updateData.lowlights }),
@@ -272,12 +281,86 @@ export class EvaluationsService {
     };
   }
 
+  async listReviewees(currentUser: User): Promise<ListRevieweesResponseDto> {
+    const reviewer = await prisma.employee.findUnique({ where: { userId: currentUser.id } });
+    if (!reviewer) throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
+
+    const reports = await prisma.employee.findMany({
+      where: { supervisorId: reviewer.id, ...ACTIVE_EMPLOYEE },
+      select: { id: true, firstName: true, lastName: true, jobTitle: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    });
+
+    return {
+      success: true,
+      data: reports.map((report) => ({
+        id: report.id,
+        fullName: [report.firstName, report.lastName].filter(Boolean).join(" "),
+        jobTitle: report.jobTitle,
+      })),
+    };
+  }
+
+  /**
+   * Deemed-acknowledgement, settled lazily on read: a sent evaluation that the reviewee
+   * has neither acknowledged nor been deemed-acknowledged for, and whose ackDeadline
+   * (sentAt + EVAL_ACK_DEADLINE_DAYS) has passed, is flipped to deemed-acknowledged.
+   * Same observable outcome as a scheduled job, anchored to issuance, no scheduler.
+   */
+  private isPastAckDeadline(evaluation: EvaluationWithAck, now: Date): boolean {
+    return (
+      evaluation.isSent &&
+      evaluation.acknowledgement !== null &&
+      !evaluation.acknowledgement.acknowledgedAt &&
+      !evaluation.acknowledgement.isDeemedAck &&
+      evaluation.ackDeadline !== null &&
+      now > evaluation.ackDeadline
+    );
+  }
+
+  private async settleDeemedAck(evaluation: EvaluationWithAck): Promise<EvaluationWithAck> {
+    if (!this.isPastAckDeadline(evaluation, new Date())) return evaluation;
+    await this.evaluationsRepository.markDeemedAcknowledged(evaluation.id);
+    return {
+      ...evaluation,
+      acknowledgement: evaluation.acknowledgement
+        ? { ...evaluation.acknowledgement, isDeemedAck: true }
+        : null,
+    };
+  }
+
+  private async settleDeemedAckMany(evaluations: EvaluationWithAck[]): Promise<EvaluationWithAck[]> {
+    const now = new Date();
+    const toFlip = evaluations.filter((e) => this.isPastAckDeadline(e, now)).map((e) => e.id);
+    if (toFlip.length === 0) return evaluations;
+    await this.evaluationsRepository.markManyDeemedAcknowledged(toFlip);
+    const flipped = new Set(toFlip);
+    return evaluations.map((e) =>
+      flipped.has(e.id) && e.acknowledgement
+        ? { ...e, acknowledgement: { ...e.acknowledgement, isDeemedAck: true } }
+        : e,
+    );
+  }
+
   private toResponse(evaluation: EvaluationWithAck): EvaluationResponseDto {
     return {
       id: evaluation.id,
       reviewerId: evaluation.reviewerId,
       revieweeId: evaluation.revieweeId,
-      evaluationPeriod: evaluation.evaluationPeriod,
+      reviewee: evaluation.reviewee
+        ? {
+            id: evaluation.reviewee.id,
+            fullName: `${evaluation.reviewee.firstName} ${evaluation.reviewee.lastName}`,
+          }
+        : null,
+      reviewer: evaluation.reviewer
+        ? {
+            id: evaluation.reviewer.id,
+            fullName: `${evaluation.reviewer.firstName} ${evaluation.reviewer.lastName}`,
+          }
+        : null,
+      periodStart: evaluation.periodStart,
+      periodEnd: evaluation.periodEnd,
       grade: evaluation.grade,
       highlights: evaluation.highlights,
       lowlights: evaluation.lowlights,

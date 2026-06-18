@@ -3,6 +3,7 @@ import type { ApiSuccessResponseDto } from "../../../../core/dto";
 import { HTTP_STATUS_CODES } from "../../../../core/globals";
 import { ResponsesRepository } from "./responses.repository";
 import { RESPOND_ERRORS, ResponsesService } from "./responses.service";
+import { parseAnswers } from "./responses.validation";
 
 type ErrorBody = { success: false; message: string };
 
@@ -31,11 +32,15 @@ export class ResponsesController {
       }
 
       const { occurrenceId } = req.params;
-      const answers = (req.body as { answers?: unknown } | undefined)?.answers;
-      if (!Array.isArray(answers) || answers.length === 0) {
+      const rawAnswers = (req.body as { answers?: unknown } | undefined)?.answers;
+
+      let answers;
+      try {
+        answers = parseAnswers(rawAnswers);
+      } catch (validationError) {
         return res
           .status(HTTP_STATUS_CODES.BAD_REQUEST)
-          .json({ success: false, message: "answers must be a non-empty array" });
+          .json({ success: false, message: (validationError as Error).message });
       }
 
       await this.service.respond({ userId, occurrenceId, answers });

@@ -49,6 +49,13 @@ export const API_SUCCESS_MESSAGES = {
   EVALUATION_SENT: "Evaluation sent successfully",
   EVALUATION_ACKNOWLEDGED: "Evaluation acknowledged successfully",
   EVALUATIONS_RETRIEVED: "Evaluations retrieved successfully",
+  SURVEY_CREATED: "Pulse survey created successfully",
+  SURVEYS_RETRIEVED: "Pulse surveys retrieved successfully",
+  SURVEY_RETRIEVED: "Pulse survey retrieved successfully",
+  OCCURRENCES_RETRIEVED: "Pulse survey occurrences retrieved successfully",
+  OCCURRENCE_RETRIEVED: "Pulse survey occurrence retrieved successfully",
+  PENDING_SURVEYS_RETRIEVED: "Pending pulse surveys retrieved successfully",
+  SURVEY_RESULTS_RETRIEVED: "Pulse survey results retrieved successfully",
 } as const;
 
 export type ApiSuccessMessage =

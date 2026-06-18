@@ -51,6 +51,16 @@ describe("GET /api/v1/employees - employee directory data", () => {
       id: "employee-active",
       fullName: "Marcus Reed",
       status: "active",
+      address: {
+        address: "123 Example Street",
+        city: "Manila",
+        province: "Metro Manila",
+        country: "Philippines",
+      },
+      emergencyContact: {
+        emergencyContactName: "Jamie Reed",
+        emergencyContactNumber: "+1 555 0100",
+      },
       teams: [{ id: "team-engineering", name: "Engineering" }],
       supervisor: {
         id: "supervisor-1",

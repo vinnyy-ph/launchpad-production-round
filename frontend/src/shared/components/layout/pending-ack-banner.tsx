@@ -1,33 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { AlertTriangle, X } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { readCollection } from "@/shared/mock/db";
-import type { Evaluation, Acknowledgement } from "@/shared/mock/types";
+import { useEvaluations } from "@/modules/performance/evaluations/hooks/use-evaluations";
 
 export function PendingAckBanner() {
   const { appUser } = useAuth();
-  const [count, setCount] = useState(0);
+  const { data } = useEvaluations();
   const [dismissed, setDismissed] = useState(false);
 
+  const employeeId = appUser?.employeeId;
+  const count = employeeId
+    ? (data ?? []).filter(
+        (e) =>
+          e.isSent &&
+          e.revieweeId === employeeId &&
+          !e.acknowledgement?.acknowledgedAt &&
+          !e.acknowledgement?.isDeemedAck,
+      ).length
+    : 0;
+
+  // Re-show the banner when a new pending evaluation arrives after a dismissal.
+  const prevCount = useRef(0);
   useEffect(() => {
-    if (!appUser?.employeeId) return;
-    const evals = readCollection<Evaluation>("evaluations").filter(
-      (e) => e.employeeId === appUser.employeeId && e.status === "SHARED",
-    );
-    const acks = readCollection<Acknowledgement>("acknowledgements").filter(
-      (a) => a.employeeId === appUser.employeeId,
-    );
-    const pending = evals.filter((e) => {
-      const ack = acks.find((a) => a.evaluationId === e.id);
-      return !ack?.acknowledgedAt && !ack?.deemedAt;
-    });
-    setCount(pending.length);
-    // Reset dismissal when count changes (new pending item arrived)
-    if (pending.length > 0) setDismissed(false);
-  }, [appUser?.employeeId]);
+    if (count > prevCount.current) setDismissed(false);
+    prevCount.current = count;
+  }, [count]);
 
   if (count === 0 || dismissed) return null;
 
@@ -44,7 +44,7 @@ export function PendingAckBanner() {
       <p className="flex-1 text-[13px] font-medium text-[color:var(--text-secondary)]">
         You have {count} performance evaluation{count > 1 ? "s" : ""} waiting for your acknowledgement.{" "}
         <Link
-          href="/employee/surveys"
+          href="/employee/surveys?tab=acknowledgements"
           className="font-semibold text-[color:var(--text-primary)] underline-offset-2 hover:underline"
         >
           Review now
