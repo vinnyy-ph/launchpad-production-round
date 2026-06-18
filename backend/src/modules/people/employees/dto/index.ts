@@ -1,4 +1,6 @@
+export type { EmployeeAddressResponseDto } from "./employee-address-response.dto";
 export type { EmployeeDirectReportResponseDto } from "./employee-direct-report-response.dto";
+export type { EmployeeEmergencyContactResponseDto } from "./employee-emergency-contact-response.dto";
 export type {
   EmployeeProfileDto,
   EmployeeProfileResponseDto,
@@ -16,6 +18,8 @@ export type {
   SortDirection,
 } from "./list-employees-query.dto";
 export type { ListEmployeesResponseDto } from "./list-employees-response.dto";
+export type { UpdateEmployeeAddressRequestDto } from "./update-employee-address-request.dto";
+export type { UpdateEmployeeEmergencyContactRequestDto } from "./update-employee-emergency-contact-request.dto";
 export type { UpdateEmployeeProfileParamsDto } from "./update-employee-profile-params.dto";
 export type { UpdateEmployeeProfileRequestDto } from "./update-employee-profile-request.dto";
 export type { UpdateEmployeeProfileResponseDto } from "./update-employee-profile-response.dto";

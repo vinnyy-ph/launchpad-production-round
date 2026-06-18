@@ -22,7 +22,19 @@ export interface EmployeeSupervisor {
   jobTitle: string | null;
 }
 
-/** A row in the HR directory list (GET /api/employees). Sensitive fields are not listed here. */
+export interface EmployeeAddress {
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+}
+
+export interface EmployeeEmergencyContact {
+  emergencyContactName: string | null;
+  emergencyContactNumber: string | null;
+}
+
+/** A row in the HR directory list (GET /api/employees). */
 export interface EmployeeListItem {
   id: string;
   userId: string;
@@ -33,9 +45,38 @@ export interface EmployeeListItem {
   companyEmail: string;
   jobTitle: string | null;
   department: string | null;
+  address: EmployeeAddress | null;
+  emergencyContact: EmployeeEmergencyContact | null;
   teams: EmployeeTeam[];
   supervisor: EmployeeSupervisor | null;
   status: EmployeeStatus;
+}
+
+export interface EmployeeUser {
+  id: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
+
+export interface EmployeeDirectReport {
+  id: string;
+  firstName: string;
+  lastName: string;
+  companyEmail: string;
+  fullName: string;
+  jobTitle: string | null;
+  status: EmployeeStatus;
+}
+
+export interface EmployeeProfile extends EmployeeListItem {
+  user: EmployeeUser;
+  personalEmail: string | null;
+  birthday: string | null;
+  ledTeams: EmployeeTeam[];
+  directReports: EmployeeDirectReport[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface EmployeeFilters {

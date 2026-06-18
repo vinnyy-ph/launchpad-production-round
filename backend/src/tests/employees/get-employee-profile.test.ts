@@ -37,6 +37,11 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
       expect.objectContaining({
         where: {
           id: "employee-active",
+          user: {
+            role: {
+              in: ["HR", "EMPLOYEE"],
+            },
+          },
         },
       }),
     );
@@ -56,8 +61,16 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
         companyEmail: "marcus.reed@example.com",
         personalEmail: "marcus.personal@example.com",
         birthday: "1992-04-12T00:00:00.000Z",
-        address: "123 Example Street",
-        emergencyContact: "Jamie Reed, +1 555 0100",
+        address: {
+          address: "123 Example Street",
+          city: "Manila",
+          province: "Metro Manila",
+          country: "Philippines",
+        },
+        emergencyContact: {
+          emergencyContactName: "Jamie Reed",
+          emergencyContactNumber: "+1 555 0100",
+        },
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-02T00:00:00.000Z",
         status: "active",
@@ -84,8 +97,16 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
       id: "employee-inactive",
       status: "INACTIVE",
       personalEmail: "inactive.personal@example.com",
-      address: "999 Former Employee Road",
-      emergencyContact: "Casey Contact, +1 555 0999",
+      address: {
+        address: "999 Former Employee Road",
+        city: "Quezon City",
+        province: "Metro Manila",
+        country: "Philippines",
+      },
+      emergencyContact: {
+        emergencyContactName: "Casey Contact",
+        emergencyContactNumber: "+1 555 0999",
+      },
       user: {
         id: "employee-inactive-user",
         email: "inactive.employee@example.com",
@@ -100,6 +121,11 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
       expect.objectContaining({
         where: {
           id: "employee-inactive",
+          user: {
+            role: {
+              in: ["HR", "EMPLOYEE"],
+            },
+          },
         },
       }),
     );
@@ -113,8 +139,16 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
         isActive: false,
       },
       personalEmail: "inactive.personal@example.com",
-      address: "999 Former Employee Road",
-      emergencyContact: "Casey Contact, +1 555 0999",
+      address: {
+        address: "999 Former Employee Road",
+        city: "Quezon City",
+        province: "Metro Manila",
+        country: "Philippines",
+      },
+      emergencyContact: {
+        emergencyContactName: "Casey Contact",
+        emergencyContactNumber: "+1 555 0999",
+      },
     });
   });
 });

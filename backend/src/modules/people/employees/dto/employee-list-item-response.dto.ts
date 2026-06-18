@@ -1,3 +1,5 @@
+import type { EmployeeAddressResponseDto } from "./employee-address-response.dto";
+import type { EmployeeEmergencyContactResponseDto } from "./employee-emergency-contact-response.dto";
 import type { EmployeeStatusDto } from "./employee-status.dto";
 import type { EmployeeSupervisorResponseDto } from "./employee-supervisor-response.dto";
 import type { EmployeeTeamResponseDto } from "./employee-team-response.dto";
@@ -16,6 +18,8 @@ export interface EmployeeListItemResponseDto {
   fullName: string;
   jobTitle: string | null;
   department: string | null;
+  address: EmployeeAddressResponseDto | null;
+  emergencyContact: EmployeeEmergencyContactResponseDto | null;
   status: EmployeeStatusDto;
   teams: EmployeeTeamResponseDto[];
   supervisor: EmployeeSupervisorResponseDto | null;

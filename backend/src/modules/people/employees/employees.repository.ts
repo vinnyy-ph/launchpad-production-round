@@ -1,6 +1,13 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
-import type { ListEmployeesQueryDto, UpdateEmployeeProfileRequestDto } from "./dto";
+import type {
+  ListEmployeesQueryDto,
+  UpdateEmployeeAddressRequestDto,
+  UpdateEmployeeEmergencyContactRequestDto,
+  UpdateEmployeeProfileRequestDto,
+} from "./dto";
+
+const EMPLOYEE_DIRECTORY_ROLES: Role[] = ["HR", "EMPLOYEE"];
 
 const employeeProfileInclude = {
   user: {
@@ -24,6 +31,20 @@ const employeeProfileInclude = {
     select: {
       id: true,
       name: true,
+    },
+  },
+  address: {
+    select: {
+      address: true,
+      city: true,
+      province: true,
+      country: true,
+    },
+  },
+  emergencyContact: {
+    select: {
+      emergencyContactName: true,
+      emergencyContactNumber: true,
     },
   },
   directReports: {
@@ -53,6 +74,10 @@ const employeeProfileInclude = {
     },
   },
 } satisfies Prisma.EmployeeInclude;
+
+type EmployeeProfileRecord = Prisma.EmployeeGetPayload<{
+  include: typeof employeeProfileInclude;
+}>;
 
 /**
  * Handles employee persistence queries and keeps Prisma-specific filtering out of controllers.
@@ -88,6 +113,20 @@ export class EmployeesRepository {
               jobTitle: true,
             },
           },
+          address: {
+            select: {
+              address: true,
+              city: true,
+              province: true,
+              country: true,
+            },
+          },
+          emergencyContact: {
+            select: {
+              emergencyContactName: true,
+              emergencyContactNumber: true,
+            },
+          },
           teamMemberships: {
             include: {
               team: {
@@ -109,9 +148,16 @@ export class EmployeesRepository {
   /**
    * Finds one unredacted employee profile for HR views.
    */
-  async findById(employeeId: string) {
+  async findById(employeeId: string): Promise<EmployeeProfileRecord | null> {
     return prisma.employee.findFirst({
-      where: { id: employeeId },
+      where: {
+        id: employeeId,
+        user: {
+          role: {
+            in: EMPLOYEE_DIRECTORY_ROLES,
+          },
+        },
+      },
       include: employeeProfileInclude,
     });
   }
@@ -127,6 +173,15 @@ export class EmployeesRepository {
       return null;
     }
 
+    const addressUpdate = this.buildAddressRelationUpdate(
+      update.address,
+      Boolean(existingEmployee.address),
+    );
+    const emergencyContactUpdate = this.buildEmergencyContactRelationUpdate(
+      update.emergencyContact,
+      Boolean(existingEmployee.emergencyContact),
+    );
+
     const data: Prisma.EmployeeUpdateInput = {
       companyEmail: update.companyEmail,
       firstName: update.firstName,
@@ -134,10 +189,10 @@ export class EmployeesRepository {
       middleName: update.middleName,
       personalEmail: update.personalEmail,
       birthday: update.birthday,
-      address: update.address,
-      emergencyContact: update.emergencyContact,
       jobTitle: update.jobTitle,
       status: update.status,
+      ...(addressUpdate ? { address: addressUpdate } : {}),
+      ...(emergencyContactUpdate ? { emergencyContact: emergencyContactUpdate } : {}),
       ...(update.department !== undefined
         ? {
             department: update.department
@@ -179,7 +234,13 @@ export class EmployeesRepository {
    * Builds a Prisma where clause for search and filter behavior.
    */
   private buildWhere(filters: ListEmployeesQueryDto): Prisma.EmployeeWhereInput {
-    const where: Prisma.EmployeeWhereInput = {};
+    const where: Prisma.EmployeeWhereInput = {
+      user: {
+        role: {
+          in: EMPLOYEE_DIRECTORY_ROLES,
+        },
+      },
+    };
 
     if (filters.status) {
       where.status = filters.status;
@@ -214,6 +275,48 @@ export class EmployeesRepository {
     }
 
     return where;
+  }
+
+  /** Builds the nested Prisma mutation for the optional one-to-one employee address. */
+  private buildAddressRelationUpdate(
+    address: UpdateEmployeeAddressRequestDto | null | undefined,
+    hasExistingAddress: boolean,
+  ): Prisma.EmployeeAddressUpdateOneWithoutEmployeeNestedInput | undefined {
+    if (address === undefined) {
+      return undefined;
+    }
+
+    if (address === null) {
+      return hasExistingAddress ? { delete: true } : undefined;
+    }
+
+    return {
+      upsert: {
+        create: address,
+        update: address,
+      },
+    };
+  }
+
+  /** Builds the nested Prisma mutation for the optional one-to-one emergency contact. */
+  private buildEmergencyContactRelationUpdate(
+    emergencyContact: UpdateEmployeeEmergencyContactRequestDto | null | undefined,
+    hasExistingEmergencyContact: boolean,
+  ): Prisma.EmployeeEmergencyContactUpdateOneWithoutEmployeeNestedInput | undefined {
+    if (emergencyContact === undefined) {
+      return undefined;
+    }
+
+    if (emergencyContact === null) {
+      return hasExistingEmergencyContact ? { delete: true } : undefined;
+    }
+
+    return {
+      upsert: {
+        create: emergencyContact,
+        update: emergencyContact,
+      },
+    };
   }
 
   /** Builds a stable order clause for employee directory sort controls. */

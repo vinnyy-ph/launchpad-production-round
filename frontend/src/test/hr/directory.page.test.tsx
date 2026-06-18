@@ -7,6 +7,11 @@ jest.mock("@/modules/people/employees/hooks/use-employees", () => ({
   useEmployees: (filters: unknown) => mockUseEmployees(filters),
 }));
 
+const mockUseEmployeeProfile = jest.fn();
+jest.mock("@/modules/people/employees/hooks/use-employee-profile", () => ({
+  useEmployeeProfile: (employeeId: string | null) => mockUseEmployeeProfile(employeeId),
+}));
+
 const mockUseTeams = jest.fn();
 jest.mock("@/modules/people/teams/hooks/use-teams", () => ({
   useTeams: (filters: unknown) => mockUseTeams(filters),
@@ -35,6 +40,16 @@ const sample: EmployeeListItem[] = [
     companyEmail: "ada@acme.test",
     jobTitle: "Engineer",
     department: "R&D",
+    address: {
+      address: "12 Analytical Engine Lane",
+      city: "London",
+      province: "Greater London",
+      country: "United Kingdom",
+    },
+    emergencyContact: {
+      emergencyContactName: "Charles Babbage",
+      emergencyContactNumber: "+44 20 5555 0100",
+    },
     teams: [
       { id: "team-1", name: "Platform" },
       { id: "team-2", name: "Research" },
@@ -51,6 +66,17 @@ const sample: EmployeeListItem[] = [
     status: "active",
   },
 ];
+
+const sampleProfile = {
+  ...sample[0],
+  user: { id: "user-1", email: "ada@acme.test", role: "EMPLOYEE", isActive: true },
+  personalEmail: "ada.lovelace@example.test",
+  birthday: "1815-12-10T00:00:00.000Z",
+  ledTeams: [{ id: "team-4", name: "Mathematics" }],
+  directReports: [],
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-06-18T00:00:00.000Z",
+};
 
 function renderPage() {
   return render(<DirectoryPage />);
@@ -79,6 +105,12 @@ describe("DirectoryPage", () => {
       error: null,
       reload: jest.fn(),
     });
+    mockUseEmployeeProfile.mockReturnValue({
+      employee: sampleProfile,
+      loading: false,
+      error: null,
+      reload: jest.fn(),
+    });
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -94,6 +126,51 @@ describe("DirectoryPage", () => {
     expect(screen.getByText("Platform")).toBeInTheDocument();
     expect(screen.getByText("3+")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "View Ada Byron Lovelace" })).not.toBeInTheDocument();
+  });
+
+  it("opens the employee details modal when an employee row is clicked", async () => {
+    mockUseEmployees.mockReturnValue(employeeHookResult());
+    renderPage();
+
+    await userEvent.click(screen.getByText("Ada Byron Lovelace"));
+
+    expect(mockUseEmployeeProfile).toHaveBeenLastCalledWith("1");
+    expect(screen.getAllByText("Ada Byron Lovelace").length).toBeGreaterThan(0);
+    expect(screen.getByRole("tab", { name: "Personal Information" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Employment" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    expect(screen.getByRole("tab", { name: "Documents" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Activity" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Process offboarding" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /download file/i })).toBeInTheDocument();
+    expect(screen.getByText("Ada Byron Lovelace File")).toBeInTheDocument();
+    expect(screen.getAllByText("Personal Information").length).toBeGreaterThan(0);
+    expect(screen.getByText("Government & Compliance")).toBeInTheDocument();
+    expect(screen.getByText("Company Email")).toBeInTheDocument();
+    expect(screen.getByText("ada.lovelace@example.test")).toBeInTheDocument();
+    expect(screen.getByText("12 Analytical Engine Lane, London, Greater London, United Kingdom")).toBeInTheDocument();
+    expect(screen.getByText("Charles Babbage, +44 20 5555 0100")).toBeInTheDocument();
+    expect(screen.queryByText("System Role")).not.toBeInTheDocument();
+    expect(screen.queryByText("Created")).not.toBeInTheDocument();
+    expect(screen.queryByText("Last Updated")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Employment" }));
+
+    expect(screen.getByRole("tab", { name: "Employment" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByText("Direct Manager")).toBeInTheDocument();
+    expect(screen.getByText("Mathematics")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Activity" }));
+    expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("No activity history yet")).toBeInTheDocument();
   });
 
   it("lists all teams in the team tooltip", async () => {

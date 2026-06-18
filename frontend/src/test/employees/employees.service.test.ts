@@ -5,7 +5,10 @@ jest.mock("@/shared/lib/api-client", () => ({
 }));
 
 import { apiFetch } from "@/shared/lib/api-client";
-import { getEmployees } from "@/modules/people/employees/services/employees.service";
+import {
+  getEmployeeProfile,
+  getEmployees,
+} from "@/modules/people/employees/services/employees.service";
 
 describe("getEmployees", () => {
   afterEach(() => jest.clearAllMocks());
@@ -44,5 +47,10 @@ describe("getEmployees", () => {
     expect(apiFetch).toHaveBeenCalledWith(
       "/api/v1/employees?sortBy=jobTitle&sortDirection=desc&page=1&limit=10",
     );
+  });
+
+  it("gets one employee profile by id", async () => {
+    await getEmployeeProfile("employee-1");
+    expect(apiFetch).toHaveBeenCalledWith("/api/v1/employees/employee-1");
   });
 });

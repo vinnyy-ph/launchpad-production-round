@@ -3,11 +3,16 @@ import type {
   EmployeeFilters,
   EmployeeListItem,
   EmployeeListMeta,
+  EmployeeProfile,
 } from "../types/employees.types";
 
 export interface EmployeeListResult {
   data: EmployeeListItem[];
   meta: EmployeeListMeta;
+}
+
+export interface EmployeeProfileResult {
+  data: EmployeeProfile;
 }
 
 const BASE = "/api/v1/employees";
@@ -28,4 +33,8 @@ export async function getEmployees(filters: EmployeeFilters = {}): Promise<Emplo
 
   const qs = params.toString();
   return apiFetch<EmployeeListResult>(`${BASE}?${qs}`);
+}
+
+export async function getEmployeeProfile(employeeId: string): Promise<EmployeeProfileResult> {
+  return apiFetch<EmployeeProfileResult>(`${BASE}/${employeeId}`);
 }

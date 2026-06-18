@@ -27,6 +27,7 @@ import {
   type DataTableSort,
 } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
+import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import type {
@@ -106,6 +107,7 @@ export default function DirectoryPage() {
   const [teamId, setTeamId] = useState("");
   const [status, setStatus] = useState<"" | EmployeeStatus>("");
   const [page, setPage] = useState(1);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [sort, setSort] = useState<DataTableSort>({
     key: "employeeName",
     direction: "asc",
@@ -124,7 +126,6 @@ export default function DirectoryPage() {
   });
 
   const hasFilters = Boolean(search || teamId || status);
-  const viewEmployee = (id: string) => router.push(`/hr/directory/${id}`);
 
   const columns: Column<EmployeeListItem>[] = [
     {
@@ -275,7 +276,7 @@ export default function DirectoryPage() {
           isLoading={loading}
           error={error}
           onRetry={() => void reload()}
-          onRowClick={(employee) => viewEmployee(employee.id)}
+          onRowClick={setSelectedEmployee}
           getRowId={(employee) => employee.id}
           sort={sort}
           onSortChange={(nextSort) => {
@@ -304,6 +305,15 @@ export default function DirectoryPage() {
           }
         />
       </div>
+
+      <EmployeeDetailsModal
+        employeeId={selectedEmployee?.id ?? null}
+        fallbackEmployee={selectedEmployee}
+        open={Boolean(selectedEmployee)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setSelectedEmployee(null);
+        }}
+      />
     </div>
   );
 }
