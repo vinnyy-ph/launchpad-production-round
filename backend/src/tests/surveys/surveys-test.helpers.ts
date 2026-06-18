@@ -108,6 +108,8 @@ export function buildSurveyDetail(overrides?: {
   isActive?: boolean;
   occurrenceCount?: number;
   hasReminderConfig?: boolean;
+  releaseDate?: Date;
+  deadline?: Date;
 }) {
   return {
     id: overrides?.id ?? "survey-001",
@@ -118,6 +120,8 @@ export function buildSurveyDetail(overrides?: {
     isAnonymous: false,
     isActive: overrides?.isActive ?? false,
     visibility: "EVERYONE" as const,
+    releaseDate: overrides?.releaseDate ?? new Date("2026-06-18T00:00:00.000Z"),
+    deadline: overrides?.deadline ?? new Date("2026-06-19T00:00:00.000Z"),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     _count: { occurrences: overrides?.occurrenceCount ?? 0 },
@@ -155,6 +159,8 @@ export function buildSurveyDetail(overrides?: {
 
 export const VALID_BODY = {
   name: "Test Pulse Survey",
+  releaseDate: "2026-06-18T00:00:00.000Z",
+  deadline: "2026-06-19T00:00:00.000Z",
   questions: [
     { type: "SHORT_ANSWER", questionText: "How are you?", orderIndex: 1 },
   ],

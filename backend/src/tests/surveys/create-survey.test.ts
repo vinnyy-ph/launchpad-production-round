@@ -74,7 +74,7 @@ describe("POST /api/v1/pulse/surveys", () => {
   it("returns 400 when questions array is missing", async () => {
     const response = await request(app)
       .post(URL)
-      .send({ name: "Survey Without Questions" })
+      .send({ name: "Survey Without Questions", deadline: "2026-06-19T00:00:00.000Z" })
       .expect(400);
 
     expect(response.body.errors[0].message).toMatch(/questions must be a non-empty array/);
@@ -84,7 +84,7 @@ describe("POST /api/v1/pulse/surveys", () => {
   it("returns 400 when questions array is empty", async () => {
     const response = await request(app)
       .post(URL)
-      .send({ name: "Empty Survey", questions: [] })
+      .send({ name: "Empty Survey", questions: [], deadline: "2026-06-19T00:00:00.000Z" })
       .expect(400);
 
     expect(response.body.errors[0].message).toMatch(/questions must be a non-empty array/);
@@ -95,6 +95,7 @@ describe("POST /api/v1/pulse/surveys", () => {
       .post(URL)
       .send({
         name: "Bad Scale Survey",
+        deadline: "2026-06-19T00:00:00.000Z",
         questions: [{ type: "LINEAR_SCALE", questionText: "Rate me", orderIndex: 1 }],
       })
       .expect(400);
@@ -107,6 +108,7 @@ describe("POST /api/v1/pulse/surveys", () => {
       .post(URL)
       .send({
         name: "Bad Choice Survey",
+        deadline: "2026-06-19T00:00:00.000Z",
         questions: [{ type: "MULTIPLE_CHOICE", questionText: "Pick one", orderIndex: 1 }],
       })
       .expect(400);
@@ -119,6 +121,7 @@ describe("POST /api/v1/pulse/surveys", () => {
       .post(URL)
       .send({
         name: "Bad Checkbox Survey",
+        deadline: "2026-06-19T00:00:00.000Z",
         questions: [{ type: "CHECKBOX", questionText: "Select all", orderIndex: 1 }],
       })
       .expect(400);
@@ -318,7 +321,7 @@ describe("POST /api/v1/pulse/surveys", () => {
 
     const response = await request(app)
       .post(URL)
-      .send({ name: "Scale Survey", questions: [scaleQuestion] })
+      .send({ name: "Scale Survey", deadline: "2026-06-19T00:00:00.000Z", questions: [scaleQuestion] })
       .expect(201);
 
     expect(response.body.data.questions[0]).toMatchObject({
