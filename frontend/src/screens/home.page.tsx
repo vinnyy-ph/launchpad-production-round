@@ -5,38 +5,7 @@ import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use
 import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
 import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
-
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  variant?: "default" | "warn" | "alert";
-}
-
-function StatCard({ label, value, variant = "default" }: StatCardProps) {
-  const valueColor =
-    variant === "alert"
-      ? "var(--color-error-600)"
-      : variant === "warn"
-      ? "var(--color-warning-600)"
-      : "var(--text-primary)";
-
-  return (
-    <div
-      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
-      style={{ boxShadow: "var(--shadow-xs)" }}
-    >
-      <p
-        className="text-2xl font-bold"
-        style={{ color: valueColor, fontFamily: "var(--font-sans)" }}
-      >
-        {value}
-      </p>
-      <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[color:var(--text-tertiary)]">
-        {label}
-      </p>
-    </div>
-  );
-}
+import { StatCard, type StatCardProps } from "@/shared/ui/patterns";
 
 function StatCardSkeleton() {
   return (
@@ -60,7 +29,7 @@ export default function HomePage() {
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Greeting */}
       <div>
-        <h1 className="text-lg font-bold text-[color:var(--text-primary)]">
+        <h1 className="text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
           {greeting()}, {firstName(appUser?.displayName ?? appUser?.email ?? "")}
         </h1>
         <p className="text-sm text-[color:var(--text-tertiary)]">
@@ -179,7 +148,7 @@ function buildStatCards(
         value: stats.pendingOffboarding ?? "—",
         variant: (stats.pendingOffboarding ?? 0) > 0 ? "alert" : "default",
       },
-      { label: "Active employees", value: stats.activeEmployees ?? "—" },
+      { label: "Active employees", value: stats.activeEmployees ?? "—", variant: "brand" },
       {
         label: "Clearance awaiting",
         value: stats.pendingClearances ?? "—",
@@ -195,7 +164,7 @@ function buildStatCards(
         value: stats.pendingEvaluations ?? "—",
         variant: (stats.pendingEvaluations ?? 0) > 0 ? "warn" : "default",
       },
-      { label: "Direct reports", value: stats.directReports ?? "—" },
+      { label: "Direct reports", value: stats.directReports ?? "—", variant: "brand" },
       {
         label: "Unanswered surveys",
         value: stats.unreadSurveys ?? "—",
@@ -220,6 +189,7 @@ function buildStatCards(
     {
       label: "Onboarding progress",
       value: stats.onboardingProgress != null ? `${stats.onboardingProgress}%` : "—",
+      variant: "brand",
     },
     {
       label: "Unanswered surveys",

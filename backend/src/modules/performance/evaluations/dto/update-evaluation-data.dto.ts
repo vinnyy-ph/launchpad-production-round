@@ -2,12 +2,12 @@ export interface UpdateEvaluationData {
   revieweeId?: string;
   evaluationPeriod?: string;
   grade?: number;
-  highlights?: string;
-  lowlights?: string;
-  evaluation?: string;
-  recommendation?: string;
-  supportingDocUrl?: string;
+  highlights?: string | null;
+  lowlights?: string | null;
+  evaluation?: string | null;
+  recommendation?: string | null;
+  supportingDocUrl?: string | null;
   isSent?: boolean;
-  sentAt?: Date;
-  ackDeadline?: Date;
+  sentAt?: Date | null;
+  ackDeadline?: Date | null;
 }

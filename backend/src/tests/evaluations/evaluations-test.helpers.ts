@@ -8,6 +8,9 @@ export const evalCountMock = mockedPrisma.performanceEvaluation.count as jest.Mo
 export const evalFindFirstMock = mockedPrisma.performanceEvaluation.findFirst as jest.Mock;
 export const evalCreateMock = mockedPrisma.performanceEvaluation.create as jest.Mock;
 export const evalUpdateMock = mockedPrisma.performanceEvaluation.update as jest.Mock;
+export const evalAcknowledgementCreateMock = mockedPrisma.evaluationAcknowledgement.create as jest.Mock;
+export const evalAcknowledgementUpdateMock = mockedPrisma.evaluationAcknowledgement.update as jest.Mock;
+export const transactionMock = mockedPrisma.$transaction as jest.Mock;
 
 export function resetEvaluationMocks() {
   employeeFindUniqueMock.mockReset();
@@ -16,6 +19,13 @@ export function resetEvaluationMocks() {
   evalFindFirstMock.mockReset();
   evalCreateMock.mockReset();
   evalUpdateMock.mockReset();
+  evalAcknowledgementCreateMock.mockReset();
+  evalAcknowledgementUpdateMock.mockReset();
+  transactionMock.mockReset();
+  // Default: interactive $transaction passes through to the mocked prisma client
+  transactionMock.mockImplementation((fn: (tx: typeof prisma) => Promise<unknown>) =>
+    typeof fn === "function" ? fn(mockedPrisma) : Promise.all(fn),
+  );
 }
 
 export function buildReviewerEmployee(overrides?: { id?: string; userId?: string }) {
@@ -39,6 +49,7 @@ export function buildEvaluationRecord(overrides?: {
   isSent?: boolean;
   sentAt?: Date | null;
   ackDeadline?: Date | null;
+  acknowledgement?: { isDeemedAck: boolean; acknowledgedAt: Date | null } | null;
 }) {
   return {
     id: overrides?.id ?? "eval-001",
@@ -57,5 +68,6 @@ export function buildEvaluationRecord(overrides?: {
     deletedAt: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    acknowledgement: overrides?.acknowledgement !== undefined ? overrides.acknowledgement : null,
   };
 }

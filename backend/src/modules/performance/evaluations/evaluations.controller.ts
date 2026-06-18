@@ -31,7 +31,7 @@ export class EvaluationsController {
       }
 
       const query = this.evaluationsValidation.parseListQuery(req.query as Record<string, unknown>);
-      const result = await this.evaluationsService.list(query, req.user.id);
+      const result = await this.evaluationsService.list(query, req.user);
 
       return res.json(result);
     } catch (error) {
@@ -53,6 +53,52 @@ export class EvaluationsController {
           message: API_ERROR_MESSAGES.VALIDATION_FAILED,
           errorCode: API_ERROR_CODES.VALIDATION_FAILED,
           errors: [{ field: "", message: error.message, code: API_ERROR_CODES.VALIDATION_FAILED }],
+        });
+      }
+
+      return next(error);
+    }
+  };
+
+  getEvaluation = async (
+    req: Request,
+    res: Response<EvaluationResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { evaluationId } = req.params;
+      const result = await this.evaluationsService.get(evaluationId, req.user);
+
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND) {
+        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EVALUATION_NOT_FOUND,
+          errorCode: API_ERROR_CODES.EVALUATION_NOT_FOUND,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE) {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: API_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE,
+          errorCode: API_ERROR_CODES.REVIEWER_NOT_EMPLOYEE,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.NOT_AUTHORIZED) {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: API_ERROR_MESSAGES.FORBIDDEN,
+          errorCode: API_ERROR_CODES.NOT_EVALUATION_REVIEWER,
         });
       }
 
@@ -245,6 +291,122 @@ export class EvaluationsController {
           success: false,
           message: API_ERROR_MESSAGES.EVALUATION_ALREADY_SENT,
           errorCode: API_ERROR_CODES.EVALUATION_ALREADY_SENT,
+        });
+      }
+
+      return next(error);
+    }
+  };
+
+  sendEvaluation = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { evaluationId } = req.params;
+      const result = await this.evaluationsService.send(evaluationId, req.user.id);
+
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND) {
+        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EVALUATION_NOT_FOUND,
+          errorCode: API_ERROR_CODES.EVALUATION_NOT_FOUND,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE) {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: API_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE,
+          errorCode: API_ERROR_CODES.REVIEWER_NOT_EMPLOYEE,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.NOT_REVIEWER) {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: API_ERROR_MESSAGES.NOT_EVALUATION_REVIEWER,
+          errorCode: API_ERROR_CODES.NOT_EVALUATION_REVIEWER,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.ALREADY_SENT) {
+        return res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EVALUATION_ALREADY_SENT,
+          errorCode: API_ERROR_CODES.EVALUATION_ALREADY_SENT,
+        });
+      }
+
+      return next(error);
+    }
+  };
+
+  acknowledgeEvaluation = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { evaluationId } = req.params;
+      const result = await this.evaluationsService.acknowledge(evaluationId, req.user.id);
+
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND) {
+        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EVALUATION_NOT_FOUND,
+          errorCode: API_ERROR_CODES.EVALUATION_NOT_FOUND,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.REVIEWEE_NOT_EMPLOYEE) {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: API_ERROR_MESSAGES.REVIEWEE_NOT_EMPLOYEE,
+          errorCode: API_ERROR_CODES.REVIEWEE_NOT_EMPLOYEE,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.NOT_REVIEWEE) {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: API_ERROR_MESSAGES.NOT_EVALUATION_REVIEWEE,
+          errorCode: API_ERROR_CODES.NOT_EVALUATION_REVIEWEE,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.EVALUATION_NOT_SENT) {
+        return res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EVALUATION_NOT_SENT,
+          errorCode: API_ERROR_CODES.EVALUATION_NOT_SENT,
+        });
+      }
+
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.ALREADY_ACKNOWLEDGED) {
+        return res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EVALUATION_ALREADY_ACKNOWLEDGED,
+          errorCode: API_ERROR_CODES.EVALUATION_ALREADY_ACKNOWLEDGED,
         });
       }
 

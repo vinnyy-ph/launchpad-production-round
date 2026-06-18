@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { roleHome } from "@/modules/auth/role-home";
+import { Spinner } from "@/shared/ui/patterns";
 import LoginPage from "@/screens/auth/login.page";
 
 export default function Login() {
@@ -14,6 +15,14 @@ export default function Login() {
     if (!loading && appUser) router.replace(roleHome(appUser));
   }, [loading, appUser, router]);
 
-  if (!loading && appUser) return null;
+  // While auth resolves (or we're about to redirect a signed-in user),
+  // show a centered spinner instead of flashing the form.
+  if (loading || appUser) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <Spinner size={28} />
+      </div>
+    );
+  }
   return <LoginPage />;
 }
