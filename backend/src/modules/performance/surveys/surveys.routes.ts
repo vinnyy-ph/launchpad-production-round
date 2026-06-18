@@ -17,4 +17,7 @@ router.post("/", requireRole("HR"), controller.createSurvey);
 /** PATCH /api/v1/pulse/surveys/:surveyId — HR only. Updates an existing survey. */
 router.patch("/:surveyId", requireRole("HR"), controller.updateSurvey);
 
+/** DELETE /api/v1/pulse/surveys/:id — HR only. Soft-deletes a draft survey. */
+router.delete("/:id", requireRole("HR"), controller.deleteSurvey);
+
 export { router as surveysRouter };

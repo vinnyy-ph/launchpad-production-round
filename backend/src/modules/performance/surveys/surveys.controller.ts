@@ -136,6 +136,46 @@ export class SurveysController {
     }
   };
 
+  deleteSurvey = async (
+    req: Request,
+    res: Response<void | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { id } = req.params;
+      await this.surveysService.delete(id);
+
+      return res.status(HTTP_STATUS_CODES.NO_CONTENT).send();
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND) {
+          return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+            success: false,
+            message: API_ERROR_MESSAGES.SURVEY_NOT_FOUND,
+            errorCode: API_ERROR_CODES.SURVEY_NOT_FOUND,
+          });
+        }
+
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED) {
+          return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+            success: false,
+            message: "Survey is already activated and cannot be modified or deleted",
+            errorCode: API_ERROR_CODES.SURVEY_ALREADY_ACTIVATED,
+          });
+        }
+      }
+
+      return next(error);
+    }
+  };
+
   createSurvey = async (
     req: Request,
     res: Response<ApiSuccessResponseDto<SurveyResponseDto> | ApiErrorResponseDto>,

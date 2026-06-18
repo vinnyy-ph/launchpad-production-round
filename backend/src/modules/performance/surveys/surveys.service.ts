@@ -141,6 +141,17 @@ export class SurveysService {
     };
   }
 
+  async delete(id: string): Promise<void> {
+    const survey = await this.surveysRepository.findById(id);
+    if (!survey) throw new Error(SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND);
+
+    if (survey.isActive || survey._count.occurrences > 0) {
+      throw new Error(SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED);
+    }
+
+    await this.surveysRepository.softDelete(id);
+  }
+
   private toListItem(survey: SurveyListRow): SurveyListItemDto {
     return {
       id: survey.id,

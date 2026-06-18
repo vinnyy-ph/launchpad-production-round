@@ -116,7 +116,7 @@ export class SurveysRepository {
       statusFilter = { isActive: false, occurrences: { some: {} } };
     }
 
-    const where = { ...statusFilter };
+    const where = { ...statusFilter, deletedAt: null };
 
     const [surveys, total] = await Promise.all([
       prisma.pulseSurvey.findMany({
@@ -151,8 +151,8 @@ export class SurveysRepository {
       // relation not available yet — will be handled below
     }
 
-    const survey = await prisma.pulseSurvey.findUnique({
-      where: { id },
+    const survey = await prisma.pulseSurvey.findFirst({
+      where: { id, deletedAt: null },
       include: includeOptions,
     });
 
@@ -265,6 +265,13 @@ export class SurveysRepository {
       }
 
       return result;
+    });
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await prisma.pulseSurvey.update({
+      where: { id },
+      data: { deletedAt: new Date() },
     });
   }
 }
