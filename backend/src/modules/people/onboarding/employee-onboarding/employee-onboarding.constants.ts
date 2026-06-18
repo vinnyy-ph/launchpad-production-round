@@ -10,6 +10,7 @@ export const EMPLOYEE_ONBOARDING_FIELDS = {
   ADDRESS: "address",
   EMERGENCY_CONTACT: "emergencyContact",
   DOCUMENT_ID: "documentId",
+  FILE: "file",
   FILE_URL: "fileUrl",
   FIELD_ID: "fieldId",
   VALUE: "value",
