@@ -6,6 +6,12 @@ export type SeededEvaluations = {
   pendingAck: { evaluationId: string; revieweeId: string }[]
 }
 
+// Q1 2026 evaluation period (now a date range, not free text).
+const PERIOD_Q1_2026 = {
+  periodStart: new Date('2026-01-01'),
+  periodEnd: new Date('2026-03-31'),
+}
+
 // ack window: deemed-acknowledged if not acknowledged within 7 days of sentAt
 function ackDeadlineFrom(sentAt: Date): Date {
   return new Date(sentAt.getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -22,10 +28,10 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     data: {
       reviewerId: vn.id,
       revieweeId: placeholders[0].id,
-      evaluationPeriod: 'Q1 2026',
+      ...PERIOD_Q1_2026,
       grade: 3,
-      highlights: '- Delivered all sprint tasks on time\n- Proactive in code reviews',
-      lowlights: '- Documentation could be more thorough\n- Test coverage needs improvement',
+      highlights: ['Delivered all sprint tasks on time', 'Proactive in code reviews'],
+      lowlights: ['Documentation could be more thorough', 'Test coverage needs improvement'],
       evaluation: 'Alex has shown consistent performance this quarter, meeting all expected deliverables. With more focus on documentation and testing, they are on track for growth.',
       recommendation: 'Continue current responsibilities. Enroll in the internal documentation best-practices workshop.',
       isSent: false,
@@ -38,10 +44,14 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     data: {
       reviewerId: vn.id,
       revieweeId: placeholders[1].id,
-      evaluationPeriod: 'Q1 2026',
+      ...PERIOD_Q1_2026,
       grade: 4,
-      highlights: '- Exceeded targets on product analysis deliverables\n- Strong cross-team collaboration\n- Introduced a reporting framework adopted by the whole team',
-      lowlights: '- Occasionally misses standups without notice',
+      highlights: [
+        'Exceeded targets on product analysis deliverables',
+        'Strong cross-team collaboration',
+        'Introduced a reporting framework adopted by the whole team',
+      ],
+      lowlights: ['Occasionally misses standups without notice'],
       evaluation: 'Sam has demonstrated strong analytical capabilities and an excellent ability to communicate findings to non-technical stakeholders. A clear asset to the team.',
       recommendation: 'Consider Sam for a senior analyst role in Q3. Assign mentorship of incoming analysts.',
       isSent: true,
@@ -59,10 +69,10 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     data: {
       reviewerId: vn.id,
       revieweeId: placeholders[2].id,
-      evaluationPeriod: 'Q1 2026',
+      ...PERIOD_Q1_2026,
       grade: 3,
-      highlights: '- Maintained high bug catch rate in QA cycles\n- Clear and detailed bug reports',
-      lowlights: '- Test automation coverage stalled at 60%\n- Could be faster in regression cycles',
+      highlights: ['Maintained high bug catch rate in QA cycles', 'Clear and detailed bug reports'],
+      lowlights: ['Test automation coverage stalled at 60%', 'Could be faster in regression cycles'],
       evaluation: 'Jordan maintains solid quality standards and the team relies on their thoroughness. Progress on automation should be the focus for Q2.',
       recommendation: 'Assign Jordan to lead the automation uplift initiative in Q2.',
       isSent: true,
@@ -79,10 +89,10 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     data: {
       reviewerId: thea.id,
       revieweeId: placeholders[5].id,
-      evaluationPeriod: 'Q1 2026',
+      ...PERIOD_Q1_2026,
       grade: 4,
-      highlights: '- Delivered high-fidelity designs ahead of schedule\n- User research synthesis was exceptional',
-      lowlights: '- Handoff documentation to devs needs more detail',
+      highlights: ['Delivered high-fidelity designs ahead of schedule', 'User research synthesis was exceptional'],
+      lowlights: ['Handoff documentation to devs needs more detail'],
       evaluation: 'Riley has elevated the design quality across all product surfaces this quarter. Their user-first mindset sets the bar for the team.',
       recommendation: 'Nominate Riley for the design lead role when the team expands in H2.',
       isSent: false,
@@ -95,10 +105,14 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     data: {
       reviewerId: thea.id,
       revieweeId: placeholders[6].id,
-      evaluationPeriod: 'Q1 2026',
+      ...PERIOD_Q1_2026,
       grade: 4,
-      highlights: '- Successfully launched two major features on schedule\n- Excellent stakeholder communication\n- Reduced backlog by 30%',
-      lowlights: '- Estimation accuracy needs improvement on technical tasks',
+      highlights: [
+        'Successfully launched two major features on schedule',
+        'Excellent stakeholder communication',
+        'Reduced backlog by 30%',
+      ],
+      lowlights: ['Estimation accuracy needs improvement on technical tasks'],
       evaluation: 'Taylor drives features from concept to delivery with impressive stakeholder management. Their ability to keep engineering and business aligned is a key strength.',
       recommendation: "Expand Taylor's scope to include cross-team roadmap planning in Q2.",
       isSent: true,
@@ -116,10 +130,10 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     data: {
       reviewerId: thea.id,
       revieweeId: placeholders[7].id,
-      evaluationPeriod: 'Q1 2026',
+      ...PERIOD_Q1_2026,
       grade: 3,
-      highlights: '- Reliable backend service delivery\n- Quick to onboard onto new services',
-      lowlights: '- API documentation is inconsistent\n- Needs to engage more in architecture discussions',
+      highlights: ['Reliable backend service delivery', 'Quick to onboard onto new services'],
+      lowlights: ['API documentation is inconsistent', 'Needs to engage more in architecture discussions'],
       evaluation: 'Drew delivers reliable backend work and picks up new systems quickly. Taking more initiative in design discussions would accelerate their growth.',
       recommendation: 'Pair Drew with a senior engineer for architecture review sessions in Q2.',
       isSent: true,
@@ -135,10 +149,14 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     data: {
       reviewerId: thea.id,
       revieweeId: placeholders[8].id,
-      evaluationPeriod: 'Q1 2026',
+      ...PERIOD_Q1_2026,
       grade: 5,
-      highlights: "- Built the team's first automated reporting pipeline\n- Mentored two junior team members\n- Zero data quality incidents for the quarter",
-      lowlights: '- None significant this quarter',
+      highlights: [
+        "Built the team's first automated reporting pipeline",
+        'Mentored two junior team members',
+        'Zero data quality incidents for the quarter',
+      ],
+      lowlights: ['None significant this quarter'],
       evaluation: 'Cameron has had an exceptional quarter. The reporting pipeline they built has already saved the team 5 hours per week. A model performer.',
       recommendation: 'Fast-track Cameron for a senior data analyst promotion in Q3.',
       isSent: true,

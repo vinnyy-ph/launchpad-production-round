@@ -3,17 +3,19 @@ import { prisma } from "../../../core/database/prisma.service";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
 import { EvaluationsRepository } from "./evaluations.repository";
-import { downwardChain, upwardChain } from "../../shared";
+import { downwardChain, upwardChain, ACTIVE_EMPLOYEE } from "../../shared";
 import type {
   CreateEvaluationInput,
   EvaluationResponseDto,
   ListEvaluationsQuery,
   ListEvaluationsResponseDto,
+  ListRevieweesResponseDto,
   UpdateEvaluationInput,
 } from "./dto";
 
 type EvaluationWithAck = PerformanceEvaluation & {
   acknowledgement: Pick<EvaluationAcknowledgement, "isDeemedAck" | "acknowledgedAt"> | null;
+  reviewee?: { id: string; firstName: string; lastName: string } | null;
 };
 
 export class EvaluationsService {
@@ -106,10 +108,11 @@ export class EvaluationsService {
     const createData = {
       reviewerId: reviewer.id,
       revieweeId: input.revieweeId,
-      evaluationPeriod: input.evaluationPeriod,
+      periodStart: input.periodStart,
+      periodEnd: input.periodEnd,
       grade: input.grade,
-      highlights: input.highlights ?? null,
-      lowlights: input.lowlights ?? null,
+      highlights: input.highlights ?? [],
+      lowlights: input.lowlights ?? [],
       evaluation: input.evaluation ?? null,
       recommendation: input.recommendation ?? null,
       supportingDocUrl: input.supportingDocUrl ?? null,
@@ -180,7 +183,8 @@ export class EvaluationsService {
           where: { id: evaluationId },
           data: {
             ...(updateData.revieweeId !== undefined && { revieweeId: updateData.revieweeId }),
-            ...(updateData.evaluationPeriod !== undefined && { evaluationPeriod: updateData.evaluationPeriod }),
+            ...(updateData.periodStart !== undefined && { periodStart: updateData.periodStart }),
+            ...(updateData.periodEnd !== undefined && { periodEnd: updateData.periodEnd }),
             ...(updateData.grade !== undefined && { grade: updateData.grade }),
             ...(updateData.highlights !== undefined && { highlights: updateData.highlights }),
             ...(updateData.lowlights !== undefined && { lowlights: updateData.lowlights }),
@@ -272,12 +276,39 @@ export class EvaluationsService {
     };
   }
 
+  async listReviewees(currentUser: User): Promise<ListRevieweesResponseDto> {
+    const reviewer = await prisma.employee.findUnique({ where: { userId: currentUser.id } });
+    if (!reviewer) throw new Error(EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE);
+
+    const reports = await prisma.employee.findMany({
+      where: { supervisorId: reviewer.id, ...ACTIVE_EMPLOYEE },
+      select: { id: true, firstName: true, lastName: true, jobTitle: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    });
+
+    return {
+      success: true,
+      data: reports.map((report) => ({
+        id: report.id,
+        fullName: [report.firstName, report.lastName].filter(Boolean).join(" "),
+        jobTitle: report.jobTitle,
+      })),
+    };
+  }
+
   private toResponse(evaluation: EvaluationWithAck): EvaluationResponseDto {
     return {
       id: evaluation.id,
       reviewerId: evaluation.reviewerId,
       revieweeId: evaluation.revieweeId,
-      evaluationPeriod: evaluation.evaluationPeriod,
+      reviewee: evaluation.reviewee
+        ? {
+            id: evaluation.reviewee.id,
+            fullName: `${evaluation.reviewee.firstName} ${evaluation.reviewee.lastName}`,
+          }
+        : null,
+      periodStart: evaluation.periodStart,
+      periodEnd: evaluation.periodEnd,
       grade: evaluation.grade,
       highlights: evaluation.highlights,
       lowlights: evaluation.lowlights,

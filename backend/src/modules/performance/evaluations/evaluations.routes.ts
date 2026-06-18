@@ -5,6 +5,7 @@ const router = Router();
 const controller = new EvaluationsController();
 
 router.get("/", controller.listEvaluations);
+router.get("/reviewees", controller.listReviewees);
 router.get("/:evaluationId", controller.getEvaluation);
 router.post("/", controller.createEvaluation);
 router.patch("/:evaluationId/send", controller.sendEvaluation);
