@@ -2,69 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard, TrendingUp, DoorOpen, LayoutGrid, ClipboardCheck,
-  Users, Network, ClipboardList, UserCog, UserCircle, BookOpen, ShieldCheck,
-  UserPlus, UserMinus, GitBranch,
-  type LucideIcon,
-} from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import type { Role } from "@/modules/auth/types/auth.types";
+import { visibleSections, WORKSPACE_NAME } from "./nav-config";
 import { cn } from "@/shared/lib/utils";
-
-type AllowedRole = Role | "SUPERVISOR" | "ALL";
-
-interface NavItem {
-  label: string;
-  icon: LucideIcon;
-  href: string;
-  roles: AllowedRole[];
-  badge?: number;
-}
-
-const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
-  {
-    title: "General",
-    items: [
-      { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ALL"] },
-      { label: "Performance", icon: TrendingUp, href: "/performance", roles: ["ALL"] },
-      { label: "Offboarding", icon: DoorOpen, href: "/offboarding", roles: ["ALL"] },
-    ],
-  },
-  {
-    title: "Me",
-    items: [
-      { label: "My profile", icon: UserCircle, href: "/employee/profile", roles: ["ALL"] },
-      { label: "My onboarding", icon: BookOpen, href: "/employee/onboarding", roles: ["ALL"] },
-      { label: "My clearances", icon: ShieldCheck, href: "/employee/clearance", roles: ["ALL"] },
-      { label: "Surveys", icon: ClipboardList, href: "/employee/surveys", roles: ["ALL"] },
-    ],
-  },
-  {
-    title: "My Team",
-    items: [
-      { label: "Overview", icon: LayoutGrid, href: "/supervisor/reports", roles: ["SUPERVISOR"] },
-      { label: "Hierarchy status", icon: GitBranch, href: "/supervisor/status", roles: ["SUPERVISOR"] },
-      { label: "Evaluations", icon: ClipboardCheck, href: "/supervisor/evaluations", roles: ["SUPERVISOR"] },
-    ],
-  },
-  {
-    title: "Organization",
-    items: [
-      { label: "People", icon: Users, href: "/hr/directory", roles: ["HR"] },
-      { label: "Onboarding", icon: UserPlus, href: "/hr/onboarding", roles: ["HR"] },
-      { label: "Offboarding", icon: UserMinus, href: "/hr/offboarding", roles: ["HR"] },
-      { label: "Structure", icon: Network, href: "/hr/teams", roles: ["HR"] },
-      { label: "Surveys", icon: ClipboardList, href: "/hr/surveys", roles: ["HR"] },
-    ],
-  },
-  {
-    title: "Admin",
-    items: [
-      { label: "Users", icon: UserCog, href: "/admin/users", roles: ["ADMIN"] },
-    ],
-  },
-];
 
 export function Sidebar({
   mobileOpen = false,
@@ -76,13 +16,8 @@ export function Sidebar({
   const { appUser } = useAuth();
   const pathname = usePathname() ?? "";
 
-  const canSee = (roles: AllowedRole[]) => {
-    if (!appUser) return false;
-    if (roles.includes("ALL")) return true;
-    if (roles.includes(appUser.role)) return true;
-    if (roles.includes("SUPERVISOR") && appUser.isSupervisor) return true;
-    return false;
-  };
+  // Single source of truth: every section whose role lane this user holds, in fixed order.
+  const sections = visibleSections(appUser);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -104,7 +39,7 @@ export function Sidebar({
           />
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-medium text-[color:var(--text-primary)] truncate leading-tight">
-              SwiftWork ✦
+              {WORKSPACE_NAME}
             </p>
           </div>
         </div>
@@ -112,18 +47,14 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
-        {NAV_SECTIONS.map((section) => {
-          const visible = section.items.filter((item) => canSee(item.roles));
-          if (visible.length === 0) return null;
+        {sections.map((section) => {
           return (
-            <div key={section.title || "home"} className="mb-4">
-              {section.title && (
-                <span className="block px-5 pb-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[color:var(--text-quaternary)]">
-                  {section.title}
-                </span>
-              )}
+            <div key={section.title} className="mb-4">
+              <span className="block px-5 pb-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[color:var(--text-quaternary)]">
+                {section.title}
+              </span>
               <div className="flex flex-col px-2 pb-4">
-                {visible.map((item) => {
+                {section.items.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);
                   return (

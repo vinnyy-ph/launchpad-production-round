@@ -39,9 +39,13 @@ export class EvaluationsValidation {
     if (!b.revieweeId || typeof b.revieweeId !== "string") {
       throw new Error("revieweeId is required");
     }
-    if (!b.evaluationPeriod || typeof b.evaluationPeriod !== "string") {
-      throw new Error("evaluationPeriod is required");
+
+    const periodStart = this.parseDate(b.periodStart, "periodStart", true);
+    const periodEnd = this.parseDate(b.periodEnd, "periodEnd", true);
+    if (periodEnd.getTime() < periodStart.getTime()) {
+      throw new Error("periodEnd must be on or after periodStart");
     }
+
     if (
       typeof b.grade !== "number" ||
       !Number.isInteger(b.grade) ||
@@ -56,10 +60,11 @@ export class EvaluationsValidation {
 
     return {
       revieweeId: b.revieweeId,
-      evaluationPeriod: b.evaluationPeriod,
+      periodStart,
+      periodEnd,
       grade: b.grade,
-      ...(typeof b.highlights === "string" && { highlights: b.highlights }),
-      ...(typeof b.lowlights === "string" && { lowlights: b.lowlights }),
+      ...(b.highlights !== undefined && { highlights: this.parseItemArray(b.highlights, "highlights") }),
+      ...(b.lowlights !== undefined && { lowlights: this.parseItemArray(b.lowlights, "lowlights") }),
       ...(typeof b.evaluation === "string" && { evaluation: b.evaluation }),
       ...(typeof b.recommendation === "string" && { recommendation: b.recommendation }),
       ...(typeof b.supportingDocUrl === "string" && { supportingDocUrl: b.supportingDocUrl }),
@@ -80,10 +85,18 @@ export class EvaluationsValidation {
         throw new Error("revieweeId must be a string");
       result.revieweeId = b.revieweeId;
     }
-    if (b.evaluationPeriod !== undefined) {
-      if (typeof b.evaluationPeriod !== "string" || !b.evaluationPeriod)
-        throw new Error("evaluationPeriod must be a string");
-      result.evaluationPeriod = b.evaluationPeriod;
+    if (b.periodStart !== undefined) {
+      result.periodStart = this.parseDate(b.periodStart, "periodStart", false);
+    }
+    if (b.periodEnd !== undefined) {
+      result.periodEnd = this.parseDate(b.periodEnd, "periodEnd", false);
+    }
+    if (
+      result.periodStart &&
+      result.periodEnd &&
+      result.periodEnd.getTime() < result.periodStart.getTime()
+    ) {
+      throw new Error("periodEnd must be on or after periodStart");
     }
     if (b.grade !== undefined) {
       if (typeof b.grade !== "number" || !Number.isInteger(b.grade) || b.grade < 1 || b.grade > 5)
@@ -94,14 +107,14 @@ export class EvaluationsValidation {
       if (typeof b.send !== "boolean") throw new Error("send must be a boolean");
       result.send = b.send;
     }
+    if (b.highlights !== undefined) {
+      result.highlights = this.parseItemArray(b.highlights, "highlights");
+    }
+    if (b.lowlights !== undefined) {
+      result.lowlights = this.parseItemArray(b.lowlights, "lowlights");
+    }
 
-    for (const field of [
-      "highlights",
-      "lowlights",
-      "evaluation",
-      "recommendation",
-      "supportingDocUrl",
-    ] as const) {
+    for (const field of ["evaluation", "recommendation", "supportingDocUrl"] as const) {
       if (b[field] !== undefined) {
         if (typeof b[field] !== "string") throw new Error(`${field} must be a string`);
         result[field] = b[field] as string;
@@ -113,5 +126,28 @@ export class EvaluationsValidation {
     }
 
     return result;
+  }
+
+  /** Parses an ISO date string into a Date. `required` controls the missing-value message. */
+  private parseDate(value: unknown, field: string, required: boolean): Date {
+    if (value === undefined || value === null || value === "") {
+      throw new Error(required ? `${field} is required` : `${field} must be a valid date`);
+    }
+    if (typeof value !== "string" && !(value instanceof Date)) {
+      throw new Error(`${field} must be a valid date`);
+    }
+    const date = new Date(value as string);
+    if (Number.isNaN(date.getTime())) {
+      throw new Error(`${field} must be a valid date`);
+    }
+    return date;
+  }
+
+  /** Itemized text → trimmed, non-empty string list. */
+  private parseItemArray(value: unknown, field: string): string[] {
+    if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+      throw new Error(`${field} must be an array of strings`);
+    }
+    return (value as string[]).map((item) => item.trim()).filter((item) => item.length > 0);
   }
 }

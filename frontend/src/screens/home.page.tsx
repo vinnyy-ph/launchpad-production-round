@@ -6,6 +6,7 @@ import { useNotifications } from "@/modules/notifications/hooks/use-notification
 import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { StatCard, type StatCardProps } from "@/shared/ui/patterns";
+import { ScreenHeader } from "@/shared/components/layout/screen-header";
 
 function StatCardSkeleton() {
   return (
@@ -27,15 +28,7 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      {/* Greeting */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
-          {greeting()}, {firstName(appUser?.displayName ?? appUser?.email ?? "")}
-        </h1>
-        <p className="text-sm text-[color:var(--text-tertiary)]">
-          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-        </p>
-      </div>
+      <ScreenHeader id="dashboard" />
 
       {/* Stat cards */}
       <section>
@@ -117,17 +110,6 @@ export default function HomePage() {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-function firstName(name: string) {
-  return name.split(/[\s@]/)[0] ?? name;
-}
 
 function buildStatCards(
   role: string | undefined,

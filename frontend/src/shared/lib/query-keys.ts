@@ -13,4 +13,10 @@ export const queryKeys = {
     detail: (id: string) => ["employees", "detail", id] as const,
   },
   users: { all: ["users"] as const },
+  evaluations: {
+    all: ["evaluations"] as const,
+    list: (status?: string) =>
+      status ? (["evaluations", "list", status] as const) : (["evaluations", "list"] as const),
+    reviewees: ["evaluations", "reviewees"] as const,
+  },
 } as const;

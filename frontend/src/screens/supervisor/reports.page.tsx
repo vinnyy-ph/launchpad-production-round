@@ -3,7 +3,7 @@ import { AlertCircle, RefreshCw, Users } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { readCollection } from "@/shared/mock/db";
 import type { DemoEmployee } from "@/shared/mock/types";
-import { PageHeader } from "@/shared/components/layout/page-header";
+import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import { StatCard, DataTable, type Column, EmptyState, StatusBadge } from "@/shared/ui/patterns";
 import {
   Sheet,
@@ -124,11 +124,7 @@ export default function ReportsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader
-        title="My team"
-        subtitle="Direct reports assigned to you"
-        level="page"
-      />
+      <ScreenHeader id="overview" />
 
       {/* Stat cards */}
       {error ? (
