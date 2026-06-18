@@ -7,6 +7,13 @@ export const surveyTransactionMock = mockedPrisma.$transaction as jest.Mock;
 export const surveyFindManyMock = (mockedPrisma.pulseSurvey?.findMany ?? jest.fn()) as jest.Mock;
 export const surveyCountMock = (mockedPrisma.pulseSurvey?.count ?? jest.fn()) as jest.Mock;
 export const surveyFindUniqueMock = (mockedPrisma.pulseSurvey?.findUnique ?? jest.fn()) as jest.Mock;
+export const surveyUpdateMock = (mockedPrisma.pulseSurvey?.update ?? jest.fn()) as jest.Mock;
+export const surveyReminderConfigDeleteManyMock = (mockedPrisma.surveyReminderConfig?.deleteMany ?? jest.fn()) as jest.Mock;
+export const surveyReminderConfigUpsertMock = (mockedPrisma.surveyReminderConfig?.upsert ?? jest.fn()) as jest.Mock;
+export const surveyQuestionDeleteManyMock = (mockedPrisma.surveyQuestion?.deleteMany ?? jest.fn()) as jest.Mock;
+export const surveyQuestionCreateManyMock = (mockedPrisma.surveyQuestion?.createMany ?? jest.fn()) as jest.Mock;
+export const surveyAudienceConfigDeleteManyMock = (mockedPrisma.surveyAudienceConfig?.deleteMany ?? jest.fn()) as jest.Mock;
+export const surveyAudienceConfigCreateManyMock = (mockedPrisma.surveyAudienceConfig?.createMany ?? jest.fn()) as jest.Mock;
 
 export function resetSurveyMocks() {
   employeeFindUniqueMock.mockReset();
@@ -14,6 +21,13 @@ export function resetSurveyMocks() {
   surveyFindManyMock.mockReset();
   surveyCountMock.mockReset();
   surveyFindUniqueMock.mockReset();
+  surveyUpdateMock.mockReset();
+  surveyReminderConfigDeleteManyMock.mockReset();
+  surveyReminderConfigUpsertMock.mockReset();
+  surveyQuestionDeleteManyMock.mockReset();
+  surveyQuestionCreateManyMock.mockReset();
+  surveyAudienceConfigDeleteManyMock.mockReset();
+  surveyAudienceConfigCreateManyMock.mockReset();
 }
 
 export function buildHrEmployee(overrides?: { id?: string; userId?: string }) {
