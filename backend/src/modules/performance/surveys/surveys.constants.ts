@@ -12,4 +12,6 @@ export const SURVEY_ERROR_MESSAGES = {
   INVALID_AUDIENCE_CONFIG: "Each audienceConfig must provide supervisorId or teamId (not both empty)",
   INVALID_STATUS: "status must be 'draft', 'active', or 'inactive'",
   SURVEY_ALREADY_ACTIVATED: "Cannot update questions, audienceType, audienceConfigs, isAnonymous, or recurringType after it has been activated",
+  SURVEY_ALREADY_ACTIVE: "Survey is already active",
+  SURVEY_ALREADY_INACTIVE: "Survey is already inactive",
 } as const;

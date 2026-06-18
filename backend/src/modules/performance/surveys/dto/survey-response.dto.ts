@@ -57,6 +57,8 @@ export interface SurveyResponseDto {
   isAnonymous: boolean;
   isActive: boolean;
   visibility: SurveyVisibility;
+  releaseDate: Date;
+  deadline: Date;
   createdAt: Date;
   updatedAt: Date;
   questions: SurveyQuestionResponseDto[];

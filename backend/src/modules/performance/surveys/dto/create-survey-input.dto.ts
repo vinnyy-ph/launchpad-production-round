@@ -40,6 +40,8 @@ export interface CreateSurveyInput {
   isAnonymous?: boolean;
   isActive?: boolean;
   visibility?: SurveyVisibility;
+  releaseDate?: Date;
+  deadline: Date;
   questions: CreateSurveyQuestionInput[];
   /** Only meaningful when audienceType is SUPERVISOR_BASED or SPECIFIC_TEAMS */
   audienceConfigs?: CreateAudienceConfigInput[];

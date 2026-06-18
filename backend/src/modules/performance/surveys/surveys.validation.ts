@@ -3,6 +3,7 @@ import type { CreateSurveyInput } from "./dto";
 import type { ListSurveysQuery } from "./dto";
 import type { UpdateSurveyInput } from "./dto";
 import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
+import { validateSchedule } from "./rules/recurrence";
 
 const VALID_RECURRING_TYPES = new Set<string>([
   "ONE_TIME",
@@ -82,6 +83,32 @@ export class SurveysValidation {
     if (!b.name || typeof b.name !== "string") {
       throw new Error("name is required");
     }
+
+    // --- releaseDate ---
+    let releaseDate = new Date();
+    if (b.releaseDate !== undefined) {
+      if (typeof b.releaseDate !== "string") {
+        throw new Error("releaseDate must be a string");
+      }
+      releaseDate = new Date(b.releaseDate);
+      if (isNaN(releaseDate.getTime())) {
+        throw new Error("releaseDate must be a valid ISO date string");
+      }
+    }
+
+    // --- deadline ---
+    if (b.deadline === undefined) {
+      throw new Error("deadline is required");
+    }
+    if (typeof b.deadline !== "string") {
+      throw new Error("deadline must be a string");
+    }
+    const deadline = new Date(b.deadline);
+    if (isNaN(deadline.getTime())) {
+      throw new Error("deadline must be a valid ISO date string");
+    }
+
+    validateSchedule(releaseDate, deadline);
 
     // --- recurringType ---
     if (b.recurringType !== undefined) {
@@ -213,6 +240,8 @@ export class SurveysValidation {
 
     return {
       name: b.name as string,
+      releaseDate,
+      deadline,
       ...(b.recurringType !== undefined && { recurringType: b.recurringType as RecurringType }),
       ...(b.audienceType !== undefined && { audienceType: b.audienceType as AudienceType }),
       ...(b.visibility !== undefined && { visibility: b.visibility as SurveyVisibility }),
@@ -231,6 +260,34 @@ export class SurveysValidation {
 
     const b = body as Record<string, unknown>;
     const result: UpdateSurveyInput = {};
+
+    // --- releaseDate ---
+    if (b.releaseDate !== undefined) {
+      if (typeof b.releaseDate !== "string") {
+        throw new Error("releaseDate must be a string");
+      }
+      const rd = new Date(b.releaseDate);
+      if (isNaN(rd.getTime())) {
+        throw new Error("releaseDate must be a valid ISO date string");
+      }
+      result.releaseDate = rd;
+    }
+
+    // --- deadline ---
+    if (b.deadline !== undefined) {
+      if (typeof b.deadline !== "string") {
+        throw new Error("deadline must be a string");
+      }
+      const dl = new Date(b.deadline);
+      if (isNaN(dl.getTime())) {
+        throw new Error("deadline must be a valid ISO date string");
+      }
+      result.deadline = dl;
+    }
+
+    if (result.releaseDate && result.deadline) {
+      validateSchedule(result.releaseDate, result.deadline);
+    }
 
     // --- name ---
     if (b.name !== undefined) {

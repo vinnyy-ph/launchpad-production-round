@@ -16,6 +16,8 @@ export interface UpdateSurveyInput {
   isAnonymous?: boolean;
   isActive?: boolean;
   visibility?: SurveyVisibility;
+  releaseDate?: Date;
+  deadline?: Date;
   questions?: CreateSurveyQuestionInput[];
   audienceConfigs?: CreateAudienceConfigInput[];
   reminderConfig?: CreateReminderConfigInput | null;

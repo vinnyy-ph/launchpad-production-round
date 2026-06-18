@@ -15,6 +15,8 @@ export interface CreateSurveyData {
   isAnonymous: boolean;
   isActive: boolean;
   visibility: SurveyVisibility;
+  releaseDate: Date;
+  deadline: Date;
   questions: CreateSurveyQuestionData[];
   audienceConfigs: CreateAudienceConfigData[];
   reminderConfig?: CreateReminderConfigData;

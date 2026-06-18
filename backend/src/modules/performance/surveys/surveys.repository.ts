@@ -45,6 +45,8 @@ export class SurveysRepository {
           isAnonymous: data.isAnonymous,
           isActive: data.isActive,
           visibility: data.visibility,
+          releaseDate: data.releaseDate,
+          deadline: data.deadline,
         },
       });
 
@@ -179,6 +181,8 @@ export class SurveysRepository {
       if (data.isAnonymous !== undefined) updateData.isAnonymous = data.isAnonymous;
       if (data.recurringType !== undefined) updateData.recurringType = data.recurringType;
       if (data.audienceType !== undefined) updateData.audienceType = data.audienceType;
+      if (data.releaseDate !== undefined) updateData.releaseDate = data.releaseDate;
+      if (data.deadline !== undefined) updateData.deadline = data.deadline;
 
       if (Object.keys(updateData).length > 0) {
         await tx.pulseSurvey.update({
@@ -266,6 +270,64 @@ export class SurveysRepository {
 
       return result;
     });
+  }
+
+  async activate(
+    id: string,
+    occurrenceData: { releaseDate: Date; deadline: Date },
+    audienceIds: string[],
+  ): Promise<SurveyDetailRow> {
+    await prisma.$transaction(async (tx) => {
+      const occurrence = await tx.surveyOccurrence.create({
+        data: {
+          surveyId: id,
+          occurrenceNumber: 1,
+          releaseDate: occurrenceData.releaseDate,
+          deadline: occurrenceData.deadline,
+          isClosed: false,
+        },
+      });
+
+      if (audienceIds.length > 0) {
+        await tx.surveyAudienceMember.createMany({
+          data: audienceIds.map((employeeId) => ({
+            occurrenceId: occurrence.id,
+            employeeId,
+          })),
+        });
+      }
+
+      await tx.pulseSurvey.update({
+        where: { id },
+        data: { isActive: true },
+      });
+    });
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw new Error("Survey not found after activation");
+    }
+    return updated;
+  }
+
+  async deactivate(id: string, openOccurrenceId: string): Promise<SurveyDetailRow> {
+    await prisma.$transaction(async (tx) => {
+      await tx.surveyOccurrence.update({
+        where: { id: openOccurrenceId },
+        data: { isClosed: true },
+      });
+
+      await tx.pulseSurvey.update({
+        where: { id },
+        data: { isActive: false },
+      });
+    });
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw new Error("Survey not found after deactivation");
+    }
+    return updated;
   }
 
   async softDelete(id: string): Promise<void> {

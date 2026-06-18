@@ -20,4 +20,10 @@ router.patch("/:surveyId", requireRole("HR"), controller.updateSurvey);
 /** DELETE /api/v1/pulse/surveys/:id — HR only. Soft-deletes a draft survey. */
 router.delete("/:id", requireRole("HR"), controller.deleteSurvey);
 
+/** PATCH /api/v1/pulse/surveys/:id/activate — HR only. Activates a survey, starting the first occurrence and snapshotting the audience. */
+router.patch("/:id/activate", requireRole("HR"), controller.activateSurvey);
+
+/** PATCH /api/v1/pulse/surveys/:id/deactivate — HR only. Deactivates a survey, closing the open occurrence. */
+router.patch("/:id/deactivate", requireRole("HR"), controller.deactivateSurvey);
+
 export { router as surveysRouter };

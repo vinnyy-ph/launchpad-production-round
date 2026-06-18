@@ -176,6 +176,94 @@ export class SurveysController {
     }
   };
 
+  activateSurvey = async (
+    req: Request,
+    res: Response<ApiSuccessResponseDto<SurveyDetailResponseDto> | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { id } = req.params;
+      const result = await this.surveysService.activate(id);
+
+      return res.status(HTTP_STATUS_CODES.OK).json(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND) {
+          return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+            success: false,
+            message: API_ERROR_MESSAGES.SURVEY_NOT_FOUND,
+            errorCode: API_ERROR_CODES.SURVEY_NOT_FOUND,
+          });
+        }
+
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVE) {
+          return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+            success: false,
+            message: "Survey is already active",
+            errorCode: API_ERROR_CODES.SURVEY_ALREADY_ACTIVE,
+          });
+        }
+
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED) {
+          return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+            success: false,
+            message: SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED,
+            errorCode: API_ERROR_CODES.SURVEY_ALREADY_ACTIVATED,
+          });
+        }
+      }
+
+      return next(error);
+    }
+  };
+
+  deactivateSurvey = async (
+    req: Request,
+    res: Response<ApiSuccessResponseDto<SurveyDetailResponseDto> | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { id } = req.params;
+      const result = await this.surveysService.deactivate(id);
+
+      return res.status(HTTP_STATUS_CODES.OK).json(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND) {
+          return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+            success: false,
+            message: API_ERROR_MESSAGES.SURVEY_NOT_FOUND,
+            errorCode: API_ERROR_CODES.SURVEY_NOT_FOUND,
+          });
+        }
+
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_INACTIVE) {
+          return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+            success: false,
+            message: "Survey is already inactive",
+            errorCode: API_ERROR_CODES.SURVEY_ALREADY_INACTIVE,
+          });
+        }
+      }
+
+      return next(error);
+    }
+  };
+
   createSurvey = async (
     req: Request,
     res: Response<ApiSuccessResponseDto<SurveyResponseDto> | ApiErrorResponseDto>,
@@ -247,7 +335,9 @@ export class SurveysController {
       msg.includes("audienceConfigs") ||
       msg.includes("reminderConfig") ||
       msg.includes("isAnonymous") ||
-      msg.includes("isActive")
+      msg.includes("isActive") ||
+      msg.includes("releaseDate") ||
+      msg.includes("deadline")
     );
   }
 }
