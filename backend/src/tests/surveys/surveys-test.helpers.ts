@@ -7,6 +7,7 @@ export const surveyTransactionMock = mockedPrisma.$transaction as jest.Mock;
 export const surveyFindManyMock = (mockedPrisma.pulseSurvey?.findMany ?? jest.fn()) as jest.Mock;
 export const surveyCountMock = (mockedPrisma.pulseSurvey?.count ?? jest.fn()) as jest.Mock;
 export const surveyFindUniqueMock = (mockedPrisma.pulseSurvey?.findUnique ?? jest.fn()) as jest.Mock;
+export const surveyFindFirstMock = (mockedPrisma.pulseSurvey?.findFirst ?? jest.fn()) as jest.Mock;
 export const surveyUpdateMock = (mockedPrisma.pulseSurvey?.update ?? jest.fn()) as jest.Mock;
 export const surveyReminderConfigDeleteManyMock = (mockedPrisma.surveyReminderConfig?.deleteMany ?? jest.fn()) as jest.Mock;
 export const surveyReminderConfigUpsertMock = (mockedPrisma.surveyReminderConfig?.upsert ?? jest.fn()) as jest.Mock;
@@ -21,6 +22,7 @@ export function resetSurveyMocks() {
   surveyFindManyMock.mockReset();
   surveyCountMock.mockReset();
   surveyFindUniqueMock.mockReset();
+  surveyFindFirstMock.mockReset();
   surveyUpdateMock.mockReset();
   surveyReminderConfigDeleteManyMock.mockReset();
   surveyReminderConfigUpsertMock.mockReset();

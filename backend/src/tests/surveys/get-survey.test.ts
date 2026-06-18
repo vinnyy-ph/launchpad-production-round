@@ -3,7 +3,7 @@ import { app } from "../../app";
 import {
   buildSurveyDetail,
   resetSurveyMocks,
-  surveyFindUniqueMock,
+  surveyFindFirstMock,
 } from "./surveys-test.helpers";
 
 jest.mock("../../core/middleware/auth.middleware", () => ({
@@ -16,7 +16,7 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
     employee: { findUnique: jest.fn() },
-    pulseSurvey: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
+    pulseSurvey: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
     $transaction: jest.fn(),
   },
 }));
@@ -46,7 +46,7 @@ describe("GET /api/v1/pulse/surveys/:surveyId", () => {
   // ─── Not Found ─────────────────────────────────────────────────────────────
 
   it("returns 404 for unknown survey ID", async () => {
-    surveyFindUniqueMock.mockResolvedValue(null);
+    surveyFindFirstMock.mockResolvedValue(null);
 
     const response = await request(app).get(`${URL}/nonexistent-id`).expect(404);
 
@@ -61,7 +61,7 @@ describe("GET /api/v1/pulse/surveys/:surveyId", () => {
 
   it("returns full detail including questions, audienceConfigs, reminderConfig", async () => {
     const detail = buildSurveyDetail({ hasReminderConfig: true, occurrenceCount: 2 });
-    surveyFindUniqueMock.mockResolvedValue(detail);
+    surveyFindFirstMock.mockResolvedValue(detail);
 
     const response = await request(app).get(`${URL}/${detail.id}`).expect(200);
 
@@ -87,7 +87,7 @@ describe("GET /api/v1/pulse/surveys/:surveyId", () => {
 
   it("returns visibilityConfigs as an empty array", async () => {
     const detail = buildSurveyDetail();
-    surveyFindUniqueMock.mockResolvedValue(detail);
+    surveyFindFirstMock.mockResolvedValue(detail);
 
     const response = await request(app).get(`${URL}/${detail.id}`).expect(200);
 
@@ -98,7 +98,7 @@ describe("GET /api/v1/pulse/surveys/:surveyId", () => {
     const detail = buildSurveyDetail();
     // Simulate the case where visibilityConfigs relation is not included
     const { visibilityConfigs: _, ...detailWithoutVisibility } = detail as any;
-    surveyFindUniqueMock.mockResolvedValue(detailWithoutVisibility);
+    surveyFindFirstMock.mockResolvedValue(detailWithoutVisibility);
 
     const response = await request(app).get(`${URL}/${detail.id}`).expect(200);
 
@@ -107,7 +107,7 @@ describe("GET /api/v1/pulse/surveys/:surveyId", () => {
 
   it("returns correct occurrenceCount", async () => {
     const detail = buildSurveyDetail({ occurrenceCount: 7 });
-    surveyFindUniqueMock.mockResolvedValue(detail);
+    surveyFindFirstMock.mockResolvedValue(detail);
 
     const response = await request(app).get(`${URL}/${detail.id}`).expect(200);
 
@@ -116,7 +116,7 @@ describe("GET /api/v1/pulse/surveys/:surveyId", () => {
 
   it("returns null reminderConfig when survey has none", async () => {
     const detail = buildSurveyDetail({ hasReminderConfig: false });
-    surveyFindUniqueMock.mockResolvedValue(detail);
+    surveyFindFirstMock.mockResolvedValue(detail);
 
     const response = await request(app).get(`${URL}/${detail.id}`).expect(200);
 

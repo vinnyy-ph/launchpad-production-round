@@ -3,7 +3,7 @@ import { app } from "../../app";
 import {
   buildSurveyDetail,
   resetSurveyMocks,
-  surveyFindUniqueMock,
+  surveyFindFirstMock,
   surveyTransactionMock,
 } from "./surveys-test.helpers";
 
@@ -17,7 +17,7 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
     employee: { findUnique: jest.fn() },
-    pulseSurvey: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    pulseSurvey: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
     surveyReminderConfig: { deleteMany: jest.fn(), upsert: jest.fn() },
     surveyQuestion: { deleteMany: jest.fn(), createMany: jest.fn() },
     surveyAudienceConfig: { deleteMany: jest.fn(), createMany: jest.fn() },
@@ -54,7 +54,7 @@ describe("PATCH /api/v1/pulse/surveys/:surveyId", () => {
   // ─── Not Found ─────────────────────────────────────────────────────────────
 
   it("returns 404 for unknown survey ID", async () => {
-    surveyFindUniqueMock.mockResolvedValue(null);
+    surveyFindFirstMock.mockResolvedValue(null);
 
     const response = await request(app)
       .patch(`${URL}/nonexistent-id`)
@@ -72,7 +72,7 @@ describe("PATCH /api/v1/pulse/surveys/:surveyId", () => {
 
   it("returns 409 when trying to update questions / audienceType / isAnonymous / recurringType on a survey that has occurrences", async () => {
     const survey = buildSurveyDetail({ occurrenceCount: 1 });
-    surveyFindUniqueMock.mockResolvedValueOnce(survey);
+    surveyFindFirstMock.mockResolvedValueOnce(survey);
 
     const guardedPayloads = [
       { questions: [{ type: "SHORT_ANSWER", questionText: "New Question", orderIndex: 1 }] },
@@ -83,7 +83,7 @@ describe("PATCH /api/v1/pulse/surveys/:surveyId", () => {
     ];
 
     for (const payload of guardedPayloads) {
-      surveyFindUniqueMock.mockResolvedValueOnce(survey);
+      surveyFindFirstMock.mockResolvedValueOnce(survey);
       const response = await request(app)
         .patch(`${URL}/${survey.id}`)
         .send(payload);
@@ -105,7 +105,7 @@ describe("PATCH /api/v1/pulse/surveys/:surveyId", () => {
 
   it("updates name successfully on an active survey", async () => {
     const survey = buildSurveyDetail({ name: "Old Name", isActive: true, occurrenceCount: 2 });
-    surveyFindUniqueMock.mockResolvedValueOnce(survey);
+    surveyFindFirstMock.mockResolvedValueOnce(survey);
 
     const updatedSurvey = { ...survey, name: "New Name" };
     const txMock = {
@@ -137,7 +137,7 @@ describe("PATCH /api/v1/pulse/surveys/:surveyId", () => {
 
   it("updates questions successfully on a draft (no occurrences)", async () => {
     const survey = buildSurveyDetail({ isActive: false, occurrenceCount: 0 });
-    surveyFindUniqueMock.mockResolvedValueOnce(survey);
+    surveyFindFirstMock.mockResolvedValueOnce(survey);
 
     const updatedSurvey = { ...survey };
     const txMock = {
@@ -165,7 +165,7 @@ describe("PATCH /api/v1/pulse/surveys/:surveyId", () => {
 
   it("updating reminderConfig to null removes it", async () => {
     const survey = buildSurveyDetail({ occurrenceCount: 0 });
-    surveyFindUniqueMock.mockResolvedValueOnce(survey);
+    surveyFindFirstMock.mockResolvedValueOnce(survey);
 
     const updatedSurvey = { ...survey, reminderConfig: null };
     const txMock = {
@@ -189,7 +189,7 @@ describe("PATCH /api/v1/pulse/surveys/:surveyId", () => {
 
   it("upserts reminderConfig correctly", async () => {
     const survey = buildSurveyDetail({ occurrenceCount: 0 });
-    surveyFindUniqueMock.mockResolvedValueOnce(survey);
+    surveyFindFirstMock.mockResolvedValueOnce(survey);
 
     const updatedSurvey = {
       ...survey,
