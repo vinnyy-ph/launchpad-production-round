@@ -10,4 +10,5 @@ export { TablePagination } from "./table-pagination";
 export { FormField, type FormFieldProps } from "./form-field";
 export * from "./page-section";
 export * from "./stat-card";
+export { KpiCard, type KpiCardProps } from "./kpi-card";
 export * from "./filter-bar";
