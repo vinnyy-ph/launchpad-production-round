@@ -31,6 +31,17 @@ export class NotificationsRepository {
     });
   }
 
+  /** Loads an employee by ID with the linked auth user for notification delivery. */
+  async findEmployeeWithUserById(employeeId: string) {
+    return prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+  }
+
   /** Bulk-inserts notification rows. */
   async createMany(inputs: CreateNotificationInput[]) {
     if (inputs.length === 0) {

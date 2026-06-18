@@ -41,6 +41,8 @@ export const API_SUCCESS_MESSAGES = {
   HR_ONBOARDING_COMPLETED: "Employee onboarding completed successfully",
   NOTIFICATIONS_RETRIEVED: "Notifications retrieved successfully",
   NOTIFICATION_MARKED_AS_READ: "Notification marked as read",
+  SUPERVISOR_ONBOARDING_STATUSES_RETRIEVED:
+    "Supervisor onboarding statuses retrieved successfully",
 } as const;
 
 export type ApiSuccessMessage =

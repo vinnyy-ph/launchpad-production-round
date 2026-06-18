@@ -15,6 +15,7 @@ import { onboardingRouter } from "./modules/people/onboarding";
 import { employeeOnboardingRouter } from "./modules/people/onboarding/employee-onboarding";
 import { pulseSurveysRouter } from "./modules/performance/surveys";
 import { notificationsRouter } from "./modules/notifications";
+import { supervisorOnboardingRouter } from "./modules/people/onboarding/supervisor-onboarding";
 
 export const app = express();
 
@@ -68,4 +69,9 @@ app.use(
   `${API_ROUTES.VERSIONED_ROOT}/notifications`,
   authenticate,
   notificationsRouter,
+);
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/supervisor-onboarding`,
+  authenticate,
+  supervisorOnboardingRouter,
 );

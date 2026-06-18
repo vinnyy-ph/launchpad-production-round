@@ -58,6 +58,78 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * Notifies a supervisor when a direct report starts onboarding.
+   * Failures are swallowed so onboarding creation is never blocked.
+   */
+  async notifySupervisorOnboardingStarted(
+    employeeName: string,
+    employeeId: string,
+    supervisorId: string,
+  ): Promise<void> {
+    try {
+      const supervisor =
+        await this.notificationsRepository.findEmployeeWithUserById(supervisorId);
+
+      if (!supervisor) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: supervisor.id,
+        type: "ONBOARDING_STATUS",
+        subject: "Direct report started onboarding",
+        body: `${employeeName} has started onboarding.`,
+        linkUrl: `/employees/${employeeId}`,
+        sourceType: "Employee",
+        sourceId: employeeId,
+      });
+
+      this.inAppChannel.deliver(
+        supervisor.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: onboarding must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Notifies a supervisor when a direct report completes onboarding.
+   * Failures are swallowed so onboarding completion is never blocked.
+   */
+  async notifySupervisorOnboardingComplete(
+    employeeName: string,
+    employeeId: string,
+    supervisorId: string,
+  ): Promise<void> {
+    try {
+      const supervisor =
+        await this.notificationsRepository.findEmployeeWithUserById(supervisorId);
+
+      if (!supervisor) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: supervisor.id,
+        type: "ONBOARDING_COMPLETE",
+        subject: "Direct report completed onboarding",
+        body: `${employeeName} has completed onboarding and is now active.`,
+        linkUrl: `/employees/${employeeId}`,
+        sourceType: "Employee",
+        sourceId: employeeId,
+      });
+
+      this.inAppChannel.deliver(
+        supervisor.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: onboarding must succeed even if notification delivery fails.
+    }
+  }
+
   /** Returns recent notifications for the authenticated user's employee profile. */
   async getNotifications(
     user: User,

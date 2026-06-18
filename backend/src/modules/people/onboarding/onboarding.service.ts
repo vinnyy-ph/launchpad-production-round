@@ -51,6 +51,14 @@ export class OnboardingService {
 
     const result = await this.onboardingRepository.createOnboarding(dto);
 
+    const employeeName = `${result.employee.firstName} ${result.employee.lastName}`;
+
+    await this.notificationsService.notifySupervisorOnboardingStarted(
+      employeeName,
+      result.employee.id,
+      dto.supervisorId,
+    );
+
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EMPLOYEE_ONBOARDED,
@@ -120,6 +128,14 @@ export class OnboardingService {
       `${record.employee.firstName} ${record.employee.lastName}`,
       record.employee.id,
     );
+
+    if (record.employee.supervisorId) {
+      await this.notificationsService.notifySupervisorOnboardingComplete(
+        `${record.employee.firstName} ${record.employee.lastName}`,
+        record.employee.id,
+        record.employee.supervisorId,
+      );
+    }
 
     return {
       success: true,

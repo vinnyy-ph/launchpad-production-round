@@ -55,6 +55,7 @@ export const API_ERROR_MESSAGES = {
   NOTIFICATION_NOT_FOUND: "Notification not found",
   EMPLOYEE_PROFILE_NOT_FOUND:
     "No employee profile was found for this account",
+  NOT_A_SUPERVISOR: "You must be a supervisor to access this resource",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];

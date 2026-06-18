@@ -247,6 +247,14 @@ export class EmployeeOnboardingService {
       record.employee.id,
     );
 
+    if (record.employee.supervisorId) {
+      await this.notificationsService.notifySupervisorOnboardingComplete(
+        `${record.employee.firstName} ${record.employee.lastName}`,
+        record.employee.id,
+        record.employee.supervisorId,
+      );
+    }
+
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.ONBOARDING_COMPLETED,
