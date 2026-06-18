@@ -1,0 +1,340 @@
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     SurveyQuestion:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: 7a1b2c3d-0000-0000-0000-000000000001
+ *         surveyId:
+ *           type: string
+ *         type:
+ *           type: string
+ *           enum: [SHORT_ANSWER, LONG_ANSWER, LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX]
+ *           example: LINEAR_SCALE
+ *         questionText:
+ *           type: string
+ *           example: How satisfied are you with your workload?
+ *         isRequired:
+ *           type: boolean
+ *           example: true
+ *         options:
+ *           nullable: true
+ *           description: Array of choice strings — only for MULTIPLE_CHOICE / CHECKBOX.
+ *           example: null
+ *         scaleMin:
+ *           type: integer
+ *           nullable: true
+ *           example: 1
+ *         scaleMax:
+ *           type: integer
+ *           nullable: true
+ *           example: 5
+ *         scaleMinLabel:
+ *           type: string
+ *           nullable: true
+ *           example: Not at all
+ *         scaleMaxLabel:
+ *           type: string
+ *           nullable: true
+ *           example: Completely
+ *         orderIndex:
+ *           type: integer
+ *           example: 1
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     SurveyAudienceConfig:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         surveyId:
+ *           type: string
+ *         supervisorId:
+ *           type: string
+ *           nullable: true
+ *         teamId:
+ *           type: string
+ *           nullable: true
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     SurveyReminderConfig:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         surveyId:
+ *           type: string
+ *         frequency:
+ *           type: string
+ *           enum: [DAILY, EVERY_X_DAYS, WEEKLY]
+ *           example: WEEKLY
+ *         everyXDays:
+ *           type: integer
+ *           nullable: true
+ *           description: Only set when frequency is EVERY_X_DAYS.
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     PulseSurveyRecord:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: a1b2c3d4-0000-0000-0000-000000000001
+ *         createdBy:
+ *           type: string
+ *           description: Employee ID of the HR user who created the survey.
+ *           example: emp-hr-001
+ *         name:
+ *           type: string
+ *           example: Q2 Wellbeing Check
+ *         recurringType:
+ *           type: string
+ *           enum: [ONE_TIME, WEEKLY, BI_WEEKLY, MONTHLY, BI_MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL]
+ *           example: QUARTERLY
+ *         audienceType:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, SPECIFIC_TEAMS]
+ *           example: EVERYONE
+ *         isAnonymous:
+ *           type: boolean
+ *           example: true
+ *         isActive:
+ *           type: boolean
+ *           example: false
+ *         visibility:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, TEAM_BASED, HR_ROOT_ONLY, SPECIFIC_TEAMS]
+ *           example: HR_ROOT_ONLY
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *         questions:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SurveyQuestion'
+ *         audienceConfigs:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SurveyAudienceConfig'
+ *         reminderConfig:
+ *           nullable: true
+ *           allOf:
+ *             - $ref: '#/components/schemas/SurveyReminderConfig'
+ *     CreatePulseSurveyRequest:
+ *       type: object
+ *       required: [name, questions]
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: Q2 Wellbeing Check
+ *         recurringType:
+ *           type: string
+ *           enum: [ONE_TIME, WEEKLY, BI_WEEKLY, MONTHLY, BI_MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL]
+ *           default: ONE_TIME
+ *         audienceType:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, SPECIFIC_TEAMS]
+ *           default: EVERYONE
+ *         isAnonymous:
+ *           type: boolean
+ *           default: false
+ *         isActive:
+ *           type: boolean
+ *           default: false
+ *           description: Set to true to activate the survey immediately on creation. Defaults to draft (false).
+ *         visibility:
+ *           type: string
+ *           enum: [EVERYONE, SUPERVISOR_BASED, TEAM_BASED, HR_ROOT_ONLY, SPECIFIC_TEAMS]
+ *           default: EVERYONE
+ *         questions:
+ *           type: array
+ *           minItems: 1
+ *           items:
+ *             type: object
+ *             required: [type, questionText, orderIndex]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [SHORT_ANSWER, LONG_ANSWER, LINEAR_SCALE, MULTIPLE_CHOICE, CHECKBOX]
+ *               questionText:
+ *                 type: string
+ *                 example: How satisfied are you with your workload?
+ *               isRequired:
+ *                 type: boolean
+ *                 default: true
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Required for MULTIPLE_CHOICE and CHECKBOX types.
+ *               scaleMin:
+ *                 type: integer
+ *                 description: Required for LINEAR_SCALE type.
+ *                 example: 1
+ *               scaleMax:
+ *                 type: integer
+ *                 description: Required for LINEAR_SCALE type.
+ *                 example: 5
+ *               scaleMinLabel:
+ *                 type: string
+ *                 example: Not at all
+ *               scaleMaxLabel:
+ *                 type: string
+ *                 example: Completely
+ *               orderIndex:
+ *                 type: integer
+ *                 example: 1
+ *         audienceConfigs:
+ *           type: array
+ *           description: |
+ *             Required (and meaningful) only when audienceType is SUPERVISOR_BASED or SPECIFIC_TEAMS.
+ *             Silently ignored when audienceType is EVERYONE.
+ *           items:
+ *             type: object
+ *             properties:
+ *               supervisorId:
+ *                 type: string
+ *               teamId:
+ *                 type: string
+ *         reminderConfig:
+ *           type: object
+ *           properties:
+ *             frequency:
+ *               type: string
+ *               enum: [DAILY, EVERY_X_DAYS, WEEKLY]
+ *               default: DAILY
+ *             everyXDays:
+ *               type: integer
+ *               description: Required when frequency is EVERY_X_DAYS.
+ */
+
+/**
+ * @openapi
+ * /api/v1/pulse/surveys:
+ *   post:
+ *     tags: [Pulse Surveys]
+ *     summary: Create a pulse survey
+ *     description: |
+ *       **HR role only.** Creates a new pulse survey with at least one question.
+ *       Optional `audienceConfigs` define which supervisors or teams the survey targets
+ *       (only relevant when `audienceType` is `SUPERVISOR_BASED` or `SPECIFIC_TEAMS` —
+ *       they are silently ignored for `EVERYONE`). An optional `reminderConfig` controls
+ *       how often reminder notifications are sent.
+ *
+ *       All records (survey, questions, audience configs, reminder config) are written
+ *       atomically in a single database transaction.
+ *
+ *       The survey is created in **draft mode** (`isActive: false`) by default. Pass
+ *       `isActive: true` to activate it immediately on creation.
+ *
+ *       The `createdBy` field is always derived from the authenticated HR user's linked
+ *       employee record — it cannot be overridden in the request body.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreatePulseSurveyRequest'
+ *           examples:
+ *             minimal:
+ *               summary: Minimal — one short-answer question
+ *               value:
+ *                 name: Quick Friday Check-In
+ *                 questions:
+ *                   - type: SHORT_ANSWER
+ *                     questionText: What's one thing you'd like to improve next week?
+ *                     orderIndex: 1
+ *             full:
+ *               summary: Full — quarterly anonymous survey with scale + choice questions
+ *               value:
+ *                 name: Q2 Wellbeing Check
+ *                 recurringType: QUARTERLY
+ *                 audienceType: EVERYONE
+ *                 isAnonymous: true
+ *                 visibility: HR_ROOT_ONLY
+ *                 questions:
+ *                   - type: LINEAR_SCALE
+ *                     questionText: How satisfied are you with your workload?
+ *                     isRequired: true
+ *                     scaleMin: 1
+ *                     scaleMax: 5
+ *                     scaleMinLabel: Not at all
+ *                     scaleMaxLabel: Completely
+ *                     orderIndex: 1
+ *                   - type: MULTIPLE_CHOICE
+ *                     questionText: What best describes your energy level this week?
+ *                     isRequired: true
+ *                     options: [High, Medium, Low]
+ *                     orderIndex: 2
+ *                   - type: SHORT_ANSWER
+ *                     questionText: Any additional comments?
+ *                     isRequired: false
+ *                     orderIndex: 3
+ *                 reminderConfig:
+ *                   frequency: WEEKLY
+ *             supervisor_based:
+ *               summary: Supervisor-scoped survey with audience configs
+ *               value:
+ *                 name: Team Health Pulse
+ *                 audienceType: SUPERVISOR_BASED
+ *                 questions:
+ *                   - type: LINEAR_SCALE
+ *                     questionText: How effective is your team communication?
+ *                     scaleMin: 1
+ *                     scaleMax: 10
+ *                     orderIndex: 1
+ *                 audienceConfigs:
+ *                   - supervisorId: emp-supervisor-001
+ *                   - supervisorId: emp-supervisor-002
+ *     responses:
+ *       201:
+ *         description: Survey created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Pulse survey created successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/PulseSurveyRecord'
+ *       400:
+ *         description: |
+ *           Validation failed. Possible causes:
+ *           - `name` is missing
+ *           - `questions` is empty or missing
+ *           - A `LINEAR_SCALE` question is missing `scaleMin` or `scaleMax`
+ *           - A `MULTIPLE_CHOICE` or `CHECKBOX` question is missing `options`
+ *           - An `audienceConfig` entry has neither `supervisorId` nor `teamId`
+ *           - An enum value is not recognized
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: |
+ *           Forbidden. Either the user is not HR role, or the authenticated
+ *           HR user has no linked employee record.
+ */
