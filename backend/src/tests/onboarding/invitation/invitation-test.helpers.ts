@@ -55,6 +55,19 @@ export function buildEmployeeUser() {
   };
 }
 
+/** Admin account for authorization tests. */
+export function buildAdminUser() {
+  return {
+    id: "admin-user-id",
+    email: "admin@launchpad.ph",
+    googleId: null,
+    role: "ADMIN" as Role,
+    isActive: true,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+}
+
 export function buildInvitationRecord(overrides: Record<string, unknown> = {}) {
   const sentAt = new Date("2026-06-17T08:00:00.000Z");
   const expiresAt = new Date("2026-07-17T08:00:00.000Z");

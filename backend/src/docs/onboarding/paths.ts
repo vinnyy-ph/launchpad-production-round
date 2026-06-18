@@ -179,7 +179,7 @@
  *     summary: Onboard a new employee
  *     description: |
  *       Creates a new employee with the required onboarding inputs, starts an onboarding record,
- *       and triggers an invitation for the new hire. Requires HR or Admin role.
+ *       and triggers an invitation for the new hire. Requires HR role.
  *
  *       HR may optionally pre-fill profile fields (personal email, name, birthday, address,
  *       emergency contact) so the new hire can confirm or edit them later.
@@ -213,7 +213,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *       404:
  *         description: Supervisor not found
  *         content:

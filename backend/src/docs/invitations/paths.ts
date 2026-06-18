@@ -77,7 +77,7 @@
  *     description: |
  *       Sends the onboarding invitation email for an onboarding record.
  *       Creates an invitation record when one does not exist yet.
- *       Requires HR or Admin role.
+ *       Requires HR role.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -98,7 +98,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *       404:
  *         description: Onboarding record not found
  *         content:
@@ -122,7 +122,7 @@
  *     description: |
  *       Resends an existing invitation email and refreshes the 30-day expiry window.
  *       Cannot resend an invitation that has already been accepted.
- *       Requires HR or Admin role.
+ *       Requires HR role.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -143,7 +143,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *       404:
  *         description: Invitation not found
  *         content:
@@ -173,7 +173,7 @@
  *     description: |
  *       Updates the invited employee's email before they create their account,
  *       then re-sends the invitation. Fails if the employee has already signed in
- *       with Google. Requires HR or Admin role.
+ *       with Google. Requires HR role.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -206,7 +206,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *       404:
  *         description: Invitation not found
  *         content:
@@ -236,7 +236,7 @@
  *     description: |
  *       Returns all invitations for an onboarding record, including pending,
  *       accepted, expired, and failed delivery statuses.
- *       Requires HR or Admin role.
+ *       Requires HR role.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -257,7 +257,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *       404:
  *         description: Onboarding record not found
  *         content:

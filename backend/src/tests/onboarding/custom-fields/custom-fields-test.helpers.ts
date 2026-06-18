@@ -59,6 +59,19 @@ export function buildEmployeeUser() {
   };
 }
 
+/** Admin account for authorization tests. */
+export function buildAdminUser() {
+  return {
+    id: "admin-user-id",
+    email: "admin@example.com",
+    googleId: null,
+    role: "ADMIN" as Role,
+    isActive: true,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+}
+
 export function buildTemplateRecord() {
   return {
     id: TEMPLATE_ID,

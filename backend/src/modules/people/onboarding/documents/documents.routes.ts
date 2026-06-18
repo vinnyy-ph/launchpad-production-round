@@ -6,29 +6,29 @@ const documentsController = new DocumentsController();
 
 export const documentsRouter = Router();
 
-/** HR or Admin only — manage required onboarding documents. */
+/** HR only — manage required onboarding documents. */
 documentsRouter.post(
   "/",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   documentsController.createDocument,
 );
 documentsRouter.get(
   "/",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   documentsController.listDocuments,
 );
 documentsRouter.get(
   "/:id",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   documentsController.getDocument,
 );
 documentsRouter.put(
   "/:id",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   documentsController.updateDocument,
 );
 documentsRouter.delete(
   "/:id",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   documentsController.deleteDocument,
 );

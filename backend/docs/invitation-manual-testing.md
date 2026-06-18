@@ -26,7 +26,7 @@ npm run dev
 
 The server usually runs at `http://localhost:3001`.
 
-3. **Get a Firebase ID token** for an HR or Admin account that already exists in the database.
+3. **Get a Firebase ID token** for an HR account that already exists in the database.
    - Sign in through the frontend as HR, then copy the bearer token from your browser dev tools (Network tab → any API request → `Authorization` header).
 
 4. **Open Swagger UI** at `http://localhost:3001/docs` and look for the **Invitations** section.

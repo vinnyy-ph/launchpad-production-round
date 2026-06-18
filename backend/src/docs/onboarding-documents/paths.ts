@@ -84,7 +84,7 @@
  *     tags: [Onboarding Documents]
  *     summary: Create a required onboarding document
  *     description: |
- *       HR or Admin creates a required document on the default onboarding template.
+ *       HR creates a required document on the default onboarding template.
  *       Employees will see this document when uploading files during onboarding.
  *     security:
  *       - bearerAuth: []
@@ -106,7 +106,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *   get:
  *     tags: [Onboarding Documents]
  *     summary: List required onboarding documents
@@ -123,7 +123,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  */
 
 /**
@@ -153,7 +153,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *   put:
  *     tags: [Onboarding Documents]
  *     summary: Update a required onboarding document
@@ -186,7 +186,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *   delete:
  *     tags: [Onboarding Documents]
  *     summary: Delete a required onboarding document
@@ -211,7 +211,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  */
 
 export {};

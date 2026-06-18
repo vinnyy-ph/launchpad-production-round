@@ -31,7 +31,7 @@ The server usually runs at `http://localhost:3001`.
 
 ---
 
-## Step 0 — HR setup (do this first as HR/Admin)
+## Step 0 — HR setup (do this first as HR)
 
 If you do not already have a test employee, sign in as HR and run these steps first.
 
@@ -368,7 +368,7 @@ Expand **POST /api/v1/employee-onboarding/complete**.
 
 | Problem | Fix |
 |---------|-----|
-| **403 Forbidden** | You are signed in as HR/Admin. Use the **employee** Firebase token instead. |
+| **403 Forbidden** | You are signed in as HR. Use the **employee** Firebase token instead. |
 | **404 No onboarding record** | HR has not created an onboarding record for this email yet. |
 | **409 Invitation expired** | HR must resend the invitation. |
 | **400 Invalid file type** | Make sure `fileUrl` ends with an allowed extension (pdf, jpg, png). |

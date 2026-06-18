@@ -10,8 +10,8 @@ const onboardingController = new OnboardingController();
 
 export const onboardingRouter = Router();
 
-/** Creates a new employee and starts the onboarding process. HR or Admin only. */
-onboardingRouter.post("/", requireRole("HR", "ADMIN"), onboardingController.onboardEmployee);
+/** Creates a new employee and starts the onboarding process. HR only. */
+onboardingRouter.post("/", requireRole("HR"), onboardingController.onboardEmployee);
 
 /** HR-managed required onboarding documents. */
 onboardingRouter.use("/documents", documentsRouter);
