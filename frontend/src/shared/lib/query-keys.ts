@@ -42,6 +42,7 @@ export const queryKeys = {
     status: (employeeId: string) => ["onboarding", "status", employeeId] as const,
     // The signed-in employee's own onboarding checklist.
     mine: ["onboarding", "mine"] as const,
+    invitations: (recordId: string) => ["onboarding", "invitations", recordId] as const,
   },
   offboarding: {
     all: ["offboarding"] as const,

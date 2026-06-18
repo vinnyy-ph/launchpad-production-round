@@ -134,6 +134,18 @@ export interface OnboardingProfile {
   department: string | null;
 }
 
+/** One document submission returned after the employee uploads a file. */
+export interface DocumentSubmission {
+  id: string;
+  documentId: string;
+  documentName: string;
+  fileUrl: string;
+  status: OnboardingDocStatus;
+  rejectionNote: string | null;
+  submittedAt: string;
+  reviewedAt: string | null;
+}
+
 export interface OnboardingDocumentStatus {
   id: string;
   documentName: string;
@@ -157,6 +169,13 @@ export interface OnboardingCustomFieldStatus {
   value: string | null;
 }
 
+/** Result when the employee submits onboarding for HR review (does not activate). */
+export interface SubmitOnboardingForReviewResult {
+  recordId: string;
+  isComplete: false;
+  submittedForReview: true;
+}
+
 /** Full onboarding checklist the signed-in employee sees. */
 export interface EmployeeOnboardingStatus {
   recordId: string;
@@ -168,8 +187,53 @@ export interface EmployeeOnboardingStatus {
   customFields: OnboardingCustomFieldStatus[];
 }
 
+/** Employee profile fields they can confirm or edit during onboarding. */
+export interface UpdateMyProfileInput {
+  firstName?: string;
+  lastName?: string;
+  middleName?: string | null;
+  personalEmail?: string;
+  birthday?: string;
+  address?: string;
+  emergencyContact?: string;
+}
+
 /** A single answer the employee submits for a custom field. */
 export interface SubmitCustomFieldAnswer {
   fieldId: string;
   value: string;
+}
+
+// ─── HR: document config CRUD ─────────────────────────────────────────────────
+
+export interface CreateDocumentConfigInput {
+  documentName: string;
+  instructions?: string;
+  allowedFileTypes: string;
+  isRequired?: boolean;
+}
+
+export interface UpdateDocumentConfigInput {
+  documentName?: string;
+  instructions?: string | null;
+  allowedFileTypes?: string;
+  isRequired?: boolean;
+}
+
+// ─── HR: custom field config CRUD ─────────────────────────────────────────────
+
+export interface CreateCustomFieldConfigInput {
+  fieldLabel: string;
+  isRequired?: boolean;
+}
+
+export interface UpdateCustomFieldConfigInput {
+  fieldLabel?: string;
+  isRequired?: boolean;
+}
+
+// ─── HR: invitation management ────────────────────────────────────────────────
+
+export interface UpdateInvitationEmailInput {
+  email: string;
 }

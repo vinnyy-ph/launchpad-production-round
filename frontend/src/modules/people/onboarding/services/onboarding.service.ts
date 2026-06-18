@@ -1,5 +1,8 @@
 import { apiFetch } from "@/shared/lib/api-client";
 import type {
+  CreateCustomFieldConfigInput,
+  CreateDocumentConfigInput,
+  DocumentSubmission,
   DocumentReview,
   EmployeeOnboardingStatus,
   HrCompleteOnboardingResult,
@@ -9,7 +12,13 @@ import type {
   OnboardingDocStatus,
   OnboardingDocumentConfig,
   OnboardingInvitation,
+  OnboardingProfile,
   SubmitCustomFieldAnswer,
+  SubmitOnboardingForReviewResult,
+  UpdateCustomFieldConfigInput,
+  UpdateDocumentConfigInput,
+  UpdateInvitationEmailInput,
+  UpdateMyProfileInput,
 } from "../types/onboarding.types";
 
 const HR_BASE = "/api/v1/onboarding";
@@ -58,6 +67,72 @@ export async function getDocumentConfigs(): Promise<OnboardingDocumentConfig[]> 
 /** Org-wide onboarding custom fields configured by HR. */
 export async function getCustomFieldConfigs(): Promise<OnboardingCustomFieldConfig[]> {
   const res = await apiFetch<Envelope<OnboardingCustomFieldConfig[]>>(`${HR_BASE}/custom-fields`);
+  return res.data;
+}
+
+/** Creates a required onboarding document on the default template. */
+export async function createDocumentConfig(
+  input: CreateDocumentConfigInput,
+): Promise<OnboardingDocumentConfig> {
+  const res = await apiFetch<Envelope<OnboardingDocumentConfig>>(`${HR_BASE}/documents`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.data;
+}
+
+/** Updates a required onboarding document config. */
+export async function updateDocumentConfig(
+  id: string,
+  input: UpdateDocumentConfigInput,
+): Promise<OnboardingDocumentConfig> {
+  const res = await apiFetch<Envelope<OnboardingDocumentConfig>>(`${HR_BASE}/documents/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+  return res.data;
+}
+
+/** Deletes a required onboarding document config. */
+export async function deleteDocumentConfig(id: string): Promise<OnboardingDocumentConfig> {
+  const res = await apiFetch<Envelope<OnboardingDocumentConfig>>(`${HR_BASE}/documents/${id}`, {
+    method: "DELETE",
+  });
+  return res.data;
+}
+
+/** Creates a custom onboarding field on the default template. */
+export async function createCustomFieldConfig(
+  input: CreateCustomFieldConfigInput,
+): Promise<OnboardingCustomFieldConfig> {
+  const res = await apiFetch<Envelope<OnboardingCustomFieldConfig>>(`${HR_BASE}/custom-fields`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.data;
+}
+
+/** Updates a custom onboarding field config. */
+export async function updateCustomFieldConfig(
+  id: string,
+  input: UpdateCustomFieldConfigInput,
+): Promise<OnboardingCustomFieldConfig> {
+  const res = await apiFetch<Envelope<OnboardingCustomFieldConfig>>(
+    `${HR_BASE}/custom-fields/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    },
+  );
+  return res.data;
+}
+
+/** Deletes a custom onboarding field config. */
+export async function deleteCustomFieldConfig(id: string): Promise<OnboardingCustomFieldConfig> {
+  const res = await apiFetch<Envelope<OnboardingCustomFieldConfig>>(
+    `${HR_BASE}/custom-fields/${id}`,
+    { method: "DELETE" },
+  );
   return res.data;
 }
 
@@ -115,12 +190,57 @@ export async function sendInvitation(recordId: string): Promise<OnboardingInvita
   return res.data;
 }
 
+/** Lists invitations for an onboarding record. */
+export async function getInvitationStatus(recordId: string): Promise<OnboardingInvitation[]> {
+  const res = await apiFetch<Envelope<OnboardingInvitation[]>>(
+    `${HR_BASE}/invitations/${recordId}`,
+  );
+  return res.data;
+}
+
+/** Resends an invitation by invitation id. */
+export async function resendInvitation(invitationId: string): Promise<OnboardingInvitation> {
+  const res = await apiFetch<Envelope<OnboardingInvitation>>(
+    `${HR_BASE}/invitations/${invitationId}/resend`,
+    { method: "POST" },
+  );
+  return res.data;
+}
+
+/** Corrects the invitation email before the employee signs in. */
+export async function updateInvitationEmail(
+  invitationId: string,
+  input: UpdateInvitationEmailInput,
+): Promise<OnboardingInvitation> {
+  const res = await apiFetch<Envelope<OnboardingInvitation>>(
+    `${HR_BASE}/invitations/${invitationId}/email`,
+    { method: "PATCH", body: JSON.stringify(input) },
+  );
+  return res.data;
+}
+
 // ─── Employee self-service ────────────────────────────────────────────────────
 
 /** The signed-in employee's full onboarding checklist. */
 export async function getMyOnboardingStatus(): Promise<EmployeeOnboardingStatus> {
   const res = await apiFetch<Envelope<EmployeeOnboardingStatus>>(`${EMP_BASE}/status`);
   return res.data;
+}
+
+/**
+ * Loads the employee checklist and marks the invitation accepted on first visit.
+ * Safe to call on every page load — already-accepted invitations return the checklist.
+ */
+export async function loadMyOnboardingStatus(): Promise<EmployeeOnboardingStatus> {
+  try {
+    const res = await apiFetch<Envelope<EmployeeOnboardingStatus>>(
+      `${EMP_BASE}/accept-invitation`,
+      { method: "POST" },
+    );
+    return res.data;
+  } catch {
+    return getMyOnboardingStatus();
+  }
 }
 
 /** Submits the employee's custom field answers. */
@@ -134,21 +254,33 @@ export async function submitCustomFields(
   return res.data;
 }
 
-/** Submits (or re-submits) a required document by uploading a file URL. */
+/** Confirms or updates HR pre-filled profile data during onboarding. */
+export async function updateMyProfile(input: UpdateMyProfileInput): Promise<OnboardingProfile> {
+  const res = await apiFetch<Envelope<OnboardingProfile>>(`${EMP_BASE}/profile`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return res.data;
+}
+
+/** Submits (or re-submits) a required document by uploading the file to the backend. */
 export async function submitDocument(
   documentId: string,
-  fileUrl: string,
-): Promise<EmployeeOnboardingStatus> {
-  const res = await apiFetch<Envelope<EmployeeOnboardingStatus>>(
+  file: File,
+): Promise<DocumentSubmission> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await apiFetch<Envelope<DocumentSubmission>>(
     `${EMP_BASE}/documents/${documentId}/submit`,
-    { method: "POST", body: JSON.stringify({ fileUrl }) },
+    { method: "POST", body: formData },
   );
   return res.data;
 }
 
-/** Marks the employee's own onboarding complete once everything is in. */
-export async function completeMyOnboarding(): Promise<EmployeeOnboardingStatus> {
-  const res = await apiFetch<Envelope<EmployeeOnboardingStatus>>(`${EMP_BASE}/complete`, {
+/** Submits the employee's onboarding to HR for document review (does not activate). */
+export async function submitMyOnboardingForReview(): Promise<SubmitOnboardingForReviewResult> {
+  const res = await apiFetch<Envelope<SubmitOnboardingForReviewResult>>(`${EMP_BASE}/complete`, {
     method: "POST",
   });
   return res.data;
