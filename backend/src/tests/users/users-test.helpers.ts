@@ -28,6 +28,7 @@ export function buildAdminUser() {
     googleId: null,
     role: "ADMIN" as Role,
     isActive: true,
+    lastLoginAt: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   };
@@ -41,6 +42,7 @@ export function buildHrUser() {
     googleId: null,
     role: "HR" as Role,
     isActive: true,
+    lastLoginAt: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   };
@@ -69,6 +71,7 @@ export function buildUserRecord(overrides?: {
     googleId: null,
     role: overrides?.role ?? ("HR" as Role),
     isActive: overrides?.isActive ?? true,
+    lastLoginAt: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     employee: {

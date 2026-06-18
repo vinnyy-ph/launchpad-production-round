@@ -61,7 +61,7 @@ describe("GET /api/v1/users - list users", () => {
       message: "Users retrieved successfully",
       meta: {
         page: 1,
-        limit: 25,
+        limit: 10,
         total: 2,
         totalPages: 1,
       },
