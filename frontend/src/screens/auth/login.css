@@ -1,22 +1,45 @@
 /* Swift Work login — layout via Tailwind in login.page.tsx.
    The Google button's own styles live with the GoogleSignInButton component. */
 
+/* The poster is the one gradient moment: a dominant canvas that drifts slowly
+   (the only ambient motion the brand allows), with a bottom scrim so the
+   white thesis stays legible over the lighter peach/blue stops. */
 .sw-poster {
-  background: var(--gradient-jia); /* already 135deg peach→pink→lilac→blue in jia-tokens.css */
   position: relative;
   overflow: hidden;
+  background: var(--gradient-jia); /* 135deg peach→pink→lilac→blue */
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  animation: sw-drift 22s var(--ease-standard, ease) infinite alternate;
 }
-/* faint glow from beneath, never on top */
-.sw-poster::after {
+.sw-poster::before {
   content: "";
   position: absolute;
-  left: -10%;
-  bottom: -30%;
-  width: 70%;
-  height: 70%;
-  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.35), transparent);
-  filter: blur(20px);
+  inset: 0;
+  background: var(--gradient-scrim-bottom);
   pointer-events: none;
+}
+.sw-poster > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes sw-drift {
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sw-poster { animation: none; }
+}
+
+.sw-thesis {
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.sw-thesis__mark {
+  /* the one sanctioned ✦ — at the end of a display headline on cover art */
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .sw-alert {
@@ -24,7 +47,7 @@
   gap: 10px;
   align-items: flex-start;
   background: var(--color-error-50);
-  border: 1px solid var(--color-error-200);
+  border: 1px solid var(--border-secondary);
   border-radius: var(--radius-lg, 10px);
   padding: 12px 14px;
   color: var(--color-error-600);

@@ -4,7 +4,7 @@ export const queryKeys = {
   dashboard: { all: ["dashboard"] as const },
   notifications: {
     all: ["notifications"] as const,
-    list: (limit: number) => ["notifications", limit] as const,
+    list: (employeeId: string, limit: number) => ["notifications", employeeId, limit] as const,
   },
   employees: {
     all: ["employees"] as const,
