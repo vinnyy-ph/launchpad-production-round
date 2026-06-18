@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ClipboardList,
   Plus,
@@ -8,6 +9,7 @@ import {
   Trash2,
   Play,
   Square,
+  BarChart3,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
@@ -52,6 +54,7 @@ const STATUS_VARIANT: Record<SurveyStatus, "success" | "warning" | "neutral"> = 
 };
 
 export default function HRSurveysPage() {
+  const router = useRouter();
   const surveysQuery = useSurveys();
   const surveys = surveysQuery.data ?? [];
 
@@ -208,6 +211,19 @@ export default function HRSurveysPage() {
                 aria-label="Activate survey"
               >
                 <Play size={12} /> Activate
+              </button>
+            )}
+            {status !== "draft" && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/hr/surveys/${s.id}/results`);
+                }}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
+                aria-label="View results"
+              >
+                <BarChart3 size={12} /> Results
               </button>
             )}
             <button

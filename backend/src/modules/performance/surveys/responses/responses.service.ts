@@ -1,4 +1,5 @@
 import { buildResponseRow } from "../rules/response-firewall";
+import { validateAnswers } from "../rules/answer-validation";
 import type { RespondInput, ResponsesRepositoryPort } from "./responses.types";
 
 /** Distinct messages so the controller can map each failure to an HTTP status. */
@@ -33,6 +34,11 @@ export class ResponsesService {
     if (await this.repo.hasCompleted(occurrence.id, employee.id)) {
       throw new Error(RESPOND_ERRORS.ALREADY_RESPONDED);
     }
+
+    // Validate the answers against the survey's own questions (unknown question, required,
+    // and per-type shape) — server-side, so a crafted payload can't store junk or skip
+    // required questions even if the client UI would have blocked it.
+    validateAnswers(occurrence.questions, input.answers);
 
     // Anonymity firewall: nulls the employee link on the response when anonymous, while
     // completion (persisted below by the repo) still records identity for reminders/counts.

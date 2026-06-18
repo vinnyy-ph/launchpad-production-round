@@ -8,9 +8,14 @@ import type {
   AudiencePreview,
   PreviewAudienceInput,
   SurveyStatus,
+  PendingSurvey,
+  AnswerInput,
+  SurveyResults,
+  ResultsFilter,
 } from "../types/surveys.types";
 
 const BASE = "/api/v1/pulse/surveys";
+const PULSE = "/api/v1/pulse";
 
 interface ListResponse {
   data: SurveyListItem[];
@@ -83,5 +88,39 @@ export async function previewAudience(
     method: "POST",
     body: JSON.stringify(input),
   });
+  return res.data;
+}
+
+// ─── Employee answer flow (PER-10) ─────────────────────────────────────────────
+
+/** The signed-in employee's open pulses to answer. */
+export async function fetchMySurveys(): Promise<PendingSurvey[]> {
+  const res = await apiFetch<{ data: PendingSurvey[] }>(`${PULSE}/me/surveys`);
+  return res.data;
+}
+
+/** Submit answers to a pulse occurrence. Anonymity + validation enforced server-side. */
+export async function submitResponse(
+  occurrenceId: string,
+  answers: AnswerInput[],
+): Promise<void> {
+  await apiFetch<void>(`${PULSE}/occurrences/${occurrenceId}/respond`, {
+    method: "POST",
+    body: JSON.stringify({ answers }),
+  });
+}
+
+// ─── Results (PER-08 / PER-11) ─────────────────────────────────────────────────
+
+/** Aggregated results for a survey, optionally scoped by one team or supervisor filter. */
+export async function fetchSurveyResults(
+  surveyId: string,
+  filter?: ResultsFilter,
+): Promise<SurveyResults> {
+  const qs = new URLSearchParams();
+  if (filter?.teamId) qs.set("teamId", filter.teamId);
+  if (filter?.supervisorId) qs.set("supervisorId", filter.supervisorId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const res = await apiFetch<{ data: SurveyResults }>(`${BASE}/${surveyId}/results${suffix}`);
   return res.data;
 }

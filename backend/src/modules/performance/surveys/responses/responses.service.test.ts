@@ -12,7 +12,14 @@ const future = () => new Date(Date.now() + 86_400_000);
 const past = () => new Date(Date.now() - 1_000);
 
 function occ(overrides: Partial<OccurrenceForResponse> = {}): OccurrenceForResponse {
-  return { id: "occ1", isClosed: false, deadline: future(), isAnonymous: false, ...overrides };
+  return {
+    id: "occ1",
+    isClosed: false,
+    deadline: future(),
+    isAnonymous: false,
+    questions: [{ id: "q1", type: "SHORT_ANSWER", isRequired: true, options: null, scaleMin: null, scaleMax: null }],
+    ...overrides,
+  };
 }
 
 class FakeRepo implements ResponsesRepositoryPort {

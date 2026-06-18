@@ -257,26 +257,59 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     });
   });
 
-  it("SHORT_ANSWER responses are empty array when isAnonymous = true", async () => {
+  it("hides individual SHORT_ANSWER text when isAnonymous = true (at/above the min-group threshold)", async () => {
     const s = mockSurvey({ isAnonymous: true });
     surveyFindFirstMock.mockResolvedValue(s);
 
+    // 3 responses → at/above MIN_GROUP, so the breakdown shows, but anonymous free text is withheld.
     const responses = [
-      {
-        id: "res-1",
-        answers: [{ questionId: "q-1", answerText: "Sensitive feedback", answerData: null }],
-      },
+      { id: "res-1", answers: [{ questionId: "q-1", answerText: "Feedback one", answerData: null }] },
+      { id: "res-2", answers: [{ questionId: "q-1", answerText: "Feedback two", answerData: null }] },
+      { id: "res-3", answers: [{ questionId: "q-1", answerText: "Feedback three", answerData: null }] },
     ];
     surveyResponseFindManyMock.mockResolvedValue(responses);
     surveyAudienceFindManyMock.mockResolvedValue([]);
 
     const response = await request(app).get(`${URL}/survey-001/results`).expect(200);
 
+    expect(response.body.data.suppressed).toBe(false);
     expect(response.body.data.questions[0]).toMatchObject({
       questionId: "q-1",
-      responseCount: 1,
+      responseCount: 3,
       responses: [],
     });
+  });
+
+  it("suppresses the TOP-LEVEL (unfiltered) view of an anonymous survey with fewer than 3 responses", async () => {
+    const s = mockSurvey({ isAnonymous: true });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    // 2 responses, NO filter — must still be suppressed; the min-group rule applies to every view,
+    // not only filtered ones. (Regression guard for the top-level anonymity leak.)
+    surveyResponseFindManyMock.mockResolvedValue([
+      { id: "res-1", answers: [{ questionId: "q-1", answerText: "a", answerData: null }] },
+      { id: "res-2", answers: [{ questionId: "q-1", answerText: "b", answerData: null }] },
+    ]);
+    surveyAudienceFindManyMock.mockResolvedValue([]);
+
+    const response = await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    expect(response.body.data).toMatchObject({ suppressed: true, questions: [] });
+  });
+
+  it("does NOT suppress a non-anonymous survey with fewer than 3 responses", async () => {
+    const s = mockSurvey({ isAnonymous: false });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    surveyResponseFindManyMock.mockResolvedValue([
+      { id: "res-1", answers: [{ questionId: "q-1", answerText: "a", answerData: null }] },
+    ]);
+    surveyAudienceFindManyMock.mockResolvedValue([]);
+
+    const response = await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    expect(response.body.data.suppressed).toBe(false);
+    expect(response.body.data.questions.length).toBeGreaterThan(0);
   });
 
   it("returns { suppressed: true, questions: [] } when filtered group has fewer than 3 responses", async () => {

@@ -4,6 +4,7 @@ import { HTTP_STATUS_CODES } from "../../../../core/globals";
 import { ResponsesRepository } from "./responses.repository";
 import { RESPOND_ERRORS, ResponsesService } from "./responses.service";
 import { parseAnswers } from "./responses.validation";
+import { ANSWER_ERRORS } from "../rules/answer-validation";
 
 type ErrorBody = { success: false; message: string };
 
@@ -13,6 +14,12 @@ const STATUS_BY_MESSAGE: Record<string, number> = {
   [RESPOND_ERRORS.OCCURRENCE_CLOSED]: HTTP_STATUS_CODES.CONFLICT,
   [RESPOND_ERRORS.NOT_IN_AUDIENCE]: HTTP_STATUS_CODES.FORBIDDEN,
   [RESPOND_ERRORS.ALREADY_RESPONDED]: HTTP_STATUS_CODES.CONFLICT,
+  [ANSWER_ERRORS.UNKNOWN_QUESTION]: HTTP_STATUS_CODES.BAD_REQUEST,
+  [ANSWER_ERRORS.MISSING_REQUIRED]: HTTP_STATUS_CODES.BAD_REQUEST,
+  [ANSWER_ERRORS.INVALID_TEXT]: HTTP_STATUS_CODES.BAD_REQUEST,
+  [ANSWER_ERRORS.INVALID_SCALE]: HTTP_STATUS_CODES.BAD_REQUEST,
+  [ANSWER_ERRORS.INVALID_CHOICE]: HTTP_STATUS_CODES.BAD_REQUEST,
+  [ANSWER_ERRORS.INVALID_CHECKBOX]: HTTP_STATUS_CODES.BAD_REQUEST,
 };
 
 /** HTTP controller for pulse responses. */

@@ -112,6 +112,72 @@ export interface AudiencePreview {
   members: { id: string; name: string }[];
 }
 
+// ─── Employee answer flow (PER-10) ─────────────────────────────────────────────
+
+/** An open pulse occurrence the signed-in employee still needs to answer. */
+export interface PendingSurvey {
+  occurrenceId: string;
+  surveyId: string;
+  surveyName: string;
+  deadline: string;
+  occurrenceNumber: number;
+  questions: Question[];
+}
+
+/** A single submitted answer. answerData carries the typed value:
+ *  number (LINEAR_SCALE), string (MULTIPLE_CHOICE), string[] (CHECKBOX). */
+export interface AnswerInput {
+  questionId: string;
+  answerText?: string;
+  answerData?: number | string | string[];
+}
+
+// ─── Results (PER-08 / PER-11) ─────────────────────────────────────────────────
+
+/** Per-question aggregate — shape varies by question type, mirroring the backend. */
+export type QuestionResult =
+  | {
+      questionId: string;
+      type: "SHORT_ANSWER" | "LONG_ANSWER";
+      questionText: string;
+      responseCount: number;
+      responses: string[]; // empty for anonymous surveys (free text is withheld)
+    }
+  | {
+      questionId: string;
+      type: "LINEAR_SCALE";
+      questionText: string;
+      responseCount: number;
+      average: number;
+      min: number;
+      max: number;
+      distribution: Record<string, number>;
+    }
+  | {
+      questionId: string;
+      type: "MULTIPLE_CHOICE" | "CHECKBOX";
+      questionText: string;
+      responseCount: number;
+      counts: Record<string, number>;
+    };
+
+export interface SurveyResults {
+  surveyId: string;
+  occurrenceId?: string;
+  isAnonymous: boolean;
+  totalResponses: number;
+  filter: { teamId?: string; supervisorId?: string } | null;
+  /** true when the minimum-group-size rule fired — no breakdown is shown. */
+  suppressed: boolean;
+  questions: QuestionResult[]; // empty when suppressed
+}
+
+/** One-of filter for the results view (server rejects both at once). */
+export interface ResultsFilter {
+  teamId?: string;
+  supervisorId?: string;
+}
+
 // ─── Inputs ───────────────────────────────────────────────────────────────────
 
 export interface QuestionInput {

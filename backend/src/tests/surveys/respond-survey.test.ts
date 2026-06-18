@@ -214,7 +214,12 @@ describe("POST /api/v1/pulse/occurrences/:occurrenceId/respond", () => {
       id: "occ-001",
       isClosed: false,
       deadline: new Date(Date.now() + 86400000),
-      survey: { isAnonymous: false },
+      survey: {
+        isAnonymous: false,
+        questions: [
+          { id: "q-1", type: "SHORT_ANSWER", isRequired: true, options: null, scaleMin: null, scaleMax: null },
+        ],
+      },
     });
     audienceMemberFindUniqueMock.mockResolvedValue({ employeeId: "emp-1" });
     completionFindUniqueMock.mockResolvedValue(null);
@@ -260,7 +265,12 @@ describe("POST /api/v1/pulse/occurrences/:occurrenceId/respond", () => {
       id: "occ-001",
       isClosed: false,
       deadline: new Date(Date.now() + 86400000),
-      survey: { isAnonymous: true },
+      survey: {
+        isAnonymous: true,
+        questions: [
+          { id: "q-1", type: "SHORT_ANSWER", isRequired: true, options: null, scaleMin: null, scaleMax: null },
+        ],
+      },
     });
     audienceMemberFindUniqueMock.mockResolvedValue({ employeeId: "emp-1" });
     completionFindUniqueMock.mockResolvedValue(null);
@@ -298,5 +308,78 @@ describe("POST /api/v1/pulse/occurrences/:occurrenceId/respond", () => {
         employeeId: "emp-1",
       },
     });
+  });
+
+  it("returns 400 when answering a question that is not on the survey", async () => {
+    employeeFindUniqueMock.mockResolvedValue({ id: "emp-1", supervisorId: "sup-1", teamMemberships: [] });
+    occurrenceFindUniqueMock.mockResolvedValue({
+      id: "occ-001",
+      isClosed: false,
+      deadline: new Date(Date.now() + 86400000),
+      survey: {
+        isAnonymous: false,
+        questions: [
+          { id: "q-1", type: "SHORT_ANSWER", isRequired: true, options: null, scaleMin: null, scaleMax: null },
+        ],
+      },
+    });
+    audienceMemberFindUniqueMock.mockResolvedValue({ employeeId: "emp-1" });
+    completionFindUniqueMock.mockResolvedValue(null);
+
+    const response = await request(app)
+      .post(URL)
+      .send({ answers: [{ questionId: "ghost", answerText: "hi" }] })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+  });
+
+  it("returns 400 when a required question is left unanswered", async () => {
+    employeeFindUniqueMock.mockResolvedValue({ id: "emp-1", supervisorId: "sup-1", teamMemberships: [] });
+    occurrenceFindUniqueMock.mockResolvedValue({
+      id: "occ-001",
+      isClosed: false,
+      deadline: new Date(Date.now() + 86400000),
+      survey: {
+        isAnonymous: false,
+        questions: [
+          { id: "q-1", type: "SHORT_ANSWER", isRequired: true, options: null, scaleMin: null, scaleMax: null },
+          { id: "q-2", type: "SHORT_ANSWER", isRequired: false, options: null, scaleMin: null, scaleMax: null },
+        ],
+      },
+    });
+    audienceMemberFindUniqueMock.mockResolvedValue({ employeeId: "emp-1" });
+    completionFindUniqueMock.mockResolvedValue(null);
+
+    const response = await request(app)
+      .post(URL)
+      .send({ answers: [{ questionId: "q-2", answerText: "optional only" }] })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+  });
+
+  it("returns 400 for a linear-scale answer outside the question's range", async () => {
+    employeeFindUniqueMock.mockResolvedValue({ id: "emp-1", supervisorId: "sup-1", teamMemberships: [] });
+    occurrenceFindUniqueMock.mockResolvedValue({
+      id: "occ-001",
+      isClosed: false,
+      deadline: new Date(Date.now() + 86400000),
+      survey: {
+        isAnonymous: false,
+        questions: [
+          { id: "q-1", type: "LINEAR_SCALE", isRequired: true, options: null, scaleMin: 1, scaleMax: 5 },
+        ],
+      },
+    });
+    audienceMemberFindUniqueMock.mockResolvedValue({ employeeId: "emp-1" });
+    completionFindUniqueMock.mockResolvedValue(null);
+
+    const response = await request(app)
+      .post(URL)
+      .send({ answers: [{ questionId: "q-1", answerData: 9 }] })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
   });
 });

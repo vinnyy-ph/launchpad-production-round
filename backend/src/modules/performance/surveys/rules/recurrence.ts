@@ -62,3 +62,43 @@ export function validateSchedule(releaseDate: Date, firstDeadline: Date): void {
     throw new Error("firstDeadline must be strictly after releaseDate");
   }
 }
+
+export interface OccurrencePlan {
+  occurrenceNumber: number;
+  releaseDate: Date;
+  deadline: Date;
+}
+
+/**
+ * The occurrences that should now exist for a recurring survey, given its latest occurrence
+ * and the current time. Walks the cadence forward, emitting one plan per release whose time
+ * has arrived (release <= now), each keeping the canonical release->deadline `offsetMs`.
+ * Returns [] when nothing is due (the current occurrence is still open, or ONE_TIME). `cap`
+ * bounds catch-up after a long gap so a stale survey can't spin forever.
+ */
+export function planCatchUpOccurrences(
+  latest: { occurrenceNumber: number; releaseDate: Date },
+  cadence: Cadence,
+  offsetMs: number,
+  now: Date,
+  cap = 60,
+): OccurrencePlan[] {
+  const plans: OccurrencePlan[] = [];
+  let release = latest.releaseDate;
+  let occurrenceNumber = latest.occurrenceNumber;
+
+  for (let i = 0; i < cap; i++) {
+    const release_ = nextRelease(release, cadence);
+    if (!release_) break; // ONE_TIME — no further occurrence
+    if (release_.getTime() > now.getTime()) break; // next release not yet due
+    occurrenceNumber += 1;
+    plans.push({
+      occurrenceNumber,
+      releaseDate: release_,
+      deadline: deadlineFor(release_, offsetMs),
+    });
+    release = release_;
+  }
+
+  return plans;
+}

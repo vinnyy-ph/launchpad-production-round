@@ -238,9 +238,11 @@ export class ResultsService {
       }
     });
 
-    // 9. Apply minimum-group-size suppression
+    // 9. Apply minimum-group-size suppression. For anonymous surveys this fires on ANY view
+    //    with fewer than MIN_GROUP responses — the top-level summary as well as every
+    //    team/supervisor filter — never only on filtered views.
     const isFilterActive = !!teamIdQuery || !!supervisorIdQuery;
-    const gated = gate({ count: responses.length, data: questionResults }, survey.isAnonymous && isFilterActive);
+    const gated = gate({ count: responses.length, data: questionResults }, survey.isAnonymous);
 
     return {
       success: true,

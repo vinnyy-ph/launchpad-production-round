@@ -25,5 +25,12 @@ export const queryKeys = {
       status ? (["surveys", "list", status] as const) : (["surveys", "list"] as const),
     detail: (id: string) => ["surveys", "detail", id] as const,
     audienceOptions: ["surveys", "audience-options"] as const,
+    // Aggregated results for a survey, optionally scoped by a team/supervisor filter.
+    results: (id: string, filter?: Record<string, unknown>) =>
+      filter
+        ? (["surveys", "results", id, filter] as const)
+        : (["surveys", "results", id] as const),
+    // The signed-in employee's open pulses to answer.
+    mine: ["surveys", "mine"] as const,
   },
 } as const;
