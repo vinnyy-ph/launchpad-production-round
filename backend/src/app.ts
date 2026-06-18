@@ -18,6 +18,8 @@ import { evaluationsRouter } from "./modules/performance/evaluations";
 import { usersRouter } from "./modules/people/users";
 import { onboardingRouter } from "./modules/people/onboarding";
 import { employeeOnboardingRouter } from "./modules/people/onboarding/employee-onboarding";
+import { offboardingRouter } from "./modules/people/offboarding";
+import { clearanceRouter } from "./modules/people/offboarding/clearance";
 import { pulseSurveysRouter } from "./modules/performance/surveys";
 import { notificationsRouter } from "./modules/notifications";
 import { supervisorOnboardingRouter } from "./modules/people/onboarding/supervisor-onboarding";
@@ -50,7 +52,6 @@ app.use(globalLimiter);
 
 app.get("/api", (_req, res) => res.json({ message: "ERP API" }));
 app.get("/api/me", authenticate, (req, res) => res.json({ user: req.user }));
-app.use("/api/auth", authRoutes);
 
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
@@ -72,8 +73,8 @@ app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
 );
 
 app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
-app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, employeesRouter);
-app.use(`${API_ROUTES.VERSIONED_ROOT}/teams`, teamsRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, authenticate, employeesRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/teams`, authenticate, teamsRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/onboarding`, authenticate, onboardingRouter);
 app.use(
   `${API_ROUTES.VERSIONED_ROOT}/employee-onboarding`,
@@ -91,3 +92,9 @@ app.use(
   authenticate,
   supervisorOnboardingRouter,
 );
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/offboarding`,
+  authenticate,
+  offboardingRouter,
+);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/clearance`, authenticate, clearanceRouter);

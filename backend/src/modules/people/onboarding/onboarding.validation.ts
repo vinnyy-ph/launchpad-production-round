@@ -73,6 +73,13 @@ export class OnboardingValidation {
     };
   }
 
+  /** Validates the employeeId route param for the HR-scoped status read. */
+  parseStatusParams(params: Record<string, unknown>): HrCompleteOnboardingParamsDto {
+    return {
+      employeeId: this.requireString(params.employeeId, "employeeId"),
+    };
+  }
+
   /** Extracts a non-empty trimmed string or throws with the field name. */
   private requireString(value: unknown, field: string): string {
     if (typeof value !== "string") {

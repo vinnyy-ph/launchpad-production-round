@@ -181,7 +181,7 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
     userFindUniqueMock.mockResolvedValue(null);
     employeeFindFirstMock.mockResolvedValue(buildSupervisorRecord());
     employeeFindManyMock.mockResolvedValue([
-      { emergencyContact: "Existing Person - +63 917 123 4567" },
+      { emergencyContact: { emergencyContactNumber: "Existing Person - +63 917 123 4567" } },
     ]);
 
     const response = await request(app)
@@ -208,7 +208,7 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
     userFindUniqueMock.mockResolvedValue(null);
     employeeFindFirstMock.mockResolvedValue(buildSupervisorRecord());
     employeeFindManyMock.mockResolvedValue([
-      { emergencyContact: "+63 917 123 4567" },
+      { emergencyContact: { emergencyContactNumber: "+63 917 123 4567" } },
     ]);
 
     const response = await request(app)

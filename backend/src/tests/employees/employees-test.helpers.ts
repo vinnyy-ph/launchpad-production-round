@@ -1,3 +1,4 @@
+import type { Role } from "@prisma/client";
 import { prisma } from "../../core/database/prisma.service";
 
 // These mocks keep endpoint tests fast and deterministic by avoiding real database calls.
@@ -13,6 +14,23 @@ export function resetEmployeeMocks() {
   countMock.mockReset();
   findFirstMock.mockReset();
   updateMock.mockReset();
+}
+
+/**
+ * Builds a minimal User row matching req.user, used by the auth mock to act as a given caller.
+ * The redaction/authorization rules are driven by `role` and `id` (the caller's userId).
+ */
+export function buildViewer(overrides?: { id?: string; role?: Role }) {
+  return {
+    id: overrides?.id ?? "viewer-user-id",
+    email: "viewer@example.com",
+    googleId: null,
+    role: overrides?.role ?? ("HR" as Role),
+    isActive: true,
+    lastLoginAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
 }
 
 /**

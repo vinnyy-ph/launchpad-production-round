@@ -1,4 +1,4 @@
-import type { EmployeeStatus } from "@prisma/client";
+import type { EmployeeStatus, Role } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EmployeesRepository } from "./employees.repository";
 import type {
@@ -10,6 +10,7 @@ import type {
   GetEmployeeProfileParamsDto,
   ListEmployeesQueryDto,
   ListEmployeesResponseDto,
+  RedactedEmployeeProfileDto,
   UpdateEmployeeProfileParamsDto,
   UpdateEmployeeProfileRequestDto,
   UpdateEmployeeProfileResponseDto,
@@ -19,6 +20,18 @@ type RepositoryEmployee = Awaited<ReturnType<EmployeesRepository["findMany"]>>["
 type RepositoryEmployeeProfile = Awaited<ReturnType<EmployeesRepository["findById"]>>;
 
 /**
+ * The authenticated caller's identity, used to decide full vs. redacted serialization.
+ * Resolved from req.user (a User row) by the controller.
+ */
+export interface EmployeeViewerContext {
+  userId: string;
+  role: Role;
+}
+
+/** Roles that may see unredacted PII (personalEmail, birthday, address, emergencyContact). */
+const PRIVILEGED_VIEWER_ROLES: Role[] = ["ADMIN", "HR"];
+
+/**
  * Coordinates employee list behavior and maps database records into response DTOs.
  */
 export class EmployeesService {
@@ -26,13 +39,23 @@ export class EmployeesService {
 
   /**
    * Lists employees with optional search/filter criteria and pagination metadata.
+   * HR and Admin receive the full directory fields; every other authenticated viewer
+   * receives a redacted list with sensitive fields (address, emergencyContact) omitted.
    */
-  async listEmployees(filters: ListEmployeesQueryDto): Promise<ListEmployeesResponseDto> {
+  async listEmployees(
+    filters: ListEmployeesQueryDto,
+    viewer: EmployeeViewerContext,
+  ): Promise<ListEmployeesResponseDto> {
     const { employees, total } = await this.employeesRepository.findMany(filters);
+    const isPrivileged = PRIVILEGED_VIEWER_ROLES.includes(viewer.role);
 
     return {
       success: true,
-      data: employees.map((employee) => this.toListItemResponse(employee)),
+      data: employees.map((employee) =>
+        isPrivileged
+          ? this.toListItemResponse(employee)
+          : this.toRedactedListItemResponse(employee),
+      ),
       meta: {
         page: filters.page,
         limit: filters.limit,
@@ -43,10 +66,14 @@ export class EmployeesService {
   }
 
   /**
-   * Returns an unredacted employee profile for HR directory views.
+   * Returns an employee profile, redacted per the caller's relationship to the subject.
+   * Full profile for Admin, HR, or the subject themselves; redacted profile for everyone
+   * else (supervisors of the subject and any other authenticated peer). Redaction is applied
+   * here, server-side, so sensitive fields never reach an unauthorized payload.
    */
   async getEmployeeProfile(
     params: GetEmployeeProfileParamsDto,
+    viewer: EmployeeViewerContext,
   ): Promise<EmployeeProfileResponseDto> {
     const employee = await this.employeesRepository.findById(params.employeeId);
 
@@ -54,10 +81,15 @@ export class EmployeesService {
       throw new Error("Employee not found");
     }
 
+    const canSeeFullProfile =
+      PRIVILEGED_VIEWER_ROLES.includes(viewer.role) || employee.userId === viewer.userId;
+
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EMPLOYEE_RETRIEVED,
-      data: this.toProfileResponse(employee),
+      data: canSeeFullProfile
+        ? this.toProfileResponse(employee)
+        : this.toRedactedProfileResponse(employee),
     };
   }
 
@@ -138,6 +170,16 @@ export class EmployeesService {
   }
 
   /**
+   * Converts a Prisma employee result into a REDACTED list item for non-HR/Admin viewers.
+   * Drops sensitive fields (address, emergencyContact) so they never reach the payload.
+   */
+  private toRedactedListItemResponse(employee: RepositoryEmployee): EmployeeListItemResponseDto {
+    const fullItem = this.toListItemResponse(employee);
+    const { address: _address, emergencyContact: _emergencyContact, ...redacted } = fullItem;
+    return redacted;
+  }
+
+  /**
    * Converts a Prisma employee profile into the HR-facing response DTO.
    * No HR redaction is applied here because this endpoint is intended for HR profile access.
    */
@@ -196,6 +238,51 @@ export class EmployeesService {
       })),
       createdAt: employee.createdAt,
       updatedAt: employee.updatedAt,
+    };
+  }
+
+  /**
+   * Converts a Prisma employee profile into a REDACTED profile for viewers who are not
+   * HR, Admin, or the subject (supervisors of the subject and any other authenticated peer).
+   * Drops the sensitive fields (personalEmail, birthday, address, emergencyContact) server-side;
+   * keeps directory-safe identity, work, team, and supervisor data.
+   */
+  private toRedactedProfileResponse(
+    employee: NonNullable<RepositoryEmployeeProfile>,
+  ): RedactedEmployeeProfileDto {
+    return {
+      id: employee.id,
+      userId: employee.userId,
+      companyEmail: employee.companyEmail,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      middleName: employee.middleName,
+      fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
+      jobTitle: employee.jobTitle,
+      department: employee.department?.name ?? null,
+      status: this.toStatusDto(employee.status),
+      teams: employee.teamMemberships.map((membership) => ({
+        id: membership.team.id,
+        name: membership.team.name,
+      })),
+      ledTeams: employee.ledTeams.map((team) => ({
+        id: team.id,
+        name: team.name,
+      })),
+      supervisor: employee.supervisor
+        ? {
+            id: employee.supervisor.id,
+            firstName: employee.supervisor.firstName,
+            lastName: employee.supervisor.lastName,
+            companyEmail: employee.supervisor.companyEmail,
+            fullName: this.buildFullName(
+              employee.supervisor.firstName,
+              null,
+              employee.supervisor.lastName,
+            ),
+            jobTitle: employee.supervisor.jobTitle,
+          }
+        : null,
     };
   }
 

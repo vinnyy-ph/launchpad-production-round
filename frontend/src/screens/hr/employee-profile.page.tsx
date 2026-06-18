@@ -2,21 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Lock, UserRound, ArrowLeft, Pencil, X, Check } from "lucide-react";
+import { UserRound, ArrowLeft, Pencil, X, Check, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { readCollection, writeCollection } from "@/shared/mock/db";
-import type { DemoEmployee, OnboardingCase, Team } from "@/shared/mock/types";
 import {
   Button,
   Skeleton,
-  Progress,
   Input,
+  Combobox,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Separator,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -26,6 +23,13 @@ import {
   StatusBadge,
   EmptyState,
 } from "@/shared/ui";
+import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
+import { useUpdateEmployee } from "@/modules/people/employees/hooks/use-update-employee";
+import type {
+  EmployeeProfile,
+  EmployeeStatus,
+} from "@/modules/people/employees/types/employees.types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,11 +45,35 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
+
+function formatAddress(profile: EmployeeProfile): string {
+  const a = profile.address;
+  if (!a) return "—";
+  const parts = [a.address, a.city, a.province, a.country].map((p) => p?.trim()).filter(Boolean);
+  return parts.length ? parts.join(", ") : "—";
+}
+
+function formatEmergencyContact(profile: EmployeeProfile): string {
+  const c = profile.emergencyContact;
+  if (!c) return "—";
+  const parts = [c.emergencyContactName, c.emergencyContactNumber]
+    .map((p) => p?.trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(" · ") : "—";
+}
+
+const STATUS_OPTIONS: { value: EmployeeStatus; label: string }[] = [
+  { value: "onboarding", label: "Onboarding" },
+  { value: "active", label: "Active" },
+  { value: "offboarding", label: "Offboarding" },
+  { value: "inactive", label: "Inactive" },
+];
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -68,14 +96,9 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-// ---------------------------------------------------------------------------
-// Loading skeleton
-// ---------------------------------------------------------------------------
-
 function ProfileSkeleton() {
   return (
     <div className="space-y-6">
-      {/* Header skeleton */}
       <div className="flex items-center gap-4">
         <Skeleton className="h-16 w-16 rounded-full" />
         <div className="space-y-2">
@@ -84,7 +107,6 @@ function ProfileSkeleton() {
           <Skeleton className="h-5 w-20 rounded-full" />
         </div>
       </div>
-      {/* Card skeleton */}
       <div
         className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
         style={{ boxShadow: "var(--shadow-xs)" }}
@@ -108,13 +130,14 @@ interface EditDraft {
   jobTitle: string;
   department: string;
   supervisorId: string;
+  status: EmployeeStatus;
 }
 
 interface InlineEditFormProps {
   draft: EditDraft;
   onChange: (field: keyof EditDraft, value: string) => void;
-  employees: DemoEmployee[];
-  currentEmployeeId: string;
+  supervisorOptions: { value: string; label: string }[];
+  saving: boolean;
   onSave: () => void;
   onCancel: () => void;
 }
@@ -122,13 +145,11 @@ interface InlineEditFormProps {
 function InlineEditForm({
   draft,
   onChange,
-  employees,
-  currentEmployeeId,
+  supervisorOptions,
+  saving,
   onSave,
   onCancel,
 }: InlineEditFormProps) {
-  const supervisorOptions = employees.filter((e) => e.employeeId !== currentEmployeeId);
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-[160px_1fr] items-start gap-x-4 py-2">
@@ -137,7 +158,7 @@ function InlineEditForm({
           value={draft.jobTitle}
           onChange={(e) => onChange("jobTitle", e.target.value)}
           placeholder="Job title"
-          className="h-8 text-sm"
+          className="h-9 text-sm"
         />
       </div>
       <div className="grid grid-cols-[160px_1fr] items-start gap-x-4 py-2">
@@ -146,23 +167,30 @@ function InlineEditForm({
           value={draft.department}
           onChange={(e) => onChange("department", e.target.value)}
           placeholder="Department"
-          className="h-8 text-sm"
+          className="h-9 text-sm"
         />
       </div>
       <div className="grid grid-cols-[160px_1fr] items-start gap-x-4 py-2">
         <span className="pt-2 text-sm font-medium text-[color:var(--text-tertiary)]">Supervisor</span>
-        <Select
-          value={draft.supervisorId || "__none__"}
-          onValueChange={(v) => onChange("supervisorId", v === "__none__" ? "" : v)}
-        >
-          <SelectTrigger className="h-8 text-sm">
-            <SelectValue placeholder="No supervisor" />
+        <Combobox
+          options={supervisorOptions}
+          value={draft.supervisorId}
+          onChange={(v) => onChange("supervisorId", v)}
+          placeholder="No supervisor"
+          searchPlaceholder="Search employees…"
+          emptyText="No employees found."
+        />
+      </div>
+      <div className="grid grid-cols-[160px_1fr] items-start gap-x-4 py-2">
+        <span className="pt-2 text-sm font-medium text-[color:var(--text-tertiary)]">Status</span>
+        <Select value={draft.status} onValueChange={(v) => onChange("status", v)}>
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">No supervisor</SelectItem>
-            {supervisorOptions.map((emp) => (
-              <SelectItem key={emp.employeeId} value={emp.employeeId}>
-                {emp.displayName}
+            {STATUS_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -170,68 +198,14 @@ function InlineEditForm({
       </div>
 
       <div className="flex items-center gap-2 pt-2">
-        <Button size="sm" onClick={onSave}>
+        <Button size="sm" onClick={onSave} disabled={saving}>
           <Check className="mr-1 h-3.5 w-3.5" />
-          Save
+          {saving ? "Saving…" : "Save"}
         </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>
+        <Button size="sm" variant="outline" onClick={onCancel} disabled={saving}>
           <X className="mr-1 h-3.5 w-3.5" />
           Cancel
         </Button>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Onboarding progress card
-// ---------------------------------------------------------------------------
-
-function OnboardingProgressCard({ onboardingCase }: { onboardingCase: OnboardingCase }) {
-  const approvedDocs = onboardingCase.documents.filter((d) => d.status === "APPROVED").length;
-  const totalDocs = onboardingCase.documents.length;
-
-  return (
-    <div
-      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
-      style={{ boxShadow: "var(--shadow-xs)" }}
-    >
-      <div className="mb-4 flex items-center justify-between">
-        <SectionLabel>Onboarding Progress</SectionLabel>
-        <StatusBadge status={onboardingCase.status} />
-      </div>
-
-      <div className="mb-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-[color:var(--text-secondary)]">Overall completion</span>
-          <span className="text-sm font-semibold text-[color:var(--text-primary)]">
-            {onboardingCase.progress}%
-          </span>
-        </div>
-        <Progress value={onboardingCase.progress} className="h-2" />
-      </div>
-
-      {totalDocs > 0 && (
-        <>
-          <Separator className="my-4" />
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-[color:var(--text-tertiary)]">
-              Documents — {approvedDocs}/{totalDocs} approved
-            </p>
-            <div className="space-y-1.5">
-              {onboardingCase.documents.map((doc, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-sm text-[color:var(--text-secondary)]">{doc.name}</span>
-                  <StatusBadge status={doc.status} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      <div className="mt-4 text-xs text-[color:var(--text-tertiary)]">
-        Invited {formatDate(onboardingCase.invitedAt)}
       </div>
     </div>
   );
@@ -244,70 +218,63 @@ function OnboardingProgressCard({ onboardingCase }: { onboardingCase: Onboarding
 export default function EmployeeProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
+  const id =
+    typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
 
-  const [loading, setLoading] = useState(true);
-  const [employee, setEmployee] = useState<DemoEmployee | null>(null);
-  const [allEmployees, setAllEmployees] = useState<DemoEmployee[]>([]);
-  const [onboardingCase, setOnboardingCase] = useState<OnboardingCase | null>(null);
-  const [team, setTeam] = useState<Team | null>(null);
+  const { employee, loading, error, reload } = useEmployeeProfile(id || null);
+  const { update, saving } = useUpdateEmployee(id || null);
+  // Supervisor options for the edit form (HR sees the full list).
+  const { employees } = useEmployees({ page: 1, limit: 200 });
 
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState<EditDraft>({ jobTitle: "", department: "", supervisorId: "" });
+  const [draft, setDraft] = useState<EditDraft>({
+    jobTitle: "",
+    department: "",
+    supervisorId: "",
+    status: "active",
+  });
 
-  // Load data on mount
-  useEffect(() => {
-    const employees = readCollection<DemoEmployee>("employees");
-    const found = employees.find((e) => e.employeeId === id) ?? null;
-    const onboarding = readCollection<OnboardingCase>("onboardingCases");
-    const foundCase = onboarding.find((c) => c.employeeId === id) ?? null;
-    const teams = readCollection<Team>("teams");
-    const foundTeam = found?.teamId ? (teams.find((t) => t.id === found.teamId) ?? null) : null;
-
-    setAllEmployees(employees);
-    setEmployee(found);
-    setOnboardingCase(foundCase);
-    setTeam(foundTeam);
-    setLoading(false);
-  }, [id]);
+  const profile = employee as EmployeeProfile | null;
 
   function startEdit() {
-    if (!employee) return;
+    if (!profile) return;
     setDraft({
-      jobTitle: employee.jobTitle,
-      department: employee.department,
-      supervisorId: employee.supervisorId ?? "",
+      jobTitle: profile.jobTitle ?? "",
+      department: profile.department ?? "",
+      supervisorId: profile.supervisor?.id ?? "",
+      status: profile.status,
     });
     setIsEditing(true);
-  }
-
-  function cancelEdit() {
-    setIsEditing(false);
   }
 
   function handleDraftChange(field: keyof EditDraft, value: string) {
     setDraft((prev) => ({ ...prev, [field]: value }));
   }
 
-  function saveEdit() {
-    if (!employee) return;
-    const updated: DemoEmployee = {
-      ...employee,
-      jobTitle: draft.jobTitle.trim() || employee.jobTitle,
-      department: draft.department.trim() || employee.department,
-      supervisorId: draft.supervisorId || null,
-    };
-    const rows = allEmployees.map((e) => (e.employeeId === employee.employeeId ? updated : e));
-    writeCollection<DemoEmployee>("employees", rows);
-    setEmployee(updated);
-    setAllEmployees(rows);
-    setIsEditing(false);
-    toast.success("Profile updated");
+  async function saveEdit() {
+    if (!profile) return;
+    try {
+      await update({
+        jobTitle: draft.jobTitle.trim() || null,
+        department: draft.department.trim() || null,
+        supervisorId: draft.supervisorId || null,
+        status: draft.status,
+      });
+      setIsEditing(false);
+      toast.success("Profile updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update profile");
+    }
   }
 
-  // ---------------------------------------------------------------------------
-  // Render: loading
-  // ---------------------------------------------------------------------------
+  // Keep the draft status in sync if the profile changes while not editing.
+  useEffect(() => {
+    if (!isEditing && profile) {
+      setDraft((prev) => ({ ...prev, status: profile.status }));
+    }
+  }, [profile, isEditing]);
+
+  // ── Render: loading ───────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -328,11 +295,39 @@ export default function EmployeeProfilePage() {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Render: not found
-  // ---------------------------------------------------------------------------
+  // ── Render: error ─────────────────────────────────────────────────────────
 
-  if (!employee) {
+  if (error) {
+    return (
+      <div>
+        <Breadcrumb className="mb-4">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/hr/directory">Directory</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Error</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+        <div
+          className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
+          <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{error}</span>
+          <Button variant="secondary" size="sm" onClick={() => void reload()}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render: not found ─────────────────────────────────────────────────────
+
+  if (!profile) {
     return (
       <div>
         <Breadcrumb className="mb-4">
@@ -356,19 +351,15 @@ export default function EmployeeProfilePage() {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Derived display values
-  // ---------------------------------------------------------------------------
+  // ── Derived display values ────────────────────────────────────────────────
 
-  const supervisorEmployee = employee.supervisorId
-    ? allEmployees.find((e) => e.employeeId === employee.supervisorId) ?? null
-    : null;
+  const supervisorOptions = employees
+    .filter((e) => e.id !== profile.id)
+    .map((e) => ({ value: e.id, label: `${e.fullName} · ${e.jobTitle ?? "—"}` }));
 
-  const initials = getInitials(employee.displayName);
+  const initials = getInitials(profile.fullName);
 
-  // ---------------------------------------------------------------------------
-  // Render: success
-  // ---------------------------------------------------------------------------
+  // ── Render: success ───────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -384,7 +375,7 @@ export default function EmployeeProfilePage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{employee.displayName}</BreadcrumbPage>
+            <BreadcrumbPage>{profile.fullName}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -396,7 +387,6 @@ export default function EmployeeProfilePage() {
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
-            {/* Avatar */}
             <div
               className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full text-xl font-bold text-white"
               style={{
@@ -406,23 +396,18 @@ export default function EmployeeProfilePage() {
             >
               {initials}
             </div>
-
-            {/* Name + title + status */}
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-[color:var(--text-primary)]">
-                {employee.displayName}
+                {profile.fullName}
               </h1>
-              <p className="text-sm text-[color:var(--text-secondary)]">
-                {employee.jobTitle || "—"}
-              </p>
+              <p className="text-sm text-[color:var(--text-secondary)]">{profile.jobTitle || "—"}</p>
               <p className="mb-2 text-xs text-[color:var(--text-tertiary)]">
-                {employee.department || "—"}
+                {profile.department || "—"}
               </p>
-              <StatusBadge status={employee.employeeStatus} dot />
+              <StatusBadge status={profile.status} dot />
             </div>
           </div>
 
-          {/* Back button */}
           <Button
             variant="outline"
             size="sm"
@@ -441,7 +426,7 @@ export default function EmployeeProfilePage() {
         style={{ boxShadow: "var(--shadow-xs)" }}
       >
         <div className="mb-4 flex items-center justify-between">
-          <SectionLabel>Employment Details</SectionLabel>
+          <SectionLabel>Employment details</SectionLabel>
           {!isEditing && (
             <Button variant="outline" size="sm" onClick={startEdit}>
               <Pencil className="mr-1.5 h-3.5 w-3.5" />
@@ -454,62 +439,50 @@ export default function EmployeeProfilePage() {
           <InlineEditForm
             draft={draft}
             onChange={handleDraftChange}
-            employees={allEmployees}
-            currentEmployeeId={employee.employeeId}
-            onSave={saveEdit}
-            onCancel={cancelEdit}
+            supervisorOptions={supervisorOptions}
+            saving={saving}
+            onSave={() => void saveEdit()}
+            onCancel={() => setIsEditing(false)}
           />
         ) : (
           <div className="divide-y divide-[color:var(--border-primary)]">
-            <DetailRow label="Email" value={employee.email} />
-            <DetailRow label="Job title" value={employee.jobTitle || "—"} />
-            <DetailRow label="Department" value={employee.department || "—"} />
-            <DetailRow label="Start date" value={formatDate(employee.startDate)} />
+            <DetailRow label="Company email" value={profile.companyEmail} />
+            <DetailRow label="Job title" value={profile.jobTitle || "—"} />
+            <DetailRow label="Department" value={profile.department || "—"} />
+            <DetailRow label="Supervisor" value={profile.supervisor?.fullName ?? "—"} />
             <DetailRow
-              label="Supervisor"
-              value={supervisorEmployee ? supervisorEmployee.displayName : "—"}
+              label="Team/s"
+              value={profile.teams.length ? profile.teams.map((t) => t.name).join(", ") : "—"}
             />
-            <DetailRow label="Team" value={team ? team.name : "—"} />
-            <DetailRow
-              label="Role"
-              value={
-                <span className="rounded bg-[color:var(--bg-secondary)] px-1.5 py-0.5 text-xs font-mono text-[color:var(--text-secondary)]">
-                  {employee.role}
-                </span>
-              }
-            />
+            {profile.user && (
+              <DetailRow
+                label="Role"
+                value={
+                  <span className="rounded bg-[color:var(--bg-secondary)] px-1.5 py-0.5 font-mono text-xs text-[color:var(--text-secondary)]">
+                    {profile.user.role}
+                  </span>
+                }
+              />
+            )}
           </div>
         )}
       </div>
 
-      {/* Redacted sensitive fields */}
+      {/* Personal & sensitive information (HR/Admin/self see full; redacted profiles omit these). */}
       <div
         className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
         style={{ boxShadow: "var(--shadow-xs)" }}
       >
         <div className="mb-4">
-          <SectionLabel>Sensitive Information</SectionLabel>
+          <SectionLabel>Personal information</SectionLabel>
         </div>
-        <div className="space-y-3">
-          {["Date of birth", "Emergency contact", "Home address"].map((field) => (
-            <div
-              key={field}
-              className="grid grid-cols-[160px_1fr] items-center gap-x-4 rounded-lg bg-[color:var(--bg-tertiary)] px-4 py-3"
-            >
-              <span className="text-sm font-medium text-[color:var(--text-tertiary)]">{field}</span>
-              <div className="flex items-center gap-2">
-                <Lock className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--text-tertiary)]" aria-hidden="true" />
-                <span className="text-xs italic text-[color:var(--text-tertiary)]">
-                  Redacted — visible to HR, Admin, and subject only
-                </span>
-              </div>
-            </div>
-          ))}
+        <div className="divide-y divide-[color:var(--border-primary)]">
+          <DetailRow label="Personal email" value={profile.personalEmail || "—"} />
+          <DetailRow label="Date of birth" value={formatDate(profile.birthday)} />
+          <DetailRow label="Home address" value={formatAddress(profile)} />
+          <DetailRow label="Emergency contact" value={formatEmergencyContact(profile)} />
         </div>
       </div>
-
-      {/* Onboarding progress (conditional) */}
-      {onboardingCase && <OnboardingProgressCard onboardingCase={onboardingCase} />}
     </div>
   );
 }

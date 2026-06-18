@@ -1,19 +1,27 @@
-import { readCollection, writeCollection } from "@/shared/mock/db";
+import { apiFetch } from "@/shared/lib/api-client";
 import type { Notification } from "../types/notifications.types";
 
-const COLLECTION = "notifications";
+const BASE = "/api/v1/notifications";
 
-export async function fetchNotifications(employeeId: string, limit = 10): Promise<Notification[]> {
-  const all = readCollection<Notification>(COLLECTION)
-    .filter((n) => n.recipientEmployeeId === employeeId)
-    .slice()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return all.slice(0, limit);
+interface ListNotificationsResponse {
+  success: true;
+  message: string;
+  data: Notification[];
+}
+
+interface MarkAsReadResponse {
+  success: true;
+  message: string;
+  data: Notification;
+}
+
+// `employeeId` is accepted for call-site compatibility but unused: the endpoint
+// scopes results to the authenticated user's employee profile server-side.
+export async function fetchNotifications(_employeeId: string, limit = 10): Promise<Notification[]> {
+  const res = await apiFetch<ListNotificationsResponse>(`${BASE}?limit=${limit}`);
+  return res.data;
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const rows = readCollection<Notification>(COLLECTION).map((n) =>
-    n.id === id ? { ...n, isRead: true } : n,
-  );
-  writeCollection(COLLECTION, rows);
+  await apiFetch<MarkAsReadResponse>(`${BASE}/${id}/read`, { method: "PATCH" });
 }

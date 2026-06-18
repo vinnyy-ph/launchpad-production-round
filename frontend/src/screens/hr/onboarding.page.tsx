@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -24,100 +24,67 @@ import {
   Progress,
 } from "@/shared/ui";
 import { DataTable, EmptyState, FilterBar, StatusBadge, type Column } from "@/shared/ui/patterns";
-import { readCollection, writeCollection } from "@/shared/mock/db";
-import type { OnboardingCase, DemoEmployee, OnboardingStatus, UserAccount } from "@/shared/mock/types";
+import { useOnboardingRecords } from "@/modules/people/onboarding/hooks/use-onboarding-records";
+import { useOnboardEmployee } from "@/modules/people/onboarding/hooks/use-onboard-employee";
+import type { DocumentReview } from "@/modules/people/onboarding/types/onboarding.types";
+import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 
-// ─── data hook ───────────────────────────────────────────────────────────────
+// ─── row shape derived from the employees + document-reviews feeds ────────────
 
-interface UseOnboardingRowsResult {
-  rows: CaseRow[];
-  loading: boolean;
-  error: string | null;
-  reload: () => void;
-}
-
-function useOnboardingRows(): UseOnboardingRowsResult {
-  const [rows, setRows] = useState<CaseRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      const cases = readCollection<OnboardingCase>("onboardingCases");
-      const employees = readCollection<DemoEmployee>("employees");
-      const empMap = new Map(employees.map((e) => [e.employeeId, e]));
-      const built = cases.map((c) => {
-        const emp = empMap.get(c.employeeId);
-        return {
-          caseId: c.id,
-          employeeId: c.employeeId,
-          name: emp?.displayName ?? "Unknown",
-          email: emp?.email ?? "—",
-          status: c.status,
-          progress: c.progress,
-          invitedAt: c.invitedAt,
-        } satisfies CaseRow;
-      });
-      setRows(built);
-    } catch {
-      setError("Could not load onboarding cases.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  return { rows, loading, error, reload: load };
+interface CaseRow {
+  employeeId: string;
+  name: string;
+  email: string;
+  status: string; // employee lifecycle status (onboarding/active/…)
+  progress: number; // derived from approved document submissions
+  invitationStatus: string | null;
 }
 
 const ALL = "ALL";
 
-const STATUS_OPTIONS: { value: typeof ALL | OnboardingStatus; label: string }[] = [
+// Invitation lifecycle drives the displayed status filter (employee rows are all "onboarding").
+const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: ALL, label: "All statuses" },
-  { value: "INVITED", label: "Invited" },
-  { value: "IN_PROGRESS", label: "In progress" },
-  { value: "DOCS_REVIEW", label: "Docs review" },
-  { value: "COMPLETE", label: "Complete" },
+  { value: "pending", label: "Invited" },
+  { value: "accepted", label: "In progress" },
+  { value: "expired", label: "Expired" },
+  { value: "failed_delivery", label: "Delivery failed" },
 ];
 
-interface CaseRow {
-  caseId: string;
-  employeeId: string;
-  name: string;
-  email: string;
-  status: OnboardingStatus;
-  progress: number;
-  invitedAt: string;
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+/** Coarse progress for an employee: share of their document submissions that are approved. */
+function deriveProgress(employeeId: string, reviews: DocumentReview[]): number {
+  const mine = reviews.filter((r) => r.employee.id === employeeId);
+  if (mine.length === 0) return 0;
+  const approved = mine.filter((r) => r.status === "approved").length;
+  return Math.round((approved / mine.length) * 100);
 }
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<typeof ALL | OnboardingStatus>(ALL);
+  const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const [startOpen, setStartOpen] = useState(false);
-  const { rows, loading, error, reload } = useOnboardingRows();
+  const { employees, reviews, loading, error, reload } = useOnboardingRecords();
+
+  const rows = useMemo<CaseRow[]>(
+    () =>
+      employees.map((e) => ({
+        employeeId: e.id,
+        name: e.fullName,
+        email: e.companyEmail,
+        status: e.status,
+        progress: deriveProgress(e.id, reviews),
+        invitationStatus: null,
+      })),
+    [employees, reviews],
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return rows.filter((r) => {
       const matchesSearch =
         !q || r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
-      const matchesStatus = statusFilter === ALL || r.status === statusFilter;
+      const matchesStatus = statusFilter === ALL || r.invitationStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [rows, search, statusFilter]);
@@ -139,7 +106,7 @@ export default function OnboardingPage() {
       cell: (r) => <StatusBadge status={r.status} dot />,
     },
     {
-      header: "Progress",
+      header: "Documents",
       cell: (r) => (
         <div className="flex min-w-[120px] items-center gap-2">
           <Progress value={r.progress} className="flex-1" />
@@ -147,12 +114,6 @@ export default function OnboardingPage() {
             {r.progress}%
           </span>
         </div>
-      ),
-    },
-    {
-      header: "Invited",
-      cell: (r) => (
-        <span className="text-sm text-[color:var(--text-secondary)]">{formatDate(r.invitedAt)}</span>
       ),
     },
   ];
@@ -174,10 +135,9 @@ export default function OnboardingPage() {
       <StartOnboardingDialog
         open={startOpen}
         onOpenChange={setStartOpen}
-        existingCases={rows}
-        onStarted={(caseId) => {
+        onStarted={(employeeId) => {
           reload();
-          router.push(`/hr/onboarding/${caseId}`);
+          router.push(`/hr/onboarding/${employeeId}`);
         }}
       />
 
@@ -190,10 +150,7 @@ export default function OnboardingPage() {
           aria-label="Search onboarding cases"
           className="sm:max-w-[320px]"
         />
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as typeof ALL | OnboardingStatus)}
-        >
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
           <SelectTrigger className="sm:w-[200px]" aria-label="Filter by status">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
@@ -225,8 +182,8 @@ export default function OnboardingPage() {
               action={hasFilters ? undefined : { label: "Start onboarding", onClick: () => setStartOpen(true) }}
             />
           }
-          onRowClick={(r) => router.push(`/hr/onboarding/${r.caseId}`)}
-          getRowId={(r) => r.caseId}
+          onRowClick={(r) => router.push(`/hr/onboarding/${r.employeeId}`)}
+          getRowId={(r) => r.employeeId}
         />
       </div>
     </div>
@@ -236,46 +193,40 @@ export default function OnboardingPage() {
 // ─── start onboarding dialog ──────────────────────────────────────────────────
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NEW_HIRE = "__new__";
-
-const DEFAULT_FIELDS = [
-  { label: "T-shirt size", value: "" },
-  { label: "Emergency contact", value: "" },
-  { label: "Equipment", value: "" },
-];
-const DEFAULT_DOCS: OnboardingCase["documents"] = [
-  { name: "Signed contract", status: "PENDING" },
-  { name: "Government ID", status: "PENDING" },
-  { name: "Tax form", status: "PENDING" },
-];
 
 function StartOnboardingDialog({
   open,
   onOpenChange,
-  existingCases,
   onStarted,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  existingCases: CaseRow[];
-  onStarted: (caseId: string) => void;
+  onStarted: (employeeId: string) => void;
 }) {
-  // Pick an existing ONBOARDING-status employee without a case, or create a new hire.
-  const candidates = useMemo(() => {
-    const employees = readCollection<DemoEmployee>("employees");
-    const withCase = new Set(existingCases.map((c) => c.employeeId));
-    return employees.filter((e) => e.employeeStatus === "ONBOARDING" && !withCase.has(e.employeeId));
-  }, [existingCases]);
+  // Active employees are the valid supervisor candidates.
+  const { employees: activeEmployees } = useEmployees({ status: "active", limit: 100 });
+  const onboard = useOnboardEmployee();
 
-  const [pick, setPick] = useState<string>(NEW_HIRE);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [errors, setErrors] = useState<{ name?: string; email?: string }>({});
+  const [companyEmail, setCompanyEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [department, setDepartment] = useState("");
+  const [supervisorId, setSupervisorId] = useState("");
+  const [errors, setErrors] = useState<{
+    companyEmail?: string;
+    jobTitle?: string;
+    department?: string;
+    supervisorId?: string;
+  }>({});
 
   function reset() {
-    setPick(NEW_HIRE);
-    setName("");
-    setEmail("");
+    setCompanyEmail("");
+    setFirstName("");
+    setLastName("");
+    setJobTitle("");
+    setDepartment("");
+    setSupervisorId("");
     setErrors({});
   }
 
@@ -284,87 +235,42 @@ function StartOnboardingDialog({
     onOpenChange(next);
   }
 
-  function newCase(employeeId: string): string {
-    const cases = readCollection<OnboardingCase>("onboardingCases");
-    const id = `ob-${Date.now().toString(36)}`;
-    const created: OnboardingCase = {
-      id,
-      employeeId,
-      status: "INVITED",
-      progress: 0,
-      customFields: DEFAULT_FIELDS.map((f) => ({ ...f })),
-      documents: DEFAULT_DOCS.map((d) => ({ ...d })),
-      invitedAt: new Date().toISOString(),
-    };
-    writeCollection<OnboardingCase>("onboardingCases", [...cases, created]);
-    return id;
-  }
-
   function handleSubmit() {
-    if (pick !== NEW_HIRE) {
-      const caseId = newCase(pick);
-      const emp = candidates.find((c) => c.employeeId === pick);
-      toast.success(`Onboarding started for ${emp?.displayName ?? "employee"}.`);
-      reset();
-      onOpenChange(false);
-      onStarted(caseId);
-      return;
-    }
-
-    // New hire path — create the employee (status ONBOARDING) + user + case.
-    const next: { name?: string; email?: string } = {};
-    if (!name.trim()) next.name = "Name is required.";
-    if (!EMAIL_RE.test(email.trim())) next.email = "Enter a valid email address.";
-    const employees = readCollection<DemoEmployee>("employees");
-    const users = readCollection<UserAccount>("users");
-    if (!next.email && users.some((u) => u.email.toLowerCase() === email.trim().toLowerCase())) {
-      next.email = "A user with this email already exists.";
-    }
+    const next: typeof errors = {};
+    if (!EMAIL_RE.test(companyEmail.trim())) next.companyEmail = "Enter a valid email address.";
+    if (!jobTitle.trim()) next.jobTitle = "Job title is required.";
+    if (!department.trim()) next.department = "Department is required.";
+    if (!supervisorId) next.supervisorId = "Select a supervisor.";
     setErrors(next);
-    if (next.name || next.email) return;
+    if (Object.keys(next).length > 0) return;
 
-    const stamp = Date.now().toString(36);
-    const employeeId = `e-${stamp}`;
-    const userId = `u-${stamp}`;
-    const nowIso = new Date().toISOString();
-
-    const newEmployee: DemoEmployee = {
-      employeeId,
-      userId,
-      displayName: name.trim(),
-      email: email.trim(),
-      role: "EMPLOYEE",
-      isSupervisor: false,
-      isActive: true,
-      jobTitle: "New hire",
-      department: "Unassigned",
-      employeeStatus: "ONBOARDING",
-      supervisorId: null,
-      teamId: null,
-      startDate: nowIso.slice(0, 10),
-    };
-    const newUser: UserAccount = {
-      id: userId,
-      employeeId,
-      email: email.trim(),
-      role: "EMPLOYEE",
-      isActive: true,
-      lastActiveAt: nowIso,
-    };
-    writeCollection<DemoEmployee>("employees", [...employees, newEmployee]);
-    writeCollection<UserAccount>("users", [...users, newUser]);
-
-    const caseId = newCase(employeeId);
-    toast.success(`Onboarding started for ${newEmployee.displayName}.`);
-    reset();
-    onOpenChange(false);
-    onStarted(caseId);
+    onboard.mutate(
+      {
+        companyEmail: companyEmail.trim(),
+        jobTitle: jobTitle.trim(),
+        department: department.trim(),
+        supervisorId,
+        firstName: firstName.trim() || undefined,
+        lastName: lastName.trim() || undefined,
+      },
+      {
+        onSuccess: (result) => {
+          toast.success(`Onboarding started for ${result.employee.companyEmail}.`);
+          reset();
+          onOpenChange(false);
+          onStarted(result.employee.id);
+        },
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : "Could not start onboarding.");
+        },
+      },
+    );
   }
 
-  const options = [
-    { value: NEW_HIRE, label: "+ New hire (create employee)" },
-    ...candidates.map((c) => ({ value: c.employeeId, label: `${c.displayName} · ${c.email}` })),
-  ];
+  const supervisorOptions = activeEmployees.map((e) => ({
+    value: e.id,
+    label: `${e.fullName} · ${e.companyEmail}`,
+  }));
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -372,48 +278,73 @@ function StartOnboardingDialog({
         <DialogHeader>
           <DialogTitle>Start onboarding</DialogTitle>
           <DialogDescription>
-            Invite a new hire or pick an existing onboarding employee without a case.
+            Create a new hire and send their onboarding invitation.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <FormField label="Employee">
-            <Combobox
-              options={options}
-              value={pick}
-              onChange={(v) => setPick(v || NEW_HIRE)}
-              placeholder="Select…"
-              searchPlaceholder="Search employees…"
-              emptyText="No candidates found."
+          <FormField label="Work email" htmlFor="ob-email" required error={errors.companyEmail}>
+            <Input
+              id="ob-email"
+              type="email"
+              value={companyEmail}
+              onChange={(e) => setCompanyEmail(e.target.value)}
+              placeholder="name@swiftwork.demo"
             />
           </FormField>
-
-          {pick === NEW_HIRE && (
-            <>
-              <FormField label="Full name" htmlFor="ob-name" required error={errors.name}>
-                <Input
-                  id="ob-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Jordan Park"
-                />
-              </FormField>
-              <FormField label="Email" htmlFor="ob-email" required error={errors.email}>
-                <Input
-                  id="ob-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@swiftwork.demo"
-                />
-              </FormField>
-            </>
-          )}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="First name" htmlFor="ob-first">
+              <Input
+                id="ob-first"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="e.g. Jordan"
+              />
+            </FormField>
+            <FormField label="Last name" htmlFor="ob-last">
+              <Input
+                id="ob-last"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="e.g. Park"
+              />
+            </FormField>
+          </div>
+          <FormField label="Job title" htmlFor="ob-title" required error={errors.jobTitle}>
+            <Input
+              id="ob-title"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="e.g. Nurse"
+            />
+          </FormField>
+          <FormField label="Department" htmlFor="ob-dept" required error={errors.department}>
+            <Input
+              id="ob-dept"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              placeholder="e.g. Patient Care"
+            />
+          </FormField>
+          <FormField label="Supervisor" required error={errors.supervisorId}>
+            <Combobox
+              options={supervisorOptions}
+              value={supervisorId}
+              onChange={(v) => setSupervisorId(v || "")}
+              placeholder="Select a supervisor…"
+              searchPlaceholder="Search employees…"
+              emptyText="No active employees found."
+            />
+          </FormField>
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => handleOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>Start onboarding</Button>
+          <Button variant="secondary" onClick={() => handleOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={onboard.isPending}>
+            {onboard.isPending ? "Starting…" : "Start onboarding"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

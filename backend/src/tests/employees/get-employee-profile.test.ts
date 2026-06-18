@@ -2,13 +2,17 @@ import request from "supertest";
 import { app } from "../../app";
 import {
   buildEmployeeProfileRecord,
+  buildViewer,
   findFirstMock,
   resetEmployeeMocks,
 } from "./employees-test.helpers";
 
-// Mock auth because this endpoint is temporarily unauthenticated while API behavior is tested.
+// Authenticate as HR so the profile is returned unredacted (HR is a privileged viewer).
 jest.mock("../../core/middleware/auth.middleware", () => ({
-  authenticate: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authenticate: (req: { user?: unknown }, _res: unknown, next: () => void) => {
+    req.user = buildViewer({ role: "HR" });
+    next();
+  },
 }));
 
 // Mock Prisma so this profile test controls the exact HR-visible employee record.

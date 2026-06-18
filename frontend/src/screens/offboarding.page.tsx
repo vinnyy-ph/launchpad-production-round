@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+"use client";
+
 import { DoorOpen, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { readCollection } from "@/shared/mock/db";
-import type { OffboardingCase, DemoEmployee, ClearanceStatus } from "@/shared/mock/types";
-import { EmptyState, StatusBadge, ProgressBar, PageSection } from "@/shared/ui/patterns";
+import { useMyOffboarding } from "@/modules/people/offboarding";
+import type { SignatoryStatus, SignatureRequest } from "@/modules/people/offboarding";
+import { EmptyState, ErrorState, StatusBadge, ProgressBar, PageSection } from "@/shared/ui/patterns";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
 
-function signatoryName(ownerEmployeeId: string, employees: DemoEmployee[]): string {
-  return employees.find((e) => e.employeeId === ownerEmployeeId)?.displayName ?? ownerEmployeeId;
+function fullName(p: { firstName: string; lastName: string }): string {
+  return `${p.firstName} ${p.lastName}`.trim();
 }
 
 function formatDate(iso: string): string {
@@ -19,7 +20,7 @@ function formatDate(iso: string): string {
   });
 }
 
-function ClearanceIcon({ status }: { status: ClearanceStatus }) {
+function ClearanceIcon({ status }: { status: SignatoryStatus }) {
   if (status === "SIGNED") return <CheckCircle2 size={16} className="text-[#067647]" aria-hidden="true" />;
   if (status === "REJECTED") return <XCircle size={16} className="text-[#B42318]" aria-hidden="true" />;
   return <Clock size={16} className="text-[color:var(--text-tertiary)]" aria-hidden="true" />;
@@ -55,23 +56,19 @@ function LoadingSkeleton() {
 
 export default function OffboardingHubPage() {
   const { appUser } = useAuth();
-  const [ofCase, setOfCase] = useState<OffboardingCase | null | undefined>(undefined);
-  const [employees, setEmployees] = useState<DemoEmployee[]>([]);
+  const { offboarding, loading, error, reload } = useMyOffboarding(Boolean(appUser?.employeeId));
 
-  useEffect(() => {
-    try {
-      const cases = readCollection<OffboardingCase>("offboardingCases");
-      const emps = readCollection<DemoEmployee>("employees");
-      setOfCase(cases.find((c) => c.employeeId === appUser?.employeeId) ?? null);
-      setEmployees(emps);
-    } catch {
-      setOfCase(null);
-    }
-  }, [appUser?.employeeId]);
+  if (loading) return <LoadingSkeleton />;
 
-  if (ofCase === undefined) return <LoadingSkeleton />;
+  if (error) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <ErrorState message={error} onRetry={reload} />
+      </div>
+    );
+  }
 
-  if (ofCase === null) {
+  if (!offboarding) {
     return (
       <EmptyState
         icon={DoorOpen}
@@ -81,8 +78,9 @@ export default function OffboardingHubPage() {
     );
   }
 
-  const total = ofCase.clearances.length;
-  const signed = ofCase.clearances.filter((c) => c.status === "SIGNED").length;
+  const requests: SignatureRequest[] = offboarding.signatureRequests;
+  const total = requests.length;
+  const signed = requests.filter((r) => r.status === "SIGNED").length;
   const pct = total > 0 ? Math.round((signed / total) * 100) : 0;
 
   return (
@@ -97,11 +95,13 @@ export default function OffboardingHubPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <p className="text-sm font-bold text-[color:var(--text-primary)]">
-              Last day: {formatDate(ofCase.lastDay)}
+              Last day: {formatDate(offboarding.effectiveDate)}
             </p>
-            <p className="text-sm text-[color:var(--text-secondary)]">{ofCase.reason}</p>
+            <p className="text-sm text-[color:var(--text-secondary)]">
+              Tendered {formatDate(offboarding.tenderDate)}
+            </p>
           </div>
-          <StatusBadge status={ofCase.status} dot />
+          <StatusBadge status={offboarding.status} dot />
         </div>
         <ProgressBar
           value={pct}
@@ -116,27 +116,27 @@ export default function OffboardingHubPage() {
           className="rounded-xl border border-[color:var(--border-primary)] bg-white overflow-hidden"
           style={{ boxShadow: "var(--shadow-xs)" }}
         >
-          {ofCase.clearances.length === 0 ? (
+          {requests.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-[color:var(--text-tertiary)]">
               No clearance items.
             </p>
           ) : (
             <ul className="divide-y divide-[color:var(--border-primary)]">
-              {ofCase.clearances.map((cl, idx) => (
-                <li key={idx} className="flex items-start gap-3 px-4 py-3">
+              {requests.map((req) => (
+                <li key={req.id} className="flex items-start gap-3 px-4 py-3">
                   <span className="mt-0.5 flex-shrink-0">
-                    <ClearanceIcon status={cl.status} />
+                    <ClearanceIcon status={req.status} />
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[color:var(--text-primary)]">{cl.dept}</p>
+                    <p className="text-sm font-medium text-[color:var(--text-primary)]">{req.purpose}</p>
                     <p className="text-xs text-[color:var(--text-secondary)]">
-                      {signatoryName(cl.ownerEmployeeId, employees)}
+                      {fullName(req.signatory)}
                     </p>
-                    {cl.status === "REJECTED" && cl.note && (
-                      <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">{cl.note}</p>
+                    {req.status === "REJECTED" && req.note && (
+                      <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">{req.note}</p>
                     )}
                   </div>
-                  <StatusBadge status={cl.status} />
+                  <StatusBadge status={req.status} />
                 </li>
               ))}
             </ul>

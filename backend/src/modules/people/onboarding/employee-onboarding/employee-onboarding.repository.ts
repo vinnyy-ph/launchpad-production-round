@@ -1,4 +1,4 @@
-import type { DocumentStatus, InviteStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { tryExtractNormalizedPhilippinePhone } from "../../../shared/phone";
 import { prisma } from "../../../../core/database/prisma.service";
 import type {
@@ -19,31 +19,50 @@ export class EmployeeOnboardingRepository {
       where: {
         employee: { userId },
       },
-      include: {
-        employee: {
-          include: {
-            department: { select: { name: true } },
-          },
-        },
-        template: {
-          include: {
-            documents: { orderBy: { createdAt: "asc" } },
-            customFields: { orderBy: { createdAt: "asc" } },
-          },
-        },
-        documentSubmissions: {
-          orderBy: { submittedAt: "desc" },
-          include: {
-            document: { select: { id: true, documentName: true } },
-          },
-        },
-        customFieldValues: true,
-        invitations: {
-          orderBy: { sentAt: "desc" },
-          take: 1,
+      include: this.statusInclude,
+    });
+  }
+
+  /**
+   * Loads the onboarding record for an employee (by employee id), including
+   * the same template checklist data as {@link findRecordByUserId}. Used by the
+   * HR-scoped status endpoint so HR can inspect a specific new hire's progress.
+   */
+  async findRecordByEmployeeId(employeeId: string) {
+    return prisma.onboardingRecord.findFirst({
+      where: { employeeId },
+      include: this.statusInclude,
+    });
+  }
+
+  /** Shared relation graph powering the onboarding status DTO. */
+  private get statusInclude() {
+    return {
+      employee: {
+        include: {
+          department: { select: { name: true } },
+          address: { select: { address: true } },
+          emergencyContact: { select: { emergencyContactNumber: true } },
         },
       },
-    });
+      template: {
+        include: {
+          documents: { orderBy: { createdAt: "asc" } },
+          customFields: { orderBy: { createdAt: "asc" } },
+        },
+      },
+      documentSubmissions: {
+        orderBy: { submittedAt: "desc" },
+        include: {
+          document: { select: { id: true, documentName: true } },
+        },
+      },
+      customFieldValues: true,
+      invitations: {
+        orderBy: { sentAt: "desc" },
+        take: 1,
+      },
+    } satisfies Prisma.OnboardingRecordInclude;
   }
 
   /** Finds the latest pending invitation for an onboarding record. */
@@ -73,14 +92,14 @@ export class EmployeeOnboardingRepository {
     const employees = await prisma.employee.findMany({
       where: {
         id: { not: excludeEmployeeId },
-        emergencyContact: { not: null },
+        NOT: { emergencyContact: null },
       },
-      select: { emergencyContact: true },
+      select: { emergencyContact: { select: { emergencyContactNumber: true } } },
     });
 
     return employees.some((employee) => {
       const existingPhone = tryExtractNormalizedPhilippinePhone(
-        employee.emergencyContact!,
+        employee.emergencyContact!.emergencyContactNumber ?? "",
       );
 
       return existingPhone === normalizedPhone;
@@ -97,11 +116,29 @@ export class EmployeeOnboardingRepository {
         middleName: dto.middleName,
         personalEmail: dto.personalEmail?.toLowerCase(),
         birthday: dto.birthday ? new Date(dto.birthday) : undefined,
-        address: dto.address,
-        emergencyContact: dto.emergencyContact,
+        address:
+          dto.address === undefined
+            ? undefined
+            : {
+                upsert: {
+                  create: { address: dto.address },
+                  update: { address: dto.address },
+                },
+              },
+        emergencyContact:
+          dto.emergencyContact === undefined
+            ? undefined
+            : {
+                upsert: {
+                  create: { emergencyContactNumber: dto.emergencyContact },
+                  update: { emergencyContactNumber: dto.emergencyContact },
+                },
+              },
       },
       include: {
         department: { select: { name: true } },
+        address: { select: { address: true } },
+        emergencyContact: { select: { emergencyContactNumber: true } },
       },
     });
   }

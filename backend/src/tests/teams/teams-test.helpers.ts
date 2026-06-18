@@ -1,3 +1,4 @@
+import type { Role } from "@prisma/client";
 import { prisma } from "../../core/database/prisma.service";
 
 // These mocks keep team endpoint tests deterministic and independent from a real database.
@@ -11,6 +12,23 @@ export const teamMemberCreateManyMock = mockedPrisma.teamMember.createMany as je
 export const teamMemberDeleteManyMock = mockedPrisma.teamMember.deleteMany as jest.Mock;
 export const employeeCountMock = mockedPrisma.employee.count as jest.Mock;
 export const transactionMock = mockedPrisma.$transaction as jest.Mock;
+
+/**
+ * Builds a minimal User row matching req.user, used by the auth mock to act as a given caller.
+ * Team write endpoints are restricted to HR/Admin via requireRole.
+ */
+export function buildViewer(overrides?: { id?: string; role?: Role }) {
+  return {
+    id: overrides?.id ?? "viewer-user-id",
+    email: "viewer@example.com",
+    googleId: null,
+    role: overrides?.role ?? ("HR" as Role),
+    isActive: true,
+    lastLoginAt: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+}
 
 /** Clears team-related Prisma mocks before each scenario so tests cannot leak state. */
 export function resetTeamMocks() {

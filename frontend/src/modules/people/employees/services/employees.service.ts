@@ -4,6 +4,7 @@ import type {
   EmployeeListItem,
   EmployeeListMeta,
   EmployeeProfile,
+  EmployeeUpdateInput,
 } from "../types/employees.types";
 
 export interface EmployeeListResult {
@@ -37,4 +38,15 @@ export async function getEmployees(filters: EmployeeFilters = {}): Promise<Emplo
 
 export async function getEmployeeProfile(employeeId: string): Promise<EmployeeProfileResult> {
   return apiFetch<EmployeeProfileResult>(`${BASE}/${employeeId}`);
+}
+
+/** Updates an employee profile (HR/Admin only). Returns the refreshed full profile. */
+export async function updateEmployee(
+  employeeId: string,
+  input: EmployeeUpdateInput,
+): Promise<EmployeeProfileResult> {
+  return apiFetch<EmployeeProfileResult>(`${BASE}/${employeeId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
 }

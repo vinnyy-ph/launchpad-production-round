@@ -2,14 +2,12 @@
 
 import type { ReactNode } from "react";
 import { SwiftWorkLogo } from "@/shared/components/brand/swift-work-logo";
-import { RoleSwitcher } from "./role-switcher";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 
 /**
  * Focused chrome for the onboarding wizard. A still-onboarding hire has no other
  * screens yet, so we deliberately drop the app sidebar — the wizard is the whole
- * first session. Just a brand bar (with the demo role switcher to escape) over a
- * centered canvas.
+ * first session. Just a brand bar over a centered canvas.
  */
 export function OnboardingShell({ children }: { children: ReactNode }) {
   const { appUser } = useAuth();
@@ -29,7 +27,6 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
               {appUser.displayName}
             </span>
           )}
-          <RoleSwitcher />
         </div>
       </header>
       <main className="flex-1 overflow-y-auto">

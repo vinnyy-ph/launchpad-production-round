@@ -28,6 +28,39 @@ export const queryKeys = {
       status ? (["evaluations", "list", status] as const) : (["evaluations", "list"] as const),
     reviewees: ["evaluations", "reviewees"] as const,
   },
+  onboarding: {
+    all: ["onboarding"] as const,
+    // HR list of onboarding employees (employees filtered by status=onboarding).
+    records: (filters?: Record<string, unknown>) =>
+      filters ? (["onboarding", "records", filters] as const) : (["onboarding", "records"] as const),
+    // HR document submissions to review, optionally scoped by status.
+    reviews: (status?: string) =>
+      status ? (["onboarding", "reviews", status] as const) : (["onboarding", "reviews"] as const),
+    documentConfigs: ["onboarding", "document-configs"] as const,
+    customFieldConfigs: ["onboarding", "custom-field-configs"] as const,
+    // One new hire's onboarding checklist (answers + submissions) for HR/Admin.
+    status: (employeeId: string) => ["onboarding", "status", employeeId] as const,
+    // The signed-in employee's own onboarding checklist.
+    mine: ["onboarding", "mine"] as const,
+  },
+  offboarding: {
+    all: ["offboarding"] as const,
+    // HR (all) / supervisor (downward chain) list of offboarding cases.
+    list: ["offboarding", "list"] as const,
+    // One offboarding case detail.
+    detail: (id: string) => ["offboarding", "detail", id] as const,
+    // The signed-in employee's own offboarding case.
+    mine: ["offboarding", "mine"] as const,
+  },
+  clearance: {
+    all: ["clearance"] as const,
+    // Clearance requests assigned to the signed-in signatory.
+    assigned: ["clearance", "assigned"] as const,
+  },
+  supervisorOnboarding: {
+    // The onboarding side of a supervisor's downward chain (read-only consume).
+    status: ["supervisor-onboarding", "status"] as const,
+  },
   surveys: {
     all: ["surveys"] as const,
     list: (status?: string) =>

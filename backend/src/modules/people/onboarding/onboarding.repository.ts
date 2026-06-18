@@ -40,12 +40,14 @@ export class OnboardingRepository {
    */
   async emergencyContactPhoneInUse(normalizedPhone: string): Promise<boolean> {
     const employees = await prisma.employee.findMany({
-      where: { emergencyContact: { not: null } },
-      select: { emergencyContact: true },
+      where: { NOT: { emergencyContact: null } },
+      select: { emergencyContact: { select: { emergencyContactNumber: true } } },
     });
 
     return employees.some((employee) => {
-      const existingPhone = tryExtractNormalizedPhilippinePhone(employee.emergencyContact!);
+      const existingPhone = tryExtractNormalizedPhilippinePhone(
+        employee.emergencyContact!.emergencyContactNumber ?? "",
+      );
 
       return existingPhone === normalizedPhone;
     });
@@ -77,8 +79,12 @@ export class OnboardingRepository {
           middleName: dto.middleName ?? null,
           personalEmail: dto.personalEmail ?? null,
           birthday: dto.birthday ? new Date(dto.birthday) : null,
-          address: dto.address ?? null,
-          emergencyContact: dto.emergencyContact ?? null,
+          address: dto.address
+            ? { create: { address: dto.address } }
+            : undefined,
+          emergencyContact: dto.emergencyContact
+            ? { create: { emergencyContactNumber: dto.emergencyContact } }
+            : undefined,
           jobTitle: dto.jobTitle,
           supervisor: { connect: { id: dto.supervisorId } },
           department: {
@@ -91,6 +97,8 @@ export class OnboardingRepository {
         include: {
           department: { select: { name: true } },
           supervisor: { select: { id: true, firstName: true, lastName: true } },
+          address: { select: { address: true } },
+          emergencyContact: { select: { emergencyContactNumber: true } },
         },
       });
 
@@ -129,6 +137,8 @@ export class OnboardingRepository {
         employee: {
           include: {
             department: { select: { name: true } },
+            address: { select: { address: true } },
+            emergencyContact: { select: { emergencyContactNumber: true } },
           },
         },
         template: {

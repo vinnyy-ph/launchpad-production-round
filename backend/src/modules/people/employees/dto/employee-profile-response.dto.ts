@@ -37,6 +37,30 @@ export interface EmployeeProfileDto {
 }
 
 /**
- * Success envelope returned by GET /api/v1/employees/:employeeId.
+ * Redacted employee profile for viewers who are not HR, Admin, or the subject themselves.
+ * Drops the sensitive fields (personalEmail, birthday, address, emergencyContact) server-side
+ * so they never reach the payload. Keeps directory-safe identity, work, team, and supervisor data.
  */
-export type EmployeeProfileResponseDto = ApiSuccessResponseDto<EmployeeProfileDto>;
+export interface RedactedEmployeeProfileDto {
+  id: string;
+  userId: string;
+  companyEmail: string;
+  firstName: string;
+  lastName: string;
+  middleName: string | null;
+  fullName: string;
+  jobTitle: string | null;
+  department: string | null;
+  status: EmployeeStatusDto;
+  teams: EmployeeTeamResponseDto[];
+  ledTeams: EmployeeLedTeamResponseDto[];
+  supervisor: EmployeeSupervisorResponseDto | null;
+}
+
+/**
+ * Success envelope returned by GET /api/v1/employees/:employeeId.
+ * HR/Admin/self receive the full profile; any other viewer receives the redacted profile.
+ */
+export type EmployeeProfileResponseDto = ApiSuccessResponseDto<
+  EmployeeProfileDto | RedactedEmployeeProfileDto
+>;

@@ -56,6 +56,15 @@ export const API_SUCCESS_MESSAGES = {
   OCCURRENCE_RETRIEVED: "Pulse survey occurrence retrieved successfully",
   PENDING_SURVEYS_RETRIEVED: "Pending pulse surveys retrieved successfully",
   SURVEY_RESULTS_RETRIEVED: "Pulse survey results retrieved successfully",
+  OFFBOARDING_INITIATED: "Offboarding initiated successfully",
+  OFFBOARDING_RECORDS_RETRIEVED: "Offboarding records retrieved successfully",
+  OFFBOARDING_RECORD_RETRIEVED: "Offboarding record retrieved successfully",
+  REPORTS_REASSIGNED: "Reports and team leadership reassigned successfully",
+  CLEARANCE_REQUESTS_RETRIEVED:
+    "Clearance signature requests retrieved successfully",
+  CLEARANCE_SIGNED: "Clearance signed successfully",
+  CLEARANCE_REJECTED: "Clearance rejected successfully",
+  CLEARANCE_RESET: "Clearance request reset to pending successfully",
 } as const;
 
 export type ApiSuccessMessage =

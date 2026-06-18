@@ -1,10 +1,13 @@
 import request from "supertest";
 import { app } from "../../app";
-import { findFirstMock, resetEmployeeMocks } from "./employees-test.helpers";
+import { buildViewer, findFirstMock, resetEmployeeMocks } from "./employees-test.helpers";
 
-// Mock auth because this test targets profile lookup behavior, not authentication.
+// Authenticate as HR so the request reaches the profile lookup path under test.
 jest.mock("../../core/middleware/auth.middleware", () => ({
-  authenticate: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authenticate: (req: { user?: unknown }, _res: unknown, next: () => void) => {
+    req.user = buildViewer({ role: "HR" });
+    next();
+  },
 }));
 
 // Prisma returns null when the requested employee does not exist.

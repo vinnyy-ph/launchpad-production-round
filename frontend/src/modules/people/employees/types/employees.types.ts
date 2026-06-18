@@ -69,14 +69,53 @@ export interface EmployeeDirectReport {
   status: EmployeeStatus;
 }
 
+/**
+ * Employee profile (GET /api/v1/employees/:id). The endpoint returns a UNION: HR/Admin/self get
+ * the full profile, while any other viewer gets a redacted profile that OMITS personalEmail,
+ * birthday, address, emergencyContact (and the account/audit fields). The sensitive and full-only
+ * fields are typed optional so the UI handles both shapes — hide a section when its field is absent.
+ */
 export interface EmployeeProfile extends EmployeeListItem {
-  user: EmployeeUser;
-  personalEmail: string | null;
-  birthday: string | null;
+  user?: EmployeeUser;
+  personalEmail?: string | null;
+  birthday?: string | null;
   ledTeams: EmployeeTeam[];
-  directReports: EmployeeDirectReport[];
-  createdAt: string;
-  updatedAt: string;
+  directReports?: EmployeeDirectReport[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** Address fields HR can edit on a profile. Null clears the stored value. */
+export interface EmployeeAddressInput {
+  address?: string | null;
+  city?: string | null;
+  province?: string | null;
+  country?: string | null;
+}
+
+/** Emergency contact fields HR can edit on a profile. Null clears the stored value. */
+export interface EmployeeEmergencyContactInput {
+  emergencyContactName?: string | null;
+  emergencyContactNumber?: string | null;
+}
+
+/**
+ * Body for PATCH /api/v1/employees/:id (HR/Admin only). Every field is optional; only the
+ * provided keys are updated. Nullable fields can be sent as null to clear the stored value.
+ */
+export interface EmployeeUpdateInput {
+  companyEmail?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string | null;
+  personalEmail?: string | null;
+  birthday?: string | null;
+  address?: EmployeeAddressInput | null;
+  emergencyContact?: EmployeeEmergencyContactInput | null;
+  jobTitle?: string | null;
+  department?: string | null;
+  supervisorId?: string | null;
+  status?: EmployeeStatus;
 }
 
 export interface EmployeeFilters {

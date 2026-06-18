@@ -14,7 +14,9 @@ export type NotificationType =
 export interface Notification {
   id: string;
   type: NotificationType;
-  recipientEmployeeId: string;
+  // Recipient scoping is server-side (the endpoint returns only the caller's
+  // notifications), so the real DTO omits this. Kept optional for mock seed data.
+  recipientEmployeeId?: string;
   subject: string;
   body: string;
   linkUrl: string | null;

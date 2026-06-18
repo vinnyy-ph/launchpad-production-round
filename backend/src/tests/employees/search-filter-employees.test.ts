@@ -1,10 +1,13 @@
 import request from "supertest";
 import { app } from "../../app";
-import { countMock, findManyMock, resetEmployeeMocks } from "./employees-test.helpers";
+import { buildViewer, countMock, findManyMock, resetEmployeeMocks } from "./employees-test.helpers";
 
-// Keep this route test isolated from Firebase auth setup imported by app.ts.
+// Authenticate as HR so the request reaches the repository query under test.
 jest.mock("../../core/middleware/auth.middleware", () => ({
-  authenticate: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authenticate: (req: { user?: unknown }, _res: unknown, next: () => void) => {
+    req.user = buildViewer({ role: "HR" });
+    next();
+  },
 }));
 
 // Mock Prisma so the test can assert generated query behavior directly.

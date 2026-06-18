@@ -15,6 +15,12 @@ export interface Team {
   updatedAt: string;
 }
 
+export interface CreateTeamInput {
+  name: string;
+  leaderId: string;
+  memberIds: string[];
+}
+
 export interface TeamFilters {
   page?: number;
   limit?: number;

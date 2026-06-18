@@ -20,6 +20,16 @@ onboardingRouter.post(
   onboardingController.completeOnboarding,
 );
 
+/**
+ * Reads one new hire's onboarding checklist (custom-field answers + document
+ * submission statuses) for an HR/Admin viewer. HR and Admin only.
+ */
+onboardingRouter.get(
+  "/:employeeId/status",
+  requireRole("ADMIN", "HR"),
+  onboardingController.getStatus,
+);
+
 /** HR-managed required onboarding documents. */
 onboardingRouter.use("/documents", documentsRouter);
 

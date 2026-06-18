@@ -1,35 +1,33 @@
 
 import { Router } from "express";
+import { requireRole } from "../../../core/middleware/roles.middleware";
 import { TeamsController } from "./teams.controller";
 
 const teamsController = new TeamsController();
 
 export const teamsRouter = Router();
 
-/** Lists teams for HR directory management. */
-// TODO: Re-enable authentication and HR authorization after temporary endpoint testing is complete.
+/** Lists teams. Any authenticated user may view the team/org directory. */
 teamsRouter.get("/", teamsController.listTeams);
 
-/** Creates a team with a leader and members. */
-// TODO: Re-enable authentication and HR authorization after temporary endpoint testing is complete.
-teamsRouter.post("/", teamsController.createTeam);
+/** Creates a team with a leader and members. Restricted to HR and Admin. */
+teamsRouter.post("/", requireRole("ADMIN", "HR"), teamsController.createTeam);
 
-/** Updates a team's display name without changing leader or member assignments. */
-// TODO: Re-enable authentication and HR authorization after temporary endpoint testing is complete.
-teamsRouter.patch("/:teamId", teamsController.updateTeamName);
+/** Updates a team's display name. Restricted to HR and Admin. */
+teamsRouter.patch("/:teamId", requireRole("ADMIN", "HR"), teamsController.updateTeamName);
 
-/** Adds one or more members without replacing existing team membership. */
-// TODO: Re-enable authentication and team-leader authorization after temporary endpoint testing is complete.
-teamsRouter.post("/:teamId/members", teamsController.addTeamMembers);
+/** Adds one or more members without replacing existing membership. Restricted to HR and Admin. */
+teamsRouter.post("/:teamId/members", requireRole("ADMIN", "HR"), teamsController.addTeamMembers);
 
-/** Allows a team leader or HR workflow to replace members while preserving leader membership. */
-// TODO: Re-enable authentication and team-leader authorization after temporary endpoint testing is complete.
-teamsRouter.put("/:teamId/members", teamsController.updateTeamMembers);
+/** Replaces members while preserving leader membership. Restricted to HR and Admin. */
+teamsRouter.put("/:teamId/members", requireRole("ADMIN", "HR"), teamsController.updateTeamMembers);
 
-/** Removes one or more members from a team while preventing leader removal. */
-// TODO: Re-enable authentication and team-leader authorization after temporary endpoint testing is complete.
-teamsRouter.delete("/:teamId/members", teamsController.removeTeamMembers);
+/** Removes one or more members while preventing leader removal. Restricted to HR and Admin. */
+teamsRouter.delete("/:teamId/members", requireRole("ADMIN", "HR"), teamsController.removeTeamMembers);
 
-/** Removes one member from a team while preventing leader removal. */
-// TODO: Re-enable authentication and team-leader authorization after temporary endpoint testing is complete.
-teamsRouter.delete("/:teamId/members/:employeeId", teamsController.removeTeamMember);
+/** Removes one member while preventing leader removal. Restricted to HR and Admin. */
+teamsRouter.delete(
+  "/:teamId/members/:employeeId",
+  requireRole("ADMIN", "HR"),
+  teamsController.removeTeamMember,
+);

@@ -1,31 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { PenLine, X } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { readCollection } from "@/shared/mock/db";
-import type { OffboardingCase } from "@/shared/mock/types";
+import { useAssignedClearances } from "@/modules/people/offboarding";
 
 export function ClearanceSignatureBanner() {
   const { appUser } = useAuth();
-  const [count, setCount] = useState(0);
+  const { clearances } = useAssignedClearances(Boolean(appUser?.employeeId));
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    if (!appUser?.employeeId) return;
-    const cases = readCollection<OffboardingCase>("offboardingCases");
-    const pending = cases.reduce(
-      (n, c) =>
-        n +
-        c.clearances.filter(
-          (cl) => cl.ownerEmployeeId === appUser.employeeId && cl.status === "PENDING",
-        ).length,
-      0,
-    );
-    setCount(pending);
-    if (pending > 0) setDismissed(false);
-  }, [appUser?.employeeId]);
+  const count = clearances.filter((c) => c.status === "PENDING").length;
 
   if (count === 0 || dismissed) return null;
 

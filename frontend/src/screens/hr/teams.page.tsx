@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { Network } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Network, Plus, UserCog, UserMinus, UserPlus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
+  Badge,
   Button,
-  Combobox,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,24 +21,19 @@ import {
   DialogHeader,
   DialogTitle,
   FormField,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
+  Input,
   Skeleton,
-  StatusBadge,
   EmptyState,
   ErrorState,
   StatCard,
+  useConfirm,
 } from "@/shared/ui";
-import { readCollection, writeCollection } from "@/shared/mock/db";
-import type { Team, DemoEmployee } from "@/shared/mock/types";
-import { OrgChart, allTeamIds } from "@/modules/people/employees/components/org-chart/org-chart";
-import { OrgChartControls } from "@/modules/people/employees/components/org-chart/org-chart-controls";
+import { useTeams } from "@/modules/people/teams/hooks/use-teams";
+import { useTeamMutations } from "@/modules/people/teams/hooks/use-team-mutations";
 import { CreateTeamDialog } from "@/modules/people/teams/components/create-team-dialog";
-
-const NONE = "__none__";
+import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAuth } from "@/modules/auth/hooks/use-auth";
+import type { Team, TeamEmployee } from "@/modules/people/teams/types/teams.types";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -39,127 +41,103 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
+function Avatar({ name, size = 7 }: { name: string; size?: 7 | 9 }) {
+  const dim = size === 9 ? "h-9 w-9 text-[11px]" : "h-7 w-7 text-[10px]";
+  return (
+    <span
+      className={`flex flex-shrink-0 items-center justify-center rounded-full font-bold text-white ${dim}`}
+      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
 export default function TeamsPage() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [employees, setEmployees] = useState<DemoEmployee[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { appUser } = useAuth();
+  const canManage = appUser?.role === "ADMIN" || appUser?.role === "HR";
 
-  // expand/collapse state — teamIds that are open
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const { teams, loading, error, reload } = useTeams();
+  const { employees } = useEmployees({ status: "active", limit: 100 });
+  const { rename, renaming, addMembers, addingMembers, removeMember } = useTeamMutations();
+  const confirm = useConfirm();
 
-  // dialogs / sheet
   const [createOpen, setCreateOpen] = useState(false);
-  const [profileId, setProfileId] = useState<string | null>(null);
-  const [leadTeamId, setLeadTeamId] = useState<string | null>(null);
-  const [moveEmployeeId, setMoveEmployeeId] = useState<string | null>(null);
+  const [renameTeam, setRenameTeam] = useState<Team | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [addTeam, setAddTeam] = useState<Team | null>(null);
+  const [addDraft, setAddDraft] = useState<Set<string>>(new Set());
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      const nextTeams = readCollection<Team>("teams");
-      setTeams(nextTeams);
-      setEmployees(readCollection<DemoEmployee>("employees"));
-      // default: expand the root level on first load
-      setExpanded((prev) => (prev.size === 0 ? new Set(nextTeams.filter((t) => t.parentId === null).map((t) => t.id)) : prev));
-    } catch {
-      setError("Could not load teams.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const employeeMap = useMemo(() => {
-    const map = new Map<string, DemoEmployee>();
-    for (const e of employees) map.set(e.employeeId, e);
-    return map;
-  }, [employees]);
-
-  const totalActiveMembers = useMemo(
-    () => employees.filter((e) => e.isActive).length,
-    [employees],
-  );
-
-  // ── expand/collapse ─────────────────────────────────────────────────────────
-  const toggle = useCallback((teamId: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(teamId)) next.delete(teamId);
-      else next.add(teamId);
-      return next;
-    });
-  }, []);
-
-  const expandAll = useCallback(() => setExpanded(new Set(allTeamIds(teams))), [teams]);
-  const collapseAll = useCallback(() => setExpanded(new Set()), []);
-
-  // ── change team lead ──────────────────────────────────────────────────────
-  const leadTeam = leadTeamId ? teams.find((t) => t.id === leadTeamId) ?? null : null;
-  const [leadDraft, setLeadDraft] = useState<string>(NONE);
-  useEffect(() => {
-    setLeadDraft(leadTeam?.leadEmployeeId ?? NONE);
-  }, [leadTeam]);
-
-  const saveLead = useCallback(() => {
-    if (!leadTeam) return;
-    const current = readCollection<Team>("teams");
-    const next = current.map((t) =>
-      t.id === leadTeam.id ? { ...t, leadEmployeeId: leadDraft === NONE ? null : leadDraft } : t,
-    );
-    writeCollection<Team>("teams", next);
-    toast.success("Team lead updated.");
-    setLeadTeamId(null);
-    load();
-  }, [leadTeam, leadDraft, load]);
-
-  // ── move member to another team ───────────────────────────────────────────
-  const moveEmployee = moveEmployeeId ? employeeMap.get(moveEmployeeId) ?? null : null;
-  const [moveDraft, setMoveDraft] = useState<string>("");
-  useEffect(() => {
-    setMoveDraft(moveEmployee?.teamId ?? "");
-  }, [moveEmployee]);
-
-  const saveMove = useCallback(() => {
-    if (!moveEmployee || !moveDraft || moveDraft === moveEmployee.teamId) {
-      setMoveEmployeeId(null);
-      return;
-    }
-    const fromTeamId = moveEmployee.teamId;
-    // 1) update employee's teamId
-    const emps = readCollection<DemoEmployee>("employees");
-    writeCollection<DemoEmployee>(
-      "employees",
-      emps.map((e) => (e.employeeId === moveEmployee.employeeId ? { ...e, teamId: moveDraft } : e)),
-    );
-    // 2) update team membership arrays (remove from old, add to new)
-    const current = readCollection<Team>("teams");
-    writeCollection<Team>(
-      "teams",
-      current.map((t) => {
-        if (t.id === fromTeamId) return { ...t, memberIds: t.memberIds.filter((id) => id !== moveEmployee.employeeId) };
-        if (t.id === moveDraft) return { ...t, memberIds: [...new Set([...t.memberIds, moveEmployee.employeeId])] };
-        return t;
-      }),
-    );
-    toast.success(`${moveEmployee.displayName} moved.`);
-    setMoveEmployeeId(null);
-    load();
-  }, [moveEmployee, moveDraft, load]);
-
-  // ── profile sheet ──────────────────────────────────────────────────────────
-  const profile = profileId ? employeeMap.get(profileId) ?? null : null;
-
-  const employeeOptions = useMemo(
-    () => employees.map((e) => ({ value: e.employeeId, label: `${e.displayName} · ${e.jobTitle}` })),
-    [employees],
-  );
-  const teamOptions = useMemo(
-    () => teams.map((t) => ({ value: t.id, label: t.name })),
+  const totalMembers = useMemo(
+    () => teams.reduce((sum, t) => sum + t.memberCount, 0),
     [teams],
   );
+  const existingNames = useMemo(() => teams.map((t) => t.name), [teams]);
+
+  function openRename(team: Team) {
+    setRenameTeam(team);
+    setRenameDraft(team.name);
+  }
+
+  async function saveRename() {
+    if (!renameTeam) return;
+    const trimmed = renameDraft.trim();
+    if (!trimmed || trimmed === renameTeam.name) {
+      setRenameTeam(null);
+      return;
+    }
+    try {
+      await rename({ teamId: renameTeam.id, name: trimmed });
+      toast.success("Team renamed.");
+      setRenameTeam(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not rename the team.");
+    }
+  }
+
+  function openAddMembers(team: Team) {
+    setAddTeam(team);
+    setAddDraft(new Set());
+  }
+
+  async function saveAddMembers() {
+    if (!addTeam || addDraft.size === 0) {
+      setAddTeam(null);
+      return;
+    }
+    try {
+      await addMembers({ teamId: addTeam.id, memberIds: Array.from(addDraft) });
+      toast.success(addDraft.size === 1 ? "Member added." : "Members added.");
+      setAddTeam(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not add members.");
+    }
+  }
+
+  async function handleRemoveMember(team: Team, member: TeamEmployee) {
+    const ok = await confirm({
+      title: "Remove member?",
+      description: `Remove ${member.fullName} from ${team.name}? They can be added back later.`,
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await removeMember({ teamId: team.id, employeeId: member.id });
+      toast.success(`${member.fullName} removed.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove the member.");
+    }
+  }
+
+  // Employees not already on the team being edited (leader + members excluded).
+  const addableEmployees = useMemo(() => {
+    if (!addTeam) return employees;
+    const present = new Set(addTeam.members.map((m) => m.id));
+    return employees.filter((e) => !present.has(e.id));
+  }, [addTeam, employees]);
 
   return (
     <div className="relative">
@@ -176,52 +154,62 @@ export default function TeamsPage() {
           level="page"
           title="Teams"
           subtitle="Organizational structure and team membership."
+          action={
+            canManage && !loading && !error && teams.length > 0 ? (
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus aria-hidden="true" />
+                Create team
+              </Button>
+            ) : undefined
+          }
         />
 
         {/* Stats row */}
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-2">
+        <div className="mb-6 grid grid-cols-2 gap-4">
           <StatCard label="Total teams" value={loading ? "—" : teams.length} />
-          <StatCard label="Active members" value={loading ? "—" : totalActiveMembers} />
+          <StatCard label="Team members" value={loading ? "—" : totalMembers} />
         </div>
 
         {/* Error state */}
         {error && (
           <div className="mb-6">
-            <ErrorState message={error} onRetry={load} />
+            <ErrorState message={error} onRetry={() => void reload()} />
           </div>
         )}
 
-        {/* Org chart */}
+        {/* Teams list */}
         {loading ? (
           <div className="space-y-3">
-            <Skeleton className="h-24 rounded-xl" />
-            <Skeleton className="ml-6 h-24 rounded-xl" />
-            <Skeleton className="ml-6 h-24 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
           </div>
         ) : !error && teams.length === 0 ? (
           <EmptyState
             icon={Network}
             title="No teams configured"
-            body="Create your first team to start building the org structure."
-            action={{ label: "Create team", onClick: () => setCreateOpen(true) }}
+            body={
+              canManage
+                ? "Create your first team to start building the org structure."
+                : "Teams will appear here once HR sets up the org structure."
+            }
+            action={
+              canManage ? { label: "Create team", onClick: () => setCreateOpen(true) } : undefined
+            }
           />
         ) : !error ? (
-          <>
-            <OrgChartControls
-              onExpandAll={expandAll}
-              onCollapseAll={collapseAll}
-              onCreateTeam={() => setCreateOpen(true)}
-            />
-            <OrgChart
-              teams={teams}
-              employees={employees}
-              expanded={expanded}
-              onToggle={toggle}
-              onOpenProfile={(id) => setProfileId(id)}
-              onChangeLead={(id) => setLeadTeamId(id)}
-              onMoveMember={(id) => setMoveEmployeeId(id)}
-            />
-          </>
+          <div className="space-y-3">
+            {teams.map((team) => (
+              <TeamCard
+                key={team.id}
+                team={team}
+                canManage={canManage}
+                onRename={() => openRename(team)}
+                onAddMembers={() => openAddMembers(team)}
+                onRemoveMember={(member) => void handleRemoveMember(team, member)}
+              />
+            ))}
+          </div>
         ) : null}
       </div>
 
@@ -229,114 +217,202 @@ export default function TeamsPage() {
       <CreateTeamDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        teams={teams}
         employees={employees}
-        onCreated={load}
+        existingNames={existingNames}
+        onCreated={() => void reload()}
       />
 
-      {/* Change lead dialog */}
-      <Dialog open={leadTeamId !== null} onOpenChange={(o) => { if (!o) setLeadTeamId(null); }}>
+      {/* Rename dialog */}
+      <Dialog open={renameTeam !== null} onOpenChange={(o) => { if (!o) setRenameTeam(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change team lead</DialogTitle>
-            <DialogDescription>{leadTeam ? `Set the lead for ${leadTeam.name}.` : ""}</DialogDescription>
+            <DialogTitle>Rename team</DialogTitle>
+            <DialogDescription>{renameTeam ? `Update the name for ${renameTeam.name}.` : ""}</DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <FormField label="Team lead">
-              <Combobox
-                options={employeeOptions}
-                value={leadDraft === NONE ? "" : leadDraft}
-                onChange={(v) => setLeadDraft(v || NONE)}
-                placeholder="Select a lead…"
-                searchPlaceholder="Search employees…"
-                emptyText="No employees found."
+            <FormField label="Team name" htmlFor="rename-team">
+              <Input
+                id="rename-team"
+                value={renameDraft}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                autoFocus
               />
             </FormField>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setLeadTeamId(null)}>Cancel</Button>
-            <Button onClick={saveLead}>Save</Button>
+            <Button variant="secondary" onClick={() => setRenameTeam(null)} disabled={renaming}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveRename()} disabled={renaming}>
+              {renaming ? "Saving…" : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Move member dialog */}
-      <Dialog open={moveEmployeeId !== null} onOpenChange={(o) => { if (!o) setMoveEmployeeId(null); }}>
+      {/* Add members dialog */}
+      <Dialog open={addTeam !== null} onOpenChange={(o) => { if (!o) setAddTeam(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Move member</DialogTitle>
+            <DialogTitle>Add members</DialogTitle>
             <DialogDescription>
-              {moveEmployee ? `Move ${moveEmployee.displayName} to another team.` : ""}
+              {addTeam ? `Add employees to ${addTeam.name}.` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <FormField label="Team">
-              <Combobox
-                options={teamOptions}
-                value={moveDraft}
-                onChange={(v) => setMoveDraft(v)}
-                placeholder="Select a team…"
-                searchPlaceholder="Search teams…"
-                emptyText="No teams found."
-              />
-            </FormField>
+            <Command className="rounded-lg border border-[color:var(--border-primary)]">
+              <CommandInput placeholder="Search employees…" />
+              <CommandList className="max-h-56">
+                <CommandEmpty>No employees available to add.</CommandEmpty>
+                <CommandGroup>
+                  {addableEmployees.map((e) => (
+                    <CommandItem
+                      key={e.id}
+                      value={`${e.fullName} ${e.jobTitle ?? ""}`}
+                      onSelect={() =>
+                        setAddDraft((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(e.id)) next.delete(e.id);
+                          else next.add(e.id);
+                          return next;
+                        })
+                      }
+                      className="gap-2"
+                    >
+                      <Checkbox
+                        checked={addDraft.has(e.id)}
+                        aria-hidden="true"
+                        tabIndex={-1}
+                        className="pointer-events-none"
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                          {e.fullName}
+                        </span>
+                        {e.jobTitle && (
+                          <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                            {e.jobTitle}
+                          </span>
+                        )}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setMoveEmployeeId(null)}>Cancel</Button>
-            <Button onClick={saveMove} disabled={!moveDraft || moveDraft === moveEmployee?.teamId}>Move</Button>
+            <Button variant="secondary" onClick={() => setAddTeam(null)} disabled={addingMembers}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveAddMembers()} disabled={addingMembers || addDraft.size === 0}>
+              {addingMembers ? "Adding…" : `Add ${addDraft.size > 0 ? addDraft.size : ""}`.trim()}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Read-only profile sheet */}
-      <Sheet open={profileId !== null} onOpenChange={(o) => { if (!o) setProfileId(null); }}>
-        <SheetContent>
-          {profile && (
-            <>
-              <SheetHeader>
-                <div className="flex items-center gap-3">
-                  <span
-                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                    style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-                    aria-hidden="true"
-                  >
-                    {initials(profile.displayName)}
-                  </span>
-                  <div className="min-w-0 text-left">
-                    <SheetTitle>{profile.displayName}</SheetTitle>
-                    <SheetDescription>{profile.jobTitle}</SheetDescription>
-                  </div>
-                </div>
-              </SheetHeader>
-              <dl className="mt-6 space-y-4 text-sm">
-                <ProfileRow label="Email" value={profile.email} />
-                <ProfileRow label="Department" value={profile.department} />
-                <ProfileRow
-                  label="Team"
-                  value={(profile.teamId && teams.find((t) => t.id === profile.teamId)?.name) || "—"}
-                />
-                <ProfileRow
-                  label="Supervisor"
-                  value={(profile.supervisorId && employeeMap.get(profile.supervisorId)?.displayName) || "—"}
-                />
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-[color:var(--text-tertiary)]">Status</dt>
-                  <dd><StatusBadge status={profile.employeeStatus} dot /></dd>
-                </div>
-              </dl>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
 
-function ProfileRow({ label, value }: { label: string; value: string }) {
+// ─── team card ────────────────────────────────────────────────────────────────
+
+interface TeamCardProps {
+  team: Team;
+  canManage: boolean;
+  onRename: () => void;
+  onAddMembers: () => void;
+  onRemoveMember: (member: TeamEmployee) => void;
+}
+
+function TeamCard({ team, canManage, onRename, onAddMembers, onRemoveMember }: TeamCardProps) {
+  // The leader is included in members; list the rest separately under the leader.
+  const otherMembers = team.members.filter((m) => m.id !== team.leader.id);
+
   return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-[color:var(--text-tertiary)]">{label}</dt>
-      <dd className="truncate font-medium text-[color:var(--text-primary)]">{value}</dd>
+    <div
+      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
+      style={{ boxShadow: "var(--shadow-xs)" }}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="truncate text-sm font-bold text-[color:var(--text-primary)]">{team.name}</p>
+          <Badge variant="neutral">{team.memberCount} members</Badge>
+        </div>
+        {canManage && (
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Button variant="ghost" size="xs" onClick={onRename} aria-label={`Rename ${team.name}`}>
+              <Pencil aria-hidden="true" />
+              Rename
+            </Button>
+            <Button variant="ghost" size="xs" onClick={onAddMembers} aria-label={`Add members to ${team.name}`}>
+              <UserPlus aria-hidden="true" />
+              Add members
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Leader */}
+      <div className="mt-3">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+          Team lead
+        </p>
+        <div className="mt-1.5 flex items-center gap-2">
+          <Avatar name={team.leader.fullName} size={9} />
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+              {team.leader.fullName}
+            </span>
+            <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+              {team.leader.jobTitle ?? team.leader.companyEmail}
+            </span>
+          </span>
+          <span className="ml-1 inline-flex flex-shrink-0 items-center gap-1 text-[color:var(--text-tertiary)]">
+            <UserCog className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+        </div>
+      </div>
+
+      {/* Members */}
+      <div className="mt-4">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+          Members
+        </p>
+        {otherMembers.length === 0 ? (
+          <p className="mt-1.5 text-xs text-[color:var(--text-tertiary)]">No additional members yet.</p>
+        ) : (
+          <div className="mt-1.5 divide-y divide-[color:var(--border-primary)]">
+            {otherMembers.map((member) => (
+              <div key={member.id} className="flex items-center justify-between gap-3 py-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  <Avatar name={member.fullName} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                      {member.fullName}
+                    </span>
+                    <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                      {member.jobTitle ?? member.companyEmail}
+                    </span>
+                  </span>
+                </span>
+                {canManage && (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => onRemoveMember(member)}
+                    aria-label={`Remove ${member.fullName} from ${team.name}`}
+                  >
+                    <UserMinus aria-hidden="true" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

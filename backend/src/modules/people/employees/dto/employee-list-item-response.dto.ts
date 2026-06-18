@@ -7,6 +7,7 @@ import type { EmployeeTeamResponseDto } from "./employee-team-response.dto";
 /**
  * Employee row returned by GET /api/employees.
  * This DTO intentionally exposes only list-view fields instead of the raw database model.
+ * `address` and `emergencyContact` are sensitive and are omitted from redacted (non-HR/Admin) responses.
  */
 export interface EmployeeListItemResponseDto {
   id: string;
@@ -18,8 +19,8 @@ export interface EmployeeListItemResponseDto {
   fullName: string;
   jobTitle: string | null;
   department: string | null;
-  address: EmployeeAddressResponseDto | null;
-  emergencyContact: EmployeeEmergencyContactResponseDto | null;
+  address?: EmployeeAddressResponseDto | null;
+  emergencyContact?: EmployeeEmergencyContactResponseDto | null;
   status: EmployeeStatusDto;
   teams: EmployeeTeamResponseDto[];
   supervisor: EmployeeSupervisorResponseDto | null;

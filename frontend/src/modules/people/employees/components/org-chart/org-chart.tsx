@@ -1,76 +1,81 @@
 "use client";
 
 import { useMemo } from "react";
-import type { DemoEmployee, Team } from "@/shared/mock/types";
-import { OrgChartNode } from "./org-chart-node";
+import type { EmployeeListItem } from "../../types/employees.types";
+import { ReportingTreeNode } from "./org-chart-node";
 
-// ─── tree model ───────────────────────────────────────────────────────────────
+// ─── reporting tree (real employees, supervisor → direct reports) ─────────────
 
-export interface OrgTeamNode {
-  team: Team;
-  children: OrgTeamNode[];
+export interface OrgReportingNode {
+  employee: EmployeeListItem;
+  children: OrgReportingNode[];
 }
 
-/** Build a forest of team nodes from the flat list via parentId. */
-export function buildTeamTree(teams: Team[]): OrgTeamNode[] {
-  const byId = new Map<string, OrgTeamNode>();
-  for (const team of teams) byId.set(team.id, { team, children: [] });
+/**
+ * Build the reporting forest from the real employees list via `supervisor.id`.
+ * Anyone whose supervisor is missing from the list (or who has no supervisor) becomes a root,
+ * so a partial/redacted list still renders without orphaning rows.
+ */
+export function buildReportingTree(employees: EmployeeListItem[]): OrgReportingNode[] {
+  const byId = new Map<string, OrgReportingNode>();
+  for (const employee of employees) byId.set(employee.id, { employee, children: [] });
 
-  const roots: OrgTeamNode[] = [];
+  const roots: OrgReportingNode[] = [];
   for (const node of byId.values()) {
-    const parentId = node.team.parentId;
-    const parent = parentId ? byId.get(parentId) : undefined;
-    if (parent) parent.children.push(node);
+    const supervisorId = node.employee.supervisor?.id;
+    const parent = supervisorId ? byId.get(supervisorId) : undefined;
+    if (parent && parent !== node) parent.children.push(node);
     else roots.push(node);
   }
   return roots;
 }
 
-/** Every team id in the tree (used for expand-all). */
-export function allTeamIds(teams: Team[]): string[] {
-  return teams.map((t) => t.id);
+/** Every employee id in the list (used for expand-all). */
+export function allReportingIds(employees: EmployeeListItem[]): string[] {
+  return employees.map((e) => e.id);
 }
 
-// ─── chart ──────────────────────────────────────────────────────────────────
-
-interface OrgChartProps {
-  teams: Team[];
-  employees: DemoEmployee[];
+interface ReportingTreeProps {
+  employees: EmployeeListItem[];
+  /** When set, render only the subtree rooted at this employee (e.g. a supervisor's own reports). */
+  rootId?: string | null;
   expanded: Set<string>;
-  onToggle: (teamId: string) => void;
+  onToggle: (employeeId: string) => void;
   onOpenProfile: (employeeId: string) => void;
-  onChangeLead: (teamId: string) => void;
-  onMoveMember: (employeeId: string) => void;
 }
 
-export function OrgChart({
-  teams,
+/** Read-only org chart built from the real employees list. */
+export function ReportingTree({
   employees,
+  rootId,
   expanded,
   onToggle,
   onOpenProfile,
-  onChangeLead,
-  onMoveMember,
-}: OrgChartProps) {
-  const tree = useMemo(() => buildTeamTree(teams), [teams]);
-  const employeeMap = useMemo(() => {
-    const map = new Map<string, DemoEmployee>();
-    for (const e of employees) map.set(e.employeeId, e);
-    return map;
-  }, [employees]);
+}: ReportingTreeProps) {
+  const roots = useMemo(() => {
+    const forest = buildReportingTree(employees);
+    if (!rootId) return forest;
+    const find = (nodes: OrgReportingNode[]): OrgReportingNode | undefined => {
+      for (const node of nodes) {
+        if (node.employee.id === rootId) return node;
+        const hit = find(node.children);
+        if (hit) return hit;
+      }
+      return undefined;
+    };
+    const rooted = find(forest);
+    return rooted ? [rooted] : [];
+  }, [employees, rootId]);
 
   return (
     <div className="space-y-3">
-      {tree.map((node) => (
-        <OrgChartNode
-          key={node.team.id}
+      {roots.map((node) => (
+        <ReportingTreeNode
+          key={node.employee.id}
           node={node}
-          employeeMap={employeeMap}
           expanded={expanded}
           onToggle={onToggle}
           onOpenProfile={onOpenProfile}
-          onChangeLead={onChangeLead}
-          onMoveMember={onMoveMember}
         />
       ))}
     </div>

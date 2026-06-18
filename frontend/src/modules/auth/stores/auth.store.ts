@@ -1,8 +1,5 @@
 import { create } from "zustand";
 import type { AppUser } from "../types/auth.types";
-import { VIEW_PROFILES, DEFAULT_VIEW, type DemoView } from "@/shared/mock/identity";
-import { readCollection } from "@/shared/mock/db";
-import type { DemoEmployee } from "@/shared/mock/types";
 
 interface AuthStore {
   appUser: AppUser | null;
@@ -85,27 +82,6 @@ export function initAuthListener(): void {
   })();
 }
 
-// --- Demo role switcher (dev affordance for browsing still-mock modules) ---
-// The real session above is authoritative on login/reload; this only sets an in-memory
-// persona for manually exploring screens that haven't moved to the real API yet.
-
-function withLiveStatus(user: AppUser): AppUser {
-  if (typeof window === "undefined") return user;
-  try {
-    const emp = readCollection<DemoEmployee>("employees").find(
-      (e) => e.employeeId === user.employeeId,
-    );
-    return emp ? { ...user, employeeStatus: emp.employeeStatus, isActive: emp.isActive } : user;
-  } catch {
-    return user;
-  }
-}
-
-/** Set the active demo view (role switcher). In-memory only — reload restores the real session. */
-export function setView(view: DemoView): void {
-  useAuthStore.setState({ appUser: withLiveStatus(VIEW_PROFILES[view]), loading: false });
-}
-
 /** Flip the current user to Active in-session (wizard activation releases the gate). */
 export function markEmployeeActive(): void {
   useAuthStore.setState((s) =>
@@ -116,5 +92,3 @@ export function markEmployeeActive(): void {
 export function clearSession(): void {
   useAuthStore.setState({ appUser: null, loading: false });
 }
-
-export { DEFAULT_VIEW };

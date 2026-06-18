@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { CheckCircle, XCircle, RotateCcw, LogOut } from "lucide-react";
+import { RotateCcw, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
@@ -13,23 +13,23 @@ import {
   ErrorState,
   ConfirmProvider,
   useConfirm,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  Textarea,
+  Combobox,
   FormField,
+  Skeleton,
 } from "@/shared/ui";
-import { readCollection, writeCollection } from "@/shared/mock/db";
-import type { OffboardingCase, DemoEmployee, Clearance } from "@/shared/mock/types";
+import {
+  useOffboarding,
+  useReassignOffboarding,
+  useResetClearance,
+} from "@/modules/people/offboarding";
+import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import type { OffboardingDetail, SignatureRequest } from "@/modules/people/offboarding";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
+
+function fullName(p: { firstName: string; lastName: string }): string {
+  return `${p.firstName} ${p.lastName}`.trim();
+}
 
 function formatDate(iso: string): string {
   try {
@@ -52,6 +52,37 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
+// ─── loading skeleton ─────────────────────────────────────────────────────────
+
+function DetailSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-4 w-48" />
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-12 w-12 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      </div>
+      <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5" style={{ boxShadow: "var(--shadow-xs)" }}>
+        <Skeleton className="h-4 w-full max-w-md" />
+      </div>
+      <div className="rounded-xl border border-[color:var(--border-primary)] bg-white" style={{ boxShadow: "var(--shadow-xs)" }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[color:var(--border-primary)] last:border-0">
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-40" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+            <Skeleton className="h-8 w-20 rounded-lg" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── inner component (needs ConfirmProvider in tree) ──────────────────────────
 
 function OffboardingDetailInner() {
@@ -59,46 +90,24 @@ function OffboardingDetailInner() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : "";
 
-  // Reject dialog state
-  const [rejectTarget, setRejectTarget] = useState<{ caseId: string; deptIdx: number } | null>(null);
-  const [rejectNote, setRejectNote] = useState("");
-  const [rejectNoteError, setRejectNoteError] = useState(false);
-
-  // Supervisor reassignment state
-  const [newSupervisorId, setNewSupervisorId] = useState<string>("");
-  const [reassigning, setReassigning] = useState(false);
-
-  // Re-render trigger — we read from localStorage directly on each render
-  const [tick, setTick] = useState(0);
-  const refresh = useCallback(() => setTick((t) => t + 1), []);
-
+  const { offboarding, loading, error, reload } = useOffboarding(id);
+  const { reset, resetting } = useResetClearance();
   const confirm = useConfirm();
 
-  // Derive data on every render (so mutations are reflected immediately)
-  const { offCase, employee, employees, loadError } = useMemo(() => {
-    try {
-      const cases = readCollection<OffboardingCase>("offboardingCases");
-      const emps = readCollection<DemoEmployee>("employees");
-      const found = cases.find((c) => c.id === id) ?? null;
-      const emp = found ? (emps.find((e) => e.employeeId === found.employeeId) ?? null) : null;
-      return { offCase: found, employee: emp, employees: emps, loadError: null };
-    } catch {
-      return { offCase: null, employee: null, employees: [] as DemoEmployee[], loadError: "Could not load offboarding case." };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, tick]);
+  // ── loading ───────────────────────────────────────────────────────────────
+  if (loading) return <DetailSkeleton />;
 
-  // ── load error ───────────────────────────────────────────────────────────────
-  if (loadError) {
+  // ── load error ────────────────────────────────────────────────────────────
+  if (error) {
     return (
       <div className="p-4">
-        <ErrorState message={loadError} onRetry={refresh} />
+        <ErrorState message={error} onRetry={() => void reload()} />
       </div>
     );
   }
 
-  // ── not found ────────────────────────────────────────────────────────────────
-  if (!offCase || !employee) {
+  // ── not found ─────────────────────────────────────────────────────────────
+  if (!offboarding) {
     return (
       <div>
         <PageHeader title="Offboarding" />
@@ -117,147 +126,41 @@ function OffboardingDetailInner() {
     );
   }
 
-  // ── helpers for mutations ────────────────────────────────────────────────────
+  const employee = offboarding.employee;
+  const employeeName = fullName(employee);
+  const requests = offboarding.signatureRequests;
+  const signed = requests.filter((r) => r.status === "SIGNED").length;
 
-  function updateClearance(
-    caseId: string,
-    deptIdx: number,
-    patch: Partial<Clearance>,
-  ) {
-    const cases = readCollection<OffboardingCase>("offboardingCases");
-    const updated = cases.map((c) => {
-      if (c.id !== caseId) return c;
-      const newClearances = c.clearances.map((cl, i) =>
-        i === deptIdx ? { ...cl, ...patch } : cl,
-      );
-
-      // Auto-complete: if all clearances signed, close the case
-      const allSigned = newClearances.every((cl) => cl.status === "SIGNED");
-      const newStatus: OffboardingCase["status"] = allSigned ? "COMPLETE" : c.status;
-
-      return { ...c, clearances: newClearances, status: newStatus };
-    });
-    writeCollection<OffboardingCase>("offboardingCases", updated);
-
-    // If auto-complete triggered, also mark employee INACTIVE
-    const afterCase = updated.find((c) => c.id === caseId)!;
-    if (afterCase.status === "COMPLETE") {
-      const emps = readCollection<DemoEmployee>("employees");
-      const updatedEmps = emps.map((e) =>
-        e.employeeId === afterCase.employeeId
-          ? { ...e, employeeStatus: "INACTIVE" as const, isActive: false }
-          : e,
-      );
-      writeCollection<DemoEmployee>("employees", updatedEmps);
-      toast.success("Offboarding complete — employee marked inactive.");
-    }
-  }
-
-  // ── sign handler ─────────────────────────────────────────────────────────────
-
-  async function handleSign(deptIdx: number) {
-    const cl = offCase!.clearances[deptIdx];
+  async function handleReset(req: SignatureRequest) {
     const ok = await confirm({
-      title: `Sign clearance: ${cl.dept}?`,
-      description: "This is irreversible without a manual reset. Signing all clearances will mark the employee inactive.",
-      confirmLabel: "Sign",
-      cancelLabel: "Cancel",
-    });
-    if (!ok) return;
-    updateClearance(offCase!.id, deptIdx, { status: "SIGNED" });
-    refresh();
-    toast.success("Clearance signed.");
-  }
-
-  // ── reject handler ───────────────────────────────────────────────────────────
-
-  function openRejectDialog(deptIdx: number) {
-    setRejectTarget({ caseId: offCase!.id, deptIdx });
-    setRejectNote("");
-    setRejectNoteError(false);
-  }
-
-  function handleRejectSubmit() {
-    if (!rejectNote.trim()) {
-      setRejectNoteError(true);
-      return;
-    }
-    if (!rejectTarget) return;
-    updateClearance(rejectTarget.caseId, rejectTarget.deptIdx, {
-      status: "REJECTED",
-      note: rejectNote.trim(),
-    });
-    setRejectTarget(null);
-    setRejectNote("");
-    refresh();
-    toast.error("Clearance rejected — HR notified.");
-  }
-
-  // ── reset handler ────────────────────────────────────────────────────────────
-
-  async function handleReset(deptIdx: number) {
-    const ok = await confirm({
-      title: "Reset clearance to pending?",
+      title: `Reset clearance: ${req.purpose}?`,
       description:
-        "This will allow the clearance owner to sign or reject again. Are you sure?",
+        "This returns the request to pending so the signatory can sign or reject again. Are you sure?",
       confirmLabel: "Reset",
       cancelLabel: "Cancel",
     });
     if (!ok) return;
-    updateClearance(offCase!.id, deptIdx, { status: "PENDING", note: undefined });
-    refresh();
-    toast.success("Clearance reset to pending.");
+    try {
+      await reset(req.id);
+      toast.success("Clearance reset to pending.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not reset clearance.");
+    }
   }
-
-  // ── supervisor reassignment ──────────────────────────────────────────────────
-
-  function handleReassign() {
-    if (!newSupervisorId) return;
-    setReassigning(true);
-    const emps = readCollection<DemoEmployee>("employees");
-    const updated = emps.map((e) =>
-      e.supervisorId === employee!.employeeId
-        ? { ...e, supervisorId: newSupervisorId }
-        : e,
-    );
-    writeCollection<DemoEmployee>("employees", updated);
-    setReassigning(false);
-    toast.success("Direct reports reassigned.");
-  }
-
-  // ── active employees for reassignment select ─────────────────────────────────
-  const activeEmployees = employees.filter(
-    (e) =>
-      e.isActive &&
-      e.employeeId !== employee.employeeId &&
-      e.employeeStatus !== "OFFBOARDING" &&
-      e.employeeStatus !== "INACTIVE",
-  );
-
-  // ── employee map for owner names ─────────────────────────────────────────────
-  const empMap = new Map(employees.map((e) => [e.employeeId, e]));
 
   return (
     <div>
       {/* Breadcrumb */}
       <p className="mb-2 text-xs text-[color:var(--text-tertiary)]">
-        <span
-          className="cursor-pointer hover:underline"
-          onClick={() => router.push("/hr")}
-        >
+        <span className="cursor-pointer hover:underline" onClick={() => router.push("/hr")}>
           HR
         </span>
         {" › "}
-        <span
-          className="cursor-pointer hover:underline"
-          onClick={() => router.push("/hr/offboarding")}
-        >
+        <span className="cursor-pointer hover:underline" onClick={() => router.push("/hr/offboarding")}>
           Offboarding
         </span>
         {" › "}
-        <span className="font-medium text-[color:var(--text-secondary)]">
-          {employee.displayName}
-        </span>
+        <span className="font-medium text-[color:var(--text-secondary)]">{employeeName}</span>
       </p>
 
       {/* Header */}
@@ -267,18 +170,19 @@ function OffboardingDetailInner() {
             className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-[color:var(--text-primary)]"
             style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
           >
-            {initials(employee.displayName)}
+            {initials(employeeName)}
           </span>
           <div>
             <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
-              {employee.displayName}
+              {employeeName}
             </h1>
             <p className="text-sm text-[color:var(--text-tertiary)]">
-              {employee.jobTitle} · {employee.department}
+              {employee.jobTitle ?? "—"}
+              {employee.department ? ` · ${employee.department}` : ""}
             </p>
           </div>
         </div>
-        <StatusBadge status={offCase.status} />
+        <StatusBadge status={offboarding.status} />
       </div>
 
       {/* Meta card */}
@@ -286,21 +190,29 @@ function OffboardingDetailInner() {
         className="mb-6 rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
         style={{ boxShadow: "var(--shadow-xs)" }}
       >
-        <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-              Last Day
+              Tender date
             </p>
             <p className="mt-1 text-sm font-medium text-[color:var(--text-primary)]">
-              {formatDate(offCase.lastDay)}
+              {formatDate(offboarding.tenderDate)}
             </p>
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-              Reason
+              Effective date
             </p>
             <p className="mt-1 text-sm font-medium text-[color:var(--text-primary)]">
-              {offCase.reason}
+              {formatDate(offboarding.effectiveDate)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+              Initiated by
+            </p>
+            <p className="mt-1 text-sm font-medium text-[color:var(--text-primary)]">
+              {fullName(offboarding.initiatedBy)}
             </p>
           </div>
           <div>
@@ -308,8 +220,7 @@ function OffboardingDetailInner() {
               Clearances
             </p>
             <p className="mt-1 text-sm font-medium text-[color:var(--text-primary)]">
-              {offCase.clearances.filter((cl) => cl.status === "SIGNED").length}/
-              {offCase.clearances.length} signed
+              {signed}/{requests.length} signed
             </p>
           </div>
         </div>
@@ -326,156 +237,116 @@ function OffboardingDetailInner() {
           </p>
         </div>
         <Separator />
-        <ul className="divide-y divide-[color:var(--border-primary)]">
-          {offCase.clearances.map((cl, idx) => {
-            const owner = empMap.get(cl.ownerEmployeeId);
-            return (
-              <li key={idx} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        {requests.length === 0 ? (
+          <p className="px-5 py-6 text-center text-sm text-[color:var(--text-tertiary)]">
+            No clearance requests on this case.
+          </p>
+        ) : (
+          <ul className="divide-y divide-[color:var(--border-primary)]">
+            {requests.map((req) => (
+              <li key={req.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[color:var(--text-primary)]">
-                      {cl.dept}
+                      {req.purpose}
                     </span>
-                    <StatusBadge status={cl.status} />
+                    <StatusBadge status={req.status} />
                   </div>
                   <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
-                    Owner: {owner?.displayName ?? cl.ownerEmployeeId}
+                    Signatory: {fullName(req.signatory)}
                   </p>
-                  {cl.note && (
+                  {req.requirements && (
+                    <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
+                      {req.requirements}
+                    </p>
+                  )}
+                  {req.note && (
                     <p className="mt-1 text-xs italic text-[color:var(--text-tertiary)]">
-                      Note: {cl.note}
+                      Note: {req.note}
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {cl.status === "PENDING" && (
-                    <>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => void handleSign(idx)}
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        Sign
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => openRejectDialog(idx)}
-                      >
-                        <XCircle className="h-4 w-4" />
-                        Reject
-                      </Button>
-                    </>
-                  )}
-                  {cl.status === "REJECTED" && (
+                {req.status !== "PENDING" && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => void handleReset(idx)}
+                      disabled={resetting}
+                      onClick={() => void handleReset(req)}
                     >
                       <RotateCcw className="h-4 w-4" />
                       Reset
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {/* Supervisor reassignment section */}
-      {employee.isSupervisor && (
-        <div
-          className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        >
-          <p className="mb-4 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-            Supervisor Reassignment
-          </p>
-          <p className="mb-4 text-sm text-[color:var(--text-secondary)]">
-            {employee.displayName} is a supervisor. Reassign their direct reports before
-            offboarding completes.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <FormField label="New supervisor" className="flex-1">
-              <Select value={newSupervisorId} onValueChange={setNewSupervisorId}>
-                <SelectTrigger aria-label="Select new supervisor">
-                  <SelectValue placeholder="Choose a supervisor…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeEmployees.map((e) => (
-                    <SelectItem key={e.employeeId} value={e.employeeId}>
-                      {e.displayName} — {e.jobTitle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <Button
-              onClick={handleReassign}
-              disabled={!newSupervisorId || reassigning}
-              className="flex-shrink-0"
-            >
-              Reassign direct reports
-            </Button>
-          </div>
-        </div>
+      {/* Supervisor reassignment (only meaningful while the case is open) */}
+      {offboarding.status === "IN_PROGRESS" && (
+        <ReassignSection offboarding={offboarding} />
       )}
+    </div>
+  );
+}
 
-      {/* Reject dialog */}
-      <Dialog
-        open={rejectTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setRejectTarget(null);
-            setRejectNote("");
-            setRejectNoteError(false);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject clearance</DialogTitle>
-            <DialogDescription>
-              Provide a reason for rejection. This note will be visible to HR.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-2">
-            <FormField
-              label="Rejection note"
-              required
-              error={rejectNoteError ? "A rejection note is required." : undefined}
-            >
-              <Textarea
-                value={rejectNote}
-                onChange={(e) => {
-                  setRejectNote(e.target.value);
-                  if (e.target.value.trim()) setRejectNoteError(false);
-                }}
-                placeholder="Describe why this clearance is being rejected…"
-                rows={3}
-              />
-            </FormField>
-          </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setRejectTarget(null);
-                setRejectNote("");
-                setRejectNoteError(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleRejectSubmit}>
-              Confirm rejection
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+// ─── reassignment section ─────────────────────────────────────────────────────
+
+function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
+  const [newSupervisorId, setNewSupervisorId] = useState<string>("");
+  const { reassign, reassigning } = useReassignOffboarding(offboarding.id);
+  const { employees } = useEmployees({ status: "active", limit: 200 });
+
+  const options = employees
+    .filter((e) => e.id !== offboarding.employee.id)
+    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+
+  async function handleReassign() {
+    if (!newSupervisorId) return;
+    try {
+      const result = await reassign(newSupervisorId);
+      toast.success(
+        `Reassigned ${result.reassignedReports} report(s) and ${result.reassignedTeams} team(s).`,
+      );
+      setNewSupervisorId("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not reassign.");
+    }
+  }
+
+  return (
+    <div
+      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+      style={{ boxShadow: "var(--shadow-xs)" }}
+    >
+      <p className="mb-4 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+        Supervisor reassignment
+      </p>
+      <p className="mb-4 text-sm text-[color:var(--text-secondary)]">
+        Move this employee&apos;s direct reports and any teams they lead to another supervisor.
+      </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <FormField label="New supervisor" className="flex-1">
+          <Combobox
+            options={options}
+            value={newSupervisorId}
+            onChange={(v) => setNewSupervisorId(v)}
+            placeholder="Choose a supervisor…"
+            searchPlaceholder="Search employees…"
+            emptyText="No employees available."
+          />
+        </FormField>
+        <Button
+          onClick={() => void handleReassign()}
+          disabled={!newSupervisorId || reassigning}
+          className="flex-shrink-0"
+        >
+          {reassigning ? "Reassigning…" : "Reassign reports"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -11,15 +11,15 @@ import {
   PartyPopper,
 } from "lucide-react";
 
-import { readCollection, writeCollection } from "@/shared/mock/db";
-import type {
-  OnboardingCase,
-  OnboardingCustomField,
-  DocStatus,
-  DemoEmployee,
-} from "@/shared/mock/types";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { markEmployeeActive } from "@/modules/auth/stores/auth.store";
+import {
+  useMyOnboarding,
+  useSubmitCustomFields,
+  useSubmitDocument,
+  useCompleteMyOnboarding,
+} from "@/modules/people/onboarding/hooks/use-my-onboarding";
+import type { OnboardingCustomFieldStatus } from "@/modules/people/onboarding/types/onboarding.types";
 
 import { ProgressBar } from "@/shared/ui/patterns/progress-bar";
 import { StatusBadge } from "@/shared/ui/patterns/status-badge";
@@ -29,6 +29,19 @@ import { PageSection } from "@/shared/ui/patterns/page-section";
 import { Button } from "@/shared/ui/primitives/button";
 import { Input } from "@/shared/ui/primitives/input";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
+
+// ─── Document link validation ────────────────────────────────────────────────
+// File storage isn't in scope tonight, so the employee submits a link to the
+// document (e.g. a shared drive URL). The backend requires an http(s) fileUrl.
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 // ─── The wizard's four stages (drives the "Step N of M" indicator) ───────────
 
@@ -147,43 +160,124 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 // ─── Document row ─────────────────────────────────────────────────────────────
 
 function DocumentRow({
+  id,
   name,
+  rejectionNote,
   status,
-  onUpload,
-  onReupload,
+  busy,
+  onSubmit,
 }: {
+  id: string;
   name: string;
-  status: DocStatus;
-  onUpload: () => void;
-  onReupload: () => void;
+  rejectionNote: string | null;
+  // null = not yet submitted
+  status: "pending" | "approved" | "rejected" | null;
+  busy: boolean;
+  onSubmit: (fileUrl: string) => void;
 }) {
+  // Reveal the link field on demand. Auto-open when a submission was rejected so
+  // the employee can re-submit straight away.
+  const [open, setOpen] = useState(status === "rejected");
+  const [url, setUrl] = useState("");
+  const [touched, setTouched] = useState(false);
+
+  const trimmed = url.trim();
+  const valid = isHttpUrl(trimmed);
+  const inputId = `doc-url-${id}`;
+  const showError = touched && trimmed.length > 0 && !valid;
+
+  function handleSubmit() {
+    setTouched(true);
+    if (!valid) return;
+    onSubmit(trimmed);
+    setUrl("");
+    setTouched(false);
+    setOpen(false);
+  }
+
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-[color:var(--border-primary)] py-3 first:border-t-0">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <FileText className="h-4 w-4 shrink-0 text-[color:var(--text-tertiary)]" aria-hidden="true" />
-        <span className="truncate text-sm font-medium text-[color:var(--text-primary)]">{name}</span>
+    <div className="border-t border-[color:var(--border-primary)] py-3 first:border-t-0">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <FileText className="h-4 w-4 shrink-0 text-[color:var(--text-tertiary)]" aria-hidden="true" />
+          <span className="truncate text-sm font-medium text-[color:var(--text-primary)]">{name}</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {status ? <StatusBadge status={status} /> : null}
+          {status === null && !open && (
+            <Button size="sm" variant="secondary" onClick={() => setOpen(true)} disabled={busy}>
+              <Upload className="h-3.5 w-3.5" />
+              Add link
+            </Button>
+          )}
+          {status === "pending" && (
+            <span className="text-xs text-[color:var(--text-tertiary)]">Awaiting review</span>
+          )}
+          {status === "approved" && (
+            <CheckCircle2 className="h-4 w-4 text-[#067647]" aria-hidden="true" />
+          )}
+          {status === "rejected" && !open && (
+            <Button size="sm" variant="destructive" onClick={() => setOpen(true)} disabled={busy}>
+              <Upload className="h-3.5 w-3.5" />
+              Re-submit link
+            </Button>
+          )}
+        </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <StatusBadge status={status} />
-        {status === "PENDING" && (
-          <Button size="sm" variant="secondary" onClick={onUpload}>
-            <Upload className="h-3.5 w-3.5" />
-            Upload
-          </Button>
-        )}
-        {status === "SUBMITTED" && (
-          <span className="text-xs text-[color:var(--text-tertiary)]">Awaiting review</span>
-        )}
-        {status === "APPROVED" && (
-          <CheckCircle2 className="h-4 w-4 text-[#067647]" aria-hidden="true" />
-        )}
-        {status === "REJECTED" && (
-          <Button size="sm" variant="destructive" onClick={onReupload}>
-            <Upload className="h-3.5 w-3.5" />
-            Re-upload
-          </Button>
-        )}
-      </div>
+
+      {/* HR's rejection reason, so the employee knows what to fix. */}
+      {status === "rejected" && rejectionNote && (
+        <p className="mt-2 text-xs text-[#B42318]">
+          Rejected: {rejectionNote}
+        </p>
+      )}
+
+      {/* Inline document-link field. */}
+      {open && (
+        <div className="mt-3">
+          <FormField
+            label="Document link"
+            htmlFor={inputId}
+            hint="Paste a shareable link to the document (must start with http:// or https://)."
+            error={showError ? "Enter a valid http or https URL." : undefined}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id={inputId}
+                type="url"
+                inputMode="url"
+                placeholder="https://drive.example.com/my-document.pdf"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onBlur={() => setTouched(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+              />
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" onClick={handleSubmit} disabled={busy || !valid}>
+                  {busy ? "Submitting…" : "Submit"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setOpen(false);
+                    setUrl("");
+                    setTouched(false);
+                  }}
+                  disabled={busy}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </FormField>
+        </div>
+      )}
     </div>
   );
 }
@@ -194,113 +288,77 @@ export default function EmployeeOnboardingPage() {
   const { appUser } = useAuth();
   const router = useRouter();
 
-  // undefined = loading, null = not found / error, OnboardingCase = found
-  const [obCase, setObCase] = useState<OnboardingCase | null | undefined>(undefined);
-  const [me, setMe] = useState<DemoEmployee | null>(null);
-  const [supervisorName, setSupervisorName] = useState<string>("");
-  const [fields, setFields] = useState<OnboardingCustomField[]>([]);
-  const [loadError, setLoadError] = useState(false);
-  const [activating, setActivating] = useState(false);
+  const isEmployee = appUser?.role === "EMPLOYEE";
+  const { status, loading, error, reload } = useMyOnboarding(isEmployee);
+  const submitFields = useSubmitCustomFields();
+  const submitDoc = useSubmitDocument();
+  const completeOnboarding = useCompleteMyOnboarding();
 
-  function loadCase() {
-    setLoadError(false);
-    setObCase(undefined);
-    try {
-      const employees = readCollection<DemoEmployee>("employees");
-      const meRow = employees.find((e) => e.employeeId === appUser?.employeeId) ?? null;
-      const cases = readCollection<OnboardingCase>("onboardingCases");
-      const found = cases.find((c) => c.employeeId === appUser?.employeeId) ?? null;
-      setMe(meRow);
-      setSupervisorName(
-        employees.find((e) => e.employeeId === meRow?.supervisorId)?.displayName ?? "",
-      );
-      setObCase(found);
-      if (found) setFields(found.customFields);
-    } catch {
-      setLoadError(true);
-      setObCase(null);
-    }
-  }
+  // Local editable copy of the custom field answers.
+  const [fields, setFields] = useState<OnboardingCustomFieldStatus[]>([]);
 
   useEffect(() => {
-    loadCase();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appUser?.employeeId]);
+    if (status) setFields(status.customFields);
+  }, [status]);
 
   // ── Save custom fields ────────────────────────────────────────────────────
 
   function handleSaveFields() {
-    if (!obCase) return;
-    const cases = readCollection<OnboardingCase>("onboardingCases");
-    const updated = cases.map((c) => (c.id === obCase.id ? { ...c, customFields: fields } : c));
-    writeCollection<OnboardingCase>("onboardingCases", updated);
-    setObCase((prev) => (prev ? { ...prev, customFields: fields } : prev));
-    toast.success("Profile details saved");
+    const answers = fields
+      .filter((f) => (f.value ?? "").trim() !== "")
+      .map((f) => ({ fieldId: f.id, value: (f.value ?? "").trim() }));
+    if (answers.length === 0) {
+      toast.error("Fill in at least one field before saving.");
+      return;
+    }
+    submitFields.mutate(answers, {
+      onSuccess: () => toast.success("Profile details saved"),
+      onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save your details."),
+    });
   }
 
-  // ── Upload / re-upload a document ─────────────────────────────────────────
+  // ── Submit / re-submit a document link ────────────────────────────────────
 
-  function handleDocAction(docName: string, newStatus: DocStatus) {
-    if (!obCase) return;
-    const nextDocs = obCase.documents.map((d) =>
-      d.name === docName ? { ...d, status: newStatus } : d,
+  function handleSubmitDocument(documentId: string, fileUrl: string) {
+    submitDoc.mutate(
+      { documentId, fileUrl },
+      {
+        onSuccess: () => toast.success("Document submitted for review"),
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Could not submit your document."),
+      },
     );
-    const cases = readCollection<OnboardingCase>("onboardingCases");
-    const updated = cases.map((c) => (c.id === obCase.id ? { ...c, documents: nextDocs } : c));
-    writeCollection<OnboardingCase>("onboardingCases", updated);
-    setObCase((prev) => (prev ? { ...prev, documents: nextDocs } : prev));
-    toast.success("Document submitted for review");
   }
 
-  // ── Activate (demo shortcut for HR approval) ──────────────────────────────
+  // ── Finish onboarding ─────────────────────────────────────────────────────
 
-  function handleActivate() {
-    if (!obCase || !appUser) return;
-    setActivating(true);
-
-    // Approve every document + close out the onboarding case.
-    const approvedDocs = obCase.documents.map((d) => ({ ...d, status: "APPROVED" as DocStatus }));
-    const cases = readCollection<OnboardingCase>("onboardingCases");
-    writeCollection<OnboardingCase>(
-      "onboardingCases",
-      cases.map((c) =>
-        c.id === obCase.id
-          ? { ...c, status: "COMPLETE", progress: 100, documents: approvedDocs }
-          : c,
-      ),
-    );
-
-    // Flip the employee to Active (persisted) + in-session (releases the gate).
-    const employees = readCollection<DemoEmployee>("employees");
-    writeCollection<DemoEmployee>(
-      "employees",
-      employees.map((e) =>
-        e.employeeId === appUser.employeeId
-          ? { ...e, employeeStatus: "ACTIVE", isActive: true }
-          : e,
-      ),
-    );
-    markEmployeeActive();
-
-    toast.success("You're all set — welcome to SwiftWork!");
-    router.replace("/");
+  function handleComplete() {
+    completeOnboarding.mutate(undefined, {
+      onSuccess: () => {
+        // Release the in-session onboarding gate and route home.
+        markEmployeeActive();
+        toast.success("You're all set — welcome to SwiftWork!");
+        router.replace("/");
+      },
+      onError: (e) =>
+        toast.error(e instanceof Error ? e.message : "Some items are still incomplete."),
+    });
   }
 
   // ── Render: loading / error / empty ───────────────────────────────────────
 
-  if (obCase === undefined) {
+  if (loading) {
     return (
       <div>
         <h1 className="mb-1 text-[22px] font-bold tracking-[-0.01em] text-[color:var(--text-primary)]">
           Welcome aboard
         </h1>
-        <p className="mb-6 text-sm text-[color:var(--text-secondary)]">Let's get you set up.</p>
+        <p className="mb-6 text-sm text-[color:var(--text-secondary)]">Let&apos;s get you set up.</p>
         <OnboardingSkeleton />
       </div>
     );
   }
 
-  if (loadError) {
+  if (error) {
     return (
       <div>
         <div className="rounded-xl border border-[color:var(--border-primary)] bg-white" style={{ boxShadow: "var(--shadow-xs)" }}>
@@ -308,22 +366,22 @@ export default function EmployeeOnboardingPage() {
             icon={AlertCircle}
             title="Could not load your onboarding"
             body="Something went wrong while loading your onboarding case."
-            action={{ label: "Retry", onClick: loadCase }}
+            action={{ label: "Retry", onClick: () => void reload() }}
           />
         </div>
       </div>
     );
   }
 
-  if (obCase === null || obCase.status === "COMPLETE") {
+  if (status === null || status.isComplete) {
     return (
       <div>
         <div className="rounded-xl border border-[color:var(--border-primary)] bg-white" style={{ boxShadow: "var(--shadow-xs)" }}>
           <EmptyState
-            icon={obCase?.status === "COMPLETE" ? PartyPopper : CheckCircle2}
-            title={obCase?.status === "COMPLETE" ? "Onboarding complete" : "No onboarding in progress"}
+            icon={status?.isComplete ? PartyPopper : CheckCircle2}
+            title={status?.isComplete ? "Onboarding complete" : "No onboarding in progress"}
             body={
-              obCase?.status === "COMPLETE"
+              status?.isComplete
                 ? "You're all set — nothing left to do here."
                 : "Your onboarding hasn't started yet. Check back later."
             }
@@ -335,14 +393,20 @@ export default function EmployeeOnboardingPage() {
 
   // ── Active case — derive the wizard state ─────────────────────────────────
 
-  const { documents } = obCase;
-  const filledFields = fields.filter((f) => f.value.trim() !== "").length;
+  const { profile, documents } = status;
+  const filledFields = fields.filter((f) => (f.value ?? "").trim() !== "").length;
   const profileDone = fields.length === 0 || filledFields === fields.length;
-  const docsToUpload = documents.filter((d) => d.status === "PENDING" || d.status === "REJECTED").length;
-  const docsInReview = documents.filter((d) => d.status === "SUBMITTED").length;
-  const docsApproved = documents.filter((d) => d.status === "APPROVED").length;
+
+  const docStatus = (docId: string) =>
+    documents.find((d) => d.id === docId)?.latestSubmission?.status ?? null;
+  const docsToUpload = documents.filter((d) => {
+    const s = d.latestSubmission?.status ?? null;
+    return s === null || s === "rejected";
+  }).length;
+  const docsInReview = documents.filter((d) => d.latestSubmission?.status === "pending").length;
+  const docsApproved = documents.filter((d) => d.latestSubmission?.status === "approved").length;
   const docsDone = documents.length === 0 || docsToUpload === 0;
-  const canActivate = profileDone && docsDone && documents.length > 0;
+  const canComplete = profileDone && docsDone && documents.length > 0;
 
   const currentStep = !profileDone ? 2 : !docsDone ? 3 : 4;
 
@@ -351,6 +415,8 @@ export default function EmployeeOnboardingPage() {
   const doneUnits = filledFields + docsApproved + docsInReview * 0.5;
   const progress = Math.round((doneUnits / totalUnits) * 100);
 
+  const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
+
   return (
     <div className="space-y-6">
       {/* Header + step indicator + progress */}
@@ -358,13 +424,13 @@ export default function EmployeeOnboardingPage() {
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold tracking-[-0.01em] text-[color:var(--text-primary)]">
-              Welcome aboard{me?.displayName ? `, ${me.displayName.split(" ")[0]}` : ""}
+              Welcome aboard{profile.firstName ? `, ${profile.firstName}` : ""}
             </h1>
             <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
               Step {currentStep} of {STEPS.length} — {STEPS[currentStep - 1]}
             </p>
           </div>
-          <StatusBadge status={obCase.status} />
+          <StatusBadge status={status.isComplete ? "COMPLETE" : "ONBOARDING"} />
         </div>
         <StepIndicator current={currentStep} />
         <div className="mt-5">
@@ -374,10 +440,10 @@ export default function EmployeeOnboardingPage() {
 
       {/* What's blocking activation */}
       <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6" style={{ boxShadow: "var(--shadow-xs)" }}>
-        <h2 className="text-sm font-bold text-[color:var(--text-primary)]">What's left before you're active</h2>
+        <h2 className="text-sm font-bold text-[color:var(--text-primary)]">What&apos;s left before you&apos;re active</h2>
         <p className="mt-1 text-[13px] text-[color:var(--text-secondary)]">
-          {canActivate
-            ? "Everything's in — your documents are with HR for review."
+          {canComplete
+            ? "Everything's in — finish to activate your account."
             : "Finish the items below to send your onboarding to HR."}
         </p>
         <ul className="mt-3 divide-y divide-[color:var(--border-primary)]">
@@ -394,16 +460,14 @@ export default function EmployeeOnboardingPage() {
             state={docsDone ? "done" : "todo"}
             label="Upload your documents"
             detail={
-              docsDone
-                ? "All documents uploaded."
-                : `${docsToUpload} document(s) still to upload.`
+              docsDone ? "All documents uploaded." : `${docsToUpload} document(s) still to upload.`
             }
           />
           <ChecklistRow
-            state={docsApproved === documents.length ? "done" : docsInReview > 0 ? "waiting" : "todo"}
+            state={docsApproved === documents.length && documents.length > 0 ? "done" : docsInReview > 0 ? "waiting" : "todo"}
             label="HR review & approval"
             detail={
-              docsApproved === documents.length
+              docsApproved === documents.length && documents.length > 0
                 ? "All documents approved."
                 : docsInReview > 0
                   ? `${docsInReview} document(s) in review with HR.`
@@ -412,18 +476,18 @@ export default function EmployeeOnboardingPage() {
           />
         </ul>
 
-        {canActivate && (
+        {canComplete && (
           <div className="mt-4 flex flex-col gap-2 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[13px] font-semibold text-[color:var(--text-primary)]">
-                Simulate HR approval
+                Finish onboarding
               </p>
               <p className="text-[12px] text-[color:var(--text-tertiary)]">
-                Demo shortcut — approves your documents and activates your account.
+                Submit your onboarding to activate your account.
               </p>
             </div>
-            <Button onClick={handleActivate} disabled={activating} className="shrink-0">
-              {activating ? "Activating…" : "Approve & finish"}
+            <Button onClick={handleComplete} disabled={completeOnboarding.isPending} className="shrink-0">
+              {completeOnboarding.isPending ? "Finishing…" : "Finish onboarding"}
             </Button>
           </div>
         )}
@@ -432,16 +496,16 @@ export default function EmployeeOnboardingPage() {
       {/* 1 · Review your details (HR pre-filled, read-only) */}
       <PageSection title="Review your details" description="Your HR team pre-filled these. Let them know if anything's off.">
         <div className="rounded-xl border border-[color:var(--border-primary)] bg-white px-6" style={{ boxShadow: "var(--shadow-xs)" }}>
-          <ReviewRow label="Full name" value={me?.displayName ?? ""} />
-          <ReviewRow label="Work email" value={me?.email ?? ""} />
-          <ReviewRow label="Job title" value={me?.jobTitle ?? ""} />
-          <ReviewRow label="Department" value={me?.department ?? ""} />
-          <ReviewRow label="Supervisor" value={supervisorName} />
-          <ReviewRow label="Start date" value={me?.startDate ?? ""} />
+          <ReviewRow label="Full name" value={fullName} />
+          <ReviewRow label="Personal email" value={profile.personalEmail ?? ""} />
+          <ReviewRow label="Job title" value={profile.jobTitle ?? ""} />
+          <ReviewRow label="Department" value={profile.department ?? ""} />
+          <ReviewRow label="Address" value={profile.address ?? ""} />
+          <ReviewRow label="Emergency contact" value={profile.emergencyContact ?? ""} />
         </div>
       </PageSection>
 
-      {/* 2 · Profile information (editable) */}
+      {/* 2 · Profile information (editable custom fields) */}
       <PageSection title="Complete your profile" description="Fill in your details and save when done.">
         <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6" style={{ boxShadow: "var(--shadow-xs)" }}>
           {fields.length === 0 ? (
@@ -454,12 +518,16 @@ export default function EmployeeOnboardingPage() {
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {fields.map((field, idx) => {
-                  const fieldId = `custom-field-${idx}`;
+                  const fieldId = `custom-field-${field.id}`;
                   return (
-                    <FormField key={idx} label={field.label} htmlFor={fieldId}>
+                    <FormField
+                      key={field.id}
+                      label={field.fieldLabel + (field.isRequired ? " *" : "")}
+                      htmlFor={fieldId}
+                    >
                       <Input
                         id={fieldId}
-                        value={field.value}
+                        value={field.value ?? ""}
                         onChange={(e) => {
                           const next = [...fields];
                           next[idx] = { ...next[idx], value: e.target.value };
@@ -471,7 +539,9 @@ export default function EmployeeOnboardingPage() {
                 })}
               </div>
               <div className="mt-5 flex justify-end">
-                <Button onClick={handleSaveFields}>Save changes</Button>
+                <Button onClick={handleSaveFields} disabled={submitFields.isPending}>
+                  {submitFields.isPending ? "Saving…" : "Save changes"}
+                </Button>
               </div>
             </>
           )}
@@ -479,7 +549,7 @@ export default function EmployeeOnboardingPage() {
       </PageSection>
 
       {/* 3 · Documents */}
-      <PageSection title="Upload your documents" description="Upload each required document for HR review.">
+      <PageSection title="Upload your documents" description="Add a shareable link to each required document for HR review.">
         <div className="rounded-xl border border-[color:var(--border-primary)] bg-white px-6" style={{ boxShadow: "var(--shadow-xs)" }}>
           {documents.length === 0 ? (
             <EmptyState
@@ -491,11 +561,13 @@ export default function EmployeeOnboardingPage() {
             <div>
               {documents.map((doc) => (
                 <DocumentRow
-                  key={doc.name}
-                  name={doc.name}
-                  status={doc.status}
-                  onUpload={() => handleDocAction(doc.name, "SUBMITTED")}
-                  onReupload={() => handleDocAction(doc.name, "SUBMITTED")}
+                  key={doc.id}
+                  id={doc.id}
+                  name={doc.documentName}
+                  rejectionNote={doc.latestSubmission?.rejectionNote ?? null}
+                  status={docStatus(doc.id)}
+                  busy={submitDoc.isPending}
+                  onSubmit={(fileUrl) => handleSubmitDocument(doc.id, fileUrl)}
                 />
               ))}
             </div>

@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ChevronDown, LogOut, Menu, User } from "lucide-react";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
-import { RoleSwitcher } from "./role-switcher";
 import { breadcrumbForPath } from "./nav-config";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
@@ -104,7 +103,6 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
       {/* Right: Controls */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <RoleSwitcher />
         <span aria-hidden="true" className="hidden sm:block text-[13px] font-medium tabular-nums text-[color:var(--text-tertiary)] select-none">
           {clock}
         </span>

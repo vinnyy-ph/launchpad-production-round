@@ -1,10 +1,19 @@
 import request from "supertest";
 import { app } from "../../app";
-import { buildEmployeeRecord, countMock, findManyMock, resetEmployeeMocks } from "./employees-test.helpers";
+import {
+  buildEmployeeRecord,
+  buildViewer,
+  countMock,
+  findManyMock,
+  resetEmployeeMocks,
+} from "./employees-test.helpers";
 
-// Avoid loading Firebase Admin while testing the employee route through the Express app.
+// Authenticate as HR so the directory returns the full (unredacted) row fields.
 jest.mock("../../core/middleware/auth.middleware", () => ({
-  authenticate: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authenticate: (req: { user?: unknown }, _res: unknown, next: () => void) => {
+    req.user = buildViewer({ role: "HR" });
+    next();
+  },
 }));
 
 // Replace Prisma with a controllable in-memory mock for this endpoint scenario.

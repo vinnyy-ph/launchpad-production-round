@@ -2,6 +2,7 @@ import request from "supertest";
 import { app } from "../../app";
 import {
   buildTeamRecord,
+  buildViewer,
   employeeCountMock,
   resetTeamMocks,
   teamCountMock,
@@ -13,9 +14,12 @@ import {
   teamUpdateMock,
 } from "./teams-test.helpers";
 
-// Mock auth because team endpoints are temporarily unauthenticated while API behavior is tested.
+// Authenticate as HR so team write endpoints (HR/Admin-only via requireRole) are reachable.
 jest.mock("../../core/middleware/auth.middleware", () => ({
-  authenticate: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authenticate: (req: { user?: unknown }, _res: unknown, next: () => void) => {
+    req.user = buildViewer({ role: "HR" });
+    next();
+  },
 }));
 
 // Mock only the Prisma surface used by team endpoints.

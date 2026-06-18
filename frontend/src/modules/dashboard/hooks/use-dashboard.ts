@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { readCollection } from "@/shared/mock/db";
+import { apiFetch } from "@/shared/lib/api-client";
 
 // Role-aware dashboard stats. The home screen picks the fields relevant to the
 // active role, so a single object covering every field is returned.
@@ -22,30 +22,16 @@ export interface DashboardStats {
   clearanceStatus?: string | null;
 }
 
-// Demo stats: `activeEmployees` is derived from the mock employee collection;
-// the rest are representative figures (no backend).
-function mockDashboardStats(): DashboardStats {
-  const employees = readCollection<{ isActive?: boolean }>("employees");
-  return {
-    pendingOnboarding: 2,
-    pendingOffboarding: 1,
-    activeEmployees: employees.filter((e) => e.isActive !== false).length,
-    pendingClearances: 1,
-    pendingEvaluations: 2,
-    directReports: 4,
-    unreadSurveys: 1,
-    completedEvaluations: 3,
-    totalEvaluations: 5,
-    pendingDocuments: 1,
-    onboardingProgress: 80,
-    clearanceStatus: "In progress",
-  };
+// GET /api/dashboard (not versioned) returns role-gated counts: a subset of the
+// fields above based on the caller's role. Absent fields render as "—" in the UI.
+function fetchDashboardStats(): Promise<DashboardStats> {
+  return apiFetch<DashboardStats>("/api/dashboard");
 }
 
 export function useDashboard() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.dashboard.all,
-    queryFn: () => Promise.resolve(mockDashboardStats()),
+    queryFn: fetchDashboardStats,
   });
 
   return {

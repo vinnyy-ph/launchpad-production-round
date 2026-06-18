@@ -1,18 +1,27 @@
 import { Router } from "express";
+import { requireRole } from "../../../core/middleware/roles.middleware";
 import { EmployeesController } from "./employees.controller";
 
 const employeesController = new EmployeesController();
 
 export const employeesRouter = Router();
 
-/** Lists employees with optional search, filters, and pagination. */
-// TODO: Re-enable authentication after temporary endpoint testing is complete.
+/**
+ * Lists employees. Any authenticated user may read the directory; HR/Admin receive the full
+ * fields while everyone else receives a redacted list (sensitive fields omitted server-side).
+ */
 employeesRouter.get("/", employeesController.listEmployees);
 
-/** Gets one unredacted employee profile for HR directory views. */
-// TODO: Re-enable authentication and HR authorization after temporary endpoint testing is complete.
+/**
+ * Gets one employee profile. HR/Admin and the subject get the full profile; any other
+ * authenticated viewer (including supervisors of the subject) gets a redacted profile.
+ * Redaction is enforced server-side in the service serializer.
+ */
 employeesRouter.get("/:employeeId", employeesController.getEmployeeProfile);
 
-/** Updates one employee profile for HR directory management. */
-// TODO: Re-enable authentication and HR authorization after temporary endpoint testing is complete.
-employeesRouter.patch("/:employeeId", employeesController.updateEmployeeProfile);
+/** Updates one employee profile. Restricted to HR and Admin. */
+employeesRouter.patch(
+  "/:employeeId",
+  requireRole("ADMIN", "HR"),
+  employeesController.updateEmployeeProfile,
+);

@@ -1,10 +1,16 @@
-import { useState, useEffect } from "react";
+"use client";
+
+import { useState } from "react";
 import { FileCheck, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { readCollection, writeCollection } from "@/shared/mock/db";
-import type { OffboardingCase, DemoEmployee, Clearance } from "@/shared/mock/types";
-import { EmptyState, StatusBadge, PageSection } from "@/shared/ui/patterns";
+import {
+  useAssignedClearances,
+  useSignClearance,
+  useRejectClearance,
+} from "@/modules/people/offboarding";
+import type { AssignedClearance, ClearanceAction } from "@/modules/people/offboarding";
+import { EmptyState, ErrorState, StatusBadge, PageSection } from "@/shared/ui/patterns";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import {
@@ -17,16 +23,8 @@ import {
   Textarea,
 } from "@/shared/ui";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface PendingClearanceItem {
-  caseId: string;
-  employeeId: string;
-  employeeName: string;
-  dept: string;
-  clearanceIndex: number;
-  status: Clearance["status"];
-  note?: string;
+function fullName(p: { firstName: string; lastName: string }): string {
+  return `${p.firstName} ${p.lastName}`.trim();
 }
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
@@ -58,91 +56,59 @@ function LoadingSkeleton() {
 
 export default function ClearancePage() {
   const { appUser } = useAuth();
-  const [items, setItems] = useState<PendingClearanceItem[] | undefined>(undefined);
+  const { clearances, loading, error, reload } = useAssignedClearances(Boolean(appUser?.employeeId));
+  const { sign, signing } = useSignClearance();
+  const { reject, rejecting } = useRejectClearance();
 
   // Reject dialog state
-  const [rejectTarget, setRejectTarget] = useState<PendingClearanceItem | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<AssignedClearance | null>(null);
   const [rejectNote, setRejectNote] = useState("");
 
-  function loadItems() {
-    try {
-      const cases = readCollection<OffboardingCase>("offboardingCases");
-      const emps = readCollection<DemoEmployee>("employees");
-      const myId = appUser?.employeeId;
-
-      const result: PendingClearanceItem[] = [];
-      for (const c of cases) {
-        c.clearances.forEach((cl, idx) => {
-          if (cl.ownerEmployeeId === myId) {
-            const emp = emps.find((e) => e.employeeId === c.employeeId);
-            result.push({
-              caseId: c.id,
-              employeeId: c.employeeId,
-              employeeName: emp?.displayName ?? c.employeeId,
-              dept: cl.dept,
-              clearanceIndex: idx,
-              status: cl.status,
-              note: cl.note,
-            });
-          }
-        });
-      }
-      setItems(result);
-    } catch {
-      setItems([]);
+  function surfaceCompletion(action: ClearanceAction) {
+    if (action.offboardingCompleted || action.employeeInactivated) {
+      toast.success("Offboarding complete — employee deactivated.");
     }
   }
 
-  useEffect(() => {
-    loadItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appUser?.employeeId]);
-
-  function updateClearance(caseId: string, clearanceIndex: number, patch: Partial<Clearance>) {
-    const cases = readCollection<OffboardingCase>("offboardingCases");
-    const updated = cases.map((c) => {
-      if (c.id !== caseId) return c;
-      return {
-        ...c,
-        clearances: c.clearances.map((cl, i) => (i === clearanceIndex ? { ...cl, ...patch } : cl)),
-      };
-    });
-    writeCollection("offboardingCases", updated);
-    setItems((prev) =>
-      prev?.map((item) =>
-        item.caseId === caseId && item.clearanceIndex === clearanceIndex
-          ? { ...item, ...patch }
-          : item,
-      ),
-    );
+  async function handleSign(item: AssignedClearance) {
+    try {
+      const action = await sign({ requestId: item.requestId });
+      toast.success(`${item.purpose} clearance signed for ${fullName(item.offboardee)}.`);
+      surfaceCompletion(action);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not sign clearance.");
+    }
   }
 
-  function handleSign(item: PendingClearanceItem) {
-    updateClearance(item.caseId, item.clearanceIndex, { status: "SIGNED" });
-    toast.success(`${item.dept} clearance signed for ${item.employeeName}`);
-  }
-
-  function openReject(item: PendingClearanceItem) {
+  function openReject(item: AssignedClearance) {
     setRejectTarget(item);
     setRejectNote("");
   }
 
-  function handleRejectConfirm() {
-    if (!rejectTarget) return;
-    if (!rejectNote.trim()) return; // require a note — validated in dialog
-    updateClearance(rejectTarget.caseId, rejectTarget.clearanceIndex, {
-      status: "REJECTED",
-      note: rejectNote.trim(),
-    });
-    toast.success(`${rejectTarget.dept} clearance rejected`);
-    setRejectTarget(null);
-    setRejectNote("");
+  async function handleRejectConfirm() {
+    if (!rejectTarget || !rejectNote.trim()) return;
+    try {
+      await reject({ requestId: rejectTarget.requestId, note: rejectNote.trim() });
+      toast.success(`${rejectTarget.purpose} clearance rejected.`);
+      setRejectTarget(null);
+      setRejectNote("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not reject clearance.");
+    }
   }
 
-  if (items === undefined) return <LoadingSkeleton />;
+  if (loading) return <LoadingSkeleton />;
 
-  const pending = items.filter((i) => i.status === "PENDING");
-  const resolved = items.filter((i) => i.status !== "PENDING");
+  if (error) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <ErrorState message={error} onRetry={() => void reload()} />
+      </div>
+    );
+  }
+
+  const pending = clearances.filter((i) => i.status === "PENDING");
+  const resolved = clearances.filter((i) => i.status !== "PENDING");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -151,7 +117,7 @@ export default function ClearancePage() {
         subtitle="Offboarding clearances that require your signature."
       />
 
-      {items.length === 0 ? (
+      {clearances.length === 0 ? (
         <EmptyState
           icon={FileCheck}
           title="No clearances pending"
@@ -167,16 +133,16 @@ export default function ClearancePage() {
               >
                 <ul className="divide-y divide-[color:var(--border-primary)]">
                   {pending.map((item) => (
-                    <li key={`${item.caseId}-${item.clearanceIndex}`} className="flex items-center gap-3 px-4 py-3">
+                    <li key={item.requestId} className="flex items-center gap-3 px-4 py-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[color:var(--text-primary)]">
-                          {item.dept} — {item.employeeName}
+                          {item.purpose} — {fullName(item.offboardee)}
                         </p>
                         <p className="text-xs text-[color:var(--text-secondary)]">
-                          Department clearance
+                          {item.requirements ?? "Department clearance"}
                         </p>
                       </div>
-                      <Button size="sm" onClick={() => handleSign(item)}>
+                      <Button size="sm" disabled={signing} onClick={() => void handleSign(item)}>
                         <CheckCircle2 size={14} className="mr-1" />
                         Sign
                       </Button>
@@ -199,10 +165,10 @@ export default function ClearancePage() {
               >
                 <ul className="divide-y divide-[color:var(--border-primary)]">
                   {resolved.map((item) => (
-                    <li key={`${item.caseId}-${item.clearanceIndex}`} className="flex items-start gap-3 px-4 py-3">
+                    <li key={item.requestId} className="flex items-start gap-3 px-4 py-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[color:var(--text-primary)]">
-                          {item.dept} — {item.employeeName}
+                          {item.purpose} — {fullName(item.offboardee)}
                         </p>
                         {item.status === "REJECTED" && item.note && (
                           <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
@@ -228,8 +194,8 @@ export default function ClearancePage() {
           </DialogHeader>
           <p className="text-sm text-[color:var(--text-secondary)]">
             Provide a reason for rejecting the{" "}
-            <strong>{rejectTarget?.dept}</strong> clearance for{" "}
-            <strong>{rejectTarget?.employeeName}</strong>.
+            <strong>{rejectTarget?.purpose}</strong> clearance for{" "}
+            <strong>{rejectTarget ? fullName(rejectTarget.offboardee) : ""}</strong>.
           </p>
           <Textarea
             placeholder="Rejection reason (required)"
@@ -247,8 +213,8 @@ export default function ClearancePage() {
             </Button>
             <Button
               variant="destructive"
-              onClick={handleRejectConfirm}
-              disabled={rejectNote.trim() === ""}
+              onClick={() => void handleRejectConfirm()}
+              disabled={rejectNote.trim() === "" || rejecting}
             >
               Confirm reject
             </Button>

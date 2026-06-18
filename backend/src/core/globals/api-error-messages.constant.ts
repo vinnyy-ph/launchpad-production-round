@@ -73,6 +73,21 @@ export const API_ERROR_MESSAGES = {
   REVIEWEE_NOT_EMPLOYEE: "Your account is not linked to an employee record",
   OCCURRENCE_NOT_FOUND: "Occurrence not found",
   EMPLOYEE_RECORD_REQUIRED: "Your account is not linked to an employee record",
+  OFFBOARDING_RECORD_NOT_FOUND: "Offboarding record not found",
+  OFFBOARDING_ALREADY_EXISTS:
+    "An offboarding record already exists for this employee",
+  CLEARANCE_TEMPLATE_NOT_FOUND: "Clearance template not found",
+  CLEARANCE_TEMPLATE_HAS_NO_SIGNATORIES:
+    "The selected clearance template has no signatories configured",
+  INVALID_EFFECTIVE_DATE:
+    "The effective date must be on or after the tender date",
+  REASSIGNMENT_TARGET_NOT_FOUND: "The reassignment target employee was not found",
+  SIGNATURE_REQUEST_NOT_FOUND: "Clearance signature request not found",
+  NOT_CLEARANCE_SIGNATORY:
+    "You are not the assigned signatory for this clearance request",
+  SIGNATURE_REQUEST_NOT_PENDING:
+    "This clearance request has already been actioned",
+  REJECTION_NOTE_REQUIRED: "A note is required when rejecting a clearance",
 } as const;
 
 export type ApiErrorMessage =

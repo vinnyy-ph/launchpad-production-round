@@ -1,17 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+"use client";
+
+import { useMemo } from "react";
 import { GitBranch } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { readCollection } from "@/shared/mock/db";
-import type { DemoEmployee, OnboardingCase, OffboardingCase } from "@/shared/mock/types";
+import {
+  useOffboardings,
+  useSupervisorOnboardingStatus,
+} from "@/modules/people/offboarding";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { StatCard, DataTable, type Column, EmptyState, StatusBadge } from "@/shared/ui/patterns";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface TransitionRow {
-  employeeId: string;
+  key: string;
   name: string;
-  email: string;
   jobTitle: string;
   stage: "ONBOARDING" | "OFFBOARDING";
   detail: string;
@@ -31,95 +34,56 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-/** Everyone below me in the reporting line (cycle-guarded). */
-function subtreeOf(rootId: string, all: DemoEmployee[]): DemoEmployee[] {
-  const byManager = new Map<string, DemoEmployee[]>();
-  for (const e of all) {
-    if (!e.supervisorId) continue;
-    const list = byManager.get(e.supervisorId) ?? [];
-    list.push(e);
-    byManager.set(e.supervisorId, list);
-  }
-  const out: DemoEmployee[] = [];
-  const seen = new Set<string>([rootId]);
-  const stack = [...(byManager.get(rootId) ?? [])];
-  while (stack.length) {
-    const e = stack.pop()!;
-    if (seen.has(e.employeeId)) continue;
-    seen.add(e.employeeId);
-    out.push(e);
-    stack.push(...(byManager.get(e.employeeId) ?? []));
-  }
-  return out;
-}
-
-// ─── Hook ────────────────────────────────────────────────────────────────────
-
-function useHierarchyStatus(supervisorId: string | undefined) {
-  const [rows, setRows] = useState<TransitionRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (!supervisorId) {
-        setRows([]);
-        return;
-      }
-      const all = readCollection<DemoEmployee>("employees");
-      const onboarding = readCollection<OnboardingCase>("onboardingCases");
-      const offboarding = readCollection<OffboardingCase>("offboardingCases");
-      const subtree = subtreeOf(supervisorId, all);
-
-      const result: TransitionRow[] = [];
-      for (const e of subtree) {
-        if (e.employeeStatus === "ONBOARDING") {
-          const c = onboarding.find((o) => o.employeeId === e.employeeId);
-          result.push({
-            employeeId: e.employeeId,
-            name: e.displayName,
-            email: e.email,
-            jobTitle: e.jobTitle,
-            stage: "ONBOARDING",
-            detail: c ? `${c.progress}% complete` : "In progress",
-          });
-        } else if (e.employeeStatus === "OFFBOARDING") {
-          const c = offboarding.find((o) => o.employeeId === e.employeeId);
-          result.push({
-            employeeId: e.employeeId,
-            name: e.displayName,
-            email: e.email,
-            jobTitle: e.jobTitle,
-            stage: "OFFBOARDING",
-            detail: c ? `Last day ${formatDate(c.lastDay)}` : "In progress",
-          });
-        }
-      }
-      setRows(result);
-    } catch {
-      setError("Couldn't load hierarchy status. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [supervisorId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  return { rows, loading, error, reload: load };
-}
-
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function HierarchyStatusPage() {
   const { appUser } = useAuth();
-  const { rows, loading, error, reload } = useHierarchyStatus(appUser?.employeeId);
+  const enabled = Boolean(appUser?.employeeId);
+
+  const onboarding = useSupervisorOnboardingStatus(enabled);
+  const offboarding = useOffboardings(enabled);
+
+  const loading = onboarding.loading || offboarding.loading;
+  const error = onboarding.error ?? offboarding.error;
+
+  const rows = useMemo<TransitionRow[]>(() => {
+    const out: TransitionRow[] = [];
+
+    // Onboarding side — only those still in progress.
+    for (const e of onboarding.employees) {
+      if (e.status !== "onboarding") continue;
+      const ob = e.onboarding;
+      out.push({
+        key: `on-${e.employeeId}`,
+        name: `${e.firstName} ${e.lastName}`.trim(),
+        jobTitle: e.jobTitle ?? "—",
+        stage: "ONBOARDING",
+        detail: `Docs ${ob.documentsSubmitted}/${ob.documentsRequired} · Fields ${ob.customFieldsFilled}/${ob.customFieldsRequired}`,
+      });
+    }
+
+    // Offboarding side — only cases still in progress.
+    for (const c of offboarding.offboardings) {
+      if (c.status !== "IN_PROGRESS") continue;
+      out.push({
+        key: `off-${c.id}`,
+        name: `${c.employee.firstName} ${c.employee.lastName}`.trim(),
+        jobTitle: c.employee.jobTitle ?? "—",
+        stage: "OFFBOARDING",
+        detail: `Last day ${formatDate(c.effectiveDate)} · ${c.signedCount}/${c.totalCount} cleared`,
+      });
+    }
+
+    return out;
+  }, [onboarding.employees, offboarding.offboardings]);
 
   const onboardingCount = rows.filter((r) => r.stage === "ONBOARDING").length;
   const offboardingCount = rows.filter((r) => r.stage === "OFFBOARDING").length;
+
+  function reload() {
+    void onboarding.reload();
+    void offboarding.reload();
+  }
 
   const columns: Column<TransitionRow>[] = [
     {
@@ -142,9 +106,7 @@ export default function HierarchyStatusPage() {
     },
     {
       header: "Stage",
-      cell: (row) => (
-        <StatusBadge status={row.stage === "ONBOARDING" ? "ONBOARDING" : "OFFBOARDING"} dot />
-      ),
+      cell: (row) => <StatusBadge status={row.stage} dot />,
     },
     {
       header: "Progress",
@@ -189,7 +151,7 @@ export default function HierarchyStatusPage() {
             isLoading={loading}
             error={error}
             onRetry={reload}
-            getRowId={(row) => row.employeeId}
+            getRowId={(row) => row.key}
             emptyState={
               <EmptyState
                 icon={GitBranch}

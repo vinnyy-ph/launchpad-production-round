@@ -1,11 +1,19 @@
 import request from "supertest";
 import { app } from "../../app";
-import { buildEmployeeRecord, countMock, findManyMock, resetEmployeeMocks } from "./employees-test.helpers";
+import {
+  buildEmployeeRecord,
+  buildViewer,
+  countMock,
+  findManyMock,
+  resetEmployeeMocks,
+} from "./employees-test.helpers";
 
-// The employee endpoint is temporarily unauthenticated, but app.ts still imports auth for /me.
-// Mocking auth prevents Firebase Admin dependencies from loading in this endpoint test suite.
+// Authenticate as HR so the directory returns the full (unredacted) list fields.
 jest.mock("../../core/middleware/auth.middleware", () => ({
-  authenticate: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authenticate: (req: { user?: unknown }, _res: unknown, next: () => void) => {
+    req.user = buildViewer({ role: "HR" });
+    next();
+  },
 }));
 
 // Mock only the Prisma methods used by the employee directory query.

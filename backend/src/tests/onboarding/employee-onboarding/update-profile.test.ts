@@ -40,7 +40,7 @@ describe("PATCH /api/v1/employee-onboarding/profile", () => {
     employeeFindManyMock.mockResolvedValue([]);
     employeeUpdateMock.mockResolvedValue({
       ...buildOnboardingRecord().employee,
-      emergencyContact: "Juan Santos - +63 917 123 4567",
+      emergencyContact: { emergencyContactNumber: "Juan Santos - +63 917 123 4567" },
     });
 
     const response = await request(app)

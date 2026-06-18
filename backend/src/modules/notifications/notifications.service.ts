@@ -130,6 +130,118 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * Notifies the offboardee that their offboarding process has started.
+   * Failures are swallowed so offboarding initiation is never blocked.
+   */
+  async notifyOffboardingStarted(
+    employeeId: string,
+    offboardingId: string,
+  ): Promise<void> {
+    try {
+      const employee =
+        await this.notificationsRepository.findEmployeeWithUserById(employeeId);
+
+      if (!employee) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: employee.id,
+        type: "OFFBOARDING_STARTED",
+        subject: "Your offboarding has started",
+        body: "Your offboarding process has been initiated. You can track your clearance status here.",
+        linkUrl: `/offboarding/me`,
+        sourceType: "OffboardingRecord",
+        sourceId: offboardingId,
+      });
+
+      this.inAppChannel.deliver(
+        employee.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: offboarding must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Notifies a signatory that a clearance is awaiting their signature.
+   * Failures are swallowed so offboarding initiation is never blocked.
+   */
+  async notifyClearanceSignRequest(
+    signatoryId: string,
+    employeeName: string,
+    requestId: string,
+  ): Promise<void> {
+    try {
+      const signatory =
+        await this.notificationsRepository.findEmployeeWithUserById(signatoryId);
+
+      if (!signatory) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: signatory.id,
+        type: "CLEARANCE_SIGN_REQUEST",
+        subject: "Clearance awaiting your signature",
+        body: `${employeeName}'s offboarding clearance is awaiting your signature.`,
+        linkUrl: `/clearance`,
+        sourceType: "ClearanceSignatureRequest",
+        sourceId: requestId,
+      });
+
+      this.inAppChannel.deliver(
+        signatory.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: offboarding must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Notifies all HR users when a signatory rejects a clearance, so HR can reset it.
+   * Failures are swallowed so the reject action is never blocked.
+   */
+  async notifyHrClearanceRejected(
+    employeeName: string,
+    requestId: string,
+    note: string,
+  ): Promise<void> {
+    try {
+      const hrEmployees = await this.notificationsRepository.findAllHrEmployees();
+
+      if (hrEmployees.length === 0) {
+        return;
+      }
+
+      const subject = "Clearance rejected";
+      const body = `A signatory rejected ${employeeName}'s offboarding clearance: "${note}"`;
+      const linkUrl = `/clearance`;
+
+      for (const hrEmployee of hrEmployees) {
+        const notification = await this.notificationsRepository.create({
+          recipientId: hrEmployee.id,
+          type: "CLEARANCE_REJECTED",
+          subject,
+          body,
+          linkUrl,
+          sourceType: "ClearanceSignatureRequest",
+          sourceId: requestId,
+        });
+
+        this.inAppChannel.deliver(
+          hrEmployee.userId,
+          this.toNotificationDto(notification),
+        );
+      }
+    } catch {
+      // Fire-and-forget: the reject action must succeed even if notification delivery fails.
+    }
+  }
+
   /** Returns recent notifications for the authenticated user's employee profile. */
   async getNotifications(
     user: User,

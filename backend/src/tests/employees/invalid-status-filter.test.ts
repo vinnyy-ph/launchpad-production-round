@@ -1,10 +1,13 @@
 import request from "supertest";
 import { app } from "../../app";
-import { countMock, findManyMock, resetEmployeeMocks } from "./employees-test.helpers";
+import { buildViewer, countMock, findManyMock, resetEmployeeMocks } from "./employees-test.helpers";
 
-// Mock auth because this test targets validation behavior, not authentication.
+// Authenticate as HR so the request reaches the validation path under test.
 jest.mock("../../core/middleware/auth.middleware", () => ({
-  authenticate: (_req: unknown, _res: unknown, next: () => void) => next(),
+  authenticate: (req: { user?: unknown }, _res: unknown, next: () => void) => {
+    req.user = buildViewer({ role: "HR" });
+    next();
+  },
 }));
 
 // Prisma should never be called when validation fails before repository access.

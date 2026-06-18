@@ -88,11 +88,25 @@ export class EmployeeOnboardingService {
   async getStatus(user: User): Promise<OnboardingStatusResponseDto> {
     const record = await this.requireRecord(user);
 
-    return {
-      success: true,
-      message: API_SUCCESS_MESSAGES.ONBOARDING_STATUS_RETRIEVED,
-      data: this.toStatusData(record),
-    };
+    return this.toStatusResponse(record);
+  }
+
+  /**
+   * Returns one employee's onboarding checklist for an HR/Admin viewer.
+   * Shares the same status builder as the employee-scoped {@link getStatus}; the
+   * only difference is the record is located by employee id rather than session.
+   */
+  async getStatusByEmployeeId(
+    employeeId: string,
+  ): Promise<OnboardingStatusResponseDto> {
+    const record =
+      await this.employeeOnboardingRepository.findRecordByEmployeeId(employeeId);
+
+    if (!record) {
+      throw new Error("Onboarding record not found");
+    }
+
+    return this.toStatusResponse(record);
   }
 
   /**
@@ -306,9 +320,9 @@ export class EmployeeOnboardingService {
         case "birthday":
           return !employee.birthday;
         case "address":
-          return !employee.address?.trim();
+          return !employee.address?.address?.trim();
         case "emergencyContact":
-          return !employee.emergencyContact?.trim();
+          return !employee.emergencyContact?.emergencyContactNumber?.trim();
         default:
           return false;
       }
@@ -387,6 +401,17 @@ export class EmployeeOnboardingService {
     return expiresAt.getTime() < Date.now();
   }
 
+  /** Wraps the shared status data in the standard success envelope. */
+  private toStatusResponse(
+    record: OnboardingRecordWithRelations,
+  ): OnboardingStatusResponseDto {
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.ONBOARDING_STATUS_RETRIEVED,
+      data: this.toStatusData(record),
+    };
+  }
+
   private toStatusData(
     record: OnboardingRecordWithRelations,
     invitationStatusOverride?: ReturnType<
@@ -419,8 +444,8 @@ export class EmployeeOnboardingService {
       middleName: employee.middleName,
       personalEmail: employee.personalEmail,
       birthday: employee.birthday?.toISOString() ?? null,
-      address: employee.address,
-      emergencyContact: employee.emergencyContact,
+      address: employee.address?.address ?? null,
+      emergencyContact: employee.emergencyContact?.emergencyContactNumber ?? null,
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
     };

@@ -1,23 +1,41 @@
+jest.mock("@/shared/lib/api-client", () => ({
+  apiFetch: jest.fn(() =>
+    Promise.resolve({ success: true, message: "ok", data: [] }),
+  ),
+}));
+
+import { apiFetch } from "@/shared/lib/api-client";
 import {
   fetchNotifications,
   markNotificationRead,
 } from "@/modules/notifications/services/notifications.service";
-import { resetDemo } from "@/shared/mock/db";
 
-describe("notifications service (mock)", () => {
-  beforeEach(() => resetDemo());
+const mockedApiFetch = apiFetch as jest.MockedFunction<typeof apiFetch>;
 
-  it("returns the recipient's notifications, newest first", async () => {
-    const list = await fetchNotifications("e-emp", 10);
-    expect(list.length).toBeGreaterThan(0);
-    expect(list[0].createdAt >= list[1].createdAt).toBe(true);
+describe("notifications service", () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it("lists notifications scoped to the caller, returning the response data", async () => {
+    const rows = [
+      { id: "n1", type: "NEW_PULSE", subject: "s", body: "b", linkUrl: null, isRead: false, createdAt: "2026-06-16T09:00:00.000Z" },
+    ];
+    mockedApiFetch.mockResolvedValueOnce({ success: true, message: "ok", data: rows });
+
+    const list = await fetchNotifications("e-emp", 5);
+
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/v1/notifications?limit=5");
+    expect(list).toEqual(rows);
   });
 
-  it("marks a notification read and persists it", async () => {
-    const before = await fetchNotifications("e-emp", 10);
-    const target = before.find((n) => !n.isRead)!;
-    await markNotificationRead(target.id);
-    const after = await fetchNotifications("e-emp", 10);
-    expect(after.find((n) => n.id === target.id)!.isRead).toBe(true);
+  it("defaults the limit to 10 when not given", async () => {
+    await fetchNotifications("e-emp");
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/v1/notifications?limit=10");
+  });
+
+  it("marks a notification read via PATCH", async () => {
+    await markNotificationRead("n1");
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/v1/notifications/n1/read", {
+      method: "PATCH",
+    });
   });
 });

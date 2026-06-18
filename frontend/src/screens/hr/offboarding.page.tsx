@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Plus, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -27,85 +27,21 @@ import {
   StatusBadge,
   type Column,
 } from "@/shared/ui";
-import { readCollection, writeCollection } from "@/shared/mock/db";
-import type { OffboardingCase, DemoEmployee, Team, Clearance } from "@/shared/mock/types";
-
-type OffboardingStatus = OffboardingCase["status"];
-
-// ─── data hook ────────────────────────────────────────────────────────────────
-
-interface UseOffboardingRowsResult {
-  rows: CaseRow[];
-  loading: boolean;
-  error: string | null;
-  reload: () => void;
-}
-
-function useOffboardingRows(): UseOffboardingRowsResult {
-  const [rows, setRows] = useState<CaseRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      const cases = readCollection<OffboardingCase>("offboardingCases");
-      const employees = readCollection<DemoEmployee>("employees");
-      setRows(buildRows(cases, employees));
-    } catch {
-      setError("Could not load offboarding cases.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  return { rows, loading, error, reload: load };
-}
+import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useOffboardings, useCreateOffboarding } from "@/modules/people/offboarding";
+import type { OffboardingListItem, OffboardingStatus } from "@/modules/people/offboarding";
 
 const ALL = "ALL";
 
 const STATUS_OPTIONS: { value: typeof ALL | OffboardingStatus; label: string }[] = [
   { value: ALL, label: "All statuses" },
-  { value: "INITIATED", label: "Initiated" },
-  { value: "CLEARANCES", label: "Clearances" },
-  { value: "COMPLETE", label: "Complete" },
+  { value: "IN_PROGRESS", label: "In progress" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
-interface CaseRow {
-  id: string;
-  employeeId: string;
-  displayName: string;
-  email: string;
-  status: OffboardingStatus;
-  lastDay: string;
-  reason: string;
-  clearanceSigned: number;
-  clearanceTotal: number;
-}
-
-function buildRows(
-  cases: OffboardingCase[],
-  employees: DemoEmployee[],
-): CaseRow[] {
-  const empMap = new Map(employees.map((e) => [e.employeeId, e]));
-  return cases.map((c) => {
-    const emp = empMap.get(c.employeeId);
-    const signed = c.clearances.filter((cl) => cl.status === "SIGNED").length;
-    return {
-      id: c.id,
-      employeeId: c.employeeId,
-      displayName: emp?.displayName ?? c.employeeId,
-      email: emp?.email ?? "—",
-      status: c.status,
-      lastDay: c.lastDay,
-      reason: c.reason,
-      clearanceSigned: signed,
-      clearanceTotal: c.clearances.length,
-    };
-  });
+function fullName(e: { firstName: string; lastName: string }): string {
+  return `${e.firstName} ${e.lastName}`.trim();
 }
 
 function formatDate(iso: string): string {
@@ -125,31 +61,31 @@ export default function OffboardingPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<typeof ALL | OffboardingStatus>(ALL);
   const [initiateOpen, setInitiateOpen] = useState(false);
-  const { rows, loading, error, reload } = useOffboardingRows();
+  const { offboardings, loading, error, reload } = useOffboardings();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    return offboardings.filter((r) => {
       const matchesStatus = statusFilter === ALL || r.status === statusFilter;
-      const matchesSearch =
-        !q ||
-        r.displayName.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q);
+      const matchesSearch = !q || fullName(r.employee).toLowerCase().includes(q);
       return matchesStatus && matchesSearch;
     });
-  }, [rows, search, statusFilter]);
+  }, [offboardings, search, statusFilter]);
 
   const hasFilters = Boolean(search.trim() || statusFilter !== ALL);
 
-  const columns: Column<CaseRow>[] = [
+  const columns: Column<OffboardingListItem>[] = [
     {
       header: "Employee",
       cell: (r) => (
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-            {r.displayName}
+            {fullName(r.employee)}
           </p>
-          <p className="truncate text-xs text-[color:var(--text-tertiary)]">{r.email}</p>
+          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+            {r.employee.jobTitle ?? "—"}
+            {r.employee.department ? ` · ${r.employee.department}` : ""}
+          </p>
         </div>
       ),
     },
@@ -158,22 +94,22 @@ export default function OffboardingPage() {
       cell: (r) => <StatusBadge status={r.status} />,
     },
     {
-      header: "Last Day",
+      header: "Tender date",
       cell: (r) => (
-        <span className="text-sm text-[color:var(--text-secondary)]">{formatDate(r.lastDay)}</span>
+        <span className="text-sm text-[color:var(--text-secondary)]">{formatDate(r.tenderDate)}</span>
       ),
     },
     {
-      header: "Reason",
+      header: "Effective date",
       cell: (r) => (
-        <span className="text-sm text-[color:var(--text-secondary)]">{r.reason}</span>
+        <span className="text-sm text-[color:var(--text-secondary)]">{formatDate(r.effectiveDate)}</span>
       ),
     },
     {
       header: "Clearances",
       cell: (r) => (
         <span className="text-sm text-[color:var(--text-secondary)]">
-          {r.clearanceSigned}/{r.clearanceTotal} signed
+          {r.signedCount}/{r.totalCount} signed
         </span>
       ),
     },
@@ -196,11 +132,8 @@ export default function OffboardingPage() {
       <InitiateOffboardingDialog
         open={initiateOpen}
         onOpenChange={setInitiateOpen}
-        existingCases={rows}
-        onInitiated={(caseId) => {
-          reload();
-          router.push(`/hr/offboarding/${caseId}`);
-        }}
+        existing={offboardings}
+        onInitiated={(caseId) => router.push(`/hr/offboarding/${caseId}`)}
       />
 
       <FilterBar aria-label="Filter offboarding cases">
@@ -261,54 +194,37 @@ export default function OffboardingPage() {
 
 // ─── initiate offboarding dialog ──────────────────────────────────────────────
 
-const REASONS = ["Resignation", "End of contract", "Retirement", "Termination", "Other"];
-
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-/** Default clearance signatories: supervisor (IT), HR (People), Finance. */
-function defaultClearances(emp: DemoEmployee, employees: DemoEmployee[]): Clearance[] {
-  const hr = employees.find((e) => e.role === "HR" && e.isActive);
-  const finance = employees.find((e) => e.department === "Finance" && e.isSupervisor);
-  const list: Clearance[] = [];
-  if (emp.supervisorId) list.push({ dept: "IT", ownerEmployeeId: emp.supervisorId, status: "PENDING" });
-  if (finance) list.push({ dept: "Finance", ownerEmployeeId: finance.employeeId, status: "PENDING" });
-  if (hr) list.push({ dept: "People", ownerEmployeeId: hr.employeeId, status: "PENDING" });
-  // Always have at least one signatory.
-  if (list.length === 0 && hr) list.push({ dept: "People", ownerEmployeeId: hr.employeeId, status: "PENDING" });
-  return list;
 }
 
 function InitiateOffboardingDialog({
   open,
   onOpenChange,
-  existingCases,
+  existing,
   onInitiated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  existingCases: CaseRow[];
+  existing: OffboardingListItem[];
   onInitiated: (caseId: string) => void;
 }) {
-  const employees = useMemo(() => readCollection<DemoEmployee>("employees"), [open]);
-  const teams = useMemo(() => readCollection<Team>("teams"), [open]);
-
-  const activeEmployees = useMemo(() => {
-    const offboarding = new Set(existingCases.map((c) => c.employeeId));
-    return employees.filter((e) => e.employeeStatus === "ACTIVE" && !offboarding.has(e.employeeId));
-  }, [employees, existingCases]);
+  // Only fetch employees while the dialog is open.
+  const { employees, loading: employeesLoading } = useEmployees(
+    open ? { status: "active", limit: 200 } : {},
+  );
+  const { create, creating } = useCreateOffboarding();
 
   const [empId, setEmpId] = useState<string>("");
-  const [lastDay, setLastDay] = useState<string>("");
-  const [reason, setReason] = useState<string>(REASONS[0]);
+  const [tenderDate, setTenderDate] = useState<string>(todayIso());
+  const [effectiveDate, setEffectiveDate] = useState<string>("");
   const [newSupervisorId, setNewSupervisorId] = useState<string>("");
-  const [errors, setErrors] = useState<{ emp?: string; lastDay?: string; reassign?: string }>({});
+  const [errors, setErrors] = useState<{ emp?: string; effective?: string }>({});
 
   function reset() {
     setEmpId("");
-    setLastDay("");
-    setReason(REASONS[0]);
+    setTenderDate(todayIso());
+    setEffectiveDate("");
     setNewSupervisorId("");
     setErrors({});
   }
@@ -318,78 +234,57 @@ function InitiateOffboardingDialog({
     onOpenChange(next);
   }
 
-  const selected = empId ? employees.find((e) => e.employeeId === empId) ?? null : null;
-  const directReports = useMemo(
-    () => (selected ? employees.filter((e) => e.supervisorId === selected.employeeId) : []),
-    [selected, employees],
+  // Exclude employees that already have an active offboarding case.
+  const offboardingIds = useMemo(
+    () => new Set(existing.filter((c) => c.status === "IN_PROGRESS").map((c) => c.employee.id)),
+    [existing],
   );
-  const ledTeams = useMemo(
-    () => (selected ? teams.filter((t) => t.leadEmployeeId === selected.employeeId) : []),
-    [selected, teams],
-  );
-  const needsReassign = directReports.length > 0 || ledTeams.length > 0;
 
-  function handleSubmit() {
+  const selectableEmployees = useMemo(
+    () => employees.filter((e) => !offboardingIds.has(e.id)),
+    [employees, offboardingIds],
+  );
+
+  const empOptions = selectableEmployees.map((e) => ({
+    value: e.id,
+    label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}`,
+  }));
+
+  const reassignOptions = employees
+    .filter((e) => e.id !== empId)
+    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+
+  async function handleSubmit() {
     const next: typeof errors = {};
     if (!empId) next.emp = "Select an employee.";
-    if (!lastDay) next.lastDay = "Last day is required.";
-    else if (lastDay < todayIso()) next.lastDay = "Last day cannot be in the past.";
-    if (needsReassign && !newSupervisorId) next.reassign = "Pick who takes over reports and team leadership.";
+    if (!effectiveDate) next.effective = "Effective date is required.";
+    else if (effectiveDate < tenderDate) next.effective = "Effective date cannot be before the tender date.";
     setErrors(next);
-    if (Object.keys(next).length > 0 || !selected) return;
+    if (Object.keys(next).length > 0) return;
 
-    // 1) employee → OFFBOARDING
-    let emps = readCollection<DemoEmployee>("employees");
-    emps = emps.map((e) =>
-      e.employeeId === selected.employeeId ? { ...e, employeeStatus: "OFFBOARDING" as const } : e,
-    );
-
-    // 2) reassign direct reports + team leadership (forced when the offboardee leads)
-    if (needsReassign && newSupervisorId) {
-      emps = emps.map((e) =>
-        e.supervisorId === selected.employeeId ? { ...e, supervisorId: newSupervisorId } : e,
-      );
-      // mark the new supervisor as a supervisor
-      emps = emps.map((e) => (e.employeeId === newSupervisorId ? { ...e, isSupervisor: true } : e));
-      if (ledTeams.length > 0) {
-        const current = readCollection<Team>("teams");
-        writeCollection<Team>(
-          "teams",
-          current.map((t) => (t.leadEmployeeId === selected.employeeId ? { ...t, leadEmployeeId: newSupervisorId } : t)),
-        );
-      }
+    const selected = employees.find((e) => e.id === empId);
+    try {
+      const created = await create({
+        employeeId: empId,
+        tenderDate,
+        effectiveDate,
+        ...(newSupervisorId ? { newSupervisorId } : {}),
+      });
+      toast.success(`Offboarding initiated for ${selected?.fullName ?? "employee"}.`);
+      reset();
+      onOpenChange(false);
+      onInitiated(created.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not initiate offboarding.");
     }
-    writeCollection<DemoEmployee>("employees", emps);
-
-    // 3) create the offboarding case with default clearances
-    const cases = readCollection<OffboardingCase>("offboardingCases");
-    const id = `of-${Date.now().toString(36)}`;
-    const created: OffboardingCase = {
-      id,
-      employeeId: selected.employeeId,
-      status: "INITIATED",
-      lastDay,
-      reason,
-      clearances: defaultClearances(selected, emps),
-    };
-    writeCollection<OffboardingCase>("offboardingCases", [...cases, created]);
-    toast.success(`Offboarding initiated for ${selected.displayName}.`);
-    reset();
-    onOpenChange(false);
-    onInitiated(id);
   }
-
-  const empOptions = activeEmployees.map((e) => ({ value: e.employeeId, label: `${e.displayName} · ${e.jobTitle}` }));
-  const reassignOptions = employees
-    .filter((e) => e.employeeStatus === "ACTIVE" && e.employeeId !== empId)
-    .map((e) => ({ value: e.employeeId, label: `${e.displayName} · ${e.jobTitle}` }));
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Initiate offboarding</DialogTitle>
-          <DialogDescription>Set the last day and reason, then run the clearance process.</DialogDescription>
+          <DialogDescription>Set the tender and effective dates, then run the clearance process.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -398,64 +293,59 @@ function InitiateOffboardingDialog({
               options={empOptions}
               value={empId}
               onChange={(v) => setEmpId(v)}
-              placeholder="Select an active employee…"
+              placeholder={employeesLoading ? "Loading employees…" : "Select an active employee…"}
               searchPlaceholder="Search employees…"
               emptyText="No active employees available."
             />
           </FormField>
 
-          <FormField label="Last day" htmlFor="off-lastday" required error={errors.lastDay}>
+          <FormField label="Tender date" htmlFor="off-tender">
             <Input
-              id="off-lastday"
+              id="off-tender"
               type="date"
-              min={todayIso()}
-              value={lastDay}
-              onChange={(e) => setLastDay(e.target.value)}
+              value={tenderDate}
+              onChange={(e) => setTenderDate(e.target.value)}
             />
           </FormField>
 
-          <FormField label="Reason" htmlFor="off-reason">
-            <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger id="off-reason">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {REASONS.map((r) => (
-                  <SelectItem key={r} value={r}>{r}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <FormField label="Effective date" htmlFor="off-effective" required error={errors.effective}>
+            <Input
+              id="off-effective"
+              type="date"
+              min={tenderDate || todayIso()}
+              value={effectiveDate}
+              onChange={(e) => setEffectiveDate(e.target.value)}
+            />
           </FormField>
 
-          {needsReassign && (
-            <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] p-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B54708]" aria-hidden="true" />
-                <p className="text-xs text-[#B54708]">
-                  This employee {directReports.length > 0 ? `has ${directReports.length} direct report(s)` : ""}
-                  {directReports.length > 0 && ledTeams.length > 0 ? " and " : ""}
-                  {ledTeams.length > 0 ? `leads ${ledTeams.length} team(s)` : ""}. Reassign before offboarding.
-                </p>
-              </div>
-              <div className="mt-3">
-                <FormField label="Reassign reports & team leadership to" required error={errors.reassign}>
-                  <Combobox
-                    options={reassignOptions}
-                    value={newSupervisorId}
-                    onChange={(v) => setNewSupervisorId(v)}
-                    placeholder="Select a new supervisor…"
-                    searchPlaceholder="Search employees…"
-                    emptyText="No employees available."
-                  />
-                </FormField>
-              </div>
+          <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] p-3">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B54708]" aria-hidden="true" />
+              <p className="text-xs text-[#B54708]">
+                If this employee has direct reports or leads teams, pick who takes over.
+                Otherwise leave this blank.
+              </p>
             </div>
-          )}
+            <div className="mt-3">
+              <FormField label="Reassign reports & team leadership to (optional)">
+                <Combobox
+                  options={reassignOptions}
+                  value={newSupervisorId}
+                  onChange={(v) => setNewSupervisorId(v)}
+                  placeholder="Select a new supervisor…"
+                  searchPlaceholder="Search employees…"
+                  emptyText="No employees available."
+                />
+              </FormField>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
           <Button variant="secondary" onClick={() => handleOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>Initiate offboarding</Button>
+          <Button onClick={() => void handleSubmit()} disabled={creating}>
+            {creating ? "Initiating…" : "Initiate offboarding"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

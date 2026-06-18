@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, RefreshCw, Users } from "lucide-react";
+import { useState } from "react";
+import { Users } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { readCollection } from "@/shared/mock/db";
-import type { DemoEmployee } from "@/shared/mock/types";
+import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import { StatCard, DataTable, type Column, EmptyState, StatusBadge } from "@/shared/ui/patterns";
 import {
@@ -13,70 +13,39 @@ import {
   SheetDescription,
 } from "@/shared/ui";
 
-// ─── Hook ────────────────────────────────────────────────────────────────────
-
-function useTeamReports(supervisorId: string | undefined) {
-  const [reports, setReports] = useState<DemoEmployee[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    try {
-      const all = readCollection<DemoEmployee>("employees");
-      setReports(all.filter((e) => e.supervisorId === supervisorId));
-    } catch {
-      setError("Failed to load team. Please retry.");
-    } finally {
-      setLoading(false);
-    }
-  }, [supervisorId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  return { reports, loading, error, reload: load };
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
+  const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 1) return parts[0]?.slice(0, 2).toUpperCase() ?? "?";
   return ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase();
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
   const { appUser } = useAuth();
-  const { reports, loading, error, reload } = useTeamReports(appUser?.employeeId);
-  const [selectedEmployee, setSelectedEmployee] = useState<DemoEmployee | null>(null);
+  const employeeId = appUser?.employeeId || undefined;
 
-  // Resolve supervisor name for the sheet
-  const supervisorName = useCallback(
-    (supId: string | null) => {
-      if (!supId) return "None";
-      return reports.find((r) => r.employeeId === supId)?.displayName ?? supId;
-    },
-    [reports],
-  );
+  // Supervisors are EMPLOYEE-role callers, so the API returns the REDACTED list (no PII).
+  // The server-side `supervisorId` filter scopes it to this supervisor's direct reports.
+  const { employees, loading, error, reload } = useEmployees({
+    supervisorId: employeeId,
+    page: 1,
+    limit: 100,
+  });
+  const reports = employeeId ? employees : [];
+
+  const [selected, setSelected] = useState<EmployeeListItem | null>(null);
 
   const stats = {
     total: reports.length,
-    active: reports.filter((r) => r.employeeStatus === "ACTIVE").length,
-    onboarding: reports.filter((r) => r.employeeStatus === "ONBOARDING").length,
-    offboarding: reports.filter((r) => r.employeeStatus === "OFFBOARDING").length,
+    active: reports.filter((r) => r.status === "active").length,
+    onboarding: reports.filter((r) => r.status === "onboarding").length,
+    offboarding: reports.filter((r) => r.status === "offboarding").length,
   };
 
-  const columns: Column<DemoEmployee>[] = [
+  const columns: Column<EmployeeListItem>[] = [
     {
       header: "Name",
       cell: (row) => (
@@ -88,13 +57,13 @@ export default function ReportsPage() {
             }}
             aria-hidden="true"
           >
-            {initials(row.displayName)}
+            {initials(row.fullName)}
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-              {row.displayName}
+              {row.fullName}
             </p>
-            <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.email}</p>
+            <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.companyEmail}</p>
           </div>
         </div>
       ),
@@ -103,22 +72,24 @@ export default function ReportsPage() {
       header: "Role / Department",
       cell: (row) => (
         <div className="min-w-0">
-          <p className="truncate text-sm text-[color:var(--text-primary)]">{row.jobTitle}</p>
-          <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.department}</p>
+          <p className="truncate text-sm text-[color:var(--text-primary)]">{row.jobTitle ?? "—"}</p>
+          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+            {row.department ?? "—"}
+          </p>
         </div>
       ),
     },
     {
-      header: "Status",
-      cell: (row) => <StatusBadge status={row.employeeStatus} dot />,
-    },
-    {
-      header: "Start date",
+      header: "Team/s",
       cell: (row) => (
         <span className="text-sm text-[color:var(--text-secondary)]">
-          {formatDate(row.startDate)}
+          {row.teams.length ? row.teams.map((t) => t.name).join(", ") : "—"}
         </span>
       ),
+    },
+    {
+      header: "Status",
+      cell: (row) => <StatusBadge status={row.status} dot />,
     },
   ];
 
@@ -127,37 +98,20 @@ export default function ReportsPage() {
       <ScreenHeader id="overview" />
 
       {/* Stat cards */}
-      {error ? (
-        <div
-          className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        >
-          <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-          <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{error}</span>
-          <button
-            onClick={reload}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
-          >
-            <RefreshCw size={12} />
-            Retry
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Headcount" value={loading ? "—" : stats.total} variant="brand" />
-          <StatCard label="Active" value={loading ? "—" : stats.active} />
-          <StatCard
-            label="Onboarding"
-            value={loading ? "—" : stats.onboarding}
-            variant={stats.onboarding > 0 ? "warn" : "default"}
-          />
-          <StatCard
-            label="Offboarding"
-            value={loading ? "—" : stats.offboarding}
-            variant={stats.offboarding > 0 ? "alert" : "default"}
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Headcount" value={loading ? "—" : stats.total} variant="brand" />
+        <StatCard label="Active" value={loading ? "—" : stats.active} />
+        <StatCard
+          label="Onboarding"
+          value={loading ? "—" : stats.onboarding}
+          variant={stats.onboarding > 0 ? "warn" : "default"}
+        />
+        <StatCard
+          label="Offboarding"
+          value={loading ? "—" : stats.offboarding}
+          variant={stats.offboarding > 0 ? "alert" : "default"}
+        />
+      </div>
 
       {/* Team table */}
       <section>
@@ -170,11 +124,12 @@ export default function ReportsPage() {
         >
           <DataTable
             columns={columns}
-            data={error ? [] : reports}
+            data={reports}
             isLoading={loading}
-            error={null}
-            getRowId={(row) => row.employeeId}
-            onRowClick={(row) => setSelectedEmployee(row)}
+            error={error}
+            onRetry={() => void reload()}
+            getRowId={(row) => row.id}
+            onRowClick={(row) => setSelected(row)}
             emptyState={
               <EmptyState
                 icon={Users}
@@ -186,10 +141,10 @@ export default function ReportsPage() {
         </div>
       </section>
 
-      {/* Employee detail sheet */}
-      <Sheet open={!!selectedEmployee} onOpenChange={(open) => !open && setSelectedEmployee(null)}>
+      {/* Employee detail sheet (redacted-safe fields only) */}
+      <Sheet open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <SheetContent side="right" className="w-full sm:max-w-md">
-          {selectedEmployee && (
+          {selected && (
             <>
               <SheetHeader className="mb-6">
                 <div className="flex items-center gap-3">
@@ -200,44 +155,61 @@ export default function ReportsPage() {
                     }}
                     aria-hidden="true"
                   >
-                    {initials(selectedEmployee.displayName)}
+                    {initials(selected.fullName)}
                   </span>
                   <div>
                     <SheetTitle className="text-left text-base font-bold leading-tight text-[color:var(--text-primary)]">
-                      {selectedEmployee.displayName}
+                      {selected.fullName}
                     </SheetTitle>
                     <SheetDescription className="text-left text-sm text-[color:var(--text-secondary)]">
-                      {selectedEmployee.jobTitle}
+                      {selected.jobTitle ?? "—"}
                     </SheetDescription>
                   </div>
                 </div>
               </SheetHeader>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4" style={{ boxShadow: "var(--shadow-xs)" }}>
+                <div
+                  className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
+                  style={{ boxShadow: "var(--shadow-xs)" }}
+                >
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Department</span>
-                    <span className="text-sm text-[color:var(--text-primary)]">{selectedEmployee.department}</span>
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
+                      Department
+                    </span>
+                    <span className="text-sm text-[color:var(--text-primary)]">
+                      {selected.department ?? "—"}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Status</span>
-                    <StatusBadge status={selectedEmployee.employeeStatus} dot />
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
+                      Status
+                    </span>
+                    <StatusBadge status={selected.status} dot />
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Supervisor</span>
-                    <span className="text-sm text-[color:var(--text-primary)]">{supervisorName(selectedEmployee.supervisorId)}</span>
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
+                      Supervisor
+                    </span>
+                    <span className="text-sm text-[color:var(--text-primary)]">
+                      {selected.supervisor?.fullName ?? "—"}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Team</span>
-                    <span className="text-sm text-[color:var(--text-primary)]">{selectedEmployee.teamId ?? "Unassigned"}</span>
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
+                      Team/s
+                    </span>
+                    <span className="text-sm text-[color:var(--text-primary)]">
+                      {selected.teams.length ? selected.teams.map((t) => t.name).join(", ") : "—"}
+                    </span>
                   </div>
-                  <div className="flex flex-col gap-0.5 col-span-2">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Email</span>
-                    <span className="text-sm text-[color:var(--text-primary)]">{selectedEmployee.email}</span>
-                  </div>
-                  <div className="flex flex-col gap-0.5 col-span-2">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Start date</span>
-                    <span className="text-sm text-[color:var(--text-primary)]">{formatDate(selectedEmployee.startDate)}</span>
+                  <div className="col-span-2 flex flex-col gap-0.5">
+                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
+                      Company email
+                    </span>
+                    <span className="text-sm text-[color:var(--text-primary)]">
+                      {selected.companyEmail}
+                    </span>
                   </div>
                 </div>
               </div>

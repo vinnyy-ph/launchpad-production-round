@@ -102,6 +102,7 @@ export function buildSupervisorRecord() {
  */
 export function mockOnboardingTransaction(employeeOverrides: Record<string, unknown> = {}) {
   transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+    const { address, emergencyContact, ...scalarOverrides } = employeeOverrides;
     const defaultEmployee = {
       id: "new-employee-id",
       companyEmail: "new.hire@example.com",
@@ -125,7 +126,19 @@ export function mockOnboardingTransaction(employeeOverrides: Record<string, unkn
       employee: {
         create: jest.fn().mockResolvedValue({
           ...defaultEmployee,
-          ...employeeOverrides,
+          ...scalarOverrides,
+          address:
+            "address" in employeeOverrides
+              ? address
+                ? { address }
+                : null
+              : defaultEmployee.address,
+          emergencyContact:
+            "emergencyContact" in employeeOverrides
+              ? emergencyContact
+                ? { emergencyContactNumber: emergencyContact }
+                : null
+              : defaultEmployee.emergencyContact,
         }),
       },
       onboardingTemplate: {

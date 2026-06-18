@@ -32,8 +32,18 @@ export class EmployeesController {
     next: NextFunction,
   ) => {
     try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
       const filters = this.employeesValidation.parseListFilters(req.query);
-      const result = await this.employeesService.listEmployees(filters);
+      const result = await this.employeesService.listEmployees(filters, {
+        userId: req.user.id,
+        role: req.user.role,
+      });
 
       return res.json(result);
     } catch (error) {
@@ -67,8 +77,18 @@ export class EmployeesController {
     next: NextFunction,
   ) => {
     try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
       const params = this.employeesValidation.parseProfileParams(req.params);
-      const result = await this.employeesService.getEmployeeProfile(params);
+      const result = await this.employeesService.getEmployeeProfile(params, {
+        userId: req.user.id,
+        role: req.user.role,
+      });
 
       return res.json(result);
     } catch (error) {

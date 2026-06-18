@@ -4,6 +4,7 @@ export type { EmployeeEmergencyContactResponseDto } from "./employee-emergency-c
 export type {
   EmployeeProfileDto,
   EmployeeProfileResponseDto,
+  RedactedEmployeeProfileDto,
 } from "./employee-profile-response.dto";
 export type { EmployeeListItemResponseDto } from "./employee-list-item-response.dto";
 export type { EmployeeLedTeamResponseDto } from "./employee-led-team-response.dto";

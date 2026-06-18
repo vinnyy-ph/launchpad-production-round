@@ -71,8 +71,8 @@ export class OnboardingService {
           middleName: result.employee.middleName,
           personalEmail: result.employee.personalEmail,
           birthday: result.employee.birthday?.toISOString() ?? null,
-          address: result.employee.address,
-          emergencyContact: result.employee.emergencyContact,
+          address: result.employee.address?.address ?? null,
+          emergencyContact: result.employee.emergencyContact?.emergencyContactNumber ?? null,
           jobTitle: result.employee.jobTitle ?? "",
           department: result.employee.department?.name ?? "",
           supervisor: {
@@ -162,9 +162,9 @@ export class OnboardingService {
         case "birthday":
           return !employee.birthday;
         case "address":
-          return !employee.address?.trim();
+          return !employee.address?.address?.trim();
         case "emergencyContact":
-          return !employee.emergencyContact?.trim();
+          return !employee.emergencyContact?.emergencyContactNumber?.trim();
         default:
           return false;
       }
