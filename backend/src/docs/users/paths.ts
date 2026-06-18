@@ -8,8 +8,16 @@
  *       description: Application role assigned to a user account.
  *     AddUserRole:
  *       type: string
- *       enum: [HR, EMPLOYEE]
+ *       enum: [ADMIN, HR, EMPLOYEE]
  *       description: Role an admin may assign when creating a new user.
+ *     UserSortField:
+ *       type: string
+ *       enum: [name, role, status, lastLogin]
+ *       description: Server-side sort column for GET /api/v1/users.
+ *     UserSortOrder:
+ *       type: string
+ *       enum: [asc, desc]
+ *       description: Sort direction for GET /api/v1/users.
  *     UserListItem:
  *       type: object
  *       properties:
@@ -45,6 +53,11 @@
  *           type: string
  *           nullable: true
  *           example: onboarding
+ *         lastLoginAt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: Updated on each successful POST /api/auth/session for that user.
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -93,13 +106,13 @@
  *               example: 1
  *             limit:
  *               type: integer
- *               example: 25
+ *               example: 10
  *             total:
  *               type: integer
  *               example: 42
  *             totalPages:
  *               type: integer
- *               example: 2
+ *               example: 5
  *     CreateUserResponse:
  *       type: object
  *       properties:
@@ -127,7 +140,7 @@
  *       required: [role]
  *       properties:
  *         role:
- *           $ref: '#/components/schemas/AddUserRole'
+ *           $ref: '#/components/schemas/UserRole'
  *     UpdateRoleResponse:
  *       type: object
  *       properties:
@@ -148,7 +161,7 @@
  *     tags: [Users]
  *     summary: List users
  *     description: |
- *       Returns a paginated list of user accounts for admin management.
+ *       Returns a paginated, sortable list of user accounts for admin management.
  *       By default only active accounts are returned. Pass `includeDeactivated=true`
  *       to include deactivated users. This endpoint does not delete any records.
  *     security:
@@ -166,7 +179,7 @@
  *           type: integer
  *           minimum: 1
  *           maximum: 100
- *           default: 25
+ *           default: 10
  *       - in: query
  *         name: role
  *         schema:
@@ -181,6 +194,16 @@
  *           type: boolean
  *           default: false
  *         description: When true, includes deactivated accounts in the result set.
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           $ref: '#/components/schemas/UserSortField'
+ *         description: Server-side sort column. Defaults to createdAt descending when omitted.
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           $ref: '#/components/schemas/UserSortOrder'
+ *         description: Sort direction. Defaults to asc when sortBy is provided.
  *     responses:
  *       200:
  *         description: Paginated user list
@@ -188,6 +211,8 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ListUsersResponse'
+ *       400:
+ *         description: Invalid query parameters (role, sortBy, or sortOrder)
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
@@ -196,7 +221,7 @@
  *     tags: [Users]
  *     summary: Add a user
  *     description: |
- *       Creates a new HR or Employee account with a linked employee profile.
+ *       Creates a new Admin, HR, or Employee account with a linked employee profile.
  *       The account is invitation-gated — the user can sign in via Google once
  *       their email matches the pre-created record. Does not trigger HR offboarding
  *       or change employee lifecycle status beyond the default onboarding state.
@@ -235,7 +260,7 @@
  *       Soft-deletes a user account by setting `isActive` to false.
  *       Deactivated users cannot log in. All employee data and history remain intact.
  *       This is an account action only — it does not start HR offboarding or change
- *       `Employee.status`.
+ *       `Employee.status`. The last remaining active admin cannot be deactivated.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -260,7 +285,7 @@
  *       409:
  *         description: User is already deactivated
  *       422:
- *         description: Cannot deactivate the last admin account
+ *         description: Cannot deactivate the last active admin account
  */
 
 /**
@@ -270,9 +295,10 @@
  *     tags: [Users]
  *     summary: Update a user's role
  *     description: |
- *       Changes a user's stored role between HR and Employee.
- *       The last remaining admin cannot be demoted (lockout protection).
- *       The role takes effect on the user's next authenticated request.
+ *       Changes a user's stored role between Admin, HR, and Employee.
+ *       The last remaining active admin cannot be demoted (lockout protection).
+ *       Admins cannot change their own role. The role takes effect on the user's
+ *       next authenticated request.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -305,5 +331,5 @@
  *       409:
  *         description: User is deactivated
  *       422:
- *         description: Cannot demote the last remaining admin
+ *         description: Cannot demote the last remaining active admin
  */
