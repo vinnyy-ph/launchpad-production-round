@@ -69,7 +69,7 @@
  *     tags: [Onboarding Custom Fields]
  *     summary: Create an onboarding custom text field
  *     description: |
- *       HR or Admin creates a custom text field on the default onboarding template.
+ *       HR creates a custom text field on the default onboarding template.
  *       New employees will fill in these fields during onboarding, and the values
  *       appear on their profile after onboarding is complete.
  *     security:
@@ -92,7 +92,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *   get:
  *     tags: [Onboarding Custom Fields]
  *     summary: List onboarding custom text fields
@@ -109,7 +109,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  */
 
 /**
@@ -139,7 +139,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *   put:
  *     tags: [Onboarding Custom Fields]
  *     summary: Update an onboarding custom text field
@@ -172,7 +172,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  *   delete:
  *     tags: [Onboarding Custom Fields]
  *     summary: Delete an onboarding custom text field
@@ -197,7 +197,7 @@
  *       401:
  *         description: Missing or invalid bearer token
  *       403:
- *         description: Caller is not HR or Admin
+ *         description: Caller is not HR
  */
 
 export {};

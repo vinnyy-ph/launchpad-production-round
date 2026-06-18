@@ -10,7 +10,7 @@ Use this guide to test the HR Required Documents endpoints with **real Philippin
    ```
    The server usually runs at `http://localhost:3001`.
 
-2. **Get a Firebase ID token** for an HR or Admin account that already exists in the database.
+2. **Get a Firebase ID token** for an HR account that already exists in the database.
    - Sign in through the frontend as HR, then copy the bearer token from your browser dev tools (Network tab → any API request → `Authorization` header).
    - Or use your Firebase auth flow and paste the token into the commands below.
 
@@ -187,7 +187,7 @@ curl -X POST http://localhost:3001/api/v1/onboarding/documents ^
 
 ## Step 7 — Verify authorization (403)
 
-Sign in as a regular **Employee** (not HR/Admin) and use that token instead.
+Sign in as a regular **Employee** (not HR) and use that token instead.
 
 ```bash
 curl http://localhost:3001/api/v1/onboarding/documents ^
@@ -202,7 +202,7 @@ curl http://localhost:3001/api/v1/onboarding/documents ^
 }
 ```
 
-Only HR and Admin can manage the required documents list.
+Only HR can manage the required documents list.
 
 ---
 

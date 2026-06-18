@@ -10,7 +10,7 @@ Use this guide to test the HR Custom Fields endpoints with **real Philippine onb
    ```
    The server usually runs at `http://localhost:3001`.
 
-2. **Get a Firebase ID token** for an HR or Admin account that already exists in the database.
+2. **Get a Firebase ID token** for an HR account that already exists in the database.
    - Sign in through the frontend as HR, then copy the bearer token from your browser dev tools (Network tab → any API request → `Authorization` header).
    - Or use your Firebase auth flow and paste the token into Swagger or the commands below.
 
@@ -178,7 +178,7 @@ In Swagger, use **POST /api/v1/onboarding/custom-fields** with invalid payloads.
 
 ## Step 7 — Verify authorization (403)
 
-Sign in as a regular **Employee** (not HR/Admin) and use that token in Swagger instead.
+Sign in as a regular **Employee** (not HR) and use that token in Swagger instead.
 
 Try **GET /api/v1/onboarding/custom-fields**.
 

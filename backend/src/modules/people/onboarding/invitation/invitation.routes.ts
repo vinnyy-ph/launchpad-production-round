@@ -6,24 +6,24 @@ const invitationController = new InvitationController();
 
 export const invitationRouter = Router();
 
-/** HR or Admin only — manage onboarding invitations. */
+/** HR only — manage onboarding invitations. */
 invitationRouter.post(
   "/:recordId/send",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   invitationController.sendInvitation,
 );
 invitationRouter.post(
   "/:invitationId/resend",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   invitationController.resendInvitation,
 );
 invitationRouter.patch(
   "/:invitationId/email",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   invitationController.updateInvitationEmail,
 );
 invitationRouter.get(
   "/:recordId",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   invitationController.getInvitationStatus,
 );

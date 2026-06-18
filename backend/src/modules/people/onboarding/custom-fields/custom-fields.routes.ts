@@ -6,29 +6,29 @@ const customFieldsController = new CustomFieldsController();
 
 export const customFieldsRouter = Router();
 
-/** HR or Admin only — manage onboarding custom text fields. */
+/** HR only — manage onboarding custom text fields. */
 customFieldsRouter.post(
   "/",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   customFieldsController.createCustomField,
 );
 customFieldsRouter.get(
   "/",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   customFieldsController.listCustomFields,
 );
 customFieldsRouter.get(
   "/:id",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   customFieldsController.getCustomField,
 );
 customFieldsRouter.put(
   "/:id",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   customFieldsController.updateCustomField,
 );
 customFieldsRouter.delete(
   "/:id",
-  requireRole("HR", "ADMIN"),
+  requireRole("HR"),
   customFieldsController.deleteCustomField,
 );

@@ -34,6 +34,9 @@ export const API_SUCCESS_MESSAGES = {
   ONBOARDING_PROFILE_UPDATED: "Onboarding profile updated successfully",
   CUSTOM_FIELD_VALUES_SAVED: "Custom field values saved successfully",
   DOCUMENT_SUBMITTED: "Document submitted successfully",
+  DOCUMENT_REVIEWS_RETRIEVED: "Document submissions retrieved successfully",
+  DOCUMENT_APPROVED: "Document submission approved successfully",
+  DOCUMENT_REJECTED: "Document submission rejected successfully",
   ONBOARDING_COMPLETED: "Onboarding completed successfully",
 } as const;
 
