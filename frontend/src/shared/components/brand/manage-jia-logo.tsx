@@ -1,7 +1,7 @@
 type Tone = "dark" | "light";
 
-interface SwiftWorkLogoProps {
-  /** dark = dark tile/white bars (on white surfaces); light = inverted (on gradient/dark). */
+interface ManageJiaLogoProps {
+  /** dark = wordmark in ink (on white surfaces); light = white wordmark (on gradient/dark). */
   tone?: Tone;
   /** Mark size in px (square). Wordmark scales relative to this. */
   size?: number;
@@ -9,20 +9,34 @@ interface SwiftWorkLogoProps {
   markOnly?: boolean;
 }
 
+/** 135° Jia gradient stops (peach → pink → lilac → blue) — mirrors --gradient-jia. */
+function JiaGradientDef({ id }: { id: string }) {
+  return (
+    <defs>
+      <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#fccec0" />
+        <stop offset="33%" stopColor="#ebacc9" />
+        <stop offset="66%" stopColor="#ceb6da" />
+        <stop offset="100%" stopColor="#9fcaed" />
+      </linearGradient>
+    </defs>
+  );
+}
+
 /**
- * Swift Work brand lockup: rising-bars mark + "Swift Work" wordmark + ✦.
- * Monochrome by design — the brand gradient is reserved for the login poster.
+ * Manage Jia brand lockup: Jia-gradient rising-bars mark + "Manage Jia" wordmark + ✦.
+ * The mark tile carries the brand gradient; bars are white; wordmark follows the tone.
  */
-export function SwiftWorkLogo({ tone = "dark", size = 38, className, markOnly = false }: SwiftWorkLogoProps) {
-  const tile = tone === "dark" ? "#181D27" : "#FFFFFF";
-  const bars = tone === "dark" ? "#FFFFFF" : "#181D27";
+export function ManageJiaLogo({ tone = "dark", size = 38, className, markOnly = false }: ManageJiaLogoProps) {
+  const gradId = "mj-jia-grad";
   const text = tone === "dark" ? "#181D27" : "#FFFFFF";
 
   if (markOnly) {
     return (
       <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" focusable="false" className={className}>
-        <rect width="40" height="40" rx="9" fill={tile} />
-        <g fill={bars}>
+        <JiaGradientDef id={gradId} />
+        <rect width="40" height="40" rx="9" fill={`url(#${gradId})`} />
+        <g fill="#FFFFFF">
           <rect x="12" y="22" width="4.2" height="8" rx="2.1" />
           <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1" />
           <rect x="23.8" y="11" width="4.2" height="19" rx="2.1" />
@@ -34,8 +48,9 @@ export function SwiftWorkLogo({ tone = "dark", size = 38, className, markOnly = 
   return (
     <div className={className} style={{ display: "flex", alignItems: "center", gap: 11 }}>
       <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" focusable="false">
-        <rect width="40" height="40" rx="9" fill={tile} />
-        <g fill={bars}>
+        <JiaGradientDef id={gradId} />
+        <rect width="40" height="40" rx="9" fill={`url(#${gradId})`} />
+        <g fill="#FFFFFF">
           <rect x="12" y="22" width="4.2" height="8" rx="2.1" />
           <rect x="17.9" y="16.5" width="4.2" height="13.5" rx="2.1" />
           <rect x="23.8" y="11" width="4.2" height="19" rx="2.1" />
@@ -51,7 +66,7 @@ export function SwiftWorkLogo({ tone = "dark", size = 38, className, markOnly = 
           lineHeight: 1,
         }}
       >
-        SwiftWork
+        Manage Jia
       </span>
       <span
         aria-hidden="true"
