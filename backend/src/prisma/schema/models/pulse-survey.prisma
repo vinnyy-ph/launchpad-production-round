@@ -11,7 +11,8 @@ model PulseSurvey {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   deletedAt     DateTime?
-
+  releaseDate   DateTime
+  deadline      DateTime
 
   occurrences     SurveyOccurrence[]
   questions       SurveyQuestion[]
