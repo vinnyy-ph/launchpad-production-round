@@ -9,18 +9,29 @@ export const VALID_PH_EMERGENCY_CONTACT_DISPLAY = "Jane Doe - +63 917 123 4567";
 export const mockedPrisma = jest.mocked(prisma);
 export const userFindUniqueMock = mockedPrisma.user.findUnique as jest.Mock;
 export const employeeFindFirstMock = mockedPrisma.employee.findFirst as jest.Mock;
+export const employeeFindUniqueMock = mockedPrisma.employee.findUnique as jest.Mock;
 export const employeeFindManyMock = mockedPrisma.employee.findMany as jest.Mock;
+export const emergencyContactFindManyMock =
+  mockedPrisma.employeeEmergencyContact.findMany as jest.Mock;
 export const transactionMock = mockedPrisma.$transaction as jest.Mock;
 
 /** Clears all onboarding-related Prisma mocks before each test. */
 export function resetOnboardingMocks() {
   userFindUniqueMock.mockReset();
   employeeFindFirstMock.mockReset();
+  employeeFindUniqueMock.mockReset();
   transactionMock.mockReset();
+
+  employeeFindUniqueMock.mockResolvedValue(null);
 
   if (employeeFindManyMock) {
     employeeFindManyMock.mockReset();
     employeeFindManyMock.mockResolvedValue([]);
+  }
+
+  if (emergencyContactFindManyMock) {
+    emergencyContactFindManyMock.mockReset();
+    emergencyContactFindManyMock.mockResolvedValue([]);
   }
 }
 
