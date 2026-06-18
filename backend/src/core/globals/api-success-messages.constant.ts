@@ -18,6 +18,7 @@ export const API_SUCCESS_MESSAGES = {
   EVALUATION_UPDATED: "Evaluation updated successfully",
   EVALUATION_DELETED: "Evaluation deleted successfully",
   EVALUATIONS_RETRIEVED: "Evaluations retrieved successfully",
+  SURVEY_CREATED: "Pulse survey created successfully",
 } as const;
 
 export type ApiSuccessMessage =
