@@ -1,8 +1,24 @@
 import type { AppUser } from "@/modules/auth/types/auth.types";
 
-export type DemoView = "ADMIN" | "HR" | "SUPERVISOR" | "EMPLOYEE" | "NEWHIRE";
-// Order shown in the role switcher. NEWHIRE last — it's the cold-start demo.
-export const DEMO_VIEWS: DemoView[] = ["ADMIN", "HR", "SUPERVISOR", "EMPLOYEE", "NEWHIRE"];
+export type DemoView =
+  | "ADMIN"
+  | "ADMIN_SUPERVISOR"
+  | "HR"
+  | "HR_SUPERVISOR"
+  | "SUPERVISOR"
+  | "EMPLOYEE"
+  | "NEWHIRE";
+// Order shown in the role switcher. Multi-role combos sit next to their base role so the
+// additive sidebar is easy to compare; NEWHIRE last — it's the cold-start demo.
+export const DEMO_VIEWS: DemoView[] = [
+  "ADMIN",
+  "ADMIN_SUPERVISOR",
+  "HR",
+  "HR_SUPERVISOR",
+  "SUPERVISOR",
+  "EMPLOYEE",
+  "NEWHIRE",
+];
 
 type SeededView = "ADMIN" | "HR" | "SUPERVISOR" | "EMPLOYEE";
 
@@ -44,6 +60,11 @@ export const NEW_HIRE_PROFILE: AppUser = {
 // All selectable views (login + role switcher resolve a view to its AppUser here).
 export const VIEW_PROFILES: Record<DemoView, AppUser> = {
   ...DEMO_PROFILES,
+  // Multi-role accounts: the same identity as the base role, now ALSO a supervisor, so the
+  // additive sidebar shows General + My Team + (Organization | Admin). Reuses the seeded
+  // employee rows (e-hr / e-admin), so "me" lookups still resolve.
+  HR_SUPERVISOR: { ...DEMO_PROFILES.HR, isSupervisor: true },
+  ADMIN_SUPERVISOR: { ...DEMO_PROFILES.ADMIN, isSupervisor: true },
   NEWHIRE: NEW_HIRE_PROFILE,
 };
 

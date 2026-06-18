@@ -8,7 +8,7 @@ import {
   ShieldAlert,
   Users,
 } from "lucide-react";
-import { PageHeader } from "@/shared/components/layout/page-header";
+import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import {
   Badge,
   Select,
@@ -574,7 +574,7 @@ export default function PerformanceHubPage() {
   if (loading) {
     return (
       <div>
-        <PageHeader level="page" title="Performance" subtitle="Results and insights across the organisation." />
+        <ScreenHeader id="performance" />
         <div className="space-y-3">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="h-24 rounded-xl border border-[color:var(--border-primary)] bg-white" style={{ opacity: 1 - i * 0.15 }} />
@@ -587,7 +587,7 @@ export default function PerformanceHubPage() {
   if (error) {
     return (
       <div>
-        <PageHeader level="page" title="Performance" subtitle="Results and insights across the organisation." />
+        <ScreenHeader id="performance" />
         <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
           <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
           <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{error}</span>
@@ -604,11 +604,7 @@ export default function PerformanceHubPage() {
 
   return (
     <div>
-      <PageHeader
-        level="page"
-        title="Performance"
-        subtitle="Pulse survey results and evaluation insights."
-      />
+      <ScreenHeader id="performance" />
 
       <Tabs defaultValue="survey">
         <TabsList>
