@@ -36,6 +36,8 @@ export const API_ERROR_MESSAGES = {
   EVALUATION_ALREADY_ACKNOWLEDGED:
     "This evaluation has already been acknowledged",
   REVIEWEE_NOT_EMPLOYEE: "Your account is not linked to an employee record",
+  OCCURRENCE_NOT_FOUND: "Occurrence not found",
+  EMPLOYEE_RECORD_REQUIRED: "Your account is not linked to an employee record",
 } as const;
 
 export type ApiErrorMessage =

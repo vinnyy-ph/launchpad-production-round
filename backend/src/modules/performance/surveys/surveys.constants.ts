@@ -14,4 +14,5 @@ export const SURVEY_ERROR_MESSAGES = {
   SURVEY_ALREADY_ACTIVATED: "Cannot update questions, audienceType, audienceConfigs, isAnonymous, or recurringType after it has been activated",
   SURVEY_ALREADY_ACTIVE: "Survey is already active",
   SURVEY_ALREADY_INACTIVE: "Survey is already inactive",
+  OCCURRENCE_NOT_FOUND: "Occurrence not found",
 } as const;
