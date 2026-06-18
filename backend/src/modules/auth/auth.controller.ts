@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { bindGoogleId, resolveSession } from "./auth.service";
+import { bindGoogleId, recordLastLogin, resolveSession } from "./auth.service";
 
 // POST /api/auth/session — the admission / bootstrap endpoint. authenticate() has
 // already verified the token and enforced the invitation gate + both login blocks;
@@ -12,6 +12,7 @@ export async function getSession(req: Request, res: Response) {
       .status(403)
       .json({ error: "This email is linked to a different Google identity." });
   }
+  await recordLastLogin(req.user!.id);
   const session = await resolveSession(req.user!);
   return res.json(session);
 }

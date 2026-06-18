@@ -1,9 +1,9 @@
 import { Role } from "@prisma/client";
 import type { AddUserRequestDto, GetUserParamsDto, ListUsersQueryDto, UpdateRoleRequestDto } from "./dto";
-import { ADD_USER_ALLOWED_ROLES, USER_FIELDS } from "./users.constants";
+import { ADD_USER_ALLOWED_ROLES, UPDATE_ROLE_ALLOWED_ROLES, USER_FIELDS, USER_SORT_FIELDS, USER_SORT_ORDERS } from "./users.constants";
 
 const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 25;
+const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,7 +43,7 @@ export class UsersValidation {
    * Validates and normalizes the PATCH /api/v1/users/:userId/role request body.
    */
   parseUpdateRoleBody(body: Record<string, unknown>): UpdateRoleRequestDto {
-    const role = this.parseAddUserRole(body.role);
+    const role = this.parseUpdateRole(body.role);
 
     return { role };
   }
@@ -57,6 +57,8 @@ export class UsersValidation {
     const role = this.parseOptionalRole(query.role);
     const isActive = this.parseOptionalBoolean(query.isActive);
     const includeDeactivated = this.parseOptionalBoolean(query.includeDeactivated) ?? false;
+    const sortBy = this.parseSortBy(query.sortBy);
+    const sortOrder = this.parseSortOrder(query.sortOrder);
 
     return {
       page,
@@ -64,6 +66,8 @@ export class UsersValidation {
       role,
       isActive,
       includeDeactivated,
+      sortBy,
+      sortOrder,
     };
   }
 
@@ -75,6 +79,16 @@ export class UsersValidation {
     }
 
     return role as AddUserRequestDto["role"];
+  }
+
+  private parseUpdateRole(value: unknown): UpdateRoleRequestDto["role"] {
+    const role = this.parseRequiredString(value, USER_FIELDS.ROLE).toUpperCase();
+
+    if (!UPDATE_ROLE_ALLOWED_ROLES.includes(role as (typeof UPDATE_ROLE_ALLOWED_ROLES)[number])) {
+      throw new Error("Invalid user role");
+    }
+
+    return role as UpdateRoleRequestDto["role"];
   }
 
   private parseOptionalRole(value: unknown): Role | undefined {
@@ -89,6 +103,38 @@ export class UsersValidation {
     }
 
     return role as Role;
+  }
+
+  private parseSortBy(
+    value: unknown,
+  ): ListUsersQueryDto["sortBy"] | undefined {
+    const sortBy = this.parseOptionalString(value)?.toLowerCase();
+
+    if (!sortBy) {
+      return undefined;
+    }
+
+    if (!USER_SORT_FIELDS.includes(sortBy as (typeof USER_SORT_FIELDS)[number])) {
+      throw new Error("Invalid sort field");
+    }
+
+    return sortBy as ListUsersQueryDto["sortBy"];
+  }
+
+  private parseSortOrder(
+    value: unknown,
+  ): ListUsersQueryDto["sortOrder"] | undefined {
+    const sortOrder = this.parseOptionalString(value)?.toLowerCase();
+
+    if (!sortOrder) {
+      return undefined;
+    }
+
+    if (!USER_SORT_ORDERS.includes(sortOrder as (typeof USER_SORT_ORDERS)[number])) {
+      throw new Error("Invalid sort order");
+    }
+
+    return sortOrder as ListUsersQueryDto["sortOrder"];
   }
 
   private parseRequiredString(value: unknown, fieldName: string): string {

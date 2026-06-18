@@ -82,7 +82,7 @@ export class UsersService {
   }
 
   /**
-   * Updates a user's role between HR and Employee.
+   * Updates a user's role between Admin, HR, and Employee.
    */
   async updateRole(
     userId: string,
@@ -150,6 +150,7 @@ export class UsersService {
       lastName: user.employee?.lastName ?? null,
       fullName: this.buildFullName(user.employee?.firstName, user.employee?.lastName),
       employeeStatus: user.employee ? this.toEmployeeStatusDto(user.employee.status) : null,
+      lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
     };
   }
@@ -165,6 +166,7 @@ export class UsersService {
       lastName: user.employee?.lastName ?? null,
       fullName: this.buildFullName(user.employee?.firstName, user.employee?.lastName),
       employeeStatus: user.employee ? this.toEmployeeStatusDto(user.employee.status) : null,
+      lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
