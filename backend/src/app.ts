@@ -1,5 +1,5 @@
 import cors from "cors";
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { authenticate } from "./core/middleware/auth.middleware";
 import { API_ROUTES } from "./core/globals";
 import { employeesRouter } from "./modules/people/employees";
@@ -23,6 +23,10 @@ import { clearanceRouter } from "./modules/people/offboarding/clearance";
 import { pulseSurveysRouter } from "./modules/performance/surveys";
 import { notificationsRouter } from "./modules/notifications";
 import { supervisorOnboardingRouter } from "./modules/people/onboarding/supervisor-onboarding";
+import {
+  API_ERROR_MESSAGES,
+  HTTP_STATUS_CODES,
+} from "./core/globals";
 
 export const app = express();
 
@@ -98,3 +102,19 @@ app.use(
   offboardingRouter,
 );
 app.use(`${API_ROUTES.VERSIONED_ROOT}/clearance`, authenticate, clearanceRouter);
+
+/** Fallback for unhandled errors — returns JSON instead of a blank 500 page. */
+app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.error(error);
+  }
+
+  if (res.headersSent) {
+    return;
+  }
+
+  return res.status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+    success: false,
+    message: API_ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+  });
+});
