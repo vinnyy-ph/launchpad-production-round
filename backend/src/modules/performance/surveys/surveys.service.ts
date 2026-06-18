@@ -286,6 +286,40 @@ export class SurveysService {
     };
   }
 
+  async listOccurrences(
+    surveyId: string,
+    query: { page: number; limit: number }
+  ): Promise<any> {
+    const survey = await this.surveysRepository.findById(surveyId);
+    if (!survey) {
+      throw new Error(SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND);
+    }
+
+    const { occurrences, total } = await this.surveysRepository.findOccurrencesBySurveyId(surveyId, query);
+
+    const formattedOccurrences = occurrences.map((occ) => ({
+      id: occ.id,
+      occurrenceNumber: occ.occurrenceNumber,
+      releaseDate: occ.releaseDate,
+      deadline: occ.deadline,
+      isClosed: occ.isClosed,
+      audienceSize: occ._count.audienceMembers,
+      completionCount: occ._count.completions,
+    }));
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.OCCURRENCES_RETRIEVED,
+      data: formattedOccurrences,
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+      },
+    };
+  }
+
   private toListItem(survey: SurveyListRow): SurveyListItemDto {
     return {
       id: survey.id,

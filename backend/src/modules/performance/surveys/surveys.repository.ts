@@ -336,4 +336,52 @@ export class SurveysRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  async findOccurrencesBySurveyId(
+    surveyId: string,
+    query: { page: number; limit: number }
+  ): Promise<{
+    occurrences: Array<{
+      id: string;
+      occurrenceNumber: number;
+      releaseDate: Date;
+      deadline: Date;
+      isClosed: boolean;
+      _count: {
+        audienceMembers: number;
+        completions: number;
+      };
+    }>;
+    total: number;
+  }> {
+    const { page, limit } = query;
+    const skip = (page - 1) * limit;
+
+    const [occurrences, total] = await Promise.all([
+      prisma.surveyOccurrence.findMany({
+        where: { surveyId },
+        orderBy: { occurrenceNumber: "asc" },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          occurrenceNumber: true,
+          releaseDate: true,
+          deadline: true,
+          isClosed: true,
+          _count: {
+            select: {
+              audienceMembers: true,
+              completions: true,
+            },
+          },
+        },
+      }),
+      prisma.surveyOccurrence.count({
+        where: { surveyId },
+      }),
+    ]);
+
+    return { occurrences, total };
+  }
 }

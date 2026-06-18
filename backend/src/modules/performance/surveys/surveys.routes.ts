@@ -26,4 +26,7 @@ router.patch("/:id/activate", requireRole("HR"), controller.activateSurvey);
 /** PATCH /api/v1/pulse/surveys/:id/deactivate — HR only. Deactivates a survey, closing the open occurrence. */
 router.patch("/:id/deactivate", requireRole("HR"), controller.deactivateSurvey);
 
+/** GET /api/v1/pulse/surveys/:id/occurrences — HR only. Lists all occurrences for a survey, paginated. */
+router.get("/:id/occurrences", requireRole("HR"), controller.listOccurrences);
+
 export { router as surveysRouter };

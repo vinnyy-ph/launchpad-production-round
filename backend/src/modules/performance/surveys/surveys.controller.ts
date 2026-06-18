@@ -313,6 +313,41 @@ export class SurveysController {
     }
   };
 
+  listOccurrences = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+
+      if (isNaN(page) || page <= 0 || isNaN(limit) || limit <= 0) {
+        res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: "Invalid pagination parameters",
+        });
+        return;
+      }
+
+      const result = await this.surveysService.listOccurrences(id, { page, limit });
+      res.status(HTTP_STATUS_CODES.OK).json(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND) {
+          res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+            success: false,
+            message: API_ERROR_MESSAGES.SURVEY_NOT_FOUND,
+            errorCode: API_ERROR_CODES.SURVEY_NOT_FOUND,
+          });
+          return;
+        }
+      }
+      next(error);
+    }
+  };
+
   private isValidationError(error: Error): boolean {
     const msg = error.message;
     if (msg === SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED) {
