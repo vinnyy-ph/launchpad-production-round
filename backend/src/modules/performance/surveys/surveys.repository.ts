@@ -8,7 +8,7 @@ import type {
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
 import type { CreateSurveyData } from "./surveys.types";
-import type { ListSurveysQuery } from "./dto";
+import type { ListSurveysQuery, UpdateSurveyInput } from "./dto";
 
 export type SurveyWithRelations = PulseSurvey & {
   questions: SurveyQuestion[];
@@ -165,5 +165,106 @@ export class SurveysRepository {
     }
 
     return result;
+  }
+
+  async update(id: string, data: UpdateSurveyInput, hasOccurrences: boolean): Promise<SurveyDetailRow> {
+    return prisma.$transaction(async (tx) => {
+      // 1. Update basic survey fields
+      const updateData: Prisma.PulseSurveyUpdateInput = {};
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.visibility !== undefined) updateData.visibility = data.visibility;
+      if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+      // Guarded fields (checked in service, but handled here)
+      if (data.isAnonymous !== undefined) updateData.isAnonymous = data.isAnonymous;
+      if (data.recurringType !== undefined) updateData.recurringType = data.recurringType;
+      if (data.audienceType !== undefined) updateData.audienceType = data.audienceType;
+
+      if (Object.keys(updateData).length > 0) {
+        await tx.pulseSurvey.update({
+          where: { id },
+          data: updateData,
+        });
+      }
+
+      // 2. Update questions (delete and replace)
+      if (data.questions !== undefined) {
+        await tx.surveyQuestion.deleteMany({ where: { surveyId: id } });
+        await tx.surveyQuestion.createMany({
+          data: data.questions.map((q) => ({
+            surveyId: id,
+            type: q.type,
+            questionText: q.questionText,
+            isRequired: q.isRequired,
+            options: q.options !== undefined ? (q.options as Prisma.InputJsonValue) : Prisma.JsonNull,
+            scaleMin: q.scaleMin ?? null,
+            scaleMax: q.scaleMax ?? null,
+            scaleMinLabel: q.scaleMinLabel ?? null,
+            scaleMaxLabel: q.scaleMaxLabel ?? null,
+            orderIndex: q.orderIndex,
+          })),
+        });
+      }
+
+      // 3. Update audienceConfigs (delete and replace)
+      if (data.audienceConfigs !== undefined) {
+        await tx.surveyAudienceConfig.deleteMany({ where: { surveyId: id } });
+        if (data.audienceConfigs.length > 0) {
+          await tx.surveyAudienceConfig.createMany({
+            data: data.audienceConfigs.map((cfg) => ({
+              surveyId: id,
+              supervisorId: cfg.supervisorId ?? null,
+              teamId: cfg.teamId ?? null,
+            })),
+          });
+        }
+      }
+
+      // 4. Update reminderConfig (delete if null, else upsert)
+      if (data.reminderConfig !== undefined) {
+        if (data.reminderConfig === null) {
+          await tx.surveyReminderConfig.deleteMany({ where: { surveyId: id } });
+        } else {
+          await tx.surveyReminderConfig.upsert({
+            where: { surveyId: id },
+            update: {
+              frequency: data.reminderConfig.frequency,
+              everyXDays: data.reminderConfig.everyXDays ?? null,
+            },
+            create: {
+              surveyId: id,
+              frequency: data.reminderConfig.frequency ?? "DAILY",
+              everyXDays: data.reminderConfig.everyXDays ?? null,
+            },
+          });
+        }
+      }
+
+      // 5. Fetch and return full survey
+      const includeOptions: Record<string, unknown> = {
+        questions: { orderBy: { orderIndex: "asc" } },
+        audienceConfigs: true,
+        reminderConfig: true,
+        _count: { select: { occurrences: true } },
+      };
+
+      try {
+        includeOptions.visibilityConfigs = true;
+      } catch {
+        // relation not available
+      }
+
+      const survey = await tx.pulseSurvey.findUniqueOrThrow({
+        where: { id },
+        include: includeOptions,
+      });
+
+      const result = survey as unknown as SurveyDetailRow;
+      if (!result.visibilityConfigs) {
+        result.visibilityConfigs = [];
+      }
+
+      return result;
+    });
   }
 }

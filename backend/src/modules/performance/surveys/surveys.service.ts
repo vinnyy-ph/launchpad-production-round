@@ -7,6 +7,7 @@ import type {
   SurveyDetailResponseDto,
   SurveyListItemDto,
   SurveyResponseDto,
+  UpdateSurveyInput,
 } from "./dto";
 import type { ApiSuccessResponseDto } from "../../../core/dto";
 import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
@@ -89,6 +90,54 @@ export class SurveysService {
       success: true,
       message: API_SUCCESS_MESSAGES.SURVEY_RETRIEVED,
       data: this.toDetailResponse(survey),
+    };
+  }
+
+  async update(
+    id: string,
+    input: UpdateSurveyInput,
+  ): Promise<ApiSuccessResponseDto<SurveyDetailResponseDto>> {
+    // 1. Fetch survey first to check existence and occurrences
+    const survey = await this.surveysRepository.findById(id);
+    if (!survey) throw new Error(SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND);
+
+    const hasOccurrences = survey._count.occurrences > 0;
+
+    // 2. Check edit guard
+    if (hasOccurrences) {
+      const hasGuardedFields =
+        input.questions !== undefined ||
+        input.audienceType !== undefined ||
+        input.audienceConfigs !== undefined ||
+        input.isAnonymous !== undefined ||
+        input.recurringType !== undefined;
+
+      if (hasGuardedFields) {
+        throw new Error(SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED);
+      }
+    }
+
+    // 3. Sanitization based on audienceType and reminderConfig
+    if (input.audienceType === "EVERYONE") {
+      input.audienceConfigs = [];
+    }
+
+    if (input.reminderConfig && input.reminderConfig !== null) {
+      input.reminderConfig = {
+        frequency: input.reminderConfig.frequency ?? "DAILY",
+        ...(input.reminderConfig.everyXDays !== undefined && {
+          everyXDays: input.reminderConfig.everyXDays,
+        }),
+      };
+    }
+
+    // 4. Perform update
+    const updatedSurvey = await this.surveysRepository.update(id, input, hasOccurrences);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.RESOURCE_UPDATED,
+      data: this.toDetailResponse(updatedSurvey),
     };
   }
 

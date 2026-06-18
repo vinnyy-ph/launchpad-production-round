@@ -80,6 +80,62 @@ export class SurveysController {
     }
   };
 
+  updateSurvey = async (
+    req: Request,
+    res: Response<ApiSuccessResponseDto<SurveyDetailResponseDto> | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { surveyId } = req.params;
+      const input = this.surveysValidation.parseUpdateBody(req.body);
+      const result = await this.surveysService.update(surveyId, input);
+
+      return res.status(HTTP_STATUS_CODES.OK).json(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (this.isValidationError(error)) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: API_ERROR_MESSAGES.VALIDATION_FAILED,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [
+              {
+                field: "",
+                message: error.message,
+                code: API_ERROR_CODES.VALIDATION_FAILED,
+              },
+            ],
+          });
+        }
+
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND) {
+          return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+            success: false,
+            message: API_ERROR_MESSAGES.SURVEY_NOT_FOUND,
+            errorCode: API_ERROR_CODES.SURVEY_NOT_FOUND,
+          });
+        }
+
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED) {
+          return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+            success: false,
+            message: error.message,
+            errorCode: API_ERROR_CODES.SURVEY_ALREADY_ACTIVATED,
+          });
+        }
+      }
+
+      return next(error);
+    }
+  };
+
   createSurvey = async (
     req: Request,
     res: Response<ApiSuccessResponseDto<SurveyResponseDto> | ApiErrorResponseDto>,
@@ -131,9 +187,13 @@ export class SurveysController {
 
   private isValidationError(error: Error): boolean {
     const msg = error.message;
+    if (msg === SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED) {
+      return false;
+    }
     return (
       msg === "Request body is required" ||
       msg === "name is required" ||
+      msg === "name must be a non-empty string" ||
       msg === SURVEY_ERROR_MESSAGES.QUESTIONS_REQUIRED ||
       msg === SURVEY_ERROR_MESSAGES.INVALID_RECURRING_TYPE ||
       msg === SURVEY_ERROR_MESSAGES.INVALID_AUDIENCE_TYPE ||
