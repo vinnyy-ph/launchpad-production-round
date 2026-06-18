@@ -169,6 +169,36 @@
  *           example: Employee onboarded successfully
  *         data:
  *           $ref: '#/components/schemas/OnboardEmployeeData'
+ *     HrCompleteOnboardingData:
+ *       type: object
+ *       properties:
+ *         recordId:
+ *           type: string
+ *           description: Onboarding record ID that was marked complete.
+ *           example: 770e8400-e29b-41d4-a716-446655440002
+ *         isComplete:
+ *           type: boolean
+ *           example: true
+ *         completedAt:
+ *           type: string
+ *           format: date-time
+ *           example: 2026-06-18T04:30:00.000Z
+ *         employeeStatus:
+ *           type: string
+ *           enum: [active]
+ *           description: Employee status after completion (always active).
+ *           example: active
+ *     HrCompleteOnboardingResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
+ *           type: string
+ *           example: Employee onboarding completed successfully
+ *         data:
+ *           $ref: '#/components/schemas/HrCompleteOnboardingData'
  */
 
 /**
@@ -222,6 +252,86 @@
  *               $ref: '#/components/schemas/ApiError'
  *       409:
  *         description: An employee with this email already exists, or the emergency contact phone is already in use
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+
+/**
+ * @openapi
+ * /api/v1/onboarding/{employeeId}/complete:
+ *   post:
+ *     tags: [Onboarding]
+ *     summary: Complete employee onboarding (HR)
+ *     description: |
+ *       Marks an employee's onboarding as complete when all requirements are satisfied.
+ *       Requires HR role. No request body is needed.
+ *
+ *       **Requirements checked before completion:**
+ *       - All required profile fields are filled (firstName, lastName, personalEmail, birthday, address, emergencyContact)
+ *       - All required custom fields have non-empty values
+ *       - All required documents have an **approved** submission (not just pending)
+ *
+ *       On success, the employee status automatically changes from `onboarding` to `active`.
+ *
+ *       **Manual testing in Swagger:**
+ *       1. Sign in as HR and authorize with your Firebase bearer token.
+ *       2. Use `POST /api/v1/onboarding` to create a test employee (or pick an existing employee ID from `GET /api/v1/employees`).
+ *       3. Ensure the employee has filled profile fields, custom fields, and all required documents are approved via document reviews.
+ *       4. Call this endpoint with the employee's UUID in the path, for example:
+ *          `employeeId`: `660e8400-e29b-41d4-a716-446655440001`
+ *       5. Expect `200` with `employeeStatus: "active"`. If requirements are missing, expect `422 ONBOARDING_NOT_READY`.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: employeeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Employee ID whose onboarding should be marked complete.
+ *         example: 660e8400-e29b-41d4-a716-446655440001
+ *     responses:
+ *       200:
+ *         description: Onboarding completed; employee is now active.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HrCompleteOnboardingResponse'
+ *             example:
+ *               success: true
+ *               message: Employee onboarding completed successfully
+ *               data:
+ *                 recordId: 770e8400-e29b-41d4-a716-446655440002
+ *                 isComplete: true
+ *                 completedAt: 2026-06-18T04:30:00.000Z
+ *                 employeeStatus: active
+ *       400:
+ *         description: employeeId path param is missing or empty
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Caller is not HR
+ *       404:
+ *         description: No onboarding record found for this employee
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       409:
+ *         description: Onboarding was already completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       422:
+ *         description: Required profile fields, custom fields, or approved documents are missing
  *         content:
  *           application/json:
  *             schema:
