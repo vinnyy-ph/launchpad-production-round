@@ -50,6 +50,18 @@
  *           type: string
  *           format: date-time
  *           nullable: true
+ *         acknowledgement:
+ *           nullable: true
+ *           type: object
+ *           properties:
+ *             isDeemedAck:
+ *               type: boolean
+ *               example: false
+ *             acknowledgedAt:
+ *               type: string
+ *               format: date-time
+ *               nullable: true
+ *               example: null
  *         deletedAt:
  *           type: string
  *           format: date-time
@@ -122,10 +134,13 @@
  * /api/v1/evaluations:
  *   get:
  *     tags: [Evaluations]
- *     summary: List my evaluations
+ *     summary: List visible performance evaluations
  *     description: |
- *       Returns a paginated list of performance evaluations created by the authenticated
- *       supervisor. Soft-deleted evaluations are excluded. Optionally filter by send status.
+ *       Returns a paginated list of performance evaluations visible to the authenticated user.
+ *       Enforces visibility constraints:
+ *       - HR/ADMIN: Can list all sent evaluations plus their own drafts.
+ *       - Employee: Can list evaluations they created (draft/sent), sent evaluations where they are the reviewee, and sent evaluations of their downward reports.
+ *       Soft-deleted evaluations are excluded. Optionally filter by status (draft/sent).
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -226,6 +241,43 @@
 /**
  * @openapi
  * /api/v1/evaluations/{evaluationId}:
+ *   get:
+ *     tags: [Evaluations]
+ *     summary: Get a performance evaluation by ID
+ *     description: |
+ *       Retrieves the performance evaluation details. Enforces visibility rules:
+ *       - Draft evaluations are visible only to the reviewer (creator).
+ *       - Sent evaluations are visible to the reviewee, HR/ADMIN, and everyone in the reviewee's upward supervisory chain.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: evaluationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Evaluation details retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 reviewerId:
+ *                   type: string
+ *                 revieweeId:
+ *                   type: string
+ *                 isSent:
+ *                   type: boolean
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Not authorized to view this evaluation
+ *       404:
+ *         description: Evaluation not found
  *   patch:
  *     tags: [Evaluations]
  *     summary: Update a draft evaluation
@@ -311,4 +363,95 @@
  *         description: Evaluation not found
  *       422:
  *         description: Evaluation has already been sent and cannot be deleted
+ */
+
+/**
+ * @openapi
+ * /api/v1/evaluations/{evaluationId}/send:
+ *   patch:
+ *     tags: [Evaluations]
+ *     summary: Send a draft evaluation
+ *     description: |
+ *       Marks a draft evaluation as sent. This action is irreversible — once sent,
+ *       the evaluation cannot be edited or deleted. Only the original reviewer may
+ *       send. Sets `isSent` to true and populates `sentAt` with the current timestamp
+ *       and `ackDeadline` to 7 days from now.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: evaluationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Evaluation sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Evaluation sent successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/EvaluationRecord'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Not the original reviewer, or authenticated user has no employee record
+ *       404:
+ *         description: Evaluation not found
+ *       422:
+ *         description: Evaluation has already been sent
+ */
+
+/**
+ * @openapi
+ * /api/v1/evaluations/{evaluationId}/acknowledge:
+ *   patch:
+ *     tags: [Evaluations]
+ *     summary: Acknowledge a sent evaluation
+ *     description: |
+ *       The reviewee explicitly confirms receipt of their sent evaluation.
+ *       Only the reviewee may call this endpoint. The evaluation must already
+ *       be sent (`isSent: true`) and must not have been previously acknowledged.
+ *       Sets `acknowledgedAt` to the current timestamp on the existing
+ *       `EvaluationAcknowledgement` record.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: evaluationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Evaluation acknowledged successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Evaluation acknowledged successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/EvaluationRecord'
+ *       401:
+ *         description: Missing or invalid bearer token
+ *       403:
+ *         description: Caller has no employee record, or is not the reviewee
+ *       404:
+ *         description: Evaluation not found
+ *       422:
+ *         description: Evaluation has not been sent, or has already been acknowledged
  */

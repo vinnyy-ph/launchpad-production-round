@@ -5,6 +5,7 @@ import {
   buildReviewerEmployee,
   evalFindFirstMock,
   evalUpdateMock,
+  evalAcknowledgementCreateMock,
   employeeFindUniqueMock,
   resetEvaluationMocks,
 } from "./evaluations-test.helpers";
@@ -36,7 +37,7 @@ jest.mock("../../core/database/prisma.service", () => ({
 
 const EVAL_ID = "eval-001";
 
-describe("DELETE /api/v1/evaluations/:evaluationId", () => {
+describe("PATCH /api/v1/evaluations/:evaluationId/send", () => {
   beforeEach(() => {
     resetEvaluationMocks();
   });
@@ -47,14 +48,14 @@ describe("DELETE /api/v1/evaluations/:evaluationId", () => {
       (_req: unknown, _res: unknown, next: () => void) => next(),
     );
 
-    await request(app).delete(`/api/v1/evaluations/${EVAL_ID}`).expect(401);
+    await request(app).patch(`/api/v1/evaluations/${EVAL_ID}/send`).expect(401);
   });
 
   it("returns 404 when the evaluation does not exist", async () => {
     evalFindFirstMock.mockResolvedValue(null);
 
     const response = await request(app)
-      .delete(`/api/v1/evaluations/${EVAL_ID}`)
+      .patch(`/api/v1/evaluations/${EVAL_ID}/send`)
       .expect(404);
 
     expect(response.body).toMatchObject({ success: false, errorCode: "EVALUATION_NOT_FOUND" });
@@ -67,7 +68,7 @@ describe("DELETE /api/v1/evaluations/:evaluationId", () => {
     employeeFindUniqueMock.mockResolvedValue(null);
 
     const response = await request(app)
-      .delete(`/api/v1/evaluations/${EVAL_ID}`)
+      .patch(`/api/v1/evaluations/${EVAL_ID}/send`)
       .expect(403);
 
     expect(response.body).toMatchObject({ success: false, errorCode: "REVIEWER_NOT_EMPLOYEE" });
@@ -81,7 +82,7 @@ describe("DELETE /api/v1/evaluations/:evaluationId", () => {
     employeeFindUniqueMock.mockResolvedValue(buildReviewerEmployee());
 
     const response = await request(app)
-      .delete(`/api/v1/evaluations/${EVAL_ID}`)
+      .patch(`/api/v1/evaluations/${EVAL_ID}/send`)
       .expect(403);
 
     expect(response.body).toMatchObject({ success: false, errorCode: "NOT_EVALUATION_REVIEWER" });
@@ -96,32 +97,53 @@ describe("DELETE /api/v1/evaluations/:evaluationId", () => {
     employeeFindUniqueMock.mockResolvedValue(reviewer);
 
     const response = await request(app)
-      .delete(`/api/v1/evaluations/${EVAL_ID}`)
+      .patch(`/api/v1/evaluations/${EVAL_ID}/send`)
       .expect(422);
 
     expect(response.body).toMatchObject({ success: false, errorCode: "EVALUATION_ALREADY_SENT" });
     expect(evalUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("soft-deletes the evaluation and returns success", async () => {
+  it("marks the evaluation as sent and returns success with sentAt and ackDeadline", async () => {
     const reviewer = buildReviewerEmployee();
     const existing = buildEvaluationRecord({ reviewerId: reviewer.id });
+    const now = new Date();
+    const sentRecord = {
+      ...existing,
+      isSent: true,
+      sentAt: now,
+      ackDeadline: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+    };
 
     evalFindFirstMock.mockResolvedValue(existing);
     employeeFindUniqueMock.mockResolvedValue(reviewer);
-    evalUpdateMock.mockResolvedValue({ ...existing, deletedAt: new Date() });
+    evalUpdateMock.mockResolvedValue(sentRecord);
+    evalAcknowledgementCreateMock.mockResolvedValue({
+      id: "ack-001",
+      evaluationId: EVAL_ID,
+      employeeId: sentRecord.revieweeId,
+      isDeemedAck: false,
+      acknowledgedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     const response = await request(app)
-      .delete(`/api/v1/evaluations/${EVAL_ID}`)
+      .patch(`/api/v1/evaluations/${EVAL_ID}/send`)
       .expect(200);
 
     expect(response.body).toMatchObject({
       success: true,
-      message: "Evaluation deleted successfully",
+      message: "Evaluation sent successfully",
+      data: { isSent: true },
     });
+    expect(response.body.data.sentAt).not.toBeNull();
+    expect(response.body.data.ackDeadline).not.toBeNull();
 
     const [updateCall] = evalUpdateMock.mock.calls;
     expect(updateCall[0]).toMatchObject({ where: { id: EVAL_ID } });
-    expect(updateCall[0].data.deletedAt).toBeDefined();
+    expect(updateCall[0].data).toMatchObject({ isSent: true });
+    expect(updateCall[0].data.sentAt).toBeDefined();
+    expect(updateCall[0].data.ackDeadline).toBeDefined();
   });
 });

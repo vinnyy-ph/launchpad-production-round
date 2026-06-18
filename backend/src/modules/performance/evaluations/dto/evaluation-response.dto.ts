@@ -12,6 +12,10 @@ export interface EvaluationResponseDto {
   isSent: boolean;
   sentAt: Date | null;
   ackDeadline: Date | null;
+  acknowledgement: {
+    isDeemedAck: boolean;
+    acknowledgedAt: Date | null;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
 }
