@@ -1,6 +1,6 @@
 import React from "react";
 import { render } from "@testing-library/react";
-import { BarChart } from "./bar-chart";
+import { BarChart } from "@/shared/ui/charts/bar-chart";
 
 jest.mock("recharts", () => {
   const Real = jest.requireActual("recharts");

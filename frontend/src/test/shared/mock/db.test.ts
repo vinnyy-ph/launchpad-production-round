@@ -1,5 +1,5 @@
-import { readCollection, writeCollection, resetDemo } from "./db";
-import type { DemoEmployee } from "./seed";
+import { readCollection, writeCollection, resetDemo } from "@/shared/mock/db";
+import type { DemoEmployee } from "@/shared/mock/seed";
 
 describe("mock db", () => {
   beforeEach(() => resetDemo());

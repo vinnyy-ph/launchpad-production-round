@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 
-import { apiFetch } from "./api-client";
+import { apiFetch } from "@/shared/lib/api-client";
 
 const originalFetch = global.fetch;
 

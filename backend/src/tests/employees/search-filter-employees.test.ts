@@ -36,6 +36,8 @@ describe("GET /api/v1/employees - search and filter employees", () => {
         status: "active",
         team: "engineering",
         supervisorId: "supervisor-1",
+        sortBy: "department",
+        sortDirection: "desc",
         page: "2",
         limit: "10",
       })
@@ -46,6 +48,11 @@ describe("GET /api/v1/employees - search and filter employees", () => {
       expect.objectContaining({
         skip: 10,
         take: 10,
+        orderBy: [
+          { department: { name: "desc" } },
+          { lastName: "asc" },
+          { firstName: "asc" },
+        ],
         where: expect.objectContaining({
           status: "ACTIVE",
           supervisorId: "supervisor-1",

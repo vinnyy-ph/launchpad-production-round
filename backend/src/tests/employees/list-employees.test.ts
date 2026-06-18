@@ -66,7 +66,7 @@ describe("GET /api/v1/employees - view all employees", () => {
       success: true,
       meta: {
         page: 1,
-        limit: 25,
+        limit: 10,
         total: 4,
         totalPages: 1,
       },

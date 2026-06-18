@@ -1,4 +1,4 @@
-import { queryKeys } from "./query-keys";
+import { queryKeys } from "@/shared/lib/query-keys";
 
 describe("queryKeys", () => {
   it("builds stable dashboard and notification keys", () => {

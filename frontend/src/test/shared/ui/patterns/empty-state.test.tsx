@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Inbox } from "lucide-react";
-import { EmptyState } from "./empty-state";
+import { EmptyState } from "@/shared/ui/patterns/empty-state";
 
 describe("EmptyState", () => {
   it("renders the title and body", () => {

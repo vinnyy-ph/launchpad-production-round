@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { StatusBadge } from "./status-badge";
+import { StatusBadge } from "@/shared/ui/patterns/status-badge";
 
 describe("StatusBadge", () => {
   it("renders the status literal in sentence case", () => {
