@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../../../core/middleware/roles.middleware";
 import { customFieldsRouter } from "./custom-fields";
+import { documentReviewsRouter } from "./document-reviews";
 import { documentsRouter } from "./documents";
 import { invitationRouter } from "./invitation";
 import { OnboardingController } from "./onboarding.controller";
@@ -14,6 +15,9 @@ onboardingRouter.post("/", requireRole("HR", "ADMIN"), onboardingController.onbo
 
 /** HR-managed required onboarding documents. */
 onboardingRouter.use("/documents", documentsRouter);
+
+/** HR review of employee document submissions. */
+onboardingRouter.use("/document-reviews", documentReviewsRouter);
 
 /** HR-managed onboarding custom text fields. */
 onboardingRouter.use("/custom-fields", customFieldsRouter);

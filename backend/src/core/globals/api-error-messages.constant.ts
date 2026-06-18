@@ -43,6 +43,11 @@ export const API_ERROR_MESSAGES = {
   INVALID_FILE_TYPE: "The uploaded file type is not allowed for this document",
   DOCUMENT_SUBMISSION_NOT_ALLOWED:
     "A document can only be re-submitted when the previous submission was rejected",
+  SUBMISSION_NOT_FOUND: "Document submission not found",
+  SUBMISSION_ALREADY_REVIEWED:
+    "This document submission has already been reviewed",
+  REVIEWER_EMPLOYEE_NOT_FOUND:
+    "No employee profile was found for the reviewing HR account",
   EMPLOYEE_ONBOARDING_NOT_FOUND:
     "No onboarding record was found for this employee account",
 } as const;
