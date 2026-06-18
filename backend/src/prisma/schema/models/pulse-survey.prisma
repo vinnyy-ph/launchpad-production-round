@@ -13,8 +13,9 @@ model PulseSurvey {
 
   occurrences     SurveyOccurrence[]
   questions       SurveyQuestion[]
-  audienceConfigs SurveyAudienceConfig[]
-  reminderConfig  SurveyReminderConfig?
+  audienceConfigs    SurveyAudienceConfig[]
+  visibilityConfigs  SurveyVisibilityConfig[]
+  reminderConfig     SurveyReminderConfig?
 
   @@map("pulse_surveys")
 }
