@@ -5,7 +5,7 @@ import {
   API_ERROR_MESSAGES,
   HTTP_STATUS_CODES,
 } from "../../../core/globals";
-import type { OnboardEmployeeResponseDto } from "./dto";
+import type { OnboardEmployeeResponseDto, HrCompleteOnboardingResponseDto } from "./dto";
 import { ONBOARDING_FIELDS } from "./onboarding.constants";
 import { OnboardingService } from "./onboarding.service";
 import { OnboardingValidation } from "./onboarding.validation";
@@ -125,6 +125,93 @@ export class OnboardingController {
               field: ONBOARDING_FIELDS.SUPERVISOR_ID,
               message: API_ERROR_MESSAGES.SUPERVISOR_NOT_FOUND,
               code: API_ERROR_CODES.SUPERVISOR_NOT_FOUND,
+            },
+          ],
+        });
+      }
+
+      return next(error);
+    }
+  };
+
+  /**
+   * Handles POST /api/v1/onboarding/:employeeId/complete.
+   * Marks onboarding complete when all requirements are satisfied.
+   */
+  completeOnboarding = async (
+    req: Request,
+    res: Response<HrCompleteOnboardingResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const params = this.onboardingValidation.parseCompleteParams(req.params);
+      const result = await this.onboardingService.completeOnboarding(
+        params.employeeId,
+      );
+
+      return res.status(HTTP_STATUS_CODES.OK).json(result);
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        return next(error);
+      }
+
+      if (error.message.endsWith("is required")) {
+        const field = error.message.replace(" is required", "");
+
+        return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: API_ERROR_MESSAGES.VALIDATION_FAILED,
+          errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+          errors: [
+            {
+              field,
+              message: error.message,
+              code: API_ERROR_CODES.VALIDATION_FAILED,
+            },
+          ],
+        });
+      }
+
+      if (error.message === "Onboarding record not found") {
+        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+          success: false,
+          message: API_ERROR_MESSAGES.ONBOARDING_RECORD_NOT_FOUND,
+          errorCode: API_ERROR_CODES.ONBOARDING_RECORD_NOT_FOUND,
+          errors: [
+            {
+              field: ONBOARDING_FIELDS.EMPLOYEE_ID,
+              message: API_ERROR_MESSAGES.ONBOARDING_RECORD_NOT_FOUND,
+              code: API_ERROR_CODES.ONBOARDING_RECORD_NOT_FOUND,
+            },
+          ],
+        });
+      }
+
+      if (error.message === "Onboarding already complete") {
+        return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+          success: false,
+          message: API_ERROR_MESSAGES.ONBOARDING_ALREADY_COMPLETE,
+          errorCode: API_ERROR_CODES.ONBOARDING_ALREADY_COMPLETE,
+          errors: [
+            {
+              field: "onboardingRecord",
+              message: API_ERROR_MESSAGES.ONBOARDING_ALREADY_COMPLETE,
+              code: API_ERROR_CODES.ONBOARDING_ALREADY_COMPLETE,
+            },
+          ],
+        });
+      }
+
+      if (error.message === "Onboarding not ready") {
+        return res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
+          success: false,
+          message: API_ERROR_MESSAGES.ONBOARDING_NOT_READY,
+          errorCode: API_ERROR_CODES.ONBOARDING_NOT_READY,
+          errors: [
+            {
+              field: "onboardingRecord",
+              message: API_ERROR_MESSAGES.ONBOARDING_NOT_READY,
+              code: API_ERROR_CODES.ONBOARDING_NOT_READY,
             },
           ],
         });

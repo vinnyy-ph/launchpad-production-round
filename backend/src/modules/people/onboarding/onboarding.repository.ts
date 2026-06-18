@@ -120,6 +120,49 @@ export class OnboardingRepository {
   }
 
   /**
+   * Loads the onboarding record for an employee, including template checklist data.
+   */
+  async findRecordByEmployeeId(employeeId: string) {
+    return prisma.onboardingRecord.findFirst({
+      where: { employeeId },
+      include: {
+        employee: {
+          include: {
+            department: { select: { name: true } },
+          },
+        },
+        template: {
+          include: {
+            documents: { orderBy: { createdAt: "asc" } },
+            customFields: { orderBy: { createdAt: "asc" } },
+          },
+        },
+        documentSubmissions: { orderBy: { submittedAt: "desc" } },
+        customFieldValues: true,
+      },
+    });
+  }
+
+  /** Marks onboarding complete and activates the employee. */
+  async completeOnboarding(recordId: string, employeeId: string) {
+    const completedAt = new Date();
+
+    return prisma.$transaction([
+      prisma.onboardingRecord.update({
+        where: { id: recordId },
+        data: {
+          isComplete: true,
+          completedAt,
+        },
+      }),
+      prisma.employee.update({
+        where: { id: employeeId },
+        data: { status: "ACTIVE" },
+      }),
+    ]);
+  }
+
+  /**
    * Finds the ID of the default onboarding template, or returns a non-existent UUID
    * so the upsert falls through to the create branch.
    */

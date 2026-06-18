@@ -13,6 +13,13 @@ export const onboardingRouter = Router();
 /** Creates a new employee and starts the onboarding process. HR only. */
 onboardingRouter.post("/", requireRole("HR"), onboardingController.onboardEmployee);
 
+/** Marks an employee's onboarding complete when all requirements are met. HR only. */
+onboardingRouter.post(
+  "/:employeeId/complete",
+  requireRole("HR"),
+  onboardingController.completeOnboarding,
+);
+
 /** HR-managed required onboarding documents. */
 onboardingRouter.use("/documents", documentsRouter);
 

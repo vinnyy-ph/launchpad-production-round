@@ -38,6 +38,7 @@ export const API_SUCCESS_MESSAGES = {
   DOCUMENT_APPROVED: "Document submission approved successfully",
   DOCUMENT_REJECTED: "Document submission rejected successfully",
   ONBOARDING_COMPLETED: "Onboarding completed successfully",
+  HR_ONBOARDING_COMPLETED: "Employee onboarding completed successfully",
 } as const;
 
 export type ApiSuccessMessage =

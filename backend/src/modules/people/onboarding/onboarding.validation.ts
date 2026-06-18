@@ -1,5 +1,8 @@
 import { parseEmergencyContact } from "../../shared/phone";
-import type { OnboardEmployeeRequestDto } from "./dto";
+import type {
+  HrCompleteOnboardingParamsDto,
+  OnboardEmployeeRequestDto,
+} from "./dto";
 
 /**
  * Parses and validates the onboard-employee request body.
@@ -61,6 +64,13 @@ export class OnboardingValidation {
     }
 
     return dto;
+  }
+
+  /** Validates the employeeId route param for HR onboarding completion. */
+  parseCompleteParams(params: Record<string, unknown>): HrCompleteOnboardingParamsDto {
+    return {
+      employeeId: this.requireString(params.employeeId, "employeeId"),
+    };
   }
 
   /** Extracts a non-empty trimmed string or throws with the field name. */

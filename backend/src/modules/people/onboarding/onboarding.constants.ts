@@ -8,7 +8,18 @@ export const ONBOARDING_FIELDS = {
   DEPARTMENT: "department",
   BIRTHDAY: "birthday",
   EMERGENCY_CONTACT: "emergencyContact",
+  EMPLOYEE_ID: "employeeId",
 } as const;
+
+/** Profile fields required before HR can mark onboarding complete. */
+export const REQUIRED_PROFILE_FIELDS = [
+  "firstName",
+  "lastName",
+  "personalEmail",
+  "birthday",
+  "address",
+  "emergencyContact",
+] as const;
 
 /** Number of days before an onboarding invitation expires. */
 export const INVITATION_EXPIRY_DAYS = 30;

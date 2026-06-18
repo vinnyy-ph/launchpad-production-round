@@ -50,6 +50,8 @@ export const API_ERROR_MESSAGES = {
     "No employee profile was found for the reviewing HR account",
   EMPLOYEE_ONBOARDING_NOT_FOUND:
     "No onboarding record was found for this employee account",
+  ONBOARDING_NOT_READY:
+    "Onboarding cannot be completed until all required profile fields are filled and all required documents are approved",
 } as const;
 
 export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];
