@@ -4,10 +4,16 @@ export const mockedPrisma = jest.mocked(prisma);
 
 export const employeeFindUniqueMock = mockedPrisma.employee.findUnique as jest.Mock;
 export const surveyTransactionMock = mockedPrisma.$transaction as jest.Mock;
+export const surveyFindManyMock = (mockedPrisma.pulseSurvey?.findMany ?? jest.fn()) as jest.Mock;
+export const surveyCountMock = (mockedPrisma.pulseSurvey?.count ?? jest.fn()) as jest.Mock;
+export const surveyFindUniqueMock = (mockedPrisma.pulseSurvey?.findUnique ?? jest.fn()) as jest.Mock;
 
 export function resetSurveyMocks() {
   employeeFindUniqueMock.mockReset();
   surveyTransactionMock.mockReset();
+  surveyFindManyMock.mockReset();
+  surveyCountMock.mockReset();
+  surveyFindUniqueMock.mockReset();
 }
 
 export function buildHrEmployee(overrides?: { id?: string; userId?: string }) {
@@ -54,6 +60,80 @@ export function buildSurveyRecord(overrides?: {
     ],
     audienceConfigs: [],
     reminderConfig: null,
+  };
+}
+
+/** Builds a list-item row with _count for the findMany mock. */
+export function buildSurveyListItem(overrides?: {
+  id?: string;
+  name?: string;
+  isActive?: boolean;
+  occurrenceCount?: number;
+}) {
+  return {
+    id: overrides?.id ?? "survey-001",
+    createdBy: "emp-hr-id",
+    name: overrides?.name ?? "Test Pulse Survey",
+    recurringType: "ONE_TIME" as const,
+    audienceType: "EVERYONE" as const,
+    isAnonymous: false,
+    isActive: overrides?.isActive ?? false,
+    visibility: "EVERYONE" as const,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    _count: { occurrences: overrides?.occurrenceCount ?? 0 },
+  };
+}
+
+/** Builds a full detail row for the findUnique mock (detail endpoint). */
+export function buildSurveyDetail(overrides?: {
+  id?: string;
+  name?: string;
+  isActive?: boolean;
+  occurrenceCount?: number;
+  hasReminderConfig?: boolean;
+}) {
+  return {
+    id: overrides?.id ?? "survey-001",
+    createdBy: "emp-hr-id",
+    name: overrides?.name ?? "Test Pulse Survey",
+    recurringType: "ONE_TIME" as const,
+    audienceType: "EVERYONE" as const,
+    isAnonymous: false,
+    isActive: overrides?.isActive ?? false,
+    visibility: "EVERYONE" as const,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    _count: { occurrences: overrides?.occurrenceCount ?? 0 },
+    questions: [
+      {
+        id: "q-001",
+        surveyId: overrides?.id ?? "survey-001",
+        type: "SHORT_ANSWER" as const,
+        questionText: "How are you?",
+        isRequired: true,
+        options: null,
+        scaleMin: null,
+        scaleMax: null,
+        scaleMinLabel: null,
+        scaleMaxLabel: null,
+        orderIndex: 1,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ],
+    audienceConfigs: [],
+    visibilityConfigs: [],
+    reminderConfig: overrides?.hasReminderConfig
+      ? {
+          id: "rc-001",
+          surveyId: overrides?.id ?? "survey-001",
+          frequency: "WEEKLY" as const,
+          everyXDays: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        }
+      : null,
   };
 }
 
