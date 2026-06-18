@@ -2,3 +2,4 @@
 // Org-graph traversals (cycle-safe) + the active-employee predicate.
 export * from "./org";
 export * from "./employees";
+export * from "./phone";
