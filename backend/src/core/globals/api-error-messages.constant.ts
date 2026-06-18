@@ -16,9 +16,11 @@ export const API_ERROR_MESSAGES = {
   USER_NOT_FOUND: "User not found",
   USER_ALREADY_EXISTS: "A user with this email already exists",
   CANNOT_DEACTIVATE_SELF: "You cannot deactivate your own account",
-  CANNOT_DEACTIVATE_LAST_ADMIN: "Cannot deactivate the last remaining admin. The system must always have at least one admin.",
+  CANNOT_DEACTIVATE_LAST_ADMIN:
+    "Cannot deactivate the last remaining admin. The system must always have at least one admin.",
   CANNOT_CHANGE_OWN_ROLE: "You cannot change your own role",
-  CANNOT_DEMOTE_LAST_ADMIN: "Cannot change the role of the last remaining admin. The system must always have at least one admin.",
+  CANNOT_DEMOTE_LAST_ADMIN:
+    "Cannot change the role of the last remaining admin. The system must always have at least one admin.",
   USER_ALREADY_DEACTIVATED: "User is already deactivated",
   INVALID_USER_ROLE: "Role must be HR or Employee",
   EMPLOYEE_ALREADY_EXISTS: "An employee with this email already exists",
@@ -59,12 +61,19 @@ export const API_ERROR_MESSAGES = {
   NOT_SUPERVISOR: "You are not the direct supervisor of this employee",
   REVIEWER_NOT_EMPLOYEE: "Your account is not linked to an employee record",
   EVALUATION_NOT_FOUND: "Evaluation not found",
-  EVALUATION_ALREADY_SENT: "This evaluation has already been sent and cannot be edited",
+  EVALUATION_ALREADY_SENT:
+    "This evaluation has already been sent and cannot be edited",
   NOT_EVALUATION_REVIEWER: "You are not the reviewer for this evaluation",
+  SURVEY_NOT_FOUND: "Pulse survey not found",
+  CREATOR_NOT_EMPLOYEE: "Your account is not linked to an employee record",
   NOT_EVALUATION_REVIEWEE: "You are not the reviewee for this evaluation",
   EVALUATION_NOT_SENT: "This evaluation has not been sent yet",
-  EVALUATION_ALREADY_ACKNOWLEDGED: "This evaluation has already been acknowledged",
+  EVALUATION_ALREADY_ACKNOWLEDGED:
+    "This evaluation has already been acknowledged",
   REVIEWEE_NOT_EMPLOYEE: "Your account is not linked to an employee record",
+  OCCURRENCE_NOT_FOUND: "Occurrence not found",
+  EMPLOYEE_RECORD_REQUIRED: "Your account is not linked to an employee record",
 } as const;
 
-export type ApiErrorMessage = (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];
+export type ApiErrorMessage =
+  (typeof API_ERROR_MESSAGES)[keyof typeof API_ERROR_MESSAGES];

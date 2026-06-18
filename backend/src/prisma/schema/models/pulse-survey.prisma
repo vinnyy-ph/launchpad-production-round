@@ -10,11 +10,15 @@ model PulseSurvey {
   isActive      Boolean          @default(false)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+  releaseDate   DateTime
+  deadline      DateTime
 
   occurrences     SurveyOccurrence[]
   questions       SurveyQuestion[]
-  audienceConfigs SurveyAudienceConfig[]
-  reminderConfig  SurveyReminderConfig?
+  audienceConfigs    SurveyAudienceConfig[]
+  visibilityConfigs  SurveyVisibilityConfig[]
+  reminderConfig     SurveyReminderConfig?
 
   @@map("pulse_surveys")
 }
