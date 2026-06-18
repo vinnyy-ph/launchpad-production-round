@@ -76,6 +76,7 @@ export class EvaluationsRepository {
         include: {
           acknowledgement: true,
           reviewee: { select: { id: true, firstName: true, lastName: true } },
+          reviewer: { select: { id: true, firstName: true, lastName: true } },
         },
         orderBy: { createdAt: "desc" },
         skip: (query.page - 1) * query.limit,
@@ -93,6 +94,7 @@ export class EvaluationsRepository {
       include: {
         acknowledgement: true,
         reviewee: { select: { id: true, firstName: true, lastName: true } },
+        reviewer: { select: { id: true, firstName: true, lastName: true } },
       },
     });
   }
@@ -141,6 +143,20 @@ export class EvaluationsRepository {
     return prisma.evaluationAcknowledgement.update({
       where: { evaluationId },
       data: { acknowledgedAt: new Date() },
+    });
+  }
+
+  async markDeemedAcknowledged(evaluationId: string) {
+    return prisma.evaluationAcknowledgement.update({
+      where: { evaluationId },
+      data: { isDeemedAck: true },
+    });
+  }
+
+  async markManyDeemedAcknowledged(evaluationIds: string[]) {
+    return prisma.evaluationAcknowledgement.updateMany({
+      where: { evaluationId: { in: evaluationIds } },
+      data: { isDeemedAck: true },
     });
   }
 }

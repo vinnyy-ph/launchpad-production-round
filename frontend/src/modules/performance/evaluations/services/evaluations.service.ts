@@ -50,3 +50,9 @@ export async function sendEvaluation(id: string): Promise<Evaluation> {
   const res = await apiFetch<MutationResponse>(`${BASE}/${id}/send`, { method: "PATCH" });
   return res.data;
 }
+
+/** Employee explicitly acknowledges a sent evaluation issued to them. */
+export async function acknowledgeEvaluation(id: string): Promise<Evaluation> {
+  const res = await apiFetch<MutationResponse>(`${BASE}/${id}/acknowledge`, { method: "PATCH" });
+  return res.data;
+}

@@ -3,6 +3,7 @@ export interface EvaluationResponseDto {
   reviewerId: string;
   revieweeId: string;
   reviewee: { id: string; fullName: string } | null;
+  reviewer: { id: string; fullName: string } | null;
   periodStart: Date;
   periodEnd: Date;
   grade: number;
