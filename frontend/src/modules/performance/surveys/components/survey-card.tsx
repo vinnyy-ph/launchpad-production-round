@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/shared/ui";
+import { Button, Badge } from "@/shared/ui";
 import { ClipboardList } from "lucide-react";
 import type { PendingSurvey } from "../types/surveys.types";
 
@@ -19,10 +19,18 @@ export function SurveyCard({ survey, onTake }: { survey: PendingSurvey; onTake: 
             {survey.surveyName}
           </h3>
         </div>
-        <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-          {questionCount} {questionCount === 1 ? "question" : "questions"} · Due{" "}
-          {new Date(survey.deadline).toLocaleDateString()}
-        </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[color:var(--text-tertiary)]">
+            {questionCount} {questionCount === 1 ? "question" : "questions"} · Due{" "}
+            {new Date(survey.deadline).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })}
+          </span>
+          <Badge variant={survey.isAnonymous ? "brand" : "modern"} size="sm" pill>
+            {survey.isAnonymous ? "Anonymous" : "Named"}
+          </Badge>
+        </div>
       </div>
       <Button size="sm" onClick={onTake}>
         Take survey

@@ -18,8 +18,68 @@ function ackDeadlineFrom(sentAt: Date): Date {
 }
 
 export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers): Promise<SeededEvaluations> {
-  const { vn, thea, placeholders } = users
+  const { kurt, vn, thea, placeholders } = users
   const pendingAck: { evaluationId: string; revieweeId: string }[] = []
+
+  // ── Vn's RECEIVED evaluations (the logged-in demo account, reviewed by the CEO) ──
+  // Gives the employee self-view both a pending acknowledgment and a past, acknowledged one.
+
+  const vnSentAt = new Date('2026-06-16')
+  const vnPendingEval = await prisma.performanceEvaluation.create({
+    data: {
+      reviewerId: kurt.id,
+      revieweeId: vn.id,
+      ...PERIOD_Q1_2026,
+      grade: 4,
+      highlights: [
+        'Kept Team Alpha shipping through a tight roadmap with no missed releases',
+        'Drove the cross-team incident review that cut repeat outages',
+      ],
+      lowlights: [
+        'Spread thin across too many initiatives at once',
+        'Delegation could start earlier in the cycle',
+      ],
+      evaluation:
+        'A strong quarter leading Team Alpha. Delivery stayed steady under pressure and the incident review had real downstream impact. The main growth area is protecting focus by delegating sooner.',
+      recommendation:
+        'Hand off two of the smaller workstreams next quarter and lead the reliability initiative end to end.',
+      supportingDocUrl: 'https://docs.dgtech.co/q1-team-alpha-review',
+      isSent: true,
+      sentAt: vnSentAt,
+      ackDeadline: ackDeadlineFrom(vnSentAt),
+    },
+  })
+  pendingAck.push({ evaluationId: vnPendingEval.id, revieweeId: vn.id })
+
+  const vnPastSentAt = new Date('2026-01-05')
+  const vnPastEval = await prisma.performanceEvaluation.create({
+    data: {
+      reviewerId: kurt.id,
+      revieweeId: vn.id,
+      periodStart: new Date('2025-10-01'),
+      periodEnd: new Date('2025-12-31'),
+      grade: 4,
+      highlights: [
+        'Stood up Team Alpha and set its delivery cadence',
+        'Mentored two new hires to a full ramp',
+      ],
+      lowlights: ['Reporting to leadership was inconsistent early on'],
+      evaluation:
+        'A solid first full quarter leading the team, with a clear ramp in ownership and people management.',
+      recommendation: 'Keep building the leadership habits; formalize a weekly status to leadership.',
+      isSent: true,
+      sentAt: vnPastSentAt,
+      ackDeadline: ackDeadlineFrom(vnPastSentAt),
+    },
+  })
+  await prisma.evaluationAcknowledgement.create({
+    data: {
+      evaluationId: vnPastEval.id,
+      employeeId: vn.id,
+      isDeemedAck: false,
+      acknowledgedAt: new Date('2026-01-07'),
+    },
+  })
 
   // ── Vn's evaluations ──
 
