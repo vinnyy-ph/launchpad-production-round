@@ -17,16 +17,21 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 }));
 
 // Mock Prisma so this update scenario can assert the generated update payload.
-jest.mock("../../core/database/prisma.service", () => ({
-  prisma: {
+// updateProfile runs inside prisma.$transaction and writes activity-log entries, so the
+// mock exposes a transaction that runs the callback against the same mocked client.
+jest.mock("../../core/database/prisma.service", () => {
+  const prisma = {
     employee: {
       findMany: jest.fn(),
       count: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
     },
-  },
-}));
+    activityLog: { createMany: jest.fn() },
+    $transaction: jest.fn((callback: (tx: unknown) => unknown) => callback(prisma)),
+  };
+  return { prisma };
+});
 
 describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () => {
   beforeEach(() => {

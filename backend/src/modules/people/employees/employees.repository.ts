@@ -404,8 +404,12 @@ export class EmployeesRepository {
       where.status = filters.status;
     }
 
-    if (filters.supervisorId) {
-      where.supervisorId = filters.supervisorId;
+    if (filters.supervisorIds?.length) {
+      // Single id stays a plain match; multiple ids match any of them.
+      where.supervisorId =
+        filters.supervisorIds.length === 1
+          ? filters.supervisorIds[0]
+          : { in: filters.supervisorIds };
     }
 
     if (filters.search) {

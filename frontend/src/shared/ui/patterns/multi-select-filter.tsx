@@ -17,32 +17,50 @@ import {
 } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 
-export interface LeaderOption {
+export interface MultiSelectFilterOption {
   id: string;
   name: string;
 }
 
-interface TeamLeaderFilterProps {
-  leaders: LeaderOption[];
-  /** Currently selected leader ids. Empty means "all". */
+interface MultiSelectFilterProps {
+  options: MultiSelectFilterOption[];
+  /** Currently selected option ids. Empty means "all" (no filter). */
   selected: Set<string>;
   onChange: (next: Set<string>) => void;
+  /** Trigger label when nothing is selected, e.g. "All supervisors". */
+  allLabel: string;
+  /** Plural noun for the count label, e.g. "supervisors" → "3 supervisors". */
+  countNoun: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  ariaLabel?: string;
+  className?: string;
 }
 
 /**
- * Searchable multi-select dropdown for filtering teams by one or more team leaders.
- * Empty selection means no filter (all leaders).
+ * Searchable multi-select dropdown used as a list filter. Options are selected via checkboxes,
+ * so one or more values can be active at once; an empty selection means no filter is applied.
  */
-export function TeamLeaderFilter({ leaders, selected, onChange }: TeamLeaderFilterProps) {
+export function MultiSelectFilter({
+  options,
+  selected,
+  onChange,
+  allLabel,
+  countNoun,
+  searchPlaceholder = "Search…",
+  emptyText = "No results.",
+  ariaLabel,
+  className,
+}: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
 
   const count = selected.size;
   const label =
     count === 0
-      ? "All team leaders"
+      ? allLabel
       : count === 1
-        ? (leaders.find((leader) => selected.has(leader.id))?.name ?? "1 leader")
-        : `${count} leaders`;
+        ? (options.find((option) => selected.has(option.id))?.name ?? `1 ${countNoun}`)
+        : `${count} ${countNoun}`;
 
   function toggle(id: string) {
     const next = new Set(selected);
@@ -58,10 +76,11 @@ export function TeamLeaderFilter({ leaders, selected, onChange }: TeamLeaderFilt
           type="button"
           role="combobox"
           aria-expanded={open}
-          aria-label="Filter by team leader"
+          aria-label={ariaLabel}
           className={cn(
             "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white px-3.5 text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none sm:w-[220px]",
             count === 0 && "text-[#a4a7ae]",
+            className,
           )}
         >
           <span className="truncate">{label}</span>
@@ -73,25 +92,25 @@ export function TeamLeaderFilter({ leaders, selected, onChange }: TeamLeaderFilt
       </PopoverTrigger>
       <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search leaders…" />
+          <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
-            <CommandEmpty>No leaders found.</CommandEmpty>
+            <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
-              {leaders.map((leader) => (
+              {options.map((option) => (
                 <CommandItem
-                  key={leader.id}
-                  value={leader.name}
-                  keywords={[leader.name]}
-                  onSelect={() => toggle(leader.id)}
+                  key={option.id}
+                  value={option.name}
+                  keywords={[option.name]}
+                  onSelect={() => toggle(option.id)}
                   className="gap-2"
                 >
                   <Checkbox
-                    checked={selected.has(leader.id)}
+                    checked={selected.has(option.id)}
                     aria-hidden="true"
                     tabIndex={-1}
                     className="pointer-events-none"
                   />
-                  <span className="truncate">{leader.name}</span>
+                  <span className="truncate">{option.name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

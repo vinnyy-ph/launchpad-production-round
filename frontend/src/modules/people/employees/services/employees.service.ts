@@ -26,7 +26,8 @@ export async function getEmployees(filters: EmployeeFilters = {}): Promise<Emplo
   if (filters.status) params.set("status", filters.status);
   if (filters.teamId) params.set("teamId", filters.teamId);
   if (filters.team) params.set("team", filters.team);
-  if (filters.supervisorId) params.set("supervisorId", filters.supervisorId);
+  // Supervisor ids are sent as a single comma-separated value the API parses into a list.
+  if (filters.supervisorIds?.length) params.set("supervisorId", filters.supervisorIds.join(","));
   if (filters.sortBy) params.set("sortBy", filters.sortBy);
   if (filters.sortDirection) params.set("sortDirection", filters.sortDirection);
   params.set("page", String(filters.page ?? DEFAULT_PAGE));

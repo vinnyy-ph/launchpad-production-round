@@ -64,7 +64,7 @@ export default function RosterPage() {
   // Supervisors are EMPLOYEE-role callers, so the API returns the REDACTED list (no PII).
   // The server-side `supervisorId` filter scopes it to this supervisor's direct reports.
   const { employees, loading, error, reload } = useEmployees({
-    supervisorId: employeeId,
+    supervisorIds: employeeId ? [employeeId] : undefined,
     page: 1,
     limit: 100,
   });

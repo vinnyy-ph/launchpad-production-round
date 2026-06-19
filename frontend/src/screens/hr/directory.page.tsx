@@ -22,6 +22,7 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  MultiSelectFilter,
   PageTabs,
   StatusBadge,
   type Column,
@@ -135,6 +136,7 @@ export default function DirectoryPage() {
   const [search, setSearch] = useState("");
   const [teamId, setTeamId] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | EmployeeStatus>("");
+  const [supervisorIds, setSupervisorIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<DirectoryTab>("all");
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
@@ -146,21 +148,26 @@ export default function DirectoryPage() {
   const debouncedSearch = useDebounce(search, 300);
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
   const counts = useEmployeeStatusCounts();
+  // Supervisor filter options — any employee can be a supervisor.
+  const { employees: supervisorOptions } = useEmployees({ limit: 100 });
 
   // The All tab uses the status dropdown; the Offboarding tab is locked to offboarding.
   const directoryStatus: "" | EmployeeStatus = tab === "offboarding" ? "offboarding" : statusFilter;
+  // The supervisor filter is an All-tab-only control.
+  const directorySupervisorIds = tab === "all" ? Array.from(supervisorIds) : [];
 
   const { employees, meta, loading, error, reload } = useEmployees({
     search: debouncedSearch || undefined,
     teamId: teamId || undefined,
     status: directoryStatus || undefined,
+    supervisorIds: directorySupervisorIds.length > 0 ? directorySupervisorIds : undefined,
     sortBy: sort.key as EmployeeSortBy,
     sortDirection: sort.direction as SortDirection,
     page,
     limit: PAGE_SIZE,
   });
 
-  const hasFilters = Boolean(search || teamId || statusFilter);
+  const hasFilters = Boolean(search || teamId || statusFilter) || supervisorIds.size > 0;
 
   const columns: Column<EmployeeListItem>[] = [
     {
@@ -330,6 +337,24 @@ export default function DirectoryPage() {
                 </SelectContent>
               </Select>
             ) : null}
+            {tab === "all" ? (
+              <MultiSelectFilter
+                options={supervisorOptions.map((employee) => ({
+                  id: employee.id,
+                  name: employee.fullName,
+                }))}
+                selected={supervisorIds}
+                onChange={(next) => {
+                  setSupervisorIds(next);
+                  setPage(1);
+                }}
+                allLabel="All supervisors"
+                countNoun="supervisors"
+                searchPlaceholder="Search supervisors…"
+                emptyText="No employees found."
+                ariaLabel="Filter by supervisor"
+              />
+            ) : null}
           </FilterBar>
 
           <div
@@ -364,7 +389,7 @@ export default function DirectoryPage() {
                   title={hasFilters ? "No one matches that" : "No employees yet"}
                   body={
                     hasFilters
-                      ? "Try a different name, team, or status."
+                      ? "Try a different name, team, status, or supervisor."
                       : "Add your first employee to get started."
                   }
                 />

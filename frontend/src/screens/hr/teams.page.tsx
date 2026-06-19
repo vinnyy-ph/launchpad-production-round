@@ -8,6 +8,7 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  MultiSelectFilter,
   PageTabs,
   type Column,
   type DataTableSort,
@@ -16,7 +17,6 @@ import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import { CreateTeamDialog } from "@/modules/people/teams/components/create-team-dialog";
 import { TeamDetailsModal } from "@/modules/people/teams/components/team-details-modal";
-import { TeamLeaderFilter } from "@/modules/people/teams/components/team-leader-filter";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
@@ -180,10 +180,15 @@ export default function TeamsPage() {
               aria-label="Search teams"
               className="sm:max-w-[320px]"
             />
-            <TeamLeaderFilter
-              leaders={leaderOptions}
+            <MultiSelectFilter
+              options={leaderOptions}
               selected={leaderIds}
               onChange={setLeaderIds}
+              allLabel="All team leaders"
+              countNoun="leaders"
+              searchPlaceholder="Search leaders…"
+              emptyText="No leaders found."
+              ariaLabel="Filter by team leader"
             />
           </FilterBar>
 

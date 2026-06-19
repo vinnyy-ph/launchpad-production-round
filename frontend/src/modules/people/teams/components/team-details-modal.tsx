@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Pencil, UserMinus, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import {
-  Badge,
   Button,
   Checkbox,
   Command,
@@ -80,14 +79,19 @@ export function TeamDetailsModal({
     setAddDraft(new Set());
   }, [team?.id, open]);
 
-  // Employees not already on the team (leader + members excluded).
+  // Employees not already on the team. The lead is always part of the team, so exclude
+  // them explicitly even if the members array doesn't list them.
   const addableEmployees = useMemo(() => {
     if (!team) return [];
     const present = new Set(team.members.map((member) => member.id));
+    present.add(team.leader.id);
     return employees.filter((employee) => !present.has(employee.id));
   }, [team, employees]);
 
   if (!team) return null;
+
+  // The lead is highlighted separately, so the members list shows everyone else.
+  const otherMembers = team.members.filter((member) => member.id !== team.leader.id);
 
   async function saveRename() {
     if (!team) return;
@@ -122,20 +126,24 @@ export function TeamDetailsModal({
 
   async function handleRemoveMember(member: TeamEmployee) {
     if (!team) return;
-    const ok = await confirm({
+    // onConfirm keeps the dialog open with a button loader until the removal resolves.
+    await confirm({
       title: "Remove member?",
       description: `Remove ${member.fullName} from ${team.name}? They can be added back later.`,
       confirmLabel: "Remove",
+      confirmLoadingLabel: "Removing…",
       cancelLabel: "Cancel",
       destructive: true,
+      onConfirm: async () => {
+        try {
+          await removeMember({ teamId: team.id, employeeId: member.id });
+          toast.success(`${member.fullName} removed.`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not remove the member.");
+          throw err; // keep the dialog open so the user can retry
+        }
+      },
     });
-    if (!ok) return;
-    try {
-      await removeMember({ teamId: team.id, employeeId: member.id });
-      toast.success(`${member.fullName} removed.`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not remove the member.");
-    }
   }
 
   function toggleAdd(id: string) {
@@ -149,7 +157,7 @@ export function TeamDetailsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="dialog-pop max-h-[88vh] overflow-y-auto rounded-2xl sm:max-w-lg">
         <DialogDescription className="sr-only">
           Team members and management actions for {team.name}.
         </DialogDescription>
@@ -195,11 +203,29 @@ export function TeamDetailsModal({
           </div>
         )}
 
-        {/* Members */}
-        <div className="mt-2">
+        {/* Team lead */}
+        <div>
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+            Team lead
+          </p>
+          <div className="flex items-center gap-2">
+            <Avatar name={team.leader.fullName} />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                {team.leader.fullName}
+              </span>
+              <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                {team.leader.jobTitle ?? team.leader.companyEmail}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* Members (excludes the lead, shown above) */}
+        <div>
           <div className="mb-2 flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-              Members ({team.memberCount})
+              Members ({otherMembers.length})
             </p>
             {canManage && !addMode && (
               <Button size="xs" variant="ghost" onClick={() => setAddMode(true)}>
@@ -208,26 +234,24 @@ export function TeamDetailsModal({
             )}
           </div>
 
-          <ul className="divide-y divide-[color:var(--border-primary)]">
-            {team.members.map((member) => {
-              const isLeader = member.id === team.leader.id;
-              return (
+          {otherMembers.length === 0 ? (
+            <p className="text-xs text-[color:var(--text-tertiary)]">No additional members yet.</p>
+          ) : (
+            <ul className="divide-y divide-[color:var(--border-primary)]">
+              {otherMembers.map((member) => (
                 <li key={member.id} className="flex items-center justify-between gap-3 py-2">
                   <span className="flex min-w-0 items-center gap-2">
                     <Avatar name={member.fullName} />
                     <span className="min-w-0">
-                      <span className="flex items-center gap-2">
-                        <span className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-                          {member.fullName}
-                        </span>
-                        {isLeader && <Badge variant="brand">Lead</Badge>}
+                      <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                        {member.fullName}
                       </span>
                       <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
                         {member.jobTitle ?? member.companyEmail}
                       </span>
                     </span>
                   </span>
-                  {canManage && !isLeader && (
+                  {canManage && (
                     <Button
                       variant="ghost"
                       size="xs"
@@ -238,14 +262,14 @@ export function TeamDetailsModal({
                     </Button>
                   )}
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Add members panel */}
         {canManage && addMode && (
-          <div className="mt-3 rounded-lg border border-[color:var(--border-primary)] p-3">
+          <div className="rounded-lg border border-[color:var(--border-primary)] p-3">
             <Command className="rounded-lg border border-[color:var(--border-primary)]">
               <CommandInput placeholder="Search employees…" />
               <CommandList className="max-h-48">
@@ -279,7 +303,7 @@ export function TeamDetailsModal({
                 </CommandGroup>
               </CommandList>
             </Command>
-            <div className="mt-3 flex justify-end gap-2">
+            <div className="mt-3 flex justify-end gap-2 py-4">
               <Button
                 variant="secondary"
                 size="sm"

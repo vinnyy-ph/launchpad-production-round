@@ -123,7 +123,8 @@ export interface EmployeeFilters {
   status?: EmployeeStatus;
   teamId?: string;
   team?: string;
-  supervisorId?: string;
+  /** Filter to employees reporting to any of these supervisors. */
+  supervisorIds?: string[];
   sortBy?: EmployeeSortBy;
   sortDirection?: SortDirection;
   page?: number;
