@@ -70,9 +70,25 @@ export class OnboardingService {
           lastName: result.employee.lastName,
           middleName: result.employee.middleName,
           personalEmail: result.employee.personalEmail,
-          birthday: result.employee.birthday?.toISOString() ?? null,
-          address: result.employee.address?.address ?? null,
-          emergencyContact: result.employee.emergencyContact?.emergencyContactNumber ?? null,
+          birthday: result.employee.birthday
+            ? result.employee.birthday.toISOString().slice(0, 10)
+            : null,
+          address: result.employee.address
+            ? {
+                address: result.employee.address.address ?? null,
+                city: result.employee.address.city ?? null,
+                province: result.employee.address.province ?? null,
+                country: result.employee.address.country ?? null,
+              }
+            : null,
+          emergencyContact: result.employee.emergencyContact
+            ? {
+                emergencyContactName:
+                  result.employee.emergencyContact.emergencyContactName ?? null,
+                emergencyContactNumber:
+                  result.employee.emergencyContact.emergencyContactNumber ?? null,
+              }
+            : null,
           jobTitle: result.employee.jobTitle ?? "",
           department: result.employee.department?.name ?? "",
           supervisor: {

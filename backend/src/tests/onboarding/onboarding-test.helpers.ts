@@ -5,6 +5,7 @@ export const SUPERVISOR_ID = "supervisor-employee-id";
 export const HR_USER_ID = "hr-user-id";
 export const VALID_PH_EMERGENCY_CONTACT = "Jane Doe - 09171234567";
 export const VALID_PH_EMERGENCY_CONTACT_DISPLAY = "Jane Doe - +63 917 123 4567";
+export const VALID_PH_EMERGENCY_CONTACT_NUMBER = "+63 917 123 4567";
 
 export const mockedPrisma = jest.mocked(prisma);
 export const userFindUniqueMock = mockedPrisma.user.findUnique as jest.Mock;
@@ -93,7 +94,11 @@ export function buildOnboardBodyWithPrefill() {
     lastName: "Doe",
     personalEmail: "John.Personal@Gmail.com",
     birthday: "1995-06-15",
-    address: "123 Main St, City, State",
+    address: "123 Main St",
+    city: "Cebu City",
+    province: "Cebu",
+    country: "Philippines",
+    emergencyContactName: "Jane Doe",
     emergencyContact: VALID_PH_EMERGENCY_CONTACT,
   };
 }
@@ -140,15 +145,11 @@ export function mockOnboardingTransaction(employeeOverrides: Record<string, unkn
           ...scalarOverrides,
           address:
             "address" in employeeOverrides
-              ? address
-                ? { address }
-                : null
+              ? (address as unknown)
               : defaultEmployee.address,
           emergencyContact:
             "emergencyContact" in employeeOverrides
-              ? emergencyContact
-                ? { emergencyContactNumber: emergencyContact }
-                : null
+              ? (emergencyContact as unknown)
               : defaultEmployee.emergencyContact,
         }),
       },

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { ClipboardList, Plus, Settings2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -43,6 +44,7 @@ import type {
   OnboardingInvitationStatus,
 } from "@/modules/people/onboarding/types/onboarding.types";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 
 interface CaseRow {
   employeeId: string;
@@ -244,6 +246,7 @@ function StartOnboardingDialog({
   onStarted: (employeeId: string) => void;
 }) {
   const { employees: activeEmployees } = useEmployees({ status: "active", limit: 100 });
+  const { departments } = useDepartments();
   const onboard = useOnboardEmployee();
 
   const [companyEmail, setCompanyEmail] = useState("");
@@ -253,6 +256,10 @@ function StartOnboardingDialog({
   const [lastName, setLastName] = useState("");
   const [birthday, setBirthday] = useState<Date | undefined>();
   const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("");
+  const [country, setCountry] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [department, setDepartment] = useState("");
@@ -265,6 +272,10 @@ function StartOnboardingDialog({
     lastName?: string;
     birthday?: string;
     address?: string;
+    city?: string;
+    province?: string;
+    country?: string;
+    emergencyContactName?: string;
     emergencyContact?: string;
     jobTitle?: string;
     department?: string;
@@ -280,6 +291,10 @@ function StartOnboardingDialog({
     setLastName("");
     setBirthday(undefined);
     setAddress("");
+    setCity("");
+    setProvince("");
+    setCountry("");
+    setEmergencyContactName("");
     setEmergencyContact("");
     setJobTitle("");
     setDepartment("");
@@ -308,15 +323,19 @@ function StartOnboardingDialog({
       selected.setHours(0, 0, 0, 0);
       if (selected > today) next.birthday = "Birthday cannot be in the future.";
     }
-    if (!address.trim()) next.address = "Address is required.";
-    if (!emergencyContact.trim()) next.emergencyContact = "Emergency contact is required.";
+    if (!address.trim()) next.address = "Street address is required.";
+    if (!city.trim()) next.city = "City is required.";
+    if (!province.trim()) next.province = "Province is required.";
+    if (!country.trim()) next.country = "Country is required.";
+    if (!emergencyContactName.trim()) next.emergencyContactName = "Contact name is required.";
+    if (!emergencyContact.trim()) next.emergencyContact = "Contact number is required.";
     if (!jobTitle.trim()) next.jobTitle = "Job title is required.";
     if (!department.trim()) next.department = "Department is required.";
     if (!supervisorId) next.supervisorId = "Select a supervisor.";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    const birthdayIso = birthday!.toISOString().slice(0, 10);
+    const birthdayIso = format(birthday!, "yyyy-MM-dd");
 
     setIsStarting(true);
     onboard.mutate(
@@ -328,6 +347,10 @@ function StartOnboardingDialog({
         lastName: lastName.trim(),
         birthday: birthdayIso,
         address: address.trim(),
+        city: city.trim(),
+        province: province.trim(),
+        country: country.trim(),
+        emergencyContactName: emergencyContactName.trim(),
         emergencyContact: emergencyContact.trim(),
         jobTitle: jobTitle.trim(),
         department: department.trim(),
@@ -361,9 +384,14 @@ function StartOnboardingDialog({
     label: `${e.fullName} · ${e.companyEmail}`,
   }));
 
+  const departmentOptions = departments.map((d) => ({
+    value: d.name,
+    label: d.name,
+  }));
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl" closeDisabled={isStarting}>
         <DialogHeader>
           <DialogTitle>Start onboarding</DialogTitle>
           <DialogDescription>
@@ -425,7 +453,7 @@ function StartOnboardingDialog({
             label="Birthday"
             required
             error={errors.birthday}
-            hint="Type the date or use the calendar — year and month dropdowns make it easy to jump to 2004, etc."
+            hint="Type the date or use the year and month dropdowns to jump to 2004, etc."
           >
             <DatePicker
               value={birthday}
@@ -433,29 +461,65 @@ function StartOnboardingDialog({
               disableFuture
             />
           </FormField>
-          <FormField label="Address" htmlFor="ob-address" required error={errors.address}>
+          <FormField label="Street address" htmlFor="ob-address" required error={errors.address}>
             <Textarea
               id="ob-address"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Street, city, province"
+              placeholder="House/unit no., street, barangay"
               rows={2}
             />
           </FormField>
-          <FormField
-            label="Emergency contact"
-            htmlFor="ob-emergency"
-            required
-            error={errors.emergencyContact}
-            hint="Include name and Philippine mobile number, e.g. Juan Santos - 09171234567"
-          >
-            <Input
-              id="ob-emergency"
-              value={emergencyContact}
-              onChange={(e) => setEmergencyContact(e.target.value)}
-              placeholder="Name - 09XXXXXXXXX"
-            />
-          </FormField>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormField label="Country" htmlFor="ob-country" required error={errors.country}>
+              <Input
+                id="ob-country"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="e.g. Philippines"
+              />
+            </FormField>
+            <FormField label="Province" htmlFor="ob-province" required error={errors.province}>
+              <Input
+                id="ob-province"
+                value={province}
+                onChange={(e) => setProvince(e.target.value)}
+                placeholder="e.g. Cebu"
+              />
+            </FormField>
+            <FormField label="City" htmlFor="ob-city" required error={errors.city}>
+              <Input id="ob-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Cebu City" />
+            </FormField>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              label="Emergency contact name"
+              htmlFor="ob-emergency-name"
+              required
+              error={errors.emergencyContactName}
+            >
+              <Input
+                id="ob-emergency-name"
+                value={emergencyContactName}
+                onChange={(e) => setEmergencyContactName(e.target.value)}
+                placeholder="e.g. Juan Santos"
+              />
+            </FormField>
+            <FormField
+              label="Emergency contact number"
+              htmlFor="ob-emergency"
+              required
+              error={errors.emergencyContact}
+              hint="Philippine mobile, e.g. 09171234567"
+            >
+              <Input
+                id="ob-emergency"
+                value={emergencyContact}
+                onChange={(e) => setEmergencyContact(e.target.value)}
+                placeholder="09XXXXXXXXX"
+              />
+            </FormField>
+          </div>
           <FormField label="Job title" htmlFor="ob-title" required error={errors.jobTitle}>
             <Input
               id="ob-title"
@@ -464,12 +528,14 @@ function StartOnboardingDialog({
               placeholder="e.g. Nurse"
             />
           </FormField>
-          <FormField label="Department" htmlFor="ob-dept" required error={errors.department}>
-            <Input
-              id="ob-dept"
+          <FormField label="Department" required error={errors.department}>
+            <Combobox
+              options={departmentOptions}
               value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              placeholder="e.g. Patient Care"
+              onChange={(v) => setDepartment(v || "")}
+              placeholder="Select a department…"
+              searchPlaceholder="Search departments…"
+              emptyText="No departments found."
             />
           </FormField>
           <FormField label="Supervisor" required error={errors.supervisorId}>
@@ -485,7 +551,7 @@ function StartOnboardingDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => handleOpenChange(false)}>
+          <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={isStarting}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isStarting}>

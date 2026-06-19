@@ -9,6 +9,7 @@ import type {
 } from "./dto";
 import type { DocumentReviewSubmissionRecord } from "./document-reviews.repository";
 import { DocumentReviewsRepository } from "./document-reviews.repository";
+import { NotificationsService } from "../../../notifications/notifications.service";
 
 /**
  * Business logic for HR review of employee onboarding document submissions.
@@ -16,6 +17,7 @@ import { DocumentReviewsRepository } from "./document-reviews.repository";
 export class DocumentReviewsService {
   constructor(
     private readonly documentReviewsRepository = new DocumentReviewsRepository(),
+    private readonly notificationsService = new NotificationsService(),
   ) {}
 
   /**
@@ -57,6 +59,11 @@ export class DocumentReviewsService {
       reviewerEmployeeId,
     );
 
+    await this.notificationsService.notifyEmployeeDocumentApproved(
+      updated.record.employee.id,
+      updated.document.documentName,
+    );
+
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.DOCUMENT_APPROVED,
@@ -86,6 +93,12 @@ export class DocumentReviewsService {
     const updated = await this.documentReviewsRepository.rejectSubmission(
       submissionId,
       reviewerEmployeeId,
+      dto.rejectionNote,
+    );
+
+    await this.notificationsService.notifyEmployeeDocumentRejected(
+      updated.record.employee.id,
+      updated.document.documentName,
       dto.rejectionNote,
     );
 

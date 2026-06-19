@@ -1,6 +1,8 @@
 import request from "supertest";
 import { app } from "../../../app";
+import { NotificationsService } from "../../../modules/notifications/notifications.service";
 import {
+  EMPLOYEE_ID,
   SUBMISSION_ID,
   buildHrUser,
   buildSubmissionRecord,
@@ -28,8 +30,17 @@ jest.mock("../../../core/database/prisma.service", () => ({
 }));
 
 describe("PATCH /api/v1/onboarding/document-reviews/:submissionId/approve", () => {
+  let notifyApprovedSpy: jest.SpyInstance;
+
   beforeEach(() => {
     resetDocumentReviewMocks();
+    notifyApprovedSpy = jest
+      .spyOn(NotificationsService.prototype, "notifyEmployeeDocumentApproved")
+      .mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    notifyApprovedSpy.mockRestore();
   });
 
   it("approves a pending document submission", async () => {
@@ -68,6 +79,8 @@ describe("PATCH /api/v1/onboarding/document-reviews/:submissionId/approve", () =
         }),
       }),
     );
+
+    expect(notifyApprovedSpy).toHaveBeenCalledWith(EMPLOYEE_ID, "NBI Clearance");
   });
 
   it("returns 404 when the submission does not exist", async () => {

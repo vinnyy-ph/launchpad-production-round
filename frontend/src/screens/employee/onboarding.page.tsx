@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -170,6 +171,10 @@ export default function EmployeeOnboardingPage() {
   const [personalEmail, setPersonalEmail] = useState("");
   const [birthday, setBirthday] = useState<Date | undefined>();
   const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("");
+  const [country, setCountry] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
@@ -186,8 +191,12 @@ export default function EmployeeOnboardingPage() {
       setMiddleName(profile.middleName ?? "");
       setLastName(profile.lastName ?? "");
       setPersonalEmail(profile.personalEmail ?? "");
-      setAddress(profile.address ?? "");
-      setEmergencyContact(profile.emergencyContact ?? "");
+      setAddress(profile.address?.address ?? "");
+      setCity(profile.address?.city ?? "");
+      setProvince(profile.address?.province ?? "");
+      setCountry(profile.address?.country ?? "");
+      setEmergencyContactName(profile.emergencyContact?.emergencyContactName ?? "");
+      setEmergencyContact(profile.emergencyContact?.emergencyContactNumber ?? "");
       setBirthday(profile.birthday ? new Date(`${profile.birthday}T00:00:00`) : undefined);
 
       const profileComplete =
@@ -195,8 +204,8 @@ export default function EmployeeOnboardingPage() {
         Boolean(profile.lastName?.trim()) &&
         Boolean(profile.personalEmail?.trim()) &&
         Boolean(profile.birthday) &&
-        Boolean(profile.address?.trim()) &&
-        Boolean(profile.emergencyContact?.trim());
+        Boolean(profile.address?.address?.trim()) &&
+        Boolean(profile.emergencyContact?.emergencyContactNumber?.trim());
       setProfileEditing(!profileComplete);
     }
   }, [status]);
@@ -214,8 +223,12 @@ export default function EmployeeOnboardingPage() {
       selected.setHours(0, 0, 0, 0);
       if (selected > today) next.birthday = "Birthday cannot be in the future.";
     }
-    if (!address.trim()) next.address = "Address is required.";
-    if (!emergencyContact.trim()) next.emergencyContact = "Emergency contact is required.";
+    if (!address.trim()) next.address = "Street address is required.";
+    if (!city.trim()) next.city = "City is required.";
+    if (!province.trim()) next.province = "Province is required.";
+    if (!country.trim()) next.country = "Country is required.";
+    if (!emergencyContactName.trim()) next.emergencyContactName = "Contact name is required.";
+    if (!emergencyContact.trim()) next.emergencyContact = "Contact number is required.";
     setProfileErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -225,8 +238,12 @@ export default function EmployeeOnboardingPage() {
         middleName: middleName.trim() || null,
         lastName: lastName.trim(),
         personalEmail: personalEmail.trim(),
-        birthday: birthday!.toISOString().slice(0, 10),
+        birthday: format(birthday!, "yyyy-MM-dd"),
         address: address.trim(),
+        city: city.trim(),
+        province: province.trim(),
+        country: country.trim(),
+        emergencyContactName: emergencyContactName.trim(),
         emergencyContact: emergencyContact.trim(),
       },
       {
@@ -559,22 +576,79 @@ export default function EmployeeOnboardingPage() {
                 <FormField label="Department" htmlFor="ob-dept">
                   <Input id="ob-dept" value={profile.department ?? ""} disabled />
                 </FormField>
-                <FormField label="Address *" htmlFor="ob-address" error={profileErrors.address} className="sm:col-span-2">
-                  <Input id="ob-address" value={address} onChange={(e) => setAddress(e.target.value)} />
-                </FormField>
-                <FormField
-                  label="Emergency contact *"
-                  htmlFor="ob-emergency"
-                  error={profileErrors.emergencyContact}
-                  className="sm:col-span-2"
-                >
-                  <Input
-                    id="ob-emergency"
-                    value={emergencyContact}
-                    onChange={(e) => setEmergencyContact(e.target.value)}
-                    placeholder="Name - phone number"
-                  />
-                </FormField>
+                <div className="sm:col-span-2 mt-1 border-t border-[color:var(--border-primary)] pt-4">
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                    Address
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField
+                      label="Street address *"
+                      htmlFor="ob-address"
+                      error={profileErrors.address}
+                      className="sm:col-span-2"
+                    >
+                      <Input
+                        id="ob-address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="House/unit no., street, barangay"
+                      />
+                    </FormField>
+                    <FormField label="City *" htmlFor="ob-city" error={profileErrors.city}>
+                      <Input id="ob-city" value={city} onChange={(e) => setCity(e.target.value)} />
+                    </FormField>
+                    <FormField label="Province *" htmlFor="ob-province" error={profileErrors.province}>
+                      <Input
+                        id="ob-province"
+                        value={province}
+                        onChange={(e) => setProvince(e.target.value)}
+                      />
+                    </FormField>
+                    <FormField
+                      label="Country *"
+                      htmlFor="ob-country"
+                      error={profileErrors.country}
+                      className="sm:col-span-2"
+                    >
+                      <Input
+                        id="ob-country"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                      />
+                    </FormField>
+                  </div>
+                </div>
+                <div className="sm:col-span-2 mt-1 border-t border-[color:var(--border-primary)] pt-4">
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                    Emergency contact
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField
+                      label="Contact name *"
+                      htmlFor="ob-emergency-name"
+                      error={profileErrors.emergencyContactName}
+                    >
+                      <Input
+                        id="ob-emergency-name"
+                        value={emergencyContactName}
+                        onChange={(e) => setEmergencyContactName(e.target.value)}
+                        placeholder="e.g. Juan Santos"
+                      />
+                    </FormField>
+                    <FormField
+                      label="Contact number *"
+                      htmlFor="ob-emergency"
+                      error={profileErrors.emergencyContact}
+                    >
+                      <Input
+                        id="ob-emergency"
+                        value={emergencyContact}
+                        onChange={(e) => setEmergencyContact(e.target.value)}
+                        placeholder="09XXXXXXXXX"
+                      />
+                    </FormField>
+                  </div>
+                </div>
               </div>
               <div className="mt-5 flex justify-end">
                 <Button onClick={handleSaveProfile} disabled={updateProfile.isPending}>
@@ -604,8 +678,14 @@ export default function EmployeeOnboardingPage() {
                   label="Birthday"
                   value={birthday ? birthday.toLocaleDateString("en-US") : ""}
                 />
-                <ReviewRow label="Address" value={address} />
-                <ReviewRow label="Emergency contact" value={emergencyContact} />
+                <ReviewRow
+                  label="Address"
+                  value={[address, city, province, country].filter(Boolean).join(", ")}
+                />
+                <ReviewRow
+                  label="Emergency contact"
+                  value={[emergencyContactName, emergencyContact].filter(Boolean).join(" · ")}
+                />
               </div>
             </>
           )}
