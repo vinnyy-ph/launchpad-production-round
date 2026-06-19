@@ -46,11 +46,12 @@ export class EvaluationsValidation {
       throw new Error("periodEnd must be on or after periodStart");
     }
 
+    const grade = typeof b.grade === "string" ? Number(b.grade) : b.grade;
     if (
-      typeof b.grade !== "number" ||
-      !Number.isInteger(b.grade) ||
-      b.grade < 1 ||
-      b.grade > 5
+      typeof grade !== "number" ||
+      !Number.isInteger(grade) ||
+      grade < 1 ||
+      grade > 5
     ) {
       throw new Error("grade must be an integer between 1 and 5");
     }
@@ -62,7 +63,7 @@ export class EvaluationsValidation {
       revieweeId: b.revieweeId,
       periodStart,
       periodEnd,
-      grade: b.grade,
+      grade: grade as number,
       ...(b.highlights !== undefined && { highlights: this.parseItemArray(b.highlights, "highlights") }),
       ...(b.lowlights !== undefined && { lowlights: this.parseItemArray(b.lowlights, "lowlights") }),
       ...(typeof b.evaluation === "string" && { evaluation: b.evaluation }),
@@ -98,9 +99,10 @@ export class EvaluationsValidation {
       throw new Error("periodEnd must be on or after periodStart");
     }
     if (b.grade !== undefined) {
-      if (typeof b.grade !== "number" || !Number.isInteger(b.grade) || b.grade < 1 || b.grade > 5)
+      const grade = typeof b.grade === "string" ? Number(b.grade) : b.grade;
+      if (typeof grade !== "number" || !Number.isInteger(grade) || grade < 1 || grade > 5)
         throw new Error("grade must be an integer between 1 and 5");
-      result.grade = b.grade;
+      result.grade = grade;
     }
     if (b.send !== undefined) {
       if (typeof b.send !== "boolean") throw new Error("send must be a boolean");
