@@ -880,23 +880,31 @@ export default function EvaluationsPage() {
               aria-selected={active}
               onClick={() => setStatusFilter(t.value)}
               className={[
-                "relative -mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "relative flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 active
-                  ? "border-[color:hsl(var(--primary))] text-[color:var(--text-primary)]"
-                  : "border-transparent text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
+                  ? "text-[color:var(--text-primary)]"
+                  : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
               ].join(" ")}
             >
               {t.label}
               <span
                 className={[
-                  "inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                  "inline-flex min-w-[20px] items-center justify-center rounded-full border bg-[color:var(--bg-tertiary)] px-1.5 py-0.5 text-xs font-semibold tabular-nums",
                   active
-                    ? "bg-[color:hsl(var(--primary))] text-white"
-                    : "bg-[color:var(--bg-tertiary)] text-[color:var(--text-tertiary)]",
+                    ? "border-[color:var(--border-primary)] text-[color:var(--text-secondary)]"
+                    : "border-transparent text-[color:var(--text-tertiary)]",
                 ].join(" ")}
               >
                 {isLoading ? "–" : t.count}
               </span>
+              {/* Gradient underline — the sole active indicator. Sits over the container border. */}
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
+                  style={{ background: "var(--gradient-jia)" }}
+                />
+              )}
             </button>
           );
         })}
