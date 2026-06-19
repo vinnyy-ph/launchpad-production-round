@@ -178,11 +178,14 @@
   .cp-val { font-weight: 700; color: var(--text-primary); }
   .cp-sub { color: var(--text-tertiary); font-weight: 500; }
 
-  .directory-profile-dialog[data-state="open"] {
+  /* Fade-in + scale-from-center for centered dialogs. `dialog-pop` is the reusable alias. */
+  .directory-profile-dialog[data-state="open"],
+  .dialog-pop[data-state="open"] {
     animation: directory-profile-dialog-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
   }
 
-  .directory-profile-dialog[data-state="closed"] {
+  .directory-profile-dialog[data-state="closed"],
+  .dialog-pop[data-state="closed"] {
     animation: directory-profile-dialog-out 90ms ease-in both !important;
   }
 

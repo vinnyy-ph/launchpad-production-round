@@ -34,7 +34,8 @@ export default function HomePage() {
     <div className="min-w-0 space-y-6">
       <ScreenHeader id="dashboard" level="page" />
 
-      {/* KPI cards */}
+      {/* KPI cards — hidden for now. Restore by flipping `false` to `true` on the line below. */}
+      {false && (
       <section>
         <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
           At a glance
@@ -58,6 +59,7 @@ export default function HomePage() {
           </div>
         )}
       </section>
+      )}
 
       {/* Recent notifications */}
       <section>

@@ -9,6 +9,7 @@ import {
   Trash2,
   Send,
   Eye,
+  ChevronLeft,
   ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -224,6 +225,12 @@ function DynamicList({ label, htmlFor, items, onChange, placeholder, hint, optio
 
 // ─── Evaluation editor dialog ─────────────────────────────────────────────────
 
+interface SendPayload {
+  existing: Evaluation | null;
+  input: EvaluationInput;
+  name: string;
+}
+
 interface EditorProps {
   open: boolean;
   onClose: () => void;
@@ -231,8 +238,7 @@ interface EditorProps {
   reviewees: Reviewee[];
   saving: boolean;
   onSubmit: (input: EvaluationInput) => void;
-  onRequestSend: (ev: Evaluation) => void;
-  onRequestDelete: (ev: Evaluation) => void;
+  onRequestSend: (payload: SendPayload) => void;
 }
 
 function EvaluationEditorDialog({
@@ -243,7 +249,6 @@ function EvaluationEditorDialog({
   saving,
   onSubmit,
   onRequestSend,
-  onRequestDelete,
 }: EditorProps) {
   const [revieweeId, setRevieweeId] = useState("");
   const [period, setPeriod] = useState<DateRange | undefined>();
@@ -254,11 +259,12 @@ function EvaluationEditorDialog({
   const [recommendationText, setRecommendationText] = useState("");
   const [supportingDocUrl, setSupportingDocUrl] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [view, setView] = useState<"form" | "preview">("form");
+  // Two-step flow: fill the form → review the preview → save or send.
+  const [step, setStep] = useState<"form" | "preview">("form");
 
   const isViewOnly = initial?.isSent ?? false;
   const isDraft = !!initial && !initial.isSent;
-  const showPreview = isViewOnly || view === "preview";
+  const showPreview = isViewOnly || step === "preview";
 
   /** Drop a single field's error as the user corrects it (live feedback). */
   const clearError = (key: string) =>
@@ -271,7 +277,7 @@ function EvaluationEditorDialog({
 
   useEffect(() => {
     if (!open) return;
-    setView("form");
+    setStep("form");
     if (initial) {
       setRevieweeId(initial.revieweeId);
       setPeriod({ from: new Date(initial.periodStart), to: new Date(initial.periodEnd) });
@@ -309,13 +315,10 @@ function EvaluationEditorDialog({
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (isViewOnly) return;
-    if (!validate() || !period?.from || !period?.to) {
-      setView("form");
-      return;
-    }
-    const input: EvaluationInput = {
+  /** Build the wire payload from the current form state (assumes it has been validated). */
+  const buildInput = (): EvaluationInput | null => {
+    if (!period?.from || !period?.to) return null;
+    return {
       revieweeId,
       periodStart: period.from.toISOString(),
       periodEnd: period.to.toISOString(),
@@ -326,24 +329,35 @@ function EvaluationEditorDialog({
       recommendation: recommendationText.trim() || undefined,
       supportingDocUrl: supportingDocUrl.trim() || undefined,
     };
+  };
+
+  const handleSubmit = () => {
+    if (isViewOnly) return;
+    const input = validate() ? buildInput() : null;
+    if (!input) {
+      setStep("form");
+      return;
+    }
     onSubmit(input);
   };
 
-  /** Sending is irreversible — require period, rating, and an overall summary, and point at the
-   *  exact missing field rather than a generic error. */
+  /** Sending is irreversible — require reviewee, period, rating, and an overall summary, pointing at
+   *  the exact missing field. Works for a brand-new evaluation too (the page creates then sends). */
   const handleSend = () => {
-    if (!initial) return;
+    if (isViewOnly) return;
     const errs: Record<string, string> = {};
+    if (!revieweeId) errs.reviewee = "Select an employee before sending.";
     if (!period?.from || !period?.to) errs.period = "Add the evaluation period before sending.";
     if (!grade) errs.grade = "Pick an overall rating before sending.";
     if (!evaluationText.trim()) errs.summary = "Add an overall summary before sending.";
-    if (Object.keys(errs).length > 0) {
+    const input = buildInput();
+    if (Object.keys(errs).length > 0 || !input) {
       setErrors((e) => ({ ...e, ...errs }));
-      setView("form");
+      setStep("form");
       toast.error("Fill in the required fields before sending.");
       return;
     }
-    onRequestSend(initial);
+    onRequestSend({ existing: initial, input, name: previewName });
   };
 
   const revieweeName = (id: string) => reviewees.find((r) => r.id === id)?.fullName ?? id;
@@ -358,12 +372,14 @@ function EvaluationEditorDialog({
   const title = isViewOnly ? "Evaluation" : isDraft ? "Edit evaluation" : "New evaluation";
   const description = isViewOnly
     ? "This evaluation has been sent and is now read-only."
-    : "Evaluate one of your direct reports for a set period. It saves as a draft you can edit until you send.";
+    : step === "preview"
+      ? `Here's exactly what ${previewName} will see. Save it as a draft or send it.`
+      : "Evaluate one of your direct reports for a set period. It saves as a draft you can edit until you send.";
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="flex max-h-[90vh] flex-col gap-0 sm:max-w-2xl"
+        className="dialog-pop flex max-h-[90vh] flex-col gap-0 sm:max-w-2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
@@ -372,36 +388,18 @@ function EvaluationEditorDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {/* Form / Preview toggle — preview shows exactly what the employee will see */}
-        {!isViewOnly && (
-          <div className="mt-3 inline-flex w-fit rounded-lg border border-[color:var(--border-primary)] p-0.5 text-sm">
-            {(["form", "preview"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                className={[
-                  "rounded-md px-3 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  view === v
-                    ? "bg-[color:var(--bg-secondary)] text-[color:var(--text-primary)]"
-                    : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
-                ].join(" ")}
-              >
-                {v === "form" ? "Form" : "Preview"}
-              </button>
-            ))}
-          </div>
-        )}
-
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleSubmit();
+            // Form step → advance to the preview; preview step → save as a draft.
+            if (!isViewOnly && step === "form") setStep("preview");
+            else handleSubmit();
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
-          {/* Scroll region — scrollbar sits at the modal edge, thin */}
-          <div className="-mr-6 mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto pl-1 pr-5 pb-1 scrollbar-thin">
+          {/* Scroll region — full-bleed so the thin scrollbar sits at the modal edge,
+              while content stays padded in line with the header. */}
+          <div className="-mx-6 mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-1 scrollbar-thin">
             {showPreview ? (
               // ── Employee-facing preview ──────────────────────────────────────
               <div
@@ -551,7 +549,7 @@ function EvaluationEditorDialog({
                   hintAbove
                   required
                 >
-                  <div aria-invalid={!!errors.period} className="sm:max-w-[340px]">
+                  <div aria-invalid={!!errors.period}>
                     <DateRangePicker
                       value={period}
                       onChange={(v) => {
@@ -750,14 +748,9 @@ function EvaluationEditorDialog({
 
           {/* Bottom bar — divider sits flush with the scroll edge (no gap above the line) */}
           <div className="flex items-center gap-2 border-t border-[color:var(--border-primary)] pt-4">
-            {isDraft && (
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => onRequestDelete(initial)}
-                className="text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
-              >
-                <Trash2 size={14} className="mr-1" /> Delete draft
+            {!isViewOnly && step === "preview" && (
+              <Button variant="ghost" type="button" onClick={() => setStep("form")}>
+                <ChevronLeft size={14} className="mr-1" /> Back
               </Button>
             )}
             <div className="ml-auto flex gap-2">
@@ -765,19 +758,26 @@ function EvaluationEditorDialog({
                 <Button variant="secondary" type="button" onClick={onClose}>
                   Close
                 </Button>
+              ) : step === "form" ? (
+                <>
+                  <Button variant="secondary" type="button" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    <Eye size={14} className="mr-1" /> Preview
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button variant="secondary" type="button" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button type="submit" variant={isDraft ? "secondary" : undefined} disabled={saving}>
-                    {saving ? "Saving…" : isDraft ? "Save changes" : "Create draft"}
+                  <Button type="submit" variant="secondary" disabled={saving}>
+                    {saving ? "Saving…" : "Save as draft"}
                   </Button>
-                  {isDraft && (
-                    <Button type="button" onClick={handleSend}>
-                      <Send size={14} className="mr-1" /> Send evaluation
-                    </Button>
-                  )}
+                  <Button type="button" onClick={handleSend}>
+                    <Send size={14} className="mr-1" /> Send
+                  </Button>
                 </>
               )}
             </div>
@@ -814,7 +814,13 @@ export default function EvaluationsPage() {
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Evaluation | null>(null);
-  const [sendingId, setSendingId] = useState<string | null>(null);
+  // A send awaiting confirmation. `input` is present when sending from the editor (new draft is
+  // created/updated first); a row-action send carries only the existing evaluation.
+  const [pendingSend, setPendingSend] = useState<{
+    existing: Evaluation | null;
+    input?: EvaluationInput;
+    name: string;
+  } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
@@ -916,18 +922,39 @@ export default function EvaluationsPage() {
   };
 
   const handleSend = () => {
-    if (!sendingId) return;
-    sendMutation.mutate(sendingId, {
-      onSuccess: () => {
-        toast.success("Evaluation sent. It is now read-only.");
-        setSendingId(null);
-        setEditorOpen(false);
-      },
-      onError: (e) => {
-        toast.error(e instanceof Error ? e.message : "Could not send evaluation.");
-        setSendingId(null);
-      },
-    });
+    if (!pendingSend) return;
+    const { existing, input } = pendingSend;
+
+    const fail = (e: unknown) => {
+      toast.error(e instanceof Error ? e.message : "Could not send evaluation.");
+      setPendingSend(null);
+    };
+    const sendById = (id: string) =>
+      sendMutation.mutate(id, {
+        onSuccess: () => {
+          toast.success("Evaluation sent. It is now read-only.");
+          setPendingSend(null);
+          setEditorOpen(false);
+        },
+        onError: fail,
+      });
+
+    if (existing && input) {
+      // Persist the latest edits, then send.
+      updateMutation.mutate(
+        { id: existing.id, input },
+        { onSuccess: () => sendById(existing.id), onError: fail },
+      );
+    } else if (existing) {
+      // Row-action send (no unsaved edits).
+      sendById(existing.id);
+    } else if (input) {
+      // Brand-new evaluation: create the draft, then send it.
+      createMutation.mutate(input, {
+        onSuccess: (created) => sendById(created.id),
+        onError: fail,
+      });
+    }
   };
 
   const handleDelete = () => {
@@ -1060,7 +1087,7 @@ export default function EvaluationsPage() {
                   className="h-8 w-8 text-[color:hsl(var(--primary))] hover:bg-gray-50 hover:text-[color:hsl(var(--primary))]"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSendingId(ev.id);
+                    setPendingSend({ existing: ev, name: nameOf(ev) });
                   }}
                   aria-label="Send evaluation"
                   title="Send evaluation"
@@ -1093,8 +1120,7 @@ export default function EvaluationsPage() {
     ? "Try a different search or status filter."
     : "Create your first evaluation for a direct report.";
 
-  const sendingEval = sendingId ? evals.find((e) => e.id === sendingId) : undefined;
-  const sendingName = sendingEval ? nameOf(sendingEval) : "the employee";
+  const sendingName = pendingSend?.name ?? "the employee";
 
   return (
     <div className="min-w-0">
@@ -1236,12 +1262,11 @@ export default function EvaluationsPage() {
         reviewees={revieweeList}
         saving={createMutation.isPending || updateMutation.isPending}
         onSubmit={handleSubmit}
-        onRequestSend={(ev) => setSendingId(ev.id)}
-        onRequestDelete={(ev) => setDeletingId(ev.id)}
+        onRequestSend={(payload) => setPendingSend(payload)}
       />
 
       {/* Send confirm */}
-      <AlertDialog open={!!sendingId} onOpenChange={(o) => !o && setSendingId(null)}>
+      <AlertDialog open={!!pendingSend} onOpenChange={(o) => !o && setPendingSend(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Send this evaluation?</AlertDialogTitle>
@@ -1251,7 +1276,10 @@ export default function EvaluationsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSend} disabled={sendMutation.isPending}>
+            <AlertDialogAction
+              onClick={handleSend}
+              disabled={createMutation.isPending || updateMutation.isPending || sendMutation.isPending}
+            >
               <Send size={14} className="mr-1" /> {sendMutation.isPending ? "Sending…" : "Send"}
             </AlertDialogAction>
           </AlertDialogFooter>
