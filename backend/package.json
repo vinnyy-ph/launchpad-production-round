@@ -8,7 +8,7 @@
   "scripts": {
     "predev": "prisma generate",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "prisma generate && tsc",
+    "build": "prisma generate && tsc && node -e \"require('fs').cpSync('src/core/email/assets','dist/core/email/assets',{recursive:true})\"",
     "test": "jest",
     "start": "node dist/server.js",
     "db:generate": "prisma generate",

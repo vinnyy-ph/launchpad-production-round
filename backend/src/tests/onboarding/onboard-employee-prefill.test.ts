@@ -2,7 +2,7 @@ import request from "supertest";
 import { app } from "../../app";
 import {
   VALID_PH_EMERGENCY_CONTACT,
-  VALID_PH_EMERGENCY_CONTACT_DISPLAY,
+  VALID_PH_EMERGENCY_CONTACT_NUMBER,
   buildHrUser,
   buildOnboardBody,
   buildOnboardBodyWithPrefill,
@@ -44,8 +44,16 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
       lastName: "Doe",
       personalEmail: "john.personal@gmail.com",
       birthday: new Date("1995-06-15T00:00:00.000Z"),
-      address: "123 Main St, City, State",
-      emergencyContact: VALID_PH_EMERGENCY_CONTACT_DISPLAY,
+      address: {
+        address: "123 Main St",
+        city: "Cebu City",
+        province: "Cebu",
+        country: "Philippines",
+      },
+      emergencyContact: {
+        emergencyContactName: "Jane Doe",
+        emergencyContactNumber: VALID_PH_EMERGENCY_CONTACT_NUMBER,
+      },
     });
 
     const response = await request(app)
@@ -61,9 +69,17 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
           middleName: "Michael",
           lastName: "Doe",
           personalEmail: "john.personal@gmail.com",
-          birthday: "1995-06-15T00:00:00.000Z",
-          address: "123 Main St, City, State",
-          emergencyContact: VALID_PH_EMERGENCY_CONTACT_DISPLAY,
+          birthday: "1995-06-15",
+          address: {
+            address: "123 Main St",
+            city: "Cebu City",
+            province: "Cebu",
+            country: "Philippines",
+          },
+          emergencyContact: {
+            emergencyContactName: "Jane Doe",
+            emergencyContactNumber: VALID_PH_EMERGENCY_CONTACT_NUMBER,
+          },
         },
       },
     });
@@ -251,7 +267,7 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
     mockOnboardingTransaction({
       firstName: "John",
       lastName: "Doe",
-      address: "456 Oak Ave",
+      address: { address: "456 Oak Ave", city: null, province: null, country: null },
     });
 
     const response = await request(app)
@@ -270,7 +286,7 @@ describe("POST /api/v1/onboarding - HR pre-fill profile fields", () => {
         employee: {
           firstName: "John",
           lastName: "Doe",
-          address: "456 Oak Ave",
+          address: { address: "456 Oak Ave", city: null, province: null, country: null },
         },
       },
     });

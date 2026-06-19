@@ -73,6 +73,10 @@ export interface OnboardEmployeeInput {
   lastName?: string;
   birthday?: string;
   address?: string;
+  city?: string;
+  province?: string;
+  country?: string;
+  emergencyContactName?: string;
   emergencyContact?: string;
 }
 
@@ -122,14 +126,28 @@ export interface OnboardingInvitation {
 
 // ─── Employee self-service status (GET /api/v1/employee-onboarding/status) ─────
 
+/** Structured address shown during onboarding. */
+export interface OnboardingAddress {
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+}
+
+/** Structured emergency contact shown during onboarding. */
+export interface OnboardingEmergencyContact {
+  emergencyContactName: string | null;
+  emergencyContactNumber: string | null;
+}
+
 export interface OnboardingProfile {
   firstName: string;
   lastName: string;
   middleName: string | null;
   personalEmail: string | null;
   birthday: string | null;
-  address: string | null;
-  emergencyContact: string | null;
+  address: OnboardingAddress | null;
+  emergencyContact: OnboardingEmergencyContact | null;
   jobTitle: string | null;
   department: string | null;
 }
@@ -195,6 +213,10 @@ export interface UpdateMyProfileInput {
   personalEmail?: string;
   birthday?: string;
   address?: string;
+  city?: string;
+  province?: string;
+  country?: string;
+  emergencyContactName?: string;
   emergencyContact?: string;
 }
 

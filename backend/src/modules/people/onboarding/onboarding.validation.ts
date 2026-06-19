@@ -1,4 +1,4 @@
-import { parseEmergencyContact } from "../../shared/phone";
+import { formatPhilippineMobileDisplay, parseEmergencyContact } from "../../shared/phone";
 import type {
   HrCompleteOnboardingParamsDto,
   OnboardEmployeeRequestDto,
@@ -32,6 +32,10 @@ export class OnboardingValidation {
     const lastName = this.optionalString(body.lastName);
     const birthday = this.optionalDate(body.birthday);
     const address = this.optionalString(body.address);
+    const city = this.optionalString(body.city);
+    const province = this.optionalString(body.province);
+    const country = this.optionalString(body.country);
+    const emergencyContactName = this.optionalString(body.emergencyContactName);
     const emergencyContact = this.optionalEmergencyContact(body.emergencyContact);
 
     if (personalEmail !== undefined) {
@@ -58,9 +62,24 @@ export class OnboardingValidation {
       dto.address = address;
     }
 
+    if (city !== undefined) {
+      dto.city = city;
+    }
+
+    if (province !== undefined) {
+      dto.province = province;
+    }
+
+    if (country !== undefined) {
+      dto.country = country;
+    }
+
     if (emergencyContact !== undefined) {
-      dto.emergencyContact = emergencyContact.displayValue;
+      dto.emergencyContact = formatPhilippineMobileDisplay(emergencyContact.normalizedPhone);
+      dto.emergencyContactName = emergencyContactName ?? emergencyContact.contactName ?? undefined;
       dto.emergencyContactNormalizedPhone = emergencyContact.normalizedPhone;
+    } else if (emergencyContactName !== undefined) {
+      dto.emergencyContactName = emergencyContactName;
     }
 
     return dto;

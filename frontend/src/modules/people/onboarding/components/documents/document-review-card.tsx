@@ -1,21 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Button } from "@/shared/ui";
 import { StatusBadge } from "@/shared/ui/patterns";
 import type { OnboardingDocumentConfig, OnboardingDocStatus } from "../../types/onboarding.types";
 import type { DocumentReview } from "../../types/onboarding.types";
-
-function submissionViewUrl(fileUrl: string): string {
-  if (/\.pdf(\?|$)/i.test(fileUrl)) {
-    return fileUrl.includes("?") ? `${fileUrl}&fl_attachment` : `${fileUrl}?fl_attachment`;
-  }
-  return fileUrl;
-}
-
-function submissionLinkLabel(fileUrl: string): string {
-  return /\.pdf(\?|$)/i.test(fileUrl) ? "Download PDF" : "View submission";
-}
+import { DocumentViewerModal } from "./document-viewer-modal";
 
 function DocStatusIcon({ status }: { status: OnboardingDocStatus }) {
   if (status === "approved")
@@ -41,6 +32,7 @@ export function DocumentReviewCard({
   rejectPending?: boolean;
 }) {
   const status = submission?.status ?? null;
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -51,15 +43,13 @@ export function DocumentReviewCard({
           {submission ? (
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <StatusBadge status={submission.status} shape="pill" />
-              <a
-                href={submissionViewUrl(submission.fileUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                download={/\.pdf(\?|$)/i.test(submission.fileUrl) ? true : undefined}
+              <button
+                type="button"
+                onClick={() => setViewerOpen(true)}
                 className="text-xs text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
               >
-                {submissionLinkLabel(submission.fileUrl)}
-              </a>
+                View submission
+              </button>
             </div>
           ) : (
             <span className="text-xs text-[color:var(--text-tertiary)]">Not submitted</span>
@@ -98,6 +88,15 @@ export function DocumentReviewCard({
       )}
       {submission?.status === "rejected" && (
         <span className="text-xs font-medium text-[#B42318]">Rejected</span>
+      )}
+
+      {submission && (
+        <DocumentViewerModal
+          open={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+          fileUrl={submission.fileUrl}
+          documentName={doc.documentName}
+        />
       )}
     </div>
   );
