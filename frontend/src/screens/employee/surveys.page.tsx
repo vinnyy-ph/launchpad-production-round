@@ -4,15 +4,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { ClipboardList, AlertCircle, RefreshCw, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import {
-  Button,
-  Badge,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/shared/ui";
-import { EmptyState } from "@/shared/ui/patterns";
+import { Button, Badge } from "@/shared/ui";
+import { EmptyState, PageTabs } from "@/shared/ui/patterns";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEvaluations } from "@/modules/performance/evaluations/hooks/use-evaluations";
 import { useAcknowledgeEvaluation } from "@/modules/performance/evaluations/hooks/use-acknowledge-evaluation";
@@ -323,10 +316,10 @@ function AcknowledgementsTab({
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
-              {formatPeriod(ev.periodStart, ev.periodEnd)}
+              Performance evaluation · from {ev.reviewer?.fullName ?? "Your supervisor"}
             </p>
             <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-              Performance evaluation · from {ev.reviewer?.fullName ?? "Your supervisor"}
+              {formatPeriod(ev.periodStart, ev.periodEnd)}
             </p>
           </div>
         </div>
@@ -419,39 +412,36 @@ export default function EmployeeSurveysPage() {
         subtitle="Answer active pulse surveys and acknowledge your performance evaluations."
       />
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "survey" | "acknowledgements")}>
-        <TabsList>
-          <TabsTrigger value="survey">
-            Pulse surveys{unansweredCount > 0 ? ` (${unansweredCount})` : ""}
-          </TabsTrigger>
-          <TabsTrigger value="acknowledgements">
-            Evaluations{pendingAcks > 0 ? ` (${pendingAcks})` : ""}
-          </TabsTrigger>
-        </TabsList>
+      <PageTabs
+        ariaLabel="Performance sections"
+        value={tab}
+        onChange={(v) => setTab(v as "survey" | "acknowledgements")}
+        items={[
+          { value: "survey", label: "Pulse surveys", count: unansweredCount },
+          { value: "acknowledgements", label: "Evaluations", count: pendingAcks },
+        ]}
+      />
 
-        <TabsContent value="survey" className="mt-5">
-          <SurveysTab
-            pending={pending}
-            answered={answered}
-            loading={mySurveys.isLoading}
-            error={mySurveys.isError ? (mySurveys.error?.message ?? "Could not load surveys.") : null}
-            onReload={() => void mySurveys.refetch()}
-            initialOccurrenceId={deepLink.pulse}
-          />
-        </TabsContent>
-
-        <TabsContent value="acknowledgements">
-          <AcknowledgementsTab
-            evals={evals}
-            loading={evalLoading}
-            error={evalError}
-            onReload={reloadEvals}
-            onAcknowledge={acknowledge}
-            acknowledging={acknowledging}
-            initialExpandedId={deepLink.eval}
-          />
-        </TabsContent>
-      </Tabs>
+      {tab === "survey" ? (
+        <SurveysTab
+          pending={pending}
+          answered={answered}
+          loading={mySurveys.isLoading}
+          error={mySurveys.isError ? (mySurveys.error?.message ?? "Could not load surveys.") : null}
+          onReload={() => void mySurveys.refetch()}
+          initialOccurrenceId={deepLink.pulse}
+        />
+      ) : (
+        <AcknowledgementsTab
+          evals={evals}
+          loading={evalLoading}
+          error={evalError}
+          onReload={reloadEvals}
+          onAcknowledge={acknowledge}
+          acknowledging={acknowledging}
+          initialExpandedId={deepLink.eval}
+        />
+      )}
     </div>
   );
 }
