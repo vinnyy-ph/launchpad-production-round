@@ -1,3 +1,3 @@
--- This migration records the schema change from supportingDocUrl (String?) to supportingDocUrls (String[])
--- The actual database changes were applied via db push
--- No further SQL needed
+-- AlterTable
+ALTER TABLE "performance_evaluations" DROP COLUMN "supportingDocUrl",
+ADD COLUMN "supportingDocUrls" TEXT[] NOT NULL DEFAULT '{}';
