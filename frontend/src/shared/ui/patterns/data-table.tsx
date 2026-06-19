@@ -50,6 +50,11 @@ interface DataTableProps<T> {
   pagination?: DataTablePagination;
   sort?: DataTableSort;
   onSortChange?: (sort: DataTableSort) => void;
+  /**
+   * Small-screen behavior. "cards" (default) stacks each row into a card; "scroll" keeps the
+   * tabular layout and lets it scroll horizontally inside its container.
+   */
+  mobileLayout?: "cards" | "scroll";
 }
 
 /**
@@ -176,8 +181,10 @@ export function DataTable<T>({
   pagination,
   sort,
   onSortChange,
+  mobileLayout = "cards",
 }: DataTableProps<T>) {
-  const compact = useIsCompact();
+  // "scroll" mode keeps the table on small screens (it scrolls horizontally) instead of cards.
+  const compact = useIsCompact() && mobileLayout === "cards";
 
   if (error) return <ErrorState message={error} onRetry={onRetry} />;
 

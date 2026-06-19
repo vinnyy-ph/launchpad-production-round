@@ -155,6 +155,8 @@ export class EmployeesController {
           "Employee profile update body is required",
           "Employee cannot supervise themselves",
           "Supervisor not found",
+          "Circular supervisory relationship detected",
+          "Another employee is already the root node",
           "Invalid employee birthday",
           "Invalid employee profile update",
           "Invalid employee status",
@@ -186,7 +188,12 @@ export class EmployeesController {
       return EMPLOYEE_QUERY_FIELDS.BIRTHDAY;
     }
 
-    if (message === "Employee cannot supervise themselves" || message === "Supervisor not found") {
+    if (
+      message === "Employee cannot supervise themselves" ||
+      message === "Supervisor not found" ||
+      message === "Circular supervisory relationship detected" ||
+      message === "Another employee is already the root node"
+    ) {
       return EMPLOYEE_QUERY_FIELDS.SUPERVISOR_ID;
     }
 

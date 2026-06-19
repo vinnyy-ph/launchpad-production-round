@@ -84,6 +84,51 @@ type EmployeeProfileRecord = Prisma.EmployeeGetPayload<{
  */
 export class EmployeesRepository {
   /**
+   * Counts directory employees with no supervisor, optionally excluding one employee.
+   * Used to enforce the single-root-node constraint before clearing a supervisor assignment.
+   */
+  async countRootEmployees(excludeEmployeeId: string): Promise<number> {
+    return prisma.employee.count({
+      where: {
+        supervisorId: null,
+        id: { not: excludeEmployeeId },
+        user: { role: { in: EMPLOYEE_DIRECTORY_ROLES } },
+      },
+    });
+  }
+
+  /**
+   * Returns true if assigning proposedSupervisorId as the supervisor of employeeId would
+   * create a cycle in the supervision tree. Walks upward from the proposed supervisor until
+   * reaching a root (null supervisorId) or detecting employeeId in the chain.
+   */
+  async wouldCreateCycle(employeeId: string, proposedSupervisorId: string): Promise<boolean> {
+    const visited = new Set<string>();
+    let currentId: string | null = proposedSupervisorId;
+
+    while (currentId !== null) {
+      if (currentId === employeeId) {
+        return true;
+      }
+
+      // Guard against infinite loops caused by pre-existing cycles in the data.
+      if (visited.has(currentId)) {
+        return false;
+      }
+      visited.add(currentId);
+
+      const node: { supervisorId: string | null } | null = await prisma.employee.findFirst({
+        where: { id: currentId },
+        select: { supervisorId: true },
+      });
+
+      currentId = node?.supervisorId ?? null;
+    }
+
+    return false;
+  }
+
+  /**
    * Finds employees matching the list filters and returns the total count for pagination metadata.
    */
   async findMany(filters: ListEmployeesQueryDto) {
@@ -164,14 +209,22 @@ export class EmployeesRepository {
 
   /**
    * Updates HR-editable employee profile fields and returns the refreshed unredacted profile.
+   * Also creates ActivityLog entries for each field that changed.
    */
   async updateProfile(employeeId: string, update: UpdateEmployeeProfileRequestDto, updatedBy: string) {
-    void updatedBy;
     const existingEmployee = await this.findById(employeeId);
 
     if (!existingEmployee) {
       return null;
     }
+
+    // Resolve the editor's Employee record from the User ID so we can link the audit entry.
+    const editor = await prisma.employee.findFirst({
+      where: { userId: updatedBy },
+      select: { id: true },
+    });
+
+    const diffs = await this.computeDiffs(existingEmployee, update);
 
     const addressUpdate = this.buildAddressRelationUpdate(
       update.address,
@@ -223,11 +276,116 @@ export class EmployeesRepository {
         : {}),
     };
 
-    return prisma.employee.update({
-      where: { id: employeeId },
-      data,
-      include: employeeProfileInclude,
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.employee.update({
+        where: { id: employeeId },
+        data,
+        include: employeeProfileInclude,
+      });
+
+      if (editor && diffs.length > 0) {
+        await tx.activityLog.createMany({
+          data: diffs.map((diff) => ({
+            editorId: editor.id,
+            targetEmployeeId: employeeId,
+            fieldName: diff.fieldName,
+            oldValue: diff.oldValue,
+            newValue: diff.newValue,
+          })),
+        });
+      }
+
+      return updated;
     });
+  }
+
+  /**
+   * Computes the set of field-level changes between the existing profile and the update payload.
+   * Only fields present in the update (not undefined) are compared.
+   */
+  private async computeDiffs(
+    existing: EmployeeProfileRecord,
+    update: UpdateEmployeeProfileRequestDto,
+  ): Promise<Array<{ fieldName: string; oldValue: string | null; newValue: string | null }>> {
+    const diffs: Array<{ fieldName: string; oldValue: string | null; newValue: string | null }> = [];
+
+    const track = (
+      fieldName: string,
+      oldVal: string | null | undefined,
+      newVal: string | null | undefined,
+    ) => {
+      if (newVal === undefined) return;
+      const oldStr = oldVal ?? null;
+      const newStr = newVal ?? null;
+      if (oldStr !== newStr) {
+        diffs.push({ fieldName, oldValue: oldStr, newValue: newStr });
+      }
+    };
+
+    track("firstName", existing.firstName, update.firstName);
+    track("lastName", existing.lastName, update.lastName);
+    track("middleName", existing.middleName, update.middleName);
+    track("companyEmail", existing.companyEmail, update.companyEmail);
+    track("personalEmail", existing.personalEmail, update.personalEmail);
+    track("jobTitle", existing.jobTitle, update.jobTitle);
+    track("status", existing.status, update.status);
+
+    if (update.birthday !== undefined) {
+      const toDateStr = (d: Date | null): string | null =>
+        d ? d.toISOString().split("T")[0] : null;
+      track("birthday", toDateStr(existing.birthday), update.birthday ? toDateStr(update.birthday) : null);
+    }
+
+    if (update.department !== undefined) {
+      track("department", existing.department?.name ?? null, update.department);
+    }
+
+    if (update.supervisorId !== undefined) {
+      const oldName = existing.supervisor
+        ? `${existing.supervisor.firstName} ${existing.supervisor.lastName}`
+        : null;
+      let newName: string | null = null;
+      if (update.supervisorId) {
+        const newSupervisor = await prisma.employee.findFirst({
+          where: { id: update.supervisorId },
+          select: { firstName: true, lastName: true },
+        });
+        newName = newSupervisor ? `${newSupervisor.firstName} ${newSupervisor.lastName}` : null;
+      }
+      if (oldName !== newName) {
+        diffs.push({ fieldName: "supervisor", oldValue: oldName, newValue: newName });
+      }
+    }
+
+    if (update.address !== undefined) {
+      if (update.address === null) {
+        if (existing.address) {
+          track("address.country", existing.address.country, null);
+          track("address.province", existing.address.province, null);
+          track("address.city", existing.address.city, null);
+          track("address.address", existing.address.address, null);
+        }
+      } else {
+        track("address.country", existing.address?.country ?? null, update.address.country);
+        track("address.province", existing.address?.province ?? null, update.address.province);
+        track("address.city", existing.address?.city ?? null, update.address.city);
+        track("address.address", existing.address?.address ?? null, update.address.address);
+      }
+    }
+
+    if (update.emergencyContact !== undefined) {
+      if (update.emergencyContact === null) {
+        if (existing.emergencyContact) {
+          track("emergencyContact.name", existing.emergencyContact.emergencyContactName, null);
+          track("emergencyContact.phone", existing.emergencyContact.emergencyContactNumber, null);
+        }
+      } else {
+        track("emergencyContact.name", existing.emergencyContact?.emergencyContactName ?? null, update.emergencyContact.emergencyContactName);
+        track("emergencyContact.phone", existing.emergencyContact?.emergencyContactNumber ?? null, update.emergencyContact.emergencyContactNumber);
+      }
+    }
+
+    return diffs;
   }
 
   /**
@@ -246,8 +404,12 @@ export class EmployeesRepository {
       where.status = filters.status;
     }
 
-    if (filters.supervisorId) {
-      where.supervisorId = filters.supervisorId;
+    if (filters.supervisorIds?.length) {
+      // Single id stays a plain match; multiple ids match any of them.
+      where.supervisorId =
+        filters.supervisorIds.length === 1
+          ? filters.supervisorIds[0]
+          : { in: filters.supervisorIds };
     }
 
     if (filters.search) {
