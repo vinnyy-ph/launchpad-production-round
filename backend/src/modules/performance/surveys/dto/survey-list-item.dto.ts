@@ -14,6 +14,10 @@ export interface SurveyListItemDto {
   visibility: SurveyVisibility;
   isActive: boolean;
   occurrenceCount: number;
+  /** Recipients of the latest occurrence (0 when never activated). */
+  recipientCount: number;
+  /** Completed responses in the latest occurrence (0 when never activated). */
+  respondedCount: number;
   createdAt: Date;
   updatedAt: Date;
 }

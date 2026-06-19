@@ -12,10 +12,17 @@ import {
   Lock,
   Users,
   Search,
+  Type,
+  AlignLeft,
+  BarChart3,
+  CircleDot,
+  CheckSquare,
+  CalendarDays,
+  Info,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Button,
-  Badge,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -29,6 +36,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Input,
   Select,
   SelectContent,
@@ -44,6 +55,7 @@ import {
   DatePicker,
 } from "@/shared/ui";
 import { FormField } from "@/shared/ui/patterns";
+import { cn } from "@/shared/lib/utils";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useAudienceOptions } from "../hooks/use-audience-options";
 import { usePreviewAudience } from "../hooks/use-preview-audience";
@@ -58,12 +70,7 @@ import type {
   QuestionInput,
   AudienceConfigInput,
 } from "../types/surveys.types";
-import {
-  RECURRING_TYPE_LABEL,
-  VISIBILITY_LABEL,
-  QUESTION_TYPE_LABEL,
-  REMINDER_FREQUENCY_LABEL,
-} from "../types/surveys.types";
+import { RECURRING_TYPE_LABEL, QUESTION_TYPE_LABEL } from "../types/surveys.types";
 
 // ─── Local builder state ──────────────────────────────────────────────────────
 
@@ -75,6 +82,22 @@ function toDate(iso: string | undefined): Date | undefined {
   if (!iso) return undefined;
   const d = new Date(iso);
   return isNaN(d.getTime()) ? undefined : d;
+}
+
+function isToday(d?: Date): boolean {
+  if (!d) return true;
+  const n = new Date();
+  return (
+    d.getFullYear() === n.getFullYear() &&
+    d.getMonth() === n.getMonth() &&
+    d.getDate() === n.getDate()
+  );
+}
+
+function formatDate(d?: Date): string {
+  return d
+    ? d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
+    : "—";
 }
 
 // A question in the builder carries a client id for stable list keys.
@@ -116,19 +139,19 @@ function defaultBuilder(): BuilderState {
     releaseDate: new Date(),
     deadline: undefined,
     reminderFrequency: "NONE",
-    reminderEveryXDays: 7,
+    reminderEveryXDays: 3,
     visibility: "SUPERVISOR_BASED",
     questions: [],
   };
 }
 
-function defaultQuestion(): DraftQuestion {
+function defaultQuestion(type: QuestionType): DraftQuestion {
   return {
     id: uid(),
-    type: "SHORT_ANSWER",
+    type,
     questionText: "",
     isRequired: false,
-    options: [],
+    options: type === "MULTIPLE_CHOICE" || type === "CHECKBOX" ? ["Option 1", "Option 2"] : [],
     scaleMin: 1,
     scaleMax: 5,
     scaleMinLabel: "",
@@ -136,16 +159,8 @@ function defaultQuestion(): DraftQuestion {
   };
 }
 
-const QUESTION_TYPES: QuestionType[] = [
-  "SHORT_ANSWER",
-  "LONG_ANSWER",
-  "LINEAR_SCALE",
-  "MULTIPLE_CHOICE",
-  "CHECKBOX",
-];
-
-const RECURRING_TYPES: RecurringType[] = [
-  "ONE_TIME",
+// Cadences shown when a survey recurs (everything except the one-time case).
+const CADENCES: RecurringType[] = [
   "WEEKLY",
   "BI_WEEKLY",
   "MONTHLY",
@@ -155,20 +170,36 @@ const RECURRING_TYPES: RecurringType[] = [
   "ANNUAL",
 ];
 
-const VISIBILITIES: Visibility[] = [
-  "EVERYONE",
-  "SUPERVISOR_BASED",
-  "TEAM_BASED",
-  "HR_ROOT_ONLY",
-  "SPECIFIC_TEAMS",
+// Audience selector copy (builder-local; the list view keeps the short labels).
+const AUDIENCE_OPTIONS: { value: AudienceType; label: string }[] = [
+  { value: "EVERYONE", label: "Everyone with an active status" },
+  { value: "SUPERVISOR_BASED", label: "By supervisor" },
+  { value: "SPECIFIC_TEAMS", label: "Specific teams" },
 ];
 
-const REMINDER_OPTIONS: (ReminderFrequency | "NONE")[] = [
-  "NONE",
-  "DAILY",
-  "EVERY_X_DAYS",
-  "WEEKLY",
+// "Who can see results?" copy (builder-local), ordered per the design.
+const VISIBILITY_OPTIONS: { value: Visibility; label: string }[] = [
+  { value: "SUPERVISOR_BASED", label: "Supervisors (their reports only)" },
+  { value: "EVERYONE", label: "Everyone" },
+  { value: "TEAM_BASED", label: "Each team sees its own" },
+  { value: "HR_ROOT_ONLY", label: "HR and the CEO only" },
+  { value: "SPECIFIC_TEAMS", label: "Specific teams" },
 ];
+
+const QUESTION_MENU: { type: QuestionType; icon: LucideIcon; label: string; desc: string }[] = [
+  { type: "SHORT_ANSWER", icon: Type, label: "Short answer", desc: "A single line of text" },
+  { type: "LONG_ANSWER", icon: AlignLeft, label: "Long answer", desc: "A paragraph of text" },
+  { type: "LINEAR_SCALE", icon: BarChart3, label: "Linear scale", desc: "Rate on a number range" },
+  { type: "MULTIPLE_CHOICE", icon: CircleDot, label: "Multiple choice", desc: "Pick one option" },
+  { type: "CHECKBOX", icon: CheckSquare, label: "Checkbox", desc: "Pick one or more" },
+];
+
+const QUESTION_TYPES: QuestionType[] = QUESTION_MENU.map((m) => m.type);
+
+const QUESTION_HINT: Partial<Record<QuestionType, string>> = {
+  SHORT_ANSWER: "Respondents type a short, single-line answer.",
+  LONG_ANSWER: "Respondents type a longer, paragraph answer.",
+};
 
 function buildAudienceConfigs(state: BuilderState): AudienceConfigInput[] {
   if (state.audienceType === "SUPERVISOR_BASED") {
@@ -194,6 +225,41 @@ function normalizeOptions(raw: unknown): string[] {
       : [];
   return arr.map((o) =>
     typeof o === "string" ? o : String((o as { label?: unknown })?.label ?? o ?? ""),
+  );
+}
+
+// ─── Section card (Basics / Who & privacy / Schedule) ─────────────────────────
+
+function SectionCard({
+  icon: Icon,
+  title,
+  subtitle,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
+      <div className="flex items-center gap-2">
+        <Icon size={17} className="text-[color:var(--text-quaternary)]" aria-hidden="true" />
+        <h3 className="text-[15px] font-bold text-[color:var(--text-primary)]">{title}</h3>
+      </div>
+      <p className="mb-4 mt-0.5 text-[13px] text-[color:var(--text-tertiary)]">{subtitle}</p>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
+// A subtle, icon-led informational note (mirrors the design's blue callouts).
+function InfoNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-2.5 flex items-start gap-2 rounded-[10px] bg-[color:var(--bg-secondary)] px-3 py-2.5 text-xs leading-relaxed text-[color:var(--text-tertiary)]">
+      <Info size={14} className="mt-0.5 flex-none text-[color:var(--brand-blue)]" aria-hidden="true" />
+      <span>{children}</span>
+    </div>
   );
 }
 
@@ -286,7 +352,8 @@ export interface SurveyBuilderDialogProps {
   /** Detail is still loading (edit mode). */
   loading?: boolean;
   saving?: boolean;
-  onSave: (input: CreateSurveyInput) => void;
+  /** Saves the survey. `activate` chains activation after the draft is created. */
+  onSave: (input: CreateSurveyInput, opts?: { activate?: boolean }) => void;
 }
 
 export function SurveyBuilderDialog({
@@ -301,6 +368,7 @@ export function SurveyBuilderDialog({
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("settings");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [launchOpen, setLaunchOpen] = useState(false);
 
   // Activated surveys lock most fields; only name + visibility stay editable.
   const isLocked = !!initial && initial.occurrenceCount > 0;
@@ -327,7 +395,7 @@ export function SurveyBuilderDialog({
         releaseDate: toDate(initial.releaseDate),
         deadline: toDate(initial.deadline),
         reminderFrequency: initial.reminderConfig?.frequency ?? "NONE",
-        reminderEveryXDays: initial.reminderConfig?.everyXDays ?? 7,
+        reminderEveryXDays: initial.reminderConfig?.everyXDays ?? 3,
         visibility: initial.visibility,
         questions: initial.questions
           .slice()
@@ -349,14 +417,32 @@ export function SurveyBuilderDialog({
     }
     setErrors({});
     setActiveTab("settings");
+    setLaunchOpen(false);
   }, [open, initial]);
 
   const set = <K extends keyof BuilderState>(key: K, value: BuilderState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  // ── Recurrence + reminders (UI splits the single enums into mode + cadence) ──
+  const isRecurring = form.recurringType !== "ONE_TIME";
+  const remindersOn = form.reminderFrequency !== "NONE";
+
+  const setRecurrenceMode = (mode: string) =>
+    set("recurringType", mode === "recurring" ? (isRecurring ? form.recurringType : "WEEKLY") : "ONE_TIME");
+
+  const setRemindersMode = (mode: string) =>
+    set("reminderFrequency", mode === "on" ? (remindersOn ? form.reminderFrequency : "DAILY") : "NONE");
+
+  const setReminderFrequency = (freq: ReminderFrequency) =>
+    setForm((f) => ({
+      ...f,
+      reminderFrequency: freq,
+      reminderEveryXDays: freq === "EVERY_X_DAYS" ? 3 : f.reminderEveryXDays,
+    }));
+
   // ── Question helpers ──
-  const addQuestion = () =>
-    setForm((f) => ({ ...f, questions: [...f.questions, defaultQuestion()] }));
+  const addQuestion = (type: QuestionType) =>
+    setForm((f) => ({ ...f, questions: [...f.questions, defaultQuestion(type)] }));
 
   const updateQuestion = (qid: string, patch: Partial<DraftQuestion>) =>
     setForm((f) => ({
@@ -427,6 +513,12 @@ export function SurveyBuilderDialog({
   const debouncedPreview = useDebounce(previewInput, 350);
   const previewQuery = usePreviewAudience(debouncedPreview, open);
 
+  const noneSelected =
+    (form.audienceType === "SUPERVISOR_BASED" && form.audienceSupervisorIds.length === 0) ||
+    (form.audienceType === "SPECIFIC_TEAMS" && form.audienceTeamIds.length === 0);
+
+  const audienceCount = previewQuery.data?.count ?? 0;
+
   // ── Validation (mirrors server rules) ──
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
@@ -437,12 +529,6 @@ export function SurveyBuilderDialog({
       errs.deadline = "Deadline must be after the release date.";
     }
     if (form.questions.length === 0) errs.questions = "Add at least one question.";
-    if (
-      form.reminderFrequency === "EVERY_X_DAYS" &&
-      (!form.reminderEveryXDays || form.reminderEveryXDays < 1)
-    ) {
-      errs.reminderEveryXDays = "Interval must be at least 1 day.";
-    }
     if (form.audienceType === "SUPERVISOR_BASED" && form.audienceSupervisorIds.length === 0) {
       errs.audience = "Select at least one supervisor.";
     }
@@ -463,16 +549,13 @@ export function SurveyBuilderDialog({
     });
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      const settingsErr =
-        errs.name || errs.deadline || errs.reminderEveryXDays || errs.audience;
+      const settingsErr = errs.name || errs.deadline || errs.audience;
       setActiveTab(settingsErr ? "settings" : "questions");
     }
     return Object.keys(errs).length === 0;
   };
 
-  const handleSave = () => {
-    if (!validate()) return;
-
+  const buildInput = (): CreateSurveyInput => {
     const questions: QuestionInput[] = form.questions.map((q, idx) => {
       const base: QuestionInput = {
         type: q.type,
@@ -499,7 +582,7 @@ export function SurveyBuilderDialog({
       recurringType: form.recurringType,
       audienceType: form.audienceType,
       isAnonymous: form.isAnonymous,
-      isActive: false, // drafts only; activation is a separate action
+      isActive: false, // drafts only; activation is a separate, chained action
       visibility: form.visibility,
       questions,
       audienceConfigs: buildAudienceConfigs(form),
@@ -514,19 +597,32 @@ export function SurveyBuilderDialog({
       };
     }
 
-    onSave(input);
+    return input;
+  };
+
+  // "Save & close" → draft only. "Create & activate" → confirm, then draft + activate.
+  const submit = (activate: boolean) => {
+    if (!validate()) return;
+    onSave(buildInput(), { activate });
+  };
+
+  const openLaunch = () => {
+    if (validate()) setLaunchOpen(true);
   };
 
   const lockedNote = (
-    <span className="inline-flex items-center gap-1 text-xs text-[color:var(--text-tertiary)]">
+    <span className="inline-flex items-center gap-1 text-xs font-normal text-[color:var(--text-tertiary)]">
       <Lock size={11} /> Locked after activation
     </span>
   );
 
+  const recurrenceLabel = isRecurring ? RECURRING_TYPE_LABEL[form.recurringType] : "One-time";
+  const scheduleSummary = `Opens ${isToday(form.releaseDate) ? "today" : formatDate(form.releaseDate)} · ${recurrenceLabel}`;
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+        className="flex h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         // The builder hosts portaled Selects and date pickers; toggling those reads
         // as an "outside" interaction and was slamming the dialog shut mid-edit.
         // A multi-field form shouldn't close on an outside click anyway, so block
@@ -534,521 +630,722 @@ export function SurveyBuilderDialog({
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>{initial ? "Edit survey" : "Create survey"}</DialogTitle>
+        <DialogHeader className="border-b border-[color:var(--border-primary)] px-6 pb-4 pt-6 text-left">
+          <DialogTitle className="text-2xl font-bold tracking-tight">
+            {initial ? "Edit survey" : "Create survey"}
+          </DialogTitle>
           <DialogDescription>
             {isLocked
               ? "This survey is active — only its name and visibility can be edited."
-              : "Configure the pulse survey settings and questions."}
+              : "Set up your pulse, then add the questions you want to ask."}
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
-          <div className="space-y-3 py-6">
+          <div className="space-y-3 p-6">
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-10 w-full rounded-lg bg-[color:var(--bg-tertiary)]" />
             ))}
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
-            <TabsList>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-              <TabsTrigger value="questions">
-                Questions{form.questions.length > 0 ? ` (${form.questions.length})` : ""}
-              </TabsTrigger>
-            </TabsList>
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="px-6 pt-4">
+              <TabsList>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+                <TabsTrigger value="questions">
+                  Questions{form.questions.length > 0 ? ` (${form.questions.length})` : ""}
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            {/* ── Settings ── */}
-            <TabsContent value="settings" className="mt-4 space-y-4">
-              <FormField label="Survey name" htmlFor="sv-name" error={errors.name} required>
-                <Input
-                  id="sv-name"
-                  placeholder="e.g. Q3 engagement pulse"
-                  value={form.name}
-                  onChange={(e) => set("name", e.target.value)}
-                  error={!!errors.name}
-                />
-              </FormField>
-
-              {/* Audience type */}
-              <FormField
-                label="Audience type"
-                htmlFor="sv-audience-type"
-                hint={isLocked ? undefined : "Who is asked to respond."}
-              >
-                {isLocked ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={
-                        form.audienceType === "EVERYONE"
-                          ? "Everyone"
-                          : form.audienceType === "SUPERVISOR_BASED"
-                            ? "Supervisor-based"
-                            : "Specific teams"
-                      }
-                      disabled
-                    />
-                    {lockedNote}
-                  </div>
-                ) : (
-                  <Select
-                    value={form.audienceType}
-                    onValueChange={(v) => set("audienceType", v as AudienceType)}
-                  >
-                    <SelectTrigger id="sv-audience-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="EVERYONE">Everyone</SelectItem>
-                      <SelectItem value="SUPERVISOR_BASED">Supervisor-based</SelectItem>
-                      <SelectItem value="SPECIFIC_TEAMS">Specific teams</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </FormField>
-
-              {/* Supervisor multi-select */}
-              {form.audienceType === "SUPERVISOR_BASED" && !isLocked && (
-                <FormField label="Supervisors" error={errors.audience}>
-                  <MultiSelectChecklist
-                    options={supervisors.map((s) => ({
-                      id: s.id,
-                      label: s.name,
-                      sublabel: s.jobTitle,
-                    }))}
-                    selected={form.audienceSupervisorIds}
-                    onToggle={toggleSupervisor}
-                    searchPlaceholder="Search supervisors…"
-                    emptyText={
-                      optionsQuery.isLoading ? "Loading…" : "No supervisors found."
-                    }
-                  />
-                </FormField>
-              )}
-
-              {/* Team multi-select */}
-              {form.audienceType === "SPECIFIC_TEAMS" && !isLocked && (
-                <FormField label="Teams" error={errors.audience}>
-                  <MultiSelectChecklist
-                    options={teams.map((t) => ({ id: t.id, label: t.name }))}
-                    selected={form.audienceTeamIds}
-                    onToggle={toggleTeam}
-                    searchPlaceholder="Search teams…"
-                    emptyText={optionsQuery.isLoading ? "Loading…" : "No teams found."}
-                  />
-                </FormField>
-              )}
-
-              {/* Live audience preview */}
-              <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3">
-                <Users
-                  size={16}
-                  className="mt-0.5 flex-shrink-0 text-[color:var(--text-tertiary)]"
-                  aria-hidden="true"
-                />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-[color:var(--text-primary)]">
-                    {previewQuery.isError
-                      ? "Could not load the audience preview."
-                      : previewQuery.data
-                        ? `Who will receive this: ${previewQuery.data.count} ${
-                            previewQuery.data.count === 1 ? "employee" : "employees"
-                          }`
-                        : "Estimating who will receive this…"}
-                  </p>
-                  {previewQuery.data && previewQuery.data.members.length > 0 && (
-                    <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-                      {previewQuery.data.members
-                        .slice(0, 4)
-                        .map((m) => m.name)
-                        .join(", ")}
-                      {previewQuery.data.count > 4
-                        ? ` and ${previewQuery.data.count - 4} more`
-                        : ""}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Anonymity */}
-              <div className="flex items-center justify-between rounded-xl border border-[color:var(--border-primary)] px-4 py-3">
-                <div>
-                  <p className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
-                    Anonymous responses {isLocked && lockedNote}
-                  </p>
-                  <p className="text-xs text-[color:var(--text-tertiary)]">
-                    Respondent identities are never shown in results. Min group size is 3.
-                  </p>
-                </div>
-                <Switch
-                  checked={form.isAnonymous}
-                  onCheckedChange={(v) => set("isAnonymous", v)}
-                  disabled={isLocked}
-                  aria-label="Anonymous responses"
-                />
-              </div>
-
-              {/* Release + deadline */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FormField
-                  label="Release date"
-                  htmlFor="sv-release"
-                  hint={isLocked ? undefined : "Defaults to today."}
-                >
-                  <DatePicker
-                    value={form.releaseDate}
-                    onChange={(d) => set("releaseDate", d)}
-                    placeholder="Pick a date"
-                    disabled={isLocked}
-                  />
-                </FormField>
-                <FormField label="Deadline" htmlFor="sv-deadline" error={errors.deadline} required>
-                  <DatePicker
-                    value={form.deadline}
-                    onChange={(d) => set("deadline", d)}
-                    placeholder="Pick a date"
-                    disabled={isLocked}
-                  />
-                </FormField>
-              </div>
-
-              {/* Recurrence + visibility */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FormField label="Recurrence" htmlFor="sv-recurrence">
-                  <Select
-                    value={form.recurringType}
-                    onValueChange={(v) => set("recurringType", v as RecurringType)}
-                    disabled={isLocked}
-                  >
-                    <SelectTrigger id="sv-recurrence">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {RECURRING_TYPES.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {RECURRING_TYPE_LABEL[r]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-
-                <FormField label="Visibility" htmlFor="sv-visibility">
-                  <Select
-                    value={form.visibility}
-                    onValueChange={(v) => set("visibility", v as Visibility)}
-                  >
-                    <SelectTrigger id="sv-visibility">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {VISIBILITIES.map((vs) => (
-                        <SelectItem key={vs} value={vs}>
-                          {VISIBILITY_LABEL[vs]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
-
-              {/* Reminders */}
-              <div className="space-y-3">
-                <FormField label="Reminders" htmlFor="sv-reminder">
-                  <Select
-                    value={form.reminderFrequency}
-                    onValueChange={(v) =>
-                      set("reminderFrequency", v as ReminderFrequency | "NONE")
-                    }
-                    disabled={isLocked}
-                  >
-                    <SelectTrigger id="sv-reminder">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REMINDER_OPTIONS.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {r === "NONE" ? "None" : REMINDER_FREQUENCY_LABEL[r]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-
-                {form.reminderFrequency === "EVERY_X_DAYS" && (
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
+              {/* ── Settings ── */}
+              <TabsContent value="settings" className="mt-0 space-y-4">
+                <SectionCard icon={Type} title="Basics" subtitle="What is this pulse called?">
                   <FormField
-                    label="Interval (days)"
-                    htmlFor="sv-reminder-interval"
-                    error={errors.reminderEveryXDays}
+                    label="Survey name"
+                    htmlFor="sv-name"
+                    error={errors.name}
+                    required
+                    hint="Employees will see this name when they open the survey."
                   >
                     <Input
-                      id="sv-reminder-interval"
-                      type="number"
-                      min={1}
-                      value={form.reminderEveryXDays}
-                      onChange={(e) =>
-                        set(
-                          "reminderEveryXDays",
-                          Math.max(1, parseInt(e.target.value, 10) || 1),
-                        )
-                      }
-                      error={!!errors.reminderEveryXDays}
-                      disabled={isLocked}
+                      id="sv-name"
+                      placeholder="e.g. Q3 engagement pulse"
+                      value={form.name}
+                      onChange={(e) => set("name", e.target.value)}
+                      error={!!errors.name}
                     />
                   </FormField>
-                )}
-              </div>
-            </TabsContent>
+                </SectionCard>
 
-            {/* ── Questions ── */}
-            <TabsContent value="questions" className="mt-4 space-y-3">
-              {isLocked && (
-                <p className="flex items-center gap-1.5 text-xs text-[color:var(--text-tertiary)]">
-                  <Lock size={12} /> Questions are locked once the survey is active.
-                </p>
-              )}
-              {errors.questions && (
-                <p className="flex items-center gap-1.5 text-sm text-[color:var(--color-error-500)]">
-                  <AlertCircle size={14} /> {errors.questions}
-                </p>
-              )}
-
-              {form.questions.length === 0 && (
-                <div className="rounded-xl border border-dashed border-[color:var(--border-primary)] py-10 text-center">
-                  <p className="text-sm text-[color:var(--text-tertiary)]">No questions yet.</p>
-                </div>
-              )}
-
-              {form.questions.map((q, idx) => (
-                <div
-                  key={q.id}
-                  className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
+                <SectionCard
+                  icon={Users}
+                  title="Who & privacy"
+                  subtitle="Who gets it, and how their answers are handled."
                 >
-                  <div className="mb-3 flex items-center gap-2">
-                    <GripVertical
-                      size={14}
-                      className="flex-shrink-0 text-[color:var(--text-quaternary)]"
+                  <FormField
+                    label="Who receives this?"
+                    htmlFor="sv-audience-type"
+                    error={errors.audience}
+                    required
+                  >
+                    {isLocked ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={
+                            AUDIENCE_OPTIONS.find((o) => o.value === form.audienceType)?.label ?? ""
+                          }
+                          disabled
+                        />
+                        {lockedNote}
+                      </div>
+                    ) : (
+                      <Select
+                        value={form.audienceType}
+                        onValueChange={(v) => set("audienceType", v as AudienceType)}
+                      >
+                        <SelectTrigger id="sv-audience-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AUDIENCE_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>
+                              {o.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </FormField>
+
+                  {/* Supervisor multi-select */}
+                  {form.audienceType === "SUPERVISOR_BASED" && !isLocked && (
+                    <div>
+                      <p className="mb-2 text-[12.5px] text-[color:var(--text-tertiary)]">
+                        Pick supervisors. Their direct reports and everyone below them are included.
+                      </p>
+                      <MultiSelectChecklist
+                        options={supervisors.map((s) => ({
+                          id: s.id,
+                          label: s.name,
+                          sublabel: s.jobTitle,
+                        }))}
+                        selected={form.audienceSupervisorIds}
+                        onToggle={toggleSupervisor}
+                        searchPlaceholder="Search supervisors…"
+                        emptyText={optionsQuery.isLoading ? "Loading…" : "No supervisors found."}
+                      />
+                    </div>
+                  )}
+
+                  {/* Team multi-select */}
+                  {form.audienceType === "SPECIFIC_TEAMS" && !isLocked && (
+                    <div>
+                      <p className="mb-2 text-[12.5px] text-[color:var(--text-tertiary)]">
+                        Pick the teams that should receive this.
+                      </p>
+                      <MultiSelectChecklist
+                        options={teams.map((t) => ({ id: t.id, label: t.name }))}
+                        selected={form.audienceTeamIds}
+                        onToggle={toggleTeam}
+                        searchPlaceholder="Search teams…"
+                        emptyText={optionsQuery.isLoading ? "Loading…" : "No teams found."}
+                      />
+                    </div>
+                  )}
+
+                  {/* Recipients box (live preview) */}
+                  <div className="flex items-start gap-3 rounded-xl border border-[color:var(--border-secondary)] bg-[color:var(--bg-secondary)] px-4 py-3">
+                    <Users
+                      size={18}
+                      className="mt-0.5 flex-shrink-0 text-[color:var(--text-tertiary)]"
+                      aria-hidden="true"
                     />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Q{idx + 1}
-                    </span>
-                    <Select
-                      value={q.type}
-                      onValueChange={(v) =>
-                        updateQuestion(q.id, {
-                          type: v as QuestionType,
-                          options:
-                            v === "MULTIPLE_CHOICE" || v === "CHECKBOX" ? q.options : [],
-                        })
-                      }
+                    <div className="min-w-0 text-[13px]">
+                      {previewQuery.isError ? (
+                        <p className="text-[color:var(--text-tertiary)]">
+                          Could not load the audience preview.
+                        </p>
+                      ) : noneSelected ? (
+                        <p className="text-[color:var(--text-tertiary)]">No one selected yet</p>
+                      ) : previewQuery.data ? (
+                        <>
+                          <p className="text-[color:var(--text-primary)]">
+                            Going to{" "}
+                            <b className="font-bold">
+                              {audienceCount} {audienceCount === 1 ? "employee" : "employees"}
+                            </b>
+                          </p>
+                          {previewQuery.data.members.length > 0 && (
+                            <p className="mt-0.5 truncate text-[color:var(--text-tertiary)]">
+                              {previewQuery.data.members
+                                .slice(0, 4)
+                                .map((m) => m.name)
+                                .join(", ")}
+                              {audienceCount > 4 ? ` and ${audienceCount - 4} more` : ""}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-[color:var(--text-tertiary)]">
+                          Estimating who will receive this…
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Anonymity */}
+                  <div className="flex items-start justify-between gap-4 rounded-xl border border-[color:var(--border-primary)] px-4 py-3.5">
+                    <div>
+                      <p className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
+                        Anonymous responses {isLocked && lockedNote}
+                      </p>
+                      <p className="mt-0.5 max-w-[46ch] text-xs text-[color:var(--text-tertiary)]">
+                        Responses are never linked to names. To protect that, we hide any group
+                        smaller than 3.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={form.isAnonymous}
+                      onCheckedChange={(v) => set("isAnonymous", v)}
                       disabled={isLocked}
+                      aria-label="Anonymous responses"
+                      className="mt-0.5"
+                    />
+                  </div>
+
+                  {/* Visibility */}
+                  <FormField label="Who can see results?" htmlFor="sv-visibility">
+                    <Select
+                      value={form.visibility}
+                      onValueChange={(v) => set("visibility", v as Visibility)}
                     >
-                      <SelectTrigger className="ml-auto h-7 w-auto text-xs">
+                      <SelectTrigger id="sv-visibility">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {QUESTION_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {QUESTION_TYPE_LABEL[t]}
+                        {VISIBILITY_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {!isLocked && (
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveQuestion(q.id, -1)}
-                          disabled={idx === 0}
-                          className="rounded p-1 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)] disabled:opacity-30"
-                          aria-label="Move question up"
+                    <InfoNote>
+                      This controls who sees the summary. Even when someone can view results,
+                      anonymous responses are never tied back to names.
+                    </InfoNote>
+                  </FormField>
+                </SectionCard>
+
+                <SectionCard
+                  icon={CalendarDays}
+                  title="Schedule"
+                  subtitle="When it opens, when it closes, and whether it repeats."
+                >
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField
+                      label="Release date"
+                      htmlFor="sv-release"
+                      hint={isLocked ? undefined : "Defaults to today."}
+                    >
+                      <DatePicker
+                        value={form.releaseDate}
+                        onChange={(d) => set("releaseDate", d)}
+                        placeholder="Pick a date"
+                        disabled={isLocked}
+                      />
+                    </FormField>
+                    <FormField
+                      label="Deadline"
+                      htmlFor="sv-deadline"
+                      error={errors.deadline}
+                      required
+                    >
+                      <DatePicker
+                        value={form.deadline}
+                        onChange={(d) => set("deadline", d)}
+                        placeholder="Pick a date"
+                        disabled={isLocked}
+                      />
+                    </FormField>
+                  </div>
+
+                  {/* Recurrence */}
+                  <FormField label="Recurrence" htmlFor="sv-recurrence">
+                    <Select
+                      value={isRecurring ? "recurring" : "once"}
+                      onValueChange={setRecurrenceMode}
+                      disabled={isLocked}
+                    >
+                      <SelectTrigger id="sv-recurrence">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="once">One-time</SelectItem>
+                        <SelectItem value="recurring">Recurring</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {isRecurring && (
+                      <div className="mt-2.5">
+                        <Select
+                          value={form.recurringType}
+                          onValueChange={(v) => set("recurringType", v as RecurringType)}
+                          disabled={isLocked}
                         >
-                          <ChevronUp size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveQuestion(q.id, 1)}
-                          disabled={idx === form.questions.length - 1}
-                          className="rounded p-1 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)] disabled:opacity-30"
-                          aria-label="Move question down"
-                        >
-                          <ChevronDown size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteQId(q.id)}
-                          className="rounded p-1 text-[color:var(--color-error-500)] hover:bg-[color:var(--bg-secondary)]"
-                          aria-label="Remove question"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                          <SelectTrigger aria-label="Cadence">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CADENCES.map((c) => (
+                              <SelectItem key={c} value={c}>
+                                {RECURRING_TYPE_LABEL[c]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <InfoNote>
+                          Each round opens on this cadence and gets its own deadline, using the same
+                          gap as the first one.
+                        </InfoNote>
                       </div>
                     )}
-                  </div>
+                  </FormField>
 
-                  <Input
-                    placeholder="Question prompt…"
-                    value={q.questionText}
-                    onChange={(e) => updateQuestion(q.id, { questionText: e.target.value })}
-                    error={!!errors[`q_${q.id}`]}
-                    disabled={isLocked}
-                  />
-                  {errors[`q_${q.id}`] && (
-                    <p className="mt-1 text-xs text-[color:var(--color-error-500)]">
-                      {errors[`q_${q.id}`]}
-                    </p>
-                  )}
-
-                  {/* Linear scale */}
-                  {q.type === "LINEAR_SCALE" && (
-                    <div className="mt-3 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <FormField label="Min value" htmlFor={`q-smin-${q.id}`}>
-                          <Input
-                            id={`q-smin-${q.id}`}
-                            type="number"
-                            value={q.scaleMin}
-                            onChange={(e) =>
-                              updateQuestion(q.id, {
-                                scaleMin: parseInt(e.target.value, 10) || 0,
-                              })
-                            }
-                            disabled={isLocked}
-                          />
-                        </FormField>
-                        <FormField label="Max value" htmlFor={`q-smax-${q.id}`}>
-                          <Input
-                            id={`q-smax-${q.id}`}
-                            type="number"
-                            value={q.scaleMax}
-                            onChange={(e) =>
-                              updateQuestion(q.id, {
-                                scaleMax: parseInt(e.target.value, 10) || 0,
-                              })
-                            }
-                            disabled={isLocked}
-                          />
-                        </FormField>
-                      </div>
-                      {errors[`q_scale_${q.id}`] && (
-                        <p className="text-xs text-[color:var(--color-error-500)]">
-                          {errors[`q_scale_${q.id}`]}
+                  {/* Reminders */}
+                  <FormField label="Reminders" htmlFor="sv-reminder">
+                    <Select
+                      value={remindersOn ? "on" : "none"}
+                      onValueChange={setRemindersMode}
+                      disabled={isLocked}
+                    >
+                      <SelectTrigger id="sv-reminder">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="on">Remind people who haven&apos;t answered</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {remindersOn && (
+                      <div className="mt-2.5">
+                        <Select
+                          value={form.reminderFrequency === "NONE" ? "DAILY" : form.reminderFrequency}
+                          onValueChange={(v) => setReminderFrequency(v as ReminderFrequency)}
+                          disabled={isLocked}
+                        >
+                          <SelectTrigger aria-label="Reminder frequency">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DAILY">Daily</SelectItem>
+                            <SelectItem value="EVERY_X_DAYS">Every 3 days</SelectItem>
+                            <SelectItem value="WEEKLY">Weekly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="mt-1.5 text-xs text-[color:var(--text-tertiary)]">
+                          Reminders stop once someone answers or the deadline passes.
                         </p>
-                      )}
-                      <div className="grid grid-cols-2 gap-2">
-                        <FormField label="Min label" htmlFor={`q-sminl-${q.id}`}>
-                          <Input
-                            id={`q-sminl-${q.id}`}
-                            placeholder="e.g. Not at all"
-                            value={q.scaleMinLabel}
-                            onChange={(e) =>
-                              updateQuestion(q.id, { scaleMinLabel: e.target.value })
-                            }
-                            disabled={isLocked}
-                          />
-                        </FormField>
-                        <FormField label="Max label" htmlFor={`q-smaxl-${q.id}`}>
-                          <Input
-                            id={`q-smaxl-${q.id}`}
-                            placeholder="e.g. Extremely"
-                            value={q.scaleMaxLabel}
-                            onChange={(e) =>
-                              updateQuestion(q.id, { scaleMaxLabel: e.target.value })
-                            }
-                            disabled={isLocked}
-                          />
-                        </FormField>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </FormField>
+                </SectionCard>
+              </TabsContent>
 
-                  {/* Multiple choice / checkbox options */}
-                  {(q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") && (
-                    <div className="mt-3 space-y-2">
-                      {q.options.map((opt, oi) => (
-                        <div key={oi} className="flex items-center gap-2">
-                          <Input
-                            placeholder={`Option ${oi + 1}`}
-                            value={opt}
-                            onChange={(e) => updateOption(q.id, oi, e.target.value)}
-                            className="flex-1"
-                            disabled={isLocked}
-                          />
-                          {!isLocked && (
+              {/* ── Questions ── */}
+              <TabsContent value="questions" className="mt-0 space-y-3">
+                {isLocked && (
+                  <p className="flex items-center gap-1.5 text-xs text-[color:var(--text-tertiary)]">
+                    <Lock size={12} /> Questions are locked once the survey is active.
+                  </p>
+                )}
+                {errors.questions && (
+                  <p className="flex items-center gap-1.5 text-sm text-[color:var(--color-error-500)]">
+                    <AlertCircle size={14} /> {errors.questions}
+                  </p>
+                )}
+
+                {form.questions.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-[color:var(--border-strong)] py-10 text-center">
+                    <p className="text-sm text-[color:var(--text-tertiary)]">
+                      No questions yet. Add your first one to get started.
+                    </p>
+                  </div>
+                )}
+
+                {form.questions.map((q, idx) => (
+                  <div
+                    key={q.id}
+                    className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]"
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <GripVertical
+                        size={16}
+                        className="flex-shrink-0 text-[color:var(--text-quaternary)]"
+                        aria-hidden="true"
+                      />
+                      <span className="text-xs font-bold text-[color:var(--text-primary)]">
+                        Question {idx + 1}
+                      </span>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <Select
+                          value={q.type}
+                          onValueChange={(v) => {
+                            const t = v as QuestionType;
+                            const isOpt = t === "MULTIPLE_CHOICE" || t === "CHECKBOX";
+                            updateQuestion(q.id, {
+                              type: t,
+                              options: isOpt
+                                ? q.options.length
+                                  ? q.options
+                                  : ["Option 1", "Option 2"]
+                                : [],
+                            });
+                          }}
+                          disabled={isLocked}
+                        >
+                          <SelectTrigger className="h-8 w-auto gap-1 text-xs font-semibold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {QUESTION_TYPES.map((t) => (
+                              <SelectItem key={t} value={t}>
+                                {QUESTION_TYPE_LABEL[t]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {!isLocked && (
+                          <>
                             <button
                               type="button"
-                              onClick={() => removeOption(q.id, oi)}
-                              className="rounded p-1 text-[color:var(--text-quaternary)] hover:text-[color:var(--color-error-500)]"
-                              aria-label="Remove option"
+                              onClick={() => moveQuestion(q.id, -1)}
+                              disabled={idx === 0}
+                              className="rounded-lg border border-[color:var(--border-primary)] p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-secondary)] disabled:opacity-30"
+                              aria-label="Move up"
                             >
-                              <X size={13} />
+                              <ChevronUp size={15} />
                             </button>
-                          )}
-                        </div>
-                      ))}
-                      {errors[`q_opts_${q.id}`] && (
-                        <p className="text-xs text-[color:var(--color-error-500)]">
-                          {errors[`q_opts_${q.id}`]}
+                            <button
+                              type="button"
+                              onClick={() => moveQuestion(q.id, 1)}
+                              disabled={idx === form.questions.length - 1}
+                              className="rounded-lg border border-[color:var(--border-primary)] p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-secondary)] disabled:opacity-30"
+                              aria-label="Move down"
+                            >
+                              <ChevronDown size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteQId(q.id)}
+                              className="rounded-lg border border-[color:var(--border-primary)] p-1.5 text-[color:var(--text-quaternary)] hover:border-[color:var(--color-error-200)] hover:bg-[color:var(--color-error-50)] hover:text-[color:var(--color-error-500)]"
+                              aria-label="Delete"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <Input
+                      placeholder="Type your question"
+                      value={q.questionText}
+                      onChange={(e) => updateQuestion(q.id, { questionText: e.target.value })}
+                      error={!!errors[`q_${q.id}`]}
+                      disabled={isLocked}
+                    />
+                    {errors[`q_${q.id}`] && (
+                      <p className="mt-1 text-xs text-[color:var(--color-error-500)]">
+                        {errors[`q_${q.id}`]}
+                      </p>
+                    )}
+
+                    {/* Per-type config */}
+                    <div className="mt-3 border-t border-[color:var(--border-secondary)] pt-3">
+                      {QUESTION_HINT[q.type] && (
+                        <p className="text-[12.5px] text-[color:var(--text-quaternary)]">
+                          {QUESTION_HINT[q.type]}
                         </p>
                       )}
-                      {!isLocked && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => addOption(q.id)}
-                        >
-                          <Plus size={12} /> Add option
-                        </Button>
+
+                      {/* Linear scale */}
+                      {q.type === "LINEAR_SCALE" && (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <FormField label="From" htmlFor={`q-smin-${q.id}`}>
+                              <Select
+                                value={String(q.scaleMin)}
+                                onValueChange={(v) =>
+                                  updateQuestion(q.id, { scaleMin: parseInt(v, 10) })
+                                }
+                                disabled={isLocked}
+                              >
+                                <SelectTrigger id={`q-smin-${q.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from(new Set([0, 1, q.scaleMin]))
+                                    .sort((a, b) => a - b)
+                                    .map((n) => (
+                                      <SelectItem key={n} value={String(n)}>
+                                        {n}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </FormField>
+                            <FormField label="To" htmlFor={`q-smax-${q.id}`}>
+                              <Select
+                                value={String(q.scaleMax)}
+                                onValueChange={(v) =>
+                                  updateQuestion(q.id, { scaleMax: parseInt(v, 10) })
+                                }
+                                disabled={isLocked}
+                              >
+                                <SelectTrigger id={`q-smax-${q.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from(new Set([3, 4, 5, 7, 10, q.scaleMax]))
+                                    .sort((a, b) => a - b)
+                                    .map((n) => (
+                                      <SelectItem key={n} value={String(n)}>
+                                        {n}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </FormField>
+                            <FormField label="Low label" htmlFor={`q-sminl-${q.id}`}>
+                              <Input
+                                id={`q-sminl-${q.id}`}
+                                placeholder="e.g. Not at all"
+                                value={q.scaleMinLabel}
+                                onChange={(e) =>
+                                  updateQuestion(q.id, { scaleMinLabel: e.target.value })
+                                }
+                                disabled={isLocked}
+                              />
+                            </FormField>
+                            <FormField label="High label" htmlFor={`q-smaxl-${q.id}`}>
+                              <Input
+                                id={`q-smaxl-${q.id}`}
+                                placeholder="e.g. Completely"
+                                value={q.scaleMaxLabel}
+                                onChange={(e) =>
+                                  updateQuestion(q.id, { scaleMaxLabel: e.target.value })
+                                }
+                                disabled={isLocked}
+                              />
+                            </FormField>
+                          </div>
+                          {errors[`q_scale_${q.id}`] && (
+                            <p className="text-xs text-[color:var(--color-error-500)]">
+                              {errors[`q_scale_${q.id}`]}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Multiple choice / checkbox options */}
+                      {(q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") && (
+                        <div className="space-y-2">
+                          {q.options.map((opt, oi) => (
+                            <div key={oi} className="flex items-center gap-2.5">
+                              <span
+                                className={cn(
+                                  "h-4 w-4 flex-none border-[1.5px] border-[color:var(--border-strong)]",
+                                  q.type === "MULTIPLE_CHOICE" ? "rounded-full" : "rounded-[5px]",
+                                )}
+                                aria-hidden="true"
+                              />
+                              <Input
+                                placeholder={`Option ${oi + 1}`}
+                                value={opt}
+                                onChange={(e) => updateOption(q.id, oi, e.target.value)}
+                                className="flex-1"
+                                disabled={isLocked}
+                              />
+                              {!isLocked && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeOption(q.id, oi)}
+                                  className="rounded p-1 text-[color:var(--text-quaternary)] hover:text-[color:var(--color-error-500)]"
+                                  aria-label="Remove option"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          {errors[`q_opts_${q.id}`] && (
+                            <p className="text-xs text-[color:var(--color-error-500)]">
+                              {errors[`q_opts_${q.id}`]}
+                            </p>
+                          )}
+                          {!isLocked && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => addOption(q.id)}
+                            >
+                              <Plus size={12} /> Add option
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
 
-                  {/* Required toggle */}
-                  <div className="mt-3 flex items-center gap-2.5">
-                    <Checkbox
-                      checked={q.isRequired}
-                      onCheckedChange={(checked) =>
-                        updateQuestion(q.id, { isRequired: !!checked })
-                      }
-                      disabled={isLocked}
-                      id={`q-required-${q.id}`}
-                    />
-                    <label
-                      htmlFor={`q-required-${q.id}`}
-                      className="cursor-pointer text-sm text-[color:var(--text-primary)]"
-                    >
-                      Required
-                    </label>
+                    {/* Required toggle */}
+                    <div className="mt-3 flex items-center gap-2.5 border-t border-[color:var(--border-secondary)] pt-3">
+                      <Switch
+                        checked={q.isRequired}
+                        onCheckedChange={(checked) => updateQuestion(q.id, { isRequired: checked })}
+                        disabled={isLocked}
+                        id={`q-required-${q.id}`}
+                        aria-label="Required"
+                      />
+                      <label
+                        htmlFor={`q-required-${q.id}`}
+                        className="cursor-pointer text-[13.5px] font-semibold text-[color:var(--text-tertiary)]"
+                      >
+                        Required
+                      </label>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {!isLocked && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={addQuestion}
-                  className="w-full"
-                >
-                  <Plus size={14} /> Add question
-                </Button>
-              )}
-            </TabsContent>
+                {!isLocked && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[color:var(--border-strong)] bg-white py-3.5 text-sm font-semibold text-[color:var(--text-primary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
+                      >
+                        <Plus size={17} /> Add question
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center" className="w-[300px]">
+                      {QUESTION_MENU.map((item) => (
+                        <DropdownMenuItem
+                          key={item.type}
+                          onSelect={() => addQuestion(item.type)}
+                          className="gap-3 py-2.5"
+                        >
+                          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-[color:var(--bg-secondary)] text-[color:var(--text-tertiary)]">
+                            <item.icon size={16} />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium text-[color:var(--text-primary)]">
+                              {item.label}
+                            </span>
+                            <span className="block text-xs text-[color:var(--text-tertiary)]">
+                              {item.desc}
+                            </span>
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </TabsContent>
+            </div>
           </Tabs>
         )}
 
-        <div className="mt-4 flex items-center justify-between gap-2 border-t border-[color:var(--border-primary)] pt-4">
-          <Badge variant="neutral">Saved as draft</Badge>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={onClose} disabled={saving}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={saving || loading}>
-              {saving ? "Saving…" : initial ? "Save changes" : "Create survey"}
-            </Button>
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border-primary)] px-6 py-3.5">
+          {!isLocked ? (
+            <div className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--text-tertiary)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--text-quaternary)]" />
+              Saved as draft
+            </div>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--text-tertiary)]">
+              <Lock size={13} /> Active survey
+            </span>
+          )}
+          <div className="flex gap-2.5">
+            {isLocked ? (
+              <>
+                <Button variant="secondary" onClick={onClose} disabled={saving}>
+                  Close
+                </Button>
+                <Button onClick={() => submit(false)} disabled={saving}>
+                  {saving ? "Saving…" : "Save changes"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => submit(false)} disabled={saving || loading}>
+                  Save &amp; close
+                </Button>
+                <Button onClick={openLaunch} disabled={saving || loading}>
+                  {initial ? "Save & activate" : "Create & activate"}
+                </Button>
+              </>
+            )}
           </div>
         </div>
+
+        {/* Launch confirmation — the folded-in review */}
+        <AlertDialog open={launchOpen} onOpenChange={(o) => !o && setLaunchOpen(false)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Activate this survey?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Once it&apos;s live, it goes out to your audience right away and they&apos;ll be
+                notified. Give it one last look:
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <dl className="rounded-xl border border-[color:var(--border-primary)] px-4">
+              {[
+                { k: "Name", v: form.name.trim() || "Untitled pulse" },
+                {
+                  k: "Audience",
+                  v: noneSelected
+                    ? "No one selected yet"
+                    : `${audienceCount} ${audienceCount === 1 ? "employee" : "employees"}`,
+                },
+                { k: "Privacy", v: form.isAnonymous ? "Anonymous" : "Named responses" },
+                { k: "Schedule", v: scheduleSummary },
+                {
+                  k: "Questions",
+                  v: `${form.questions.length} ${form.questions.length === 1 ? "question" : "questions"}`,
+                },
+              ].map((row) => (
+                <div
+                  key={row.k}
+                  className="flex justify-between gap-3 border-b border-[color:var(--border-secondary)] py-2.5 text-[13.5px] last:border-b-0"
+                >
+                  <dt className="text-[color:var(--text-tertiary)]">{row.k}</dt>
+                  <dd className="text-right font-semibold text-[color:var(--text-primary)]">
+                    {row.v}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>Keep editing</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  submit(true);
+                }}
+                disabled={saving}
+              >
+                {saving ? "Activating…" : "Activate"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Remove question confirm */}
         <AlertDialog open={!!deleteQId} onOpenChange={(o) => !o && setDeleteQId(null)}>

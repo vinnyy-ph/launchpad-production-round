@@ -44,6 +44,10 @@ export interface SurveyListItem {
   visibility: Visibility;
   isActive: boolean;
   occurrenceCount: number;
+  /** Recipients of the latest occurrence (0 when never activated). */
+  recipientCount: number;
+  /** Completed responses in the latest occurrence (0 when never activated). */
+  respondedCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -183,6 +187,10 @@ export interface SurveyResults {
   occurrenceId?: string;
   isAnonymous: boolean;
   totalResponses: number;
+  /** Recipients of the occurrence(s) in view — denominator for the response rate (unfiltered). */
+  recipientCount: number;
+  /** Completed responses for the occurrence(s) in view, ignoring scope filters. */
+  respondedCount: number;
   filter: { teamId?: string; supervisorId?: string } | null;
   /** true when the minimum-group-size rule fired — no breakdown is shown. */
   suppressed: boolean;

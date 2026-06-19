@@ -6,6 +6,45 @@ import { ResultsRepository } from "./results.repository";
 import type { QuestionResult, SurveyResultsResponseDto } from "./results.types";
 import type { Prisma } from "@prisma/client";
 
+/**
+ * Answers and options are stored as raw JSON, and two shapes exist in the wild: the
+ * canonical one the app writes (number / string / string[]; options as string[]) and a
+ * wrapped one ({ value }, { selected }, { choices }, [{ label }]). These coerce both to
+ * the canonical form so aggregation never renders "[object Object]".
+ */
+function optionLabels(raw: unknown): string[] {
+  const arr: unknown[] = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object" && Array.isArray((raw as { choices?: unknown }).choices)
+      ? (raw as { choices: unknown[] }).choices
+      : [];
+  return arr
+    .map((o) => (typeof o === "string" ? o : String((o as { label?: unknown })?.label ?? "")))
+    .filter((s) => s !== "");
+}
+
+function scaleValue(data: unknown): number | null {
+  const raw =
+    data && typeof data === "object" && "value" in (data as Record<string, unknown>)
+      ? (data as { value: unknown }).value
+      : data;
+  if (raw === null || raw === undefined) return null;
+  const n = Number(raw);
+  return Number.isNaN(n) ? null : n;
+}
+
+function choiceValues(data: unknown): string[] {
+  const unwrapped =
+    data && typeof data === "object" && !Array.isArray(data) && "selected" in (data as Record<string, unknown>)
+      ? (data as { selected: unknown }).selected
+      : data;
+  if (unwrapped === null || unwrapped === undefined) return [];
+  const arr = Array.isArray(unwrapped) ? unwrapped : [unwrapped];
+  return arr
+    .map((o) => (typeof o === "string" ? o : String((o as { label?: unknown })?.label ?? "")))
+    .filter((s) => s !== "");
+}
+
 export class ResultsService {
   constructor(private readonly repo = new ResultsRepository()) {}
 
@@ -172,15 +211,13 @@ export class ResultsService {
         let validCount = 0;
 
         for (const ans of answers) {
-          if (ans.answerData !== null && ans.answerData !== undefined) {
-            const val = Number(ans.answerData);
-            if (!isNaN(val)) {
-              distribution[String(val)] = (distribution[String(val)] || 0) + 1;
-              sum += val;
-              if (val < min) min = val;
-              if (val > max) max = val;
-              validCount++;
-            }
+          const val = scaleValue(ans.answerData);
+          if (val !== null) {
+            distribution[String(val)] = (distribution[String(val)] || 0) + 1;
+            sum += val;
+            if (val < min) min = val;
+            if (val > max) max = val;
+            validCount++;
           }
         }
 
@@ -196,26 +233,13 @@ export class ResultsService {
         };
       } else if (q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") {
         const counts: Record<string, number> = {};
-        if (Array.isArray(q.options)) {
-          for (const opt of q.options) {
-            if (typeof opt === "string") {
-              counts[opt] = 0;
-            }
-          }
+        for (const opt of optionLabels(q.options)) {
+          counts[opt] = 0;
         }
 
         for (const ans of answers) {
-          if (ans.answerData !== null && ans.answerData !== undefined) {
-            if (q.type === "CHECKBOX") {
-              const arr = Array.isArray(ans.answerData) ? ans.answerData : [ans.answerData];
-              for (const item of arr) {
-                const val = String(item);
-                counts[val] = (counts[val] || 0) + 1;
-              }
-            } else {
-              const val = String(ans.answerData);
-              counts[val] = (counts[val] || 0) + 1;
-            }
+          for (const choice of choiceValues(ans.answerData)) {
+            counts[choice] = (counts[choice] || 0) + 1;
           }
         }
 
@@ -244,6 +268,16 @@ export class ResultsService {
     const isFilterActive = !!teamIdQuery || !!supervisorIdQuery;
     const gated = gate({ count: responses.length, data: questionResults }, survey.isAnonymous);
 
+    // Occurrence-level totals for the summary stat cards — independent of the scope filter,
+    // so the headline response rate reflects the whole audience, not the filtered slice.
+    const scopeWhere = occurrenceId
+      ? { occurrenceId }
+      : { occurrence: { surveyId: survey.id } };
+    const [recipientCount, respondedCount] = await Promise.all([
+      this.repo.countAudienceMembers(scopeWhere),
+      this.repo.countResponses(scopeWhere),
+    ]);
+
     return {
       success: true,
       data: {
@@ -251,6 +285,8 @@ export class ResultsService {
         ...(occurrenceId && { occurrenceId }),
         isAnonymous: survey.isAnonymous,
         totalResponses: responses.length,
+        recipientCount,
+        respondedCount,
         filter: isFilterActive
           ? {
               ...(teamIdQuery && { teamId: teamIdQuery }),
