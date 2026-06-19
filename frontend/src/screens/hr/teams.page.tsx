@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Network, Plus, Workflow } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronsDownUp, ChevronsUpDown, Network, Plus, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Input, Skeleton } from "@/shared/ui";
 import {
   DataTable,
   EmptyState,
+  ErrorState,
   FilterBar,
   MultiSelectFilter,
   PageTabs,
@@ -17,9 +18,15 @@ import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import { CreateTeamDialog } from "@/modules/people/teams/components/create-team-dialog";
 import { TeamDetailsModal } from "@/modules/people/teams/components/team-details-modal";
+import {
+  buildReportingTree,
+  type OrgReportingNode,
+} from "@/modules/people/employees/components/org-chart/org-chart";
+import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
+import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -46,6 +53,13 @@ export default function TeamsPage() {
 
   const { teams, loading, error, reload } = useTeams();
   const { employees } = useEmployees({ status: "active", limit: 100 });
+  // Whole-organization list (all statuses) for the supervisor-hierarchy org chart.
+  const {
+    employees: orgEmployees,
+    loading: orgLoading,
+    error: orgError,
+    reload: orgReload,
+  } = useEmployees({ limit: 100 });
 
   const [createOpen, setCreateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("org-chart");
@@ -163,11 +177,10 @@ export default function TeamsPage() {
 
       {activeTab === "org-chart" ? (
         <OrgChartPanel
-          teams={teams}
-          loading={loading}
-          error={error}
-          canManage={canManage}
-          onCreateTeam={() => setCreateOpen(true)}
+          employees={orgEmployees}
+          loading={orgLoading}
+          error={orgError}
+          onRetry={() => void orgReload()}
         />
       ) : (
         <>
@@ -252,109 +265,99 @@ export default function TeamsPage() {
 }
 
 interface OrgChartPanelProps {
-  teams: Team[];
+  /** Whole-organization employee list (all statuses) used to build the supervisor tree. */
+  employees: EmployeeListItem[];
   loading: boolean;
   error: string | null;
-  canManage: boolean;
-  onCreateTeam: () => void;
+  onRetry: () => void;
 }
 
-function OrgChartPanel({ teams, loading, error, canManage, onCreateTeam }: OrgChartPanelProps) {
+/**
+ * Org Chart tab: the organization's supervisor hierarchy (CEO at the root) as a
+ * collapsible top-down tree. Defaults to fully expanded so the whole chart is visible.
+ */
+function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProps) {
+  const roots = useMemo(() => buildReportingTree(employees), [employees]);
+
+  // Ids of nodes that actually have reports — the only ones that can be toggled / expanded.
+  const parentIds = useMemo(() => {
+    const ids = new Set<string>();
+    const walk = (nodes: OrgReportingNode[]) => {
+      for (const node of nodes) {
+        if (node.children.length > 0) {
+          ids.add(node.employee.id);
+          walk(node.children);
+        }
+      }
+    };
+    walk(roots);
+    return ids;
+  }, [roots]);
+
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const initialized = useRef(false);
+
+  // Expand the whole chart by default the first time data arrives.
+  useEffect(() => {
+    if (!initialized.current && parentIds.size > 0) {
+      setExpanded(new Set(parentIds));
+      initialized.current = true;
+    }
+  }, [parentIds]);
+
+  function toggle(employeeId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(employeeId)) next.delete(employeeId);
+      else next.add(employeeId);
+      return next;
+    });
+  }
+
   if (loading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-32 rounded-xl" />
-        <Skeleton className="h-32 rounded-xl" />
-        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="mx-auto h-28 w-52 rounded-xl" />
+        <Skeleton className="h-28 rounded-xl" />
       </div>
     );
   }
 
-  if (error) return null;
+  if (error) {
+    return <ErrorState message={error} onRetry={onRetry} />;
+  }
 
-  if (teams.length === 0) {
+  if (roots.length === 0) {
     return (
       <EmptyState
         icon={Workflow}
         title="No org chart yet"
-        body={
-          canManage
-            ? "Create teams to map leaders, members, and reporting groups."
-            : "The org chart will appear once HR sets up the structure."
-        }
-        action={canManage ? { label: "Create team", onClick: onCreateTeam } : undefined}
+        body="Add employees and assign supervisors to see the reporting structure."
       />
     );
   }
 
   return (
-    <div className="space-y-4">
-      {teams.map((team) => {
-        const members = team.members.filter((member) => member.id !== team.leader.id);
+    <div>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => setExpanded(new Set(parentIds))}>
+          <ChevronsUpDown aria-hidden="true" />
+          Expand all
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setExpanded(new Set())}>
+          <ChevronsDownUp aria-hidden="true" />
+          Collapse all
+        </Button>
+      </div>
 
-        return (
-          <div
-            key={team.id}
-            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          >
-            <div className="flex flex-col gap-4 md:flex-row md:items-start">
-              <div className="min-w-0 md:w-64 md:flex-shrink-0">
-                <p className="truncate text-sm font-bold text-[color:var(--text-primary)]">
-                  {team.name}
-                </p>
-                <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-                  {team.memberCount} members
-                </p>
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-                    Team lead
-                  </p>
-                  <div className="mt-2 flex min-w-0 items-center gap-2">
-                    <Avatar name={team.leader.fullName} size={9} />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
-                        {team.leader.fullName}
-                      </span>
-                      <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
-                        {team.leader.jobTitle ?? team.leader.companyEmail}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                {members.length > 0 ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {members.map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex min-w-0 items-center gap-2 rounded-lg border border-[color:var(--border-primary)] bg-white p-2"
-                      >
-                        <Avatar name={member.fullName} />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
-                            {member.fullName}
-                          </span>
-                          <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
-                            {member.jobTitle ?? member.companyEmail}
-                          </span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-[color:var(--text-tertiary)]">
-                    No additional members yet.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+      <div
+        className="overflow-x-auto rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      >
+        <div className="mx-auto w-max">
+          <OrgChartTree nodes={roots} expanded={expanded} onToggle={toggle} />
+        </div>
+      </div>
     </div>
   );
 }
