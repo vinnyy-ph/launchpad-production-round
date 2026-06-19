@@ -56,4 +56,28 @@ export class CloudinaryService {
 
     return result.secure_url;
   }
+
+  /**
+   * Uploads a supporting document (PDF) and returns the secure URL.
+   */
+  async uploadSupportingDocument(
+    buffer: Buffer,
+    originalName: string,
+    mimeType: string,
+  ): Promise<string> {
+    this.ensureConfigured();
+
+    const base64 = buffer.toString("base64");
+    const dataUri = `data:${mimeType || "application/octet-stream"};base64,${base64}`;
+
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: "supporting_docs",
+      resource_type: "raw",
+      use_filename: true,
+      unique_filename: true,
+      filename_override: originalName.replace(/[^\w.\-]+/g, "_"),
+    });
+
+    return result.secure_url;
+  }
 }
