@@ -3,6 +3,8 @@ export type {
   OnboardingStatusResponseDto,
   OnboardingStatusDataDto,
   OnboardingProfileDto,
+  OnboardingAddressDto,
+  OnboardingEmergencyContactDto,
   OnboardingDocumentStatusDto,
   OnboardingCustomFieldStatusDto,
 } from "./onboarding-status-response.dto";

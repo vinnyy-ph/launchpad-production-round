@@ -1,5 +1,6 @@
 import request from "supertest";
 import { app } from "../../app";
+import { EmailService } from "../../core/email";
 import {
   buildHrUser,
   buildOnboardingRecord,
@@ -25,9 +26,22 @@ jest.mock("../../core/database/prisma.service", () => ({
   },
 }));
 
+// All EmailService instances share one sendEmail mock (factory closure) so we can
+// assert on it regardless of which instance sent the mail.
+jest.mock("../../core/email", () => {
+  const sendEmail = jest.fn();
+  return { EmailService: jest.fn(() => ({ sendEmail })) };
+});
+
+const mockSendEmail = (
+  new (EmailService as unknown as jest.Mock)() as { sendEmail: jest.Mock }
+).sendEmail;
+
 describe("POST /api/v1/onboarding/:employeeId/complete - HR complete onboarding", () => {
   beforeEach(() => {
     resetHrCompleteOnboardingMocks();
+    mockSendEmail.mockReset();
+    mockSendEmail.mockResolvedValue(undefined);
   });
 
   it("marks onboarding complete when all requirements are satisfied", async () => {
@@ -60,6 +74,33 @@ describe("POST /api/v1/onboarding/:employeeId/complete - HR complete onboarding"
         where: { employeeId: EMPLOYEE_ID },
       }),
     );
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "maria.santos@launchpad.ph",
+        subject: "Your Manage Jia account is active",
+      }),
+    );
+  });
+
+  it("still completes onboarding when the activation email fails to send", async () => {
+    onboardingRecordFindFirstMock.mockResolvedValue(buildOnboardingRecord());
+    onboardingRecordUpdateMock.mockResolvedValue({
+      id: "770e8400-e29b-41d4-a716-446655440002",
+      isComplete: true,
+      completedAt: new Date("2026-06-18T04:30:00.000Z"),
+    });
+    employeeUpdateMock.mockResolvedValue({ id: EMPLOYEE_ID, status: "ACTIVE" });
+    mockSendEmail.mockRejectedValueOnce(new Error("SMTP unavailable"));
+
+    const response = await request(app)
+      .post(`/api/v1/onboarding/${EMPLOYEE_ID}/complete`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      success: true,
+      data: { isComplete: true, employeeStatus: "active" },
+    });
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
   });
 
   it("returns 404 when no onboarding record exists for the employee", async () => {

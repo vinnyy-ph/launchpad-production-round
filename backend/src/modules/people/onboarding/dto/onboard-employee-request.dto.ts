@@ -17,8 +17,14 @@ export interface OnboardEmployeeRequestDto {
   lastName?: string;
   /** Optional ISO date string (e.g. 1995-06-15) validated before save. */
   birthday?: string;
+  /** Street address line. */
   address?: string;
-  /** Canonical emergency contact value stored on the employee record. */
+  city?: string;
+  province?: string;
+  country?: string;
+  /** Emergency contact person's name. */
+  emergencyContactName?: string;
+  /** Emergency contact phone (validated Philippine mobile, stored formatted). */
   emergencyContact?: string;
   /** Normalized Philippine mobile (639XXXXXXXXX) used for duplicate checks. Not sent by clients. */
   emergencyContactNormalizedPhone?: string;

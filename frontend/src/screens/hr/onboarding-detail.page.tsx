@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ClipboardList, Mail, CheckCircle2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
+import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
 import { Button, Separator, Skeleton, Input, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, FormField } from "@/shared/ui";
 import { EmptyState, ErrorState, StatusBadge, ConfirmProvider, useConfirm } from "@/shared/ui/patterns";
 import { DocumentReviewCard } from "@/modules/people/onboarding/components/documents/document-review-card";
@@ -85,6 +86,8 @@ function OnboardingDetailInner() {
 
   const recordId = status?.recordId ?? reviews.find((r) => r.employee.id === employeeId)?.recordId ?? null;
   const { latestInvitation, reload: reloadInvitation } = useInvitationStatus(recordId);
+
+  usePageBreadcrumb(employee ? [employee.fullName] : []);
 
   const [rejectTarget, setRejectTarget] = useState<DocumentReview | null>(null);
   const [rejectNote, setRejectNote] = useState("");
@@ -262,24 +265,6 @@ function OnboardingDetailInner() {
 
   return (
     <div className="space-y-6">
-      <nav className="text-xs text-[color:var(--text-tertiary)]" aria-label="Breadcrumb">
-        <button
-          onClick={() => router.push("/hr/onboarding")}
-          className="transition-colors hover:text-[color:var(--text-primary)]"
-        >
-          HR
-        </button>
-        <span className="mx-1">›</span>
-        <button
-          onClick={() => router.push("/hr/onboarding")}
-          className="transition-colors hover:text-[color:var(--text-primary)]"
-        >
-          Onboarding
-        </button>
-        <span className="mx-1">›</span>
-        <span className="text-[color:var(--text-secondary)]">{employeeName}</span>
-      </nav>
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <PageHeader level="page" title={employeeName} subtitle={employee.companyEmail} />
@@ -288,29 +273,29 @@ function OnboardingDetailInner() {
           </div>
         </div>
 
-        <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-          {!isComplete && recordId && (
-            <Button
-              variant="outline"
-              onClick={handleResendInvite}
-              disabled={invite.isPending || resend.isPending}
-            >
-              <Mail aria-hidden="true" />
-              {invite.isPending || resend.isPending ? "Sending…" : "Resend invite"}
-            </Button>
-          )}
-          {!isComplete && (
-            <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-shrink-0 flex-col items-stretch gap-1.5 sm:items-end">
+          <div className="flex flex-wrap items-center gap-2">
+            {!isComplete && recordId && (
+              <Button
+                variant="outline"
+                onClick={handleResendInvite}
+                disabled={invite.isPending || resend.isPending}
+              >
+                <Mail aria-hidden="true" />
+                {invite.isPending || resend.isPending ? "Sending…" : "Resend invite"}
+              </Button>
+            )}
+            {!isComplete && (
               <Button onClick={handleComplete} disabled={complete.isPending || !allRequiredDocsApproved}>
                 <CheckCircle2 aria-hidden="true" />
                 {complete.isPending ? "Completing…" : "Mark complete"}
               </Button>
-              {!allRequiredDocsApproved && documentConfigs.some((d) => d.isRequired) && (
-                <p className="text-[11px] text-[color:var(--text-tertiary)]">
-                  Approve all required documents first.
-                </p>
-              )}
-            </div>
+            )}
+          </div>
+          {!isComplete && !allRequiredDocsApproved && documentConfigs.some((d) => d.isRequired) && (
+            <p className="text-[11px] text-[color:var(--text-tertiary)] sm:text-right">
+              Approve all required documents first.
+            </p>
           )}
         </div>
       </div>
@@ -379,9 +364,38 @@ function OnboardingDetailInner() {
           <ProfileRow label="Personal email" value={profile?.personalEmail} />
           <ProfileRow label="Job title" value={profile?.jobTitle ?? employee.jobTitle} />
           <ProfileRow label="Department" value={profile?.department ?? employee.department} />
-          <ProfileRow label="Birthday" value={profile?.birthday ? formatDate(profile.birthday) : null} />
-          <ProfileRow label="Address" value={profile?.address} />
-          <ProfileRow label="Emergency contact" value={profile?.emergencyContact} />
+          <ProfileRow
+            label="Birthday"
+            value={profile?.birthday ? formatDate(`${profile.birthday}T00:00:00`) : null}
+          />
+          <ProfileRow
+            label="Address"
+            value={
+              profile?.address
+                ? [
+                    profile.address.address,
+                    profile.address.city,
+                    profile.address.province,
+                    profile.address.country,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")
+                : null
+            }
+          />
+          <ProfileRow
+            label="Emergency contact"
+            value={
+              profile?.emergencyContact
+                ? [
+                    profile.emergencyContact.emergencyContactName,
+                    profile.emergencyContact.emergencyContactNumber,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : null
+            }
+          />
         </div>
       </section>
 

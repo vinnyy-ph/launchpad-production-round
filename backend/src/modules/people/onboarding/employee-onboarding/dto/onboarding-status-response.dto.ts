@@ -1,5 +1,19 @@
 import type { ApiSuccessResponseDto } from "../../../../../core/dto";
 
+/** Structured address shown during onboarding. */
+export interface OnboardingAddressDto {
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+}
+
+/** Structured emergency contact shown during onboarding. */
+export interface OnboardingEmergencyContactDto {
+  emergencyContactName: string | null;
+  emergencyContactNumber: string | null;
+}
+
 /** Employee profile fields shown during onboarding. */
 export interface OnboardingProfileDto {
   firstName: string;
@@ -7,8 +21,8 @@ export interface OnboardingProfileDto {
   middleName: string | null;
   personalEmail: string | null;
   birthday: string | null;
-  address: string | null;
-  emergencyContact: string | null;
+  address: OnboardingAddressDto | null;
+  emergencyContact: OnboardingEmergencyContactDto | null;
   jobTitle: string | null;
   department: string | null;
 }
