@@ -157,173 +157,185 @@ export function TeamDetailsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="dialog-pop max-h-[88vh] overflow-y-auto rounded-2xl sm:max-w-lg">
+      <DialogContent className="dialog-pop grid max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-lg">
         <DialogDescription className="sr-only">
           Team members and management actions for {team.name}.
         </DialogDescription>
 
-        {/* Team name + rename */}
-        {renameMode ? (
-          <div className="flex items-center gap-2">
-            <Input
-              value={renameDraft}
-              onChange={(event) => setRenameDraft(event.target.value)}
-              aria-label="Team name"
-              autoFocus
-            />
-            <Button size="sm" onClick={() => void saveRename()} disabled={renaming}>
-              <Check aria-hidden="true" /> {renaming ? "Saving…" : "Save"}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setRenameMode(false)}
-              disabled={renaming}
-            >
-              <X aria-hidden="true" /> Cancel
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-3 pr-8">
-            <DialogTitle className="truncate text-lg font-bold text-[color:var(--text-primary)]">
-              {team.name}
-            </DialogTitle>
-            {canManage && (
+        {/* Sticky header: team name (or rename) + close button */}
+        <header className="border-b border-[color:var(--border-primary)] px-6 py-4 pr-12">
+          {renameMode ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={renameDraft}
+                onChange={(event) => setRenameDraft(event.target.value)}
+                aria-label="Team name"
+                autoFocus
+              />
+              <Button size="sm" onClick={() => void saveRename()} disabled={renaming}>
+                <Check aria-hidden="true" /> {renaming ? "Saving…" : "Save"}
+              </Button>
               <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => {
-                  setRenameDraft(team.name);
-                  setRenameMode(true);
-                }}
+                size="sm"
+                variant="secondary"
+                onClick={() => setRenameMode(false)}
+                disabled={renaming}
               >
-                <Pencil aria-hidden="true" /> Rename
+                <X aria-hidden="true" /> Cancel
               </Button>
-            )}
-          </div>
-        )}
-
-        {/* Team lead */}
-        <div>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-            Team lead
-          </p>
-          <div className="flex items-center gap-2">
-            <Avatar name={team.leader.fullName} />
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
-                {team.leader.fullName}
-              </span>
-              <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
-                {team.leader.jobTitle ?? team.leader.companyEmail}
-              </span>
-            </span>
-          </div>
-        </div>
-
-        {/* Members (excludes the lead, shown above) */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-              Members ({otherMembers.length})
-            </p>
-            {canManage && !addMode && (
-              <Button size="xs" variant="ghost" onClick={() => setAddMode(true)}>
-                <UserPlus aria-hidden="true" /> Add members
-              </Button>
-            )}
-          </div>
-
-          {otherMembers.length === 0 ? (
-            <p className="text-xs text-[color:var(--text-tertiary)]">No additional members yet.</p>
+            </div>
           ) : (
-            <ul className="divide-y divide-[color:var(--border-primary)]">
-              {otherMembers.map((member) => (
-                <li key={member.id} className="flex items-center justify-between gap-3 py-2">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Avatar name={member.fullName} />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
-                        {member.fullName}
-                      </span>
-                      <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
-                        {member.jobTitle ?? member.companyEmail}
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="truncate text-lg font-bold text-[color:var(--text-primary)]">
+                {team.name}
+              </DialogTitle>
+              {canManage && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => {
+                    setRenameDraft(team.name);
+                    setRenameMode(true);
+                  }}
+                >
+                  <Pencil aria-hidden="true" /> Rename
+                </Button>
+              )}
+            </div>
+          )}
+        </header>
+
+        {/* Scrollable body */}
+        <div className="space-y-4 overflow-y-auto px-6 py-4">
+          {/* Team lead */}
+          <div>
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+              Team lead
+            </p>
+            <div className="flex items-center gap-2">
+              <Avatar name={team.leader.fullName} />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                  {team.leader.fullName}
+                </span>
+                <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                  {team.leader.jobTitle ?? team.leader.companyEmail}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {/* Members (excludes the lead, shown above) */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                Members ({otherMembers.length})
+              </p>
+              {canManage && !addMode && (
+                <Button size="xs" variant="ghost" onClick={() => setAddMode(true)}>
+                  <UserPlus aria-hidden="true" /> Add members
+                </Button>
+              )}
+            </div>
+
+            {otherMembers.length === 0 ? (
+              <p className="text-xs text-[color:var(--text-tertiary)]">No additional members yet.</p>
+            ) : (
+              <ul className="divide-y divide-[color:var(--border-primary)]">
+                {otherMembers.map((member) => (
+                  <li key={member.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Avatar name={member.fullName} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                          {member.fullName}
+                        </span>
+                        <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                          {member.jobTitle ?? member.companyEmail}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                  {canManage && (
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => void handleRemoveMember(member)}
-                      aria-label={`Remove ${member.fullName} from ${team.name}`}
-                    >
-                      <UserMinus aria-hidden="true" /> Remove
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    {canManage && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => void handleRemoveMember(member)}
+                        aria-label={`Remove ${member.fullName} from ${team.name}`}
+                      >
+                        <UserMinus aria-hidden="true" /> Remove
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Add members picker */}
+          {canManage && addMode && (
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                Add members
+              </p>
+              <Command className="rounded-lg border border-[color:var(--border-primary)]">
+                <CommandInput placeholder="Search employees…" />
+                <CommandList className="max-h-48">
+                  <CommandEmpty>No employees available to add.</CommandEmpty>
+                  <CommandGroup>
+                    {addableEmployees.map((employee) => (
+                      <CommandItem
+                        key={employee.id}
+                        value={`${employee.fullName} ${employee.jobTitle ?? ""}`}
+                        onSelect={() => toggleAdd(employee.id)}
+                        className="gap-2"
+                      >
+                        <Checkbox
+                          checked={addDraft.has(employee.id)}
+                          aria-hidden="true"
+                          tabIndex={-1}
+                          className="pointer-events-none"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                            {employee.fullName}
+                          </span>
+                          {employee.jobTitle && (
+                            <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                              {employee.jobTitle}
+                            </span>
+                          )}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </div>
           )}
         </div>
 
-        {/* Add members panel */}
+        {/* Sticky footer: add member actions (only while adding) */}
         {canManage && addMode && (
-          <div className="rounded-lg border border-[color:var(--border-primary)] p-3">
-            <Command className="rounded-lg border border-[color:var(--border-primary)]">
-              <CommandInput placeholder="Search employees…" />
-              <CommandList className="max-h-48">
-                <CommandEmpty>No employees available to add.</CommandEmpty>
-                <CommandGroup>
-                  {addableEmployees.map((employee) => (
-                    <CommandItem
-                      key={employee.id}
-                      value={`${employee.fullName} ${employee.jobTitle ?? ""}`}
-                      onSelect={() => toggleAdd(employee.id)}
-                      className="gap-2"
-                    >
-                      <Checkbox
-                        checked={addDraft.has(employee.id)}
-                        aria-hidden="true"
-                        tabIndex={-1}
-                        className="pointer-events-none"
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
-                          {employee.fullName}
-                        </span>
-                        {employee.jobTitle && (
-                          <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
-                            {employee.jobTitle}
-                          </span>
-                        )}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-            <div className="mt-3 flex justify-end gap-2 py-4">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setAddMode(false);
-                  setAddDraft(new Set());
-                }}
-                disabled={addingMembers}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => void saveAddMembers()}
-                disabled={addingMembers || addDraft.size === 0}
-              >
-                {addingMembers ? "Adding…" : `Add ${addDraft.size > 0 ? addDraft.size : ""}`.trim()}
-              </Button>
-            </div>
-          </div>
+          <footer className="flex items-center justify-end gap-2 border-t border-[color:var(--border-primary)] px-6 py-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setAddMode(false);
+                setAddDraft(new Set());
+              }}
+              disabled={addingMembers}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void saveAddMembers()}
+              disabled={addingMembers || addDraft.size === 0}
+            >
+              {addingMembers ? "Adding…" : `Add ${addDraft.size > 0 ? addDraft.size : ""}`.trim()}
+            </Button>
+          </footer>
         )}
       </DialogContent>
     </Dialog>
