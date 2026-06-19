@@ -9,7 +9,6 @@ import {
   Trash2,
   Send,
   Eye,
-  Filter,
   ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +42,6 @@ import {
   EmptyState,
   DataTable,
   FormField,
-  StatCard,
   StatusBadge,
   FilterBar,
   TablePagination,
@@ -66,11 +64,33 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** A period interval, hyphen-separated. Drops the year when both ends fall in the current year. */
 function formatPeriod(startIso: string, endIso: string): string {
   const from = new Date(startIso);
   const to = new Date(endIso);
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return "—";
-  return `${format(from, "LLL d, yyyy")} – ${format(to, "LLL d, yyyy")}`;
+  const currentYear = new Date().getFullYear();
+  const sameYear = from.getFullYear() === currentYear && to.getFullYear() === currentYear;
+  const fmt = sameYear ? "LLL d" : "LLL d, yyyy";
+  return `${format(from, fmt)} - ${format(to, fmt)}`;
+}
+
+/** A single date, relative when near today (Yesterday/Today/Tomorrow/Next <weekday>),
+ *  otherwise an absolute date with the year dropped when it falls in the current year. */
+function formatRelativeDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+  const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === -1) return "Yesterday";
+  if (diff === 1) return "Tomorrow";
+  if (diff > 1 && diff <= 6) return `Next ${format(target, "EEEE")}`;
+  const sameYear = target.getFullYear() === today.getFullYear();
+  return format(target, sameYear ? "LLL d" : "LLL d, yyyy");
 }
 
 function isValidUrl(value: string): boolean {
@@ -342,7 +362,7 @@ function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onS
               {isViewOnly ? (
                 <p className="text-sm text-[color:var(--text-primary)]">
                   {period?.from && period?.to
-                    ? `${format(period.from, "LLL d, yyyy")} – ${format(period.to, "LLL d, yyyy")}`
+                    ? formatPeriod(period.from.toISOString(), period.to.toISOString())
                     : "—"}
                 </p>
               ) : (
@@ -532,14 +552,9 @@ function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onS
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-type StatusFilter = "ALL" | "draft" | "sent";
+type StatusFilter = "ALL" | "sent" | "draft" | "answered";
 
 const PAGE_SIZE = 10;
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "ALL", label: "All statuses" },
-  { value: "draft", label: "Drafts" },
-  { value: "sent", label: "Sent" },
-];
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "reviewee", label: "Reviewee" },
   { value: "period", label: "Period" },
@@ -590,6 +605,8 @@ export default function EvaluationsPage() {
     let list = evals;
     if (statusFilter === "draft") list = list.filter((e) => !e.isSent);
     else if (statusFilter === "sent") list = list.filter((e) => e.isSent);
+    else if (statusFilter === "answered")
+      list = list.filter((e) => !!e.acknowledgement?.acknowledgedAt);
     const q = search.trim().toLowerCase();
     if (q) list = list.filter((e) => nameOf(e).toLowerCase().includes(q));
     return list;
@@ -756,7 +773,7 @@ export default function EvaluationsPage() {
                 : "text-sm text-[color:var(--text-secondary)]"
             }
           >
-            {format(deadline, "LLL d, yyyy")}
+            {formatRelativeDate(ev.ackDeadline as string)}
           </span>
         );
       },
@@ -840,17 +857,49 @@ export default function EvaluationsPage() {
     <div className="min-w-0">
       <ScreenHeader id="evaluations" level="page" />
 
-      {/* Summary strip */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total" value={evals.length} loading={isLoading} variant="brand" />
-        <StatCard
-          label="Drafts"
-          value={draftCount}
-          loading={isLoading}
-          variant={!isLoading && draftCount > 0 ? "warn" : "default"}
-        />
-        <StatCard label="Sent" value={sentCount} loading={isLoading} />
-        <StatCard label="Acknowledged" value={ackedCount} loading={isLoading} />
+      {/* Status sub-tabs — double as the status filter, with a live count badge each */}
+      <div
+        role="tablist"
+        aria-label="Filter by status"
+        className="mb-5 flex items-center gap-6 overflow-x-auto border-b border-[color:var(--border-primary)]"
+      >
+        {(
+          [
+            { value: "ALL", label: "All", count: evals.length },
+            { value: "sent", label: "Sent", count: sentCount },
+            { value: "draft", label: "Drafts", count: draftCount },
+            { value: "answered", label: "Answered", count: ackedCount },
+          ] as { value: StatusFilter; label: string; count: number }[]
+        ).map((t) => {
+          const active = statusFilter === t.value;
+          return (
+            <button
+              key={t.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setStatusFilter(t.value)}
+              className={[
+                "relative -mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                active
+                  ? "border-[color:hsl(var(--primary))] text-[color:var(--text-primary)]"
+                  : "border-transparent text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
+              ].join(" ")}
+            >
+              {t.label}
+              <span
+                className={[
+                  "inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                  active
+                    ? "bg-[color:hsl(var(--primary))] text-white"
+                    : "bg-[color:var(--bg-tertiary)] text-[color:var(--text-tertiary)]",
+                ].join(" ")}
+              >
+                {isLoading ? "–" : t.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <FilterBar aria-label="Filter evaluations" className="gap-3">
@@ -892,25 +941,6 @@ export default function EvaluationsPage() {
               <ArrowUpDown className="h-4 w-4" />
             </Button>
           </div>
-          <Select
-            value={statusFilter}
-            onValueChange={(v: string) => setStatusFilter(v as StatusFilter)}
-          >
-            <SelectTrigger className="relative w-full pl-9 sm:w-[180px]" aria-label="Filter by status">
-              <Filter
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
-                aria-hidden="true"
-              />
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
         <Button onClick={openCreate} className="w-full shrink-0 sm:ml-auto sm:w-auto">
           <Plus aria-hidden="true" />

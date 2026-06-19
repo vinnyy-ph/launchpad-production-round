@@ -93,7 +93,7 @@ export const SCREEN_HEADERS: Record<string, { title: string; subtitle: string }>
   performance: { title: "Performance", subtitle: "Your performance evaluations and pulse surveys." },
   overview: { title: "Team overview", subtitle: "How your direct reports are tracking." },
   roster: { title: "Roster", subtitle: "Everyone who reports to you." },
-  evaluations: { title: "Evaluations", subtitle: "Reviews you own as a supervisor." },
+  evaluations: { title: "Evaluations", subtitle: "Write and track reviews for the people you manage." },
   people: { title: "People", subtitle: "The {workspaceName} employee directory." },
   orgchart: { title: "Structure", subtitle: "Reporting lines and team structure." },
   surveys: { title: "Surveys", subtitle: "Engagement and pulse surveys." },
