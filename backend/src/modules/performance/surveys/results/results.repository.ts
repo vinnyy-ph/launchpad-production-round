@@ -52,4 +52,14 @@ export class ResultsRepository {
       },
     });
   }
+
+  /** Recipients across the matched occurrence(s) — the response-rate denominator. */
+  async countAudienceMembers(where: Prisma.SurveyAudienceMemberWhereInput) {
+    return prisma.surveyAudienceMember.count({ where });
+  }
+
+  /** Completed responses across the matched occurrence(s), ignoring scope filters. */
+  async countResponses(where: Prisma.SurveyResponseWhereInput) {
+    return prisma.surveyResponse.count({ where });
+  }
 }

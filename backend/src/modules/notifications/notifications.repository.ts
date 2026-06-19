@@ -1,4 +1,4 @@
-import type { Notification } from "@prisma/client";
+import type { Notification, NotificationType } from "@prisma/client";
 import { prisma } from "../../core/database/prisma.service";
 import type { CreateNotificationInput } from "./notifications.types";
 
@@ -42,6 +42,21 @@ export class NotificationsRepository {
     });
   }
 
+  /** Loads id + auth userId for a set of employees, for bulk notification delivery. */
+  async findEmployeesWithUserByIds(employeeIds: string[]) {
+    if (employeeIds.length === 0) {
+      return [];
+    }
+
+    return prisma.employee.findMany({
+      where: { id: { in: employeeIds } },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+  }
+
   /** Bulk-inserts notification rows. */
   async createMany(inputs: CreateNotificationInput[]) {
     if (inputs.length === 0) {
@@ -59,6 +74,23 @@ export class NotificationsRepository {
         sourceType: input.sourceType ?? null,
         sourceId: input.sourceId ?? null,
       })),
+    });
+  }
+
+  /**
+   * Most recent reminder of a given type for a recipient + source, used to throttle
+   * recurring reminders to their configured cadence (the notification table is the
+   * dedup ledger — no extra "last reminded" state needed).
+   */
+  async findLatestReminder(
+    recipientId: string,
+    type: NotificationType,
+    sourceId: string,
+  ) {
+    return prisma.notification.findFirst({
+      where: { recipientId, type, sourceId },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
     });
   }
 

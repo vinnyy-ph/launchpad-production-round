@@ -18,6 +18,8 @@ export type SurveyWithRelations = PulseSurvey & {
 
 export type SurveyListRow = PulseSurvey & {
   _count: { occurrences: number };
+  // Latest occurrence only (most recent round), for the list's response-rate column.
+  occurrences: { _count: { audienceMembers: number; completions: number } }[];
 };
 
 export type SurveyDetailRow = PulseSurvey & {
@@ -123,7 +125,14 @@ export class SurveysRepository {
     const [surveys, total] = await Promise.all([
       prisma.pulseSurvey.findMany({
         where,
-        include: { _count: { select: { occurrences: true } } },
+        include: {
+          _count: { select: { occurrences: true } },
+          occurrences: {
+            orderBy: { occurrenceNumber: "desc" },
+            take: 1,
+            select: { _count: { select: { audienceMembers: true, completions: true } } },
+          },
+        },
         orderBy: { createdAt: "desc" },
         skip: (query.page - 1) * query.limit,
         take: query.limit,

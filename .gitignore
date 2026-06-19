@@ -24,6 +24,7 @@ frontend/vite.config.d.ts
 # misc
 .DS_Store
 *.pem
+*_dump.sql
 
 # debug
 npm-debug.log*

@@ -15,6 +15,7 @@ import type {
 } from "./dto";
 import type { ApiSuccessResponseDto } from "../../../core/dto";
 import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
+import { NotificationsService } from "../../notifications/notifications.service";
 import { resolveAudience } from "./rules/audience";
 import { buildAudienceDb, toAudienceSpec } from "./surveys.audience";
 import { validateSchedule } from "./rules/recurrence";
@@ -26,7 +27,10 @@ import {
 } from "./surveys.repository";
 
 export class SurveysService {
-  constructor(private readonly surveysRepository = new SurveysRepository()) {}
+  constructor(
+    private readonly surveysRepository = new SurveysRepository(),
+    private readonly notificationsService = new NotificationsService(),
+  ) {}
 
   async create(
     input: CreateSurveyInput,
@@ -213,6 +217,8 @@ export class SurveysService {
     };
     const updated = await this.surveysRepository.activate(id, occurrenceData, audienceIds);
 
+    await this.notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name);
+
     return {
       success: true,
       message: "Pulse survey activated successfully",
@@ -377,6 +383,7 @@ export class SurveysService {
   }
 
   private toListItem(survey: SurveyListRow): SurveyListItemDto {
+    const latest = survey.occurrences?.[0];
     return {
       id: survey.id,
       name: survey.name,
@@ -386,6 +393,8 @@ export class SurveysService {
       visibility: survey.visibility,
       isActive: survey.isActive,
       occurrenceCount: survey._count.occurrences,
+      recipientCount: latest?._count.audienceMembers ?? 0,
+      respondedCount: latest?._count.completions ?? 0,
       createdAt: survey.createdAt,
       updatedAt: survey.updatedAt,
     };
