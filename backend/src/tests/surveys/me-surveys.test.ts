@@ -17,6 +17,9 @@ jest.mock("../../core/database/prisma.service", () => ({
     surveyAudienceMember: {
       findMany: jest.fn(),
     },
+    surveyCompletion: {
+      findMany: jest.fn(),
+    },
     // Read by the lazy occurrence scheduler invoked at the start of getPendingSurveys.
     pulseSurvey: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -26,6 +29,7 @@ jest.mock("../../core/database/prisma.service", () => ({
 
 const employeeFindUniqueMock = prisma.employee.findUnique as jest.Mock;
 const audienceMemberFindManyMock = prisma.surveyAudienceMember.findMany as jest.Mock;
+const completionFindManyMock = prisma.surveyCompletion.findMany as jest.Mock;
 
 const URL = "/api/v1/pulse/me/surveys";
 
@@ -124,6 +128,58 @@ describe("GET /api/v1/pulse/me/surveys", () => {
       where: AmOrRegexMatchesEmployeeId("emp-1"),
       select: expect.any(Object),
     });
+  });
+});
+
+describe("GET /api/v1/pulse/me/surveys/answered", () => {
+  const ANSWERED_URL = `${URL}/answered`;
+
+  beforeEach(() => {
+    employeeFindUniqueMock.mockReset();
+    completionFindManyMock.mockReset();
+  });
+
+  it("returns 403 if user has no employee record", async () => {
+    employeeFindUniqueMock.mockResolvedValue(null);
+    const response = await request(app).get(ANSWERED_URL).expect(403);
+    expect(response.body).toMatchObject({ success: false, errorCode: "CREATOR_NOT_EMPLOYEE" });
+  });
+
+  it("returns empty list when nothing has been answered", async () => {
+    employeeFindUniqueMock.mockResolvedValue({ id: "emp-1" });
+    completionFindManyMock.mockResolvedValue([]);
+    const response = await request(app).get(ANSWERED_URL).expect(200);
+    expect(response.body).toMatchObject({ success: true, data: [] });
+  });
+
+  it("maps completed pulses, most recent first", async () => {
+    employeeFindUniqueMock.mockResolvedValue({ id: "emp-1" });
+    completionFindManyMock.mockResolvedValue([
+      {
+        completedAt: new Date("2026-06-10T00:00:00.000Z"),
+        occurrence: {
+          id: "occ-9",
+          occurrenceNumber: 2,
+          survey: { id: "survey-1", name: "Weekly Pulse", isAnonymous: true },
+        },
+      },
+    ]);
+
+    const response = await request(app).get(ANSWERED_URL).expect(200);
+
+    expect(response.body.data).toEqual([
+      {
+        occurrenceId: "occ-9",
+        surveyId: "survey-1",
+        surveyName: "Weekly Pulse",
+        isAnonymous: true,
+        occurrenceNumber: 2,
+        completedAt: "2026-06-10T00:00:00.000Z",
+      },
+    ]);
+    expect(completionFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { employeeId: "emp-1" } }),
+    );
   });
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
 import type { Question } from "../../types/surveys.types";
 import { ShortAnswerInput } from "./short-answer";
 import { LongAnswerInput } from "./long-answer";
@@ -23,7 +24,12 @@ export interface QuestionFieldProps {
 export function QuestionField({ question, index, value, error, onChange, disabled }: QuestionFieldProps) {
   return (
     <div
-      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+      className={cn(
+        "rounded-xl border bg-white p-5 transition-colors",
+        error
+          ? "border-[color:var(--color-error-500)] bg-[color:var(--color-error-50)]"
+          : "border-[color:var(--border-primary)]",
+      )}
       style={{ boxShadow: "var(--shadow-xs)" }}
     >
       <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">

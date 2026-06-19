@@ -140,9 +140,20 @@ export interface PendingSurvey {
   occurrenceId: string;
   surveyId: string;
   surveyName: string;
+  isAnonymous: boolean;
   deadline: string;
   occurrenceNumber: number;
   questions: Question[];
+}
+
+/** A pulse the signed-in employee has already completed (history). */
+export interface AnsweredSurvey {
+  occurrenceId: string;
+  surveyId: string;
+  surveyName: string;
+  isAnonymous: boolean;
+  occurrenceNumber: number;
+  completedAt: string;
 }
 
 /** A single submitted answer. answerData carries the typed value:
