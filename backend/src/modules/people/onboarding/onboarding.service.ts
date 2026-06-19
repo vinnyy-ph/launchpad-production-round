@@ -1,4 +1,6 @@
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
+import { EmailService } from "../../../core/email";
+import { buildOnboardingCompleteEmailHtml } from "../../../core/email/templates/onboarding-complete.template";
 import type {
   HrCompleteOnboardingResponseDto,
   OnboardEmployeeRequestDto,
@@ -20,6 +22,7 @@ export class OnboardingService {
   constructor(
     private readonly onboardingRepository = new OnboardingRepository(),
     private readonly notificationsService = new NotificationsService(),
+    private readonly emailService = new EmailService(),
   ) {}
 
   /**
@@ -153,6 +156,8 @@ export class OnboardingService {
       );
     }
 
+    await this.sendOnboardingCompleteEmail(record.employee);
+
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.HR_ONBOARDING_COMPLETED,
@@ -163,6 +168,35 @@ export class OnboardingService {
         employeeStatus: "active",
       },
     };
+  }
+
+  /**
+   * Emails the now-active employee to confirm onboarding is complete.
+   * Fire-and-forget: a delivery failure must never roll back completion.
+   */
+  private async sendOnboardingCompleteEmail(
+    employee: OnboardingRecordWithRelations["employee"],
+  ): Promise<void> {
+    try {
+      await this.emailService.sendEmail({
+        to: employee.companyEmail,
+        subject: "Your Manage Jia account is active",
+        html: buildOnboardingCompleteEmailHtml({
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          appUrl: this.resolveAppUrl(),
+        }),
+      });
+    } catch {
+      // Swallow: onboarding completion must succeed even if the email fails.
+    }
+  }
+
+  /** Returns the frontend base URL used in email links. */
+  private resolveAppUrl(): string {
+    return (
+      process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:3000"
+    );
   }
 
   /** Ensures required profile fields are filled before completion. */

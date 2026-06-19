@@ -9,8 +9,16 @@ import { useAuth } from "@/modules/auth/hooks/use-auth";
  * screens yet, so we deliberately drop the app sidebar — the wizard is the whole
  * first session. Just a brand bar over a centered canvas.
  */
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export function OnboardingShell({ children }: { children: ReactNode }) {
   const { appUser } = useAuth();
+  const initials = appUser?.displayName ? initialsOf(appUser.displayName) : "";
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--bg-secondary)" }}>
@@ -21,9 +29,21 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
             Getting started
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {initials && (
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
+              style={{
+                background: "var(--gradient-jia)",
+                boxShadow: "inset 0 0 2px 0 rgba(0,16,53,.16)",
+              }}
+              aria-hidden="true"
+            >
+              {initials}
+            </span>
+          )}
           {appUser?.displayName && (
-            <span className="hidden text-[13px] font-medium text-[color:var(--text-secondary)] sm:inline">
+            <span className="hidden text-[13px] font-medium text-[color:var(--text-primary)] sm:inline">
               {appUser.displayName}
             </span>
           )}
