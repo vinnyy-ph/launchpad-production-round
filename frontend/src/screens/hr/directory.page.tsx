@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Users } from "lucide-react";
+import { Plus, Settings2, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -26,10 +26,13 @@ import {
   type Column,
   type DataTableSort,
 } from "@/shared/ui/patterns";
+import { cn } from "@/shared/lib/utils";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
+import { AddEmployeeDialog, OnboardingCasesTable } from "@/modules/people/onboarding";
 import type {
   EmployeeListItem,
   EmployeeSortBy,
@@ -42,6 +45,10 @@ const ALL_TEAMS = "ALL_TEAMS";
 const PAGE_SIZE = 10;
 const MAX_VISIBLE_TEAMS = 2;
 
+/** Directory segments shown as tabs. */
+type DirectoryTab = "all" | "onboarding" | "offboarding";
+
+/** Status options for the All-tab status filter dropdown. */
 const STATUS_OPTIONS: { value: typeof ALL | EmployeeStatus; label: string }[] = [
   { value: ALL, label: "All statuses" },
   { value: "onboarding", label: "Onboarding" },
@@ -122,12 +129,79 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
   );
 }
 
+/** Underlined directory tabs with per-segment counts and a gradient-pink active indicator. */
+function DirectoryTabs({
+  active,
+  counts,
+  onChange,
+}: {
+  active: DirectoryTab;
+  counts: Record<DirectoryTab, number>;
+  onChange: (tab: DirectoryTab) => void;
+}) {
+  const tabs: { value: DirectoryTab; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "onboarding", label: "Onboarding" },
+    { value: "offboarding", label: "Offboarding" },
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Employee segments"
+      className="mb-5 flex items-center gap-6 border-b border-[color:var(--border-primary)]"
+    >
+      {tabs.map((tab) => {
+        const isActive = active === tab.value;
+        return (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(tab.value)}
+            className={cn(
+              "relative inline-flex items-center gap-2 px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              isActive
+                ? "text-[color:var(--text-primary)]"
+                : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
+            )}
+          >
+            {tab.label}
+            <span
+              className={cn(
+                "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold",
+                isActive
+                  ? "bg-[color:var(--text-primary)] text-white"
+                  : "bg-[color:var(--bg-secondary)] text-[color:var(--text-tertiary)]",
+              )}
+            >
+              {counts[tab.value]}
+            </span>
+            {isActive && (
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
+                style={{
+                  background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                }}
+              />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function DirectoryPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [teamId, setTeamId] = useState("");
-  const [status, setStatus] = useState<"" | EmployeeStatus>("");
+  const [statusFilter, setStatusFilter] = useState<"" | EmployeeStatus>("");
+  const [tab, setTab] = useState<DirectoryTab>("all");
   const [page, setPage] = useState(1);
+  const [addOpen, setAddOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [sort, setSort] = useState<DataTableSort>({
     key: "employeeName",
@@ -135,18 +209,22 @@ export default function DirectoryPage() {
   });
   const debouncedSearch = useDebounce(search, 300);
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
+  const counts = useEmployeeStatusCounts();
+
+  // The All tab uses the status dropdown; the Offboarding tab is locked to offboarding.
+  const directoryStatus: "" | EmployeeStatus = tab === "offboarding" ? "offboarding" : statusFilter;
 
   const { employees, meta, loading, error, reload } = useEmployees({
     search: debouncedSearch || undefined,
     teamId: teamId || undefined,
-    status: status || undefined,
+    status: directoryStatus || undefined,
     sortBy: sort.key as EmployeeSortBy,
     sortDirection: sort.direction as SortDirection,
     page,
     limit: PAGE_SIZE,
   });
 
-  const hasFilters = Boolean(search || teamId || status);
+  const hasFilters = Boolean(search || teamId || statusFilter);
 
   const columns: Column<EmployeeListItem>[] = [
     {
@@ -226,106 +304,140 @@ export default function DirectoryPage() {
     <div>
       <PageHeader
         level="page"
-        title="Directory"
-        subtitle="Search and manage employees across the organization."
+        title="People"
+        subtitle="Everyone at DG Technologies, from new hires to active staff."
+        action={
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {tab === "onboarding" ? (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => router.push("/hr/onboarding/settings")}
+              >
+                <Settings2 aria-hidden="true" /> Onboarding setup
+              </Button>
+            ) : null}
+            <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
+              <Plus /> Add employee
+            </Button>
+          </div>
+        }
       />
 
-      <FilterBar aria-label="Filter employees" className="sm:justify-between">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Input
-            type="text"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by name or email..."
-            aria-label="Search employees"
-            className="sm:max-w-[320px]"
-          />
-          <Select
-            value={teamId || ALL_TEAMS}
-            onValueChange={(value) => {
-              setTeamId(value === ALL_TEAMS ? "" : value);
-              setPage(1);
-            }}
-            disabled={teamsLoading}
-          >
-            <SelectTrigger className="sm:w-[220px]" aria-label="Filter by team">
-              <SelectValue placeholder="All teams" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_TEAMS}>All teams</SelectItem>
-              {teams.map((team) => (
-                <SelectItem key={team.id} value={team.id}>
-                  {team.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={status || ALL}
-            onValueChange={(value) => {
-              setStatus(value === ALL ? "" : (value as EmployeeStatus));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="sm:w-[200px]" aria-label="Filter by status">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button className="w-full sm:w-auto" onClick={() => router.push("/hr/onboarding")}>
-          <Plus /> Add employee
-        </Button>
-      </FilterBar>
+      <DirectoryTabs
+        active={tab}
+        counts={counts}
+        onChange={(nextTab) => {
+          setTab(nextTab);
+          setPage(1);
+        }}
+      />
 
-      <div
-        className="rounded-xl border border-[color:var(--border-primary)] bg-white"
-        style={{ boxShadow: "var(--shadow-xs)" }}
-      >
-        <DataTable
-          columns={columns}
-          data={employees}
-          isLoading={loading}
-          error={error}
-          onRetry={() => void reload()}
-          onRowClick={setSelectedEmployee}
-          getRowId={(employee) => employee.id}
-          sort={sort}
-          onSortChange={(nextSort) => {
-            setSort(nextSort);
-            setPage(1);
-          }}
-          pagination={
-            meta
-              ? {
-                  page: meta.page,
-                  totalPages: meta.totalPages,
-                  onPageChange: setPage,
-                }
-              : undefined
-          }
-          emptyState={
-            <EmptyState
-              icon={Users}
-              title={hasFilters ? "No matching employees" : "No employees yet"}
-              body={
-                hasFilters
-                  ? "Try a different search or filter."
-                  : "Add your first employee to get started."
+      {tab === "onboarding" ? (
+        <OnboardingCasesTable />
+      ) : (
+        <>
+          <FilterBar aria-label="Filter employees">
+            <Input
+              type="text"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by name or email…"
+              aria-label="Search employees"
+              className="sm:max-w-[320px]"
+            />
+            <Select
+              value={teamId || ALL_TEAMS}
+              onValueChange={(value) => {
+                setTeamId(value === ALL_TEAMS ? "" : value);
+                setPage(1);
+              }}
+              disabled={teamsLoading}
+            >
+              <SelectTrigger className="sm:w-[220px]" aria-label="Filter by team">
+                <SelectValue placeholder="All teams" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_TEAMS}>All teams</SelectItem>
+                {teams.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {tab === "all" ? (
+              <Select
+                value={statusFilter || ALL}
+                onValueChange={(value) => {
+                  setStatusFilter(value === ALL ? "" : (value as EmployeeStatus));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="sm:w-[200px]" aria-label="Filter by status">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+          </FilterBar>
+
+          <div
+            className="rounded-xl border border-[color:var(--border-primary)] bg-white"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          >
+            <DataTable
+              columns={columns}
+              data={employees}
+              isLoading={loading}
+              error={error}
+              onRetry={() => void reload()}
+              onRowClick={setSelectedEmployee}
+              getRowId={(employee) => employee.id}
+              sort={sort}
+              onSortChange={(nextSort) => {
+                setSort(nextSort);
+                setPage(1);
+              }}
+              pagination={
+                meta
+                  ? {
+                      page: meta.page,
+                      totalPages: meta.totalPages,
+                      onPageChange: setPage,
+                    }
+                  : undefined
+              }
+              emptyState={
+                <EmptyState
+                  icon={Users}
+                  title={hasFilters ? "No one matches that" : "No employees yet"}
+                  body={
+                    hasFilters
+                      ? "Try a different name, team, or status."
+                      : "Add your first employee to get started."
+                  }
+                />
               }
             />
-          }
-        />
-      </div>
+          </div>
+        </>
+      )}
+
+      <AddEmployeeDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onStarted={(employeeId) => router.push(`/hr/onboarding/${employeeId}`)}
+      />
 
       <EmployeeDetailsModal
         employeeId={selectedEmployee?.id ?? null}

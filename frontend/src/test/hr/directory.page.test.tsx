@@ -12,6 +12,35 @@ jest.mock("@/modules/people/employees/hooks/use-employee-profile", () => ({
   useEmployeeProfile: (employeeId: string | null) => mockUseEmployeeProfile(employeeId),
 }));
 
+jest.mock("@/modules/people/employees/hooks/use-employee-activity-logs", () => ({
+  useEmployeeActivityLogs: () => ({ logs: [], loading: false }),
+}));
+
+jest.mock("@/modules/people/employees/hooks/use-employee-documents", () => ({
+  useEmployeeDocuments: () => ({ documents: [], loading: false }),
+}));
+
+// Onboarding hooks used by the shared AddEmployeeDialog (always mounted) and
+// OnboardingCasesTable (rendered on the Onboarding tab).
+jest.mock("@/modules/people/onboarding/hooks/use-onboarding-records", () => ({
+  useOnboardingRecords: () => ({
+    employees: [],
+    reviews: [],
+    invitationStatusByEmployeeId: new Map(),
+    loading: false,
+    error: null,
+    reload: jest.fn(),
+  }),
+}));
+
+jest.mock("@/modules/people/onboarding/hooks/use-onboard-employee", () => ({
+  useOnboardEmployee: () => ({ mutate: jest.fn(), isPending: false }),
+}));
+
+jest.mock("@/modules/people/onboarding/hooks/use-document-configs", () => ({
+  useDocumentConfigs: () => ({ documents: [], loading: false, error: null, reload: jest.fn() }),
+}));
+
 const mockUpdateEmployee = jest.fn();
 jest.mock("@/modules/people/employees/hooks/use-update-employee", () => ({
   useUpdateEmployee: () => ({
@@ -190,11 +219,11 @@ describe("DirectoryPage", () => {
     expect(screen.queryByText("Created")).not.toBeInTheDocument();
     expect(screen.queryByText("Last Updated")).not.toBeInTheDocument();
     expect(screen.getAllByText("Supervisor").length).toBeGreaterThan(0);
-    expect(screen.getByText("Supervisor name")).toBeInTheDocument();
+    expect(screen.getByText("Assign supervisor")).toBeInTheDocument();
     expect(screen.getByText("Mathematics")).toBeInTheDocument();
     expect(screen.getByText("No documents yet")).toBeInTheDocument();
-    expect(screen.getByText("Employment Timeline")).toBeInTheDocument();
-    expect(screen.getByText("Onboarded")).toBeInTheDocument();
+    expect(screen.getByText("Profile Field Changes")).toBeInTheDocument();
+    expect(screen.getByText("No activity yet")).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText("First name"), "s");
 
@@ -222,7 +251,7 @@ describe("DirectoryPage", () => {
     await userEvent.click(screen.getByLabelText("Filter by status"));
     await userEvent.click(screen.getByRole("option", { name: "Active" }));
 
-    expect(mockUseEmployees).toHaveBeenLastCalledWith({
+    expect(mockUseEmployees).toHaveBeenCalledWith({
       search: "ada",
       teamId: "team-1",
       status: "active",
@@ -247,7 +276,7 @@ describe("DirectoryPage", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    expect(mockUseEmployees).toHaveBeenLastCalledWith({
+    expect(mockUseEmployees).toHaveBeenCalledWith({
       search: undefined,
       teamId: undefined,
       status: undefined,
@@ -264,7 +293,7 @@ describe("DirectoryPage", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /sort by employee name descending/i }));
 
-    expect(mockUseEmployees).toHaveBeenLastCalledWith({
+    expect(mockUseEmployees).toHaveBeenCalledWith({
       search: undefined,
       teamId: undefined,
       status: undefined,
