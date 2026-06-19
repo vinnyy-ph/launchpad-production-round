@@ -29,6 +29,7 @@ import {
 } from "@/shared/ui/primitives/select";
 import { StatusBadge } from "@/shared/ui/patterns";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
+import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
 import { useUpdateEmployee } from "../hooks/use-update-employee";
 import type {
@@ -102,16 +103,6 @@ function displayValue(value: string | null | undefined): string {
   return value?.trim() || "-";
 }
 
-function formatTimelineDate(value: string | null | undefined): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-}
-
-function statusLabel(status: EmployeeStatus): string {
-  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
-}
 
 function sidebarActionLabel(status: EmployeeStatus): string | null {
   if (status === "onboarding") return "Resend Onboarding Invitation";
@@ -174,6 +165,40 @@ function draftsMatch(left: EditDraft, right: EditDraft): boolean {
 function nullableTrim(value: string): string | null {
   const trimmed = value.trim();
   return trimmed || null;
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  firstName: "First Name",
+  lastName: "Last Name",
+  middleName: "Middle Name",
+  companyEmail: "Company Email",
+  personalEmail: "Personal Email",
+  birthday: "Birthday",
+  jobTitle: "Job Title",
+  department: "Department",
+  status: "Employment Status",
+  supervisor: "Supervisor",
+  "address.country": "Country",
+  "address.province": "Province",
+  "address.city": "City",
+  "address.address": "Address",
+  "emergencyContact.name": "Emergency Contact Name",
+  "emergencyContact.phone": "Emergency Contact Phone",
+};
+
+function formatFieldName(fieldName: string): string {
+  return FIELD_LABELS[fieldName] ?? fieldName;
+}
+
+function formatActivityDate(timestamp: string): string {
+  const date = new Date(timestamp);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
@@ -298,6 +323,7 @@ export function EmployeeDetailsModal({
   });
   const { employee, loading, error, reload } = useEmployeeProfile(employeeId);
   const { update, saving } = useUpdateEmployee(employeeId);
+  const { logs: activityLogs, loading: activityLoading } = useEmployeeActivityLogs(employeeId);
   const { departments, loading: departmentsLoading } = useDepartments();
   const profile = employee ?? fallbackEmployee;
   const profileDetails = profile as EmployeeProfile | null;
@@ -737,33 +763,57 @@ export function EmployeeDetailsModal({
 
                   <div ref={(node) => { sectionRefs.current.activity = node; }} className="scroll-mt-[88px]">
                     <DetailSection title="Activity History" icon={History}>
-                      <div className="space-y-5">
+                      <div className="space-y-4">
                         <p className="text-xs font-bold text-[color:var(--text-tertiary)]">
-                          Employment Timeline
+                          Profile Field Changes
                         </p>
-                        <div className="space-y-6">
-                          <div className="relative pl-5">
-                            <span className="absolute left-0 top-1.5 h-2 w-2 rounded-full bg-[#0E9384]" />
-                            <p className="text-sm font-bold text-[color:var(--text-primary)]">
-                              Onboarded
-                            </p>
-                            <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-                              {formatTimelineDate(profileDetails?.createdAt) || "Date not provided"}
-                            </p>
+                        {activityLoading ? (
+                          <div className="space-y-6 pl-5">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                              <div key={i} className="h-12 rounded-lg bg-[color:var(--bg-secondary)]" />
+                            ))}
                           </div>
-                          <div className="relative pl-5">
-                            <span className="absolute left-0 top-1.5 h-2 w-2 rounded-full bg-[#0E9384]" />
-                            <p className="text-sm font-bold text-[color:var(--text-primary)]">
-                              Status changed to {statusLabel(profile.status)}
-                            </p>
-                            <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-                              {formatTimelineDate(profileDetails?.updatedAt) || "Date not provided"}
-                            </p>
-                            <p className="mt-1 text-xs font-medium text-[color:var(--text-tertiary)]">
-                              Updated by People Operations
-                            </p>
+                        ) : activityLogs.length === 0 ? (
+                          <EmptyPanel
+                            title="No activity yet"
+                            body="Profile field edits will be tracked here."
+                          />
+                        ) : (
+                          <div>
+                            {activityLogs.map((log, index) => (
+                              <div key={log.id} className="relative flex gap-4">
+                                <div className="flex flex-col items-center">
+                                  <span
+                                    className="z-10 mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                                    style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+                                  />
+                                  {index < activityLogs.length - 1 && (
+                                    <div
+                                      className="mt-1 w-0.5 flex-1"
+                                      style={{ background: "linear-gradient(180deg, var(--brand-pink), var(--brand-peach))" }}
+                                    />
+                                  )}
+                                </div>
+                                <div className="pb-6 min-w-0">
+                                  <p className="text-sm font-bold text-[color:var(--text-primary)]">
+                                    {formatFieldName(log.fieldName)} changed
+                                  </p>
+                                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[color:var(--text-secondary)]">
+                                    <span className="max-w-[160px] truncate">{log.oldValue ?? "—"}</span>
+                                    <span aria-hidden="true">→</span>
+                                    <span className="max-w-[160px] truncate font-medium text-[color:var(--text-primary)]">{log.newValue ?? "—"}</span>
+                                  </div>
+                                  <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
+                                    {formatActivityDate(log.timestamp)}
+                                  </p>
+                                  <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
+                                    Updated by {log.editorName}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        </div>
+                        )}
                       </div>
                     </DetailSection>
                   </div>

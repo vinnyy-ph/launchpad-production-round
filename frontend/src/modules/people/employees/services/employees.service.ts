@@ -50,3 +50,23 @@ export async function updateEmployee(
     body: JSON.stringify(input),
   });
 }
+
+export interface ActivityLogEntry {
+  id: string;
+  editorId: string;
+  editorName: string;
+  editorEmail: string;
+  fieldName: string;
+  oldValue: string | null;
+  newValue: string | null;
+  timestamp: string;
+}
+
+export interface EmployeeActivityLogsResult {
+  data: ActivityLogEntry[];
+}
+
+/** Returns profile field edit history for one employee (HR/Admin only). */
+export async function getEmployeeActivityLogs(employeeId: string): Promise<EmployeeActivityLogsResult> {
+  return apiFetch<EmployeeActivityLogsResult>(`${BASE}/${employeeId}/activity-logs`);
+}

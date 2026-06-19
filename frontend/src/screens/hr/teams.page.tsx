@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Network, Plus, UserCog, UserMinus, UserPlus, Pencil } from "lucide-react";
+import { Network, Plus, UserCog, UserMinus, UserPlus, Pencil, Workflow } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
@@ -26,6 +26,10 @@ import {
   EmptyState,
   ErrorState,
   StatCard,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   useConfirm,
 } from "@/shared/ui";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
@@ -68,6 +72,7 @@ export default function TeamsPage() {
   const [renameDraft, setRenameDraft] = useState("");
   const [addTeam, setAddTeam] = useState<Team | null>(null);
   const [addDraft, setAddDraft] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState("org-chart");
 
   const totalMembers = useMemo(
     () => teams.reduce((sum, t) => sum + t.memberCount, 0),
@@ -142,66 +147,85 @@ export default function TeamsPage() {
   return (
     <div className="min-w-0">
       <PageHeader
-          level="page"
-          title="Teams"
-          subtitle="Organizational structure and team membership."
-          action={
-            canManage && !loading && !error && teams.length > 0 ? (
-              <Button size="sm" onClick={() => setCreateOpen(true)}>
-                <Plus aria-hidden="true" />
-                Create team
-              </Button>
-            ) : undefined
-          }
-        />
+        level="page"
+        title="Structure"
+        subtitle="Organizational structure and team membership."
+        action={
+          activeTab === "teams" && canManage && !loading && !error && teams.length > 0 ? (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus aria-hidden="true" />
+              Create team
+            </Button>
+          ) : undefined
+        }
+      />
 
-        {/* Stats row */}
-        <div className="mb-6 grid grid-cols-2 gap-4">
-          <StatCard label="Total teams" value={teams.length} loading={loading} />
-          <StatCard label="Team members" value={totalMembers} loading={loading} />
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-5">
+          <TabsTrigger value="org-chart">Org Chart</TabsTrigger>
+          <TabsTrigger value="teams">Teams</TabsTrigger>
+        </TabsList>
 
-        {/* Error state */}
-        {error && (
-          <div className="mb-6">
-            <ErrorState message={error} onRetry={() => void reload()} />
-          </div>
-        )}
-
-        {/* Teams list */}
-        {loading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-40 rounded-xl" />
-            <Skeleton className="h-40 rounded-xl" />
-            <Skeleton className="h-40 rounded-xl" />
-          </div>
-        ) : !error && teams.length === 0 ? (
-          <EmptyState
-            icon={Network}
-            title="No teams configured"
-            body={
-              canManage
-                ? "Create your first team to start building the org structure."
-                : "Teams will appear here once HR sets up the org structure."
-            }
-            action={
-              canManage ? { label: "Create team", onClick: () => setCreateOpen(true) } : undefined
-            }
+        <TabsContent value="org-chart" className="mt-0">
+          <OrgChartPanel
+            teams={teams}
+            loading={loading}
+            error={error}
+            canManage={canManage}
+            onCreateTeam={() => setCreateOpen(true)}
           />
-        ) : !error ? (
-          <div className="space-y-3">
-            {teams.map((team) => (
-              <TeamCard
-                key={team.id}
-                team={team}
-                canManage={canManage}
-                onRename={() => openRename(team)}
-                onAddMembers={() => openAddMembers(team)}
-                onRemoveMember={(member) => void handleRemoveMember(team, member)}
-              />
-            ))}
+        </TabsContent>
+
+        <TabsContent value="teams" className="mt-0">
+          {/* Stats row */}
+          <div className="mb-6 grid grid-cols-2 gap-4">
+            <StatCard label="Total teams" value={teams.length} loading={loading} />
+            <StatCard label="Team members" value={totalMembers} loading={loading} />
           </div>
-        ) : null}
+
+          {/* Error state */}
+          {error && (
+            <div className="mb-6">
+              <ErrorState message={error} onRetry={() => void reload()} />
+            </div>
+          )}
+
+          {/* Teams list */}
+          {loading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-40 rounded-xl" />
+              <Skeleton className="h-40 rounded-xl" />
+              <Skeleton className="h-40 rounded-xl" />
+            </div>
+          ) : !error && teams.length === 0 ? (
+            <EmptyState
+              icon={Network}
+              title="No teams configured"
+              body={
+                canManage
+                  ? "Create your first team to start building the org structure."
+                  : "Teams will appear here once HR sets up the org structure."
+              }
+              action={
+                canManage ? { label: "Create team", onClick: () => setCreateOpen(true) } : undefined
+              }
+            />
+          ) : !error ? (
+            <div className="space-y-3">
+              {teams.map((team) => (
+                <TeamCard
+                  key={team.id}
+                  team={team}
+                  canManage={canManage}
+                  onRename={() => openRename(team)}
+                  onAddMembers={() => openAddMembers(team)}
+                  onRemoveMember={(member) => void handleRemoveMember(team, member)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </TabsContent>
+      </Tabs>
 
       {/* Create team dialog */}
       <CreateTeamDialog
@@ -306,6 +330,114 @@ export default function TeamsPage() {
 }
 
 // ─── team card ────────────────────────────────────────────────────────────────
+
+interface OrgChartPanelProps {
+  teams: Team[];
+  loading: boolean;
+  error: string | null;
+  canManage: boolean;
+  onCreateTeam: () => void;
+}
+
+function OrgChartPanel({ teams, loading, error, canManage, onCreateTeam }: OrgChartPanelProps) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
+      </div>
+    );
+  }
+
+  if (error) return null;
+
+  if (teams.length === 0) {
+    return (
+      <EmptyState
+        icon={Workflow}
+        title="No org chart yet"
+        body={
+          canManage
+            ? "Create teams to map leaders, members, and reporting groups."
+            : "The org chart will appear once HR sets up the structure."
+        }
+        action={canManage ? { label: "Create team", onClick: onCreateTeam } : undefined}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {teams.map((team) => {
+        const members = team.members.filter((member) => member.id !== team.leader.id);
+
+        return (
+          <div
+            key={team.id}
+            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          >
+            <div className="flex flex-col gap-4 md:flex-row md:items-start">
+              <div className="min-w-0 md:w-64 md:flex-shrink-0">
+                <p className="truncate text-sm font-bold text-[color:var(--text-primary)]">
+                  {team.name}
+                </p>
+                <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
+                  {team.memberCount} members
+                </p>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                    Team lead
+                  </p>
+                  <div className="mt-2 flex min-w-0 items-center gap-2">
+                    <Avatar name={team.leader.fullName} size={9} />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                        {team.leader.fullName}
+                      </span>
+                      <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                        {team.leader.jobTitle ?? team.leader.companyEmail}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+
+                {members.length > 0 ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex min-w-0 items-center gap-2 rounded-lg border border-[color:var(--border-primary)] bg-white p-2"
+                      >
+                        <Avatar name={member.fullName} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
+                            {member.fullName}
+                          </span>
+                          <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                            {member.jobTitle ?? member.companyEmail}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-[color:var(--text-tertiary)]">
+                    No additional members yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface TeamCardProps {
   team: Team;
