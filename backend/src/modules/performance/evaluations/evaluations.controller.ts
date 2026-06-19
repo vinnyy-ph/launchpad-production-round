@@ -6,7 +6,8 @@ import {
   API_SUCCESS_MESSAGES,
   HTTP_STATUS_CODES,
 } from "../../../core/globals";
-import { EVAL_ERROR_MESSAGES } from "./evaluations.constants";
+import { CloudinaryService } from "../../../core/cloudinary/cloudinary.service";
+import { EVAL_ERROR_MESSAGES, EVAL_UPLOAD_ERROR_MESSAGES } from "./evaluations.constants";
 import type { EvaluationResponseDto, ListEvaluationsResponseDto } from "./dto";
 import { EvaluationsService } from "./evaluations.service";
 import { EvaluationsValidation } from "./evaluations.validation";
@@ -15,6 +16,7 @@ export class EvaluationsController {
   constructor(
     private readonly evaluationsService = new EvaluationsService(),
     private readonly evaluationsValidation = new EvaluationsValidation(),
+    private readonly cloudinaryService = new CloudinaryService(),
   ) {}
 
   listEvaluations = async (
@@ -119,11 +121,54 @@ export class EvaluationsController {
         });
       }
 
+      const files = (req.files as Express.Multer.File[]) ?? [];
+      let supportingDocUrls: string[] = [];
+      try {
+        supportingDocUrls = await Promise.all(
+          files.map((f) => this.cloudinaryService.uploadSupportingDocument(f.buffer, f.originalname, f.mimetype)),
+        );
+      } catch (uploadError) {
+        return next(uploadError);
+      }
+
       const input = this.evaluationsValidation.parseCreateBody(req.body);
-      const result = await this.evaluationsService.create(input, req.user.id);
+      const result = await this.evaluationsService.create({ ...input, supportingDocUrls }, req.user.id);
 
       return res.status(HTTP_STATUS_CODES.CREATED).json(result);
     } catch (error) {
+      if (error instanceof Error) {
+        if (
+          error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES ||
+          (error as any).code === "LIMIT_FILE_COUNT"
+        ) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "files", message: EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+        if (
+          error.message === EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE ||
+          error.message === "Only PDF files are allowed"
+        ) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "files", message: EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+        if ((error as any).code === "LIMIT_FILE_SIZE") {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "files", message: EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+      }
+
       if (error instanceof Error && this.isValidationError(error)) {
         return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
           success: false,
@@ -175,11 +220,58 @@ export class EvaluationsController {
       }
 
       const { evaluationId } = req.params;
+
+      const files = (req.files as Express.Multer.File[]) ?? [];
+      let supportingDocUrls: string[] | undefined;
+      if (files.length > 0) {
+        try {
+          supportingDocUrls = await Promise.all(
+            files.map((f) => this.cloudinaryService.uploadSupportingDocument(f.buffer, f.originalname, f.mimetype)),
+          );
+        } catch (uploadError) {
+          return next(uploadError);
+        }
+      }
+
       const input = this.evaluationsValidation.parseUpdateBody(req.body);
-      const result = await this.evaluationsService.update(evaluationId, input, req.user.id);
+      const updateInput = supportingDocUrls !== undefined ? { ...input, supportingDocUrls } : input;
+      const result = await this.evaluationsService.update(evaluationId, updateInput, req.user.id);
 
       return res.json(result);
     } catch (error) {
+      if (error instanceof Error) {
+        if (
+          error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES ||
+          (error as any).code === "LIMIT_FILE_COUNT"
+        ) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "files", message: EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+        if (
+          error.message === EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE ||
+          error.message === "Only PDF files are allowed"
+        ) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "files", message: EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+        if ((error as any).code === "LIMIT_FILE_SIZE") {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "files", message: EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+      }
+
       if (error instanceof Error && this.isValidationError(error)) {
         return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
           success: false,
@@ -453,7 +545,10 @@ export class EvaluationsController {
       error.message.endsWith("must be an array of strings") ||
       error.message === "periodEnd must be on or after periodStart" ||
       error.message === "Request body is required" ||
-      error.message === "No fields provided to update"
+      error.message === "No fields provided to update" ||
+      error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES ||
+      error.message === EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE ||
+      error.message === EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE
     );
   }
 }
