@@ -35,6 +35,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Combobox,
   DateRangePicker,
   type DateRange,
 } from "@/shared/ui";
@@ -125,7 +126,16 @@ function ackInfo(
   };
 }
 
-// ─── Itemized text list (highlights / lowlights) ────────────────────────────────
+// Overall-rating options — number, label, and a one-line bar for each level.
+const RATING_OPTIONS: { value: number; label: string; desc: string }[] = [
+  { value: 1, label: "Unsatisfactory", desc: "Consistently below the bar; immediate improvement needed." },
+  { value: 2, label: "Below expectations", desc: "Falls short in key areas." },
+  { value: 3, label: "Meets expectations", desc: "Solid, reliable performance against the role's bar." },
+  { value: 4, label: "Exceeds expectations", desc: "Regularly goes beyond what the role requires." },
+  { value: 5, label: "Exceptional", desc: "Standout impact, well above the role." },
+];
+
+// ─── Itemized text list (highlights / areas for improvement) ────────────────────
 
 interface DynamicListProps {
   label: string;
@@ -133,10 +143,14 @@ interface DynamicListProps {
   items: string[];
   onChange: (items: string[]) => void;
   placeholder?: string;
+  hint?: string;
+  optional?: boolean;
+  hintAbove?: boolean;
+  addLabel?: string;
   readOnly?: boolean;
 }
 
-function DynamicList({ label, htmlFor, items, onChange, placeholder, readOnly }: DynamicListProps) {
+function DynamicList({ label, htmlFor, items, onChange, placeholder, hint, optional, hintAbove, addLabel = "Add", readOnly }: DynamicListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
 
@@ -178,7 +192,7 @@ function DynamicList({ label, htmlFor, items, onChange, placeholder, readOnly }:
   }
 
   return (
-    <FormField label={label} htmlFor={htmlFor}>
+    <FormField label={label} htmlFor={htmlFor} hint={hint} optional={optional} hintAbove={hintAbove}>
       <div ref={listRef} className="space-y-2">
         {items.map((val, idx) => (
           <div key={idx} className="flex items-center gap-2">
@@ -201,7 +215,7 @@ function DynamicList({ label, htmlFor, items, onChange, placeholder, readOnly }:
           </div>
         ))}
         <Button ref={addRef} variant="secondary" size="sm" type="button" onClick={add}>
-          <Plus size={12} /> Add
+          <Plus size={12} /> {addLabel}
         </Button>
       </div>
     </FormField>
@@ -217,9 +231,20 @@ interface EditorProps {
   reviewees: Reviewee[];
   saving: boolean;
   onSubmit: (input: EvaluationInput) => void;
+  onRequestSend: (ev: Evaluation) => void;
+  onRequestDelete: (ev: Evaluation) => void;
 }
 
-function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onSubmit }: EditorProps) {
+function EvaluationEditorDialog({
+  open,
+  onClose,
+  initial,
+  reviewees,
+  saving,
+  onSubmit,
+  onRequestSend,
+  onRequestDelete,
+}: EditorProps) {
   const [revieweeId, setRevieweeId] = useState("");
   const [period, setPeriod] = useState<DateRange | undefined>();
   const [grade, setGrade] = useState<number | null>(null);
@@ -229,8 +254,11 @@ function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onS
   const [recommendationText, setRecommendationText] = useState("");
   const [supportingDocUrl, setSupportingDocUrl] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [view, setView] = useState<"form" | "preview">("form");
 
   const isViewOnly = initial?.isSent ?? false;
+  const isDraft = !!initial && !initial.isSent;
+  const showPreview = isViewOnly || view === "preview";
 
   /** Drop a single field's error as the user corrects it (live feedback). */
   const clearError = (key: string) =>
@@ -243,6 +271,7 @@ function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onS
 
   useEffect(() => {
     if (!open) return;
+    setView("form");
     if (initial) {
       setRevieweeId(initial.revieweeId);
       setPeriod({ from: new Date(initial.periodStart), to: new Date(initial.periodEnd) });
@@ -253,7 +282,8 @@ function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onS
       setRecommendationText(initial.recommendation ?? "");
       setSupportingDocUrl(initial.supportingDocUrl ?? "");
     } else {
-      setRevieweeId(reviewees[0]?.id ?? "");
+      // Reviewee starts empty (placeholder "Select employee").
+      setRevieweeId("");
       // Smart default: prefill the current month as the evaluation period.
       const now = new Date();
       setPeriod({ from: startOfMonth(now), to: endOfMonth(now) });
@@ -267,20 +297,24 @@ function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onS
     setErrors({});
   }, [open, initial, reviewees]);
 
+  /** Required to create/save a draft: reviewee, period, rating, and a valid link if present. */
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!revieweeId) errs.reviewee = "Select a direct report.";
+    if (!revieweeId) errs.reviewee = "Select an employee.";
     if (!period?.from || !period?.to) errs.period = "Select an evaluation period.";
-    if (!grade) errs.grade = "Select a grade.";
+    if (!grade) errs.grade = "Pick an overall rating.";
     if (supportingDocUrl.trim() && !isValidUrl(supportingDocUrl.trim()))
-      errs.doc = "Enter a valid URL starting with http:// or https://.";
+      errs.doc = "Enter a valid URL starting with https://.";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = () => {
     if (isViewOnly) return;
-    if (!validate() || !period?.from || !period?.to) return;
+    if (!validate() || !period?.from || !period?.to) {
+      setView("form");
+      return;
+    }
     const input: EvaluationInput = {
       revieweeId,
       periodStart: period.from.toISOString(),
@@ -295,21 +329,69 @@ function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onS
     onSubmit(input);
   };
 
+  /** Sending is irreversible — require period, rating, and an overall summary, and point at the
+   *  exact missing field rather than a generic error. */
+  const handleSend = () => {
+    if (!initial) return;
+    const errs: Record<string, string> = {};
+    if (!period?.from || !period?.to) errs.period = "Add the evaluation period before sending.";
+    if (!grade) errs.grade = "Pick an overall rating before sending.";
+    if (!evaluationText.trim()) errs.summary = "Add an overall summary before sending.";
+    if (Object.keys(errs).length > 0) {
+      setErrors((e) => ({ ...e, ...errs }));
+      setView("form");
+      toast.error("Fill in the required fields before sending.");
+      return;
+    }
+    onRequestSend(initial);
+  };
+
   const revieweeName = (id: string) => reviewees.find((r) => r.id === id)?.fullName ?? id;
   const draftDocValid = !!supportingDocUrl.trim() && isValidUrl(supportingDocUrl.trim());
 
-  const title = isViewOnly ? "View evaluation" : initial ? "Edit draft" : "New evaluation";
+  const previewName = initial?.reviewee?.fullName ?? (revieweeId ? revieweeName(revieweeId) : "the employee");
+  const previewPeriod =
+    period?.from && period?.to
+      ? formatPeriod(period.from.toISOString(), period.to.toISOString())
+      : "Evaluation period";
+
+  const title = isViewOnly ? "Evaluation" : isDraft ? "Edit evaluation" : "New evaluation";
   const description = isViewOnly
     ? "This evaluation has been sent and is now read-only."
-    : "Fill in the evaluation details for your direct report. It stays editable until you send it.";
+    : "Evaluate one of your direct reports for a set period. It saves as a draft you can edit until you send.";
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[90vh] flex-col gap-0 sm:max-w-lg">
+      <DialogContent
+        className="flex max-h-[90vh] flex-col gap-0 sm:max-w-2xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+
+        {/* Form / Preview toggle — preview shows exactly what the employee will see */}
+        {!isViewOnly && (
+          <div className="mt-3 inline-flex w-fit rounded-lg border border-[color:var(--border-primary)] p-0.5 text-sm">
+            {(["form", "preview"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={[
+                  "rounded-md px-3 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  view === v
+                    ? "bg-[color:var(--bg-secondary)] text-[color:var(--text-primary)]"
+                    : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
+                ].join(" ")}
+              >
+                {v === "form" ? "Form" : "Preview"}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form
           onSubmit={(e) => {
@@ -318,231 +400,387 @@ function EvaluationEditorDialog({ open, onClose, initial, reviewees, saving, onS
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="-mx-1 mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto px-1 pb-1">
-            {/* Summary group: reviewee / period / grade */}
-            <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-              Summary
-            </p>
-
-            {/* Reviewee */}
-            <FormField label="Reviewee" htmlFor="ev-reviewee" error={errors.reviewee} required>
-              {isViewOnly ? (
-                <p className="text-sm text-[color:var(--text-primary)]">
-                  {initial?.reviewee?.fullName ?? revieweeName(revieweeId)}
-                </p>
-              ) : (
-                <Select
-                  value={revieweeId}
-                  onValueChange={(v) => {
-                    setRevieweeId(v);
-                    clearError("reviewee");
-                  }}
-                >
-                  <SelectTrigger
-                    id="ev-reviewee"
-                    aria-invalid={!!errors.reviewee}
-                    className={errors.reviewee ? "border-[#D92D20]" : undefined}
-                  >
-                    <SelectValue placeholder="Select direct report…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {reviewees.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.fullName}
-                        {r.jobTitle ? ` · ${r.jobTitle}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </FormField>
-
-            {/* Evaluation period */}
-            <FormField label="Evaluation period" htmlFor="ev-period" error={errors.period} required>
-              {isViewOnly ? (
-                <p className="text-sm text-[color:var(--text-primary)]">
-                  {period?.from && period?.to
-                    ? formatPeriod(period.from.toISOString(), period.to.toISOString())
-                    : "—"}
-                </p>
-              ) : (
-                <div aria-invalid={!!errors.period}>
-                  <DateRangePicker
-                    value={period}
-                    onChange={(v) => {
-                      setPeriod(v);
-                      clearError("period");
-                    }}
-                  />
+          {/* Scroll region — scrollbar sits at the modal edge, thin */}
+          <div className="-mr-6 mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto pl-1 pr-5 pb-1 scrollbar-thin">
+            {showPreview ? (
+              // ── Employee-facing preview ──────────────────────────────────────
+              <div
+                className="space-y-5 rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+                style={{ boxShadow: "var(--shadow-xs)" }}
+              >
+                <div>
+                  <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                    {previewPeriod} · Performance evaluation
+                  </p>
+                  <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">For {previewName}</p>
                 </div>
-              )}
-            </FormField>
 
-            {/* Grade */}
-            <FormField label="Grade" htmlFor="ev-grade" error={errors.grade} required>
-              {isViewOnly ? (
-                <p className="text-sm text-[color:var(--text-primary)]">
-                  {grade ? `${grade} — ${GRADE_LABELS[grade]}` : "—"}
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <div
-                    role="radiogroup"
-                    aria-label="Grade"
-                    aria-invalid={!!errors.grade}
-                    className="flex gap-2"
-                  >
-                    {[1, 2, 3, 4, 5].map((g) => (
-                      <button
-                        key={g}
-                        type="button"
-                        role="radio"
-                        aria-checked={grade === g}
-                        onClick={() => {
-                          setGrade(g);
-                          clearError("grade");
-                        }}
-                        className={[
-                          "flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                          grade === g
-                            ? "border-[color:hsl(var(--primary))] bg-[color:hsl(var(--primary))] text-white"
-                            : "border-[color:var(--border-primary)] text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]",
-                          errors.grade ? "border-[#D92D20]" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        aria-label={`Grade ${g}: ${GRADE_LABELS[g]}`}
-                      >
-                        {g}
-                      </button>
-                    ))}
+                {grade && (
+                  <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+                      Overall rating
+                    </p>
+                    <p className="text-sm text-[color:var(--text-primary)]">
+                      <span className="mr-1.5 text-xl font-bold">{grade}</span>
+                      <span className="text-[color:var(--text-secondary)]">— {GRADE_LABELS[grade]}</span>
+                    </p>
                   </div>
-                  {grade && (
-                    <p className="text-xs text-[color:var(--text-tertiary)]">{GRADE_LABELS[grade]}</p>
-                  )}
-                </div>
-              )}
-            </FormField>
+                )}
 
-            {/* Assessment group: narrative fields */}
-            <div className="border-t border-[color:var(--border-primary)] pt-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-                Assessment
-              </p>
-            </div>
+                {highlights.filter((h) => h.trim()).length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+                      Highlights
+                    </p>
+                    <ul className="space-y-1">
+                      {highlights.filter((h) => h.trim()).map((h, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-[color:var(--text-primary)]">
+                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500" />
+                          {h}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-            {/* Highlights */}
-            <DynamicList
-              label="Highlights"
-              htmlFor="ev-highlights"
-              items={highlights}
-              onChange={setHighlights}
-              placeholder="Add a highlight…"
-              readOnly={isViewOnly}
-            />
+                {lowlights.filter((l) => l.trim()).length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+                      Areas for improvement
+                    </p>
+                    <ul className="space-y-1">
+                      {lowlights.filter((l) => l.trim()).map((l, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-[color:var(--text-primary)]">
+                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400" />
+                          {l}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-            {/* Lowlights */}
-            <DynamicList
-              label="Lowlights"
-              htmlFor="ev-lowlights"
-              items={lowlights}
-              onChange={setLowlights}
-              placeholder="Add an area for growth…"
-              readOnly={isViewOnly}
-            />
+                {evaluationText.trim() && (
+                  <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+                      Overall summary
+                    </p>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-[color:var(--text-primary)]">
+                      {evaluationText}
+                    </p>
+                  </div>
+                )}
 
-            {/* Evaluation narrative */}
-            <FormField label="Evaluation" htmlFor="ev-text">
-              {isViewOnly ? (
-                <p className="whitespace-pre-line rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm leading-relaxed">
-                  {evaluationText || "—"}
-                </p>
-              ) : (
-                <Textarea
-                  id="ev-text"
-                  placeholder="Written assessment of performance…"
-                  value={evaluationText}
-                  onChange={(e) => setEvaluationText(e.target.value)}
-                  rows={4}
-                />
-              )}
-            </FormField>
+                {recommendationText.trim() && (
+                  <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+                      Recommendation
+                    </p>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-[color:var(--text-primary)]">
+                      {recommendationText}
+                    </p>
+                  </div>
+                )}
 
-            {/* Recommendation */}
-            <FormField label="Recommendation" htmlFor="ev-rec">
-              {isViewOnly ? (
-                <p className="whitespace-pre-line rounded-lg border border-[color:var(--border-primary)] px-3 py-2 text-sm leading-relaxed">
-                  {recommendationText || "—"}
-                </p>
-              ) : (
-                <Textarea
-                  id="ev-rec"
-                  placeholder="Recommendation for the employee…"
-                  value={recommendationText}
-                  onChange={(e) => setRecommendationText(e.target.value)}
-                  rows={3}
-                />
-              )}
-            </FormField>
-
-            {/* Supporting document URL */}
-            <FormField
-              label="Supporting document"
-              htmlFor="ev-doc"
-              error={errors.doc}
-              hint={isViewOnly ? undefined : "Optional link (http:// or https://)"}
-            >
-              {isViewOnly ? (
-                supportingDocUrl ? (
-                  <a
-                    href={supportingDocUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="break-all text-sm text-[color:hsl(var(--primary))] underline"
-                  >
-                    {supportingDocUrl}
-                  </a>
-                ) : (
-                  <p className="text-sm text-[color:var(--text-tertiary)]">—</p>
-                )
-              ) : (
-                <div className="space-y-1.5">
-                  <Input
-                    id="ev-doc"
-                    type="url"
-                    value={supportingDocUrl}
-                    onChange={(e) => {
-                      setSupportingDocUrl(e.target.value);
-                      clearError("doc");
-                    }}
-                    placeholder="https://drive.example.com/report"
-                    error={!!errors.doc}
-                    aria-invalid={!!errors.doc}
-                  />
-                  {draftDocValid && (
+                {supportingDocUrl.trim() && (
+                  <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+                      Supporting links
+                    </p>
                     <a
                       href={supportingDocUrl.trim()}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-block text-xs text-[color:hsl(var(--primary))] underline"
+                      className="break-all text-sm text-[color:hsl(var(--primary))] underline"
                     >
-                      Open link
+                      {supportingDocUrl}
                     </a>
+                  </div>
+                )}
+
+                {!grade &&
+                  !evaluationText.trim() &&
+                  !recommendationText.trim() &&
+                  highlights.filter((h) => h.trim()).length === 0 &&
+                  lowlights.filter((l) => l.trim()).length === 0 && (
+                    <p className="text-sm text-[color:var(--text-tertiary)]">
+                      Nothing to preview yet — fill in the form to see what {previewName} will receive.
+                    </p>
                   )}
-                </div>
-              )}
-            </FormField>
+              </div>
+            ) : (
+              // ── Editable form ────────────────────────────────────────────────
+              <>
+                {/* ── Details ── */}
+                <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                  Details
+                </p>
+
+                {/* Reviewee — searchable over your direct reports */}
+                <FormField
+                  label="Reviewee"
+                  htmlFor="ev-reviewee"
+                  error={errors.reviewee}
+                  hint="Who are you reviewing?"
+                  hintAbove
+                  required
+                >
+                  <Combobox
+                    options={reviewees.map((r) => ({
+                      value: r.id,
+                      label: r.fullName,
+                      sublabel: r.jobTitle ?? undefined,
+                    }))}
+                    value={revieweeId}
+                    onChange={(v) => {
+                      setRevieweeId(v);
+                      clearError("reviewee");
+                    }}
+                    placeholder="Select employee"
+                    searchPlaceholder="Search direct reports…"
+                    emptyText="No direct reports found."
+                    className={errors.reviewee ? "border-[#D92D20]" : undefined}
+                  />
+                </FormField>
+
+                {/* Evaluation period */}
+                <FormField
+                  label="Evaluation period"
+                  htmlFor="ev-period"
+                  error={errors.period}
+                  hint="The window this review covers."
+                  hintAbove
+                  required
+                >
+                  <div aria-invalid={!!errors.period} className="sm:max-w-[340px]">
+                    <DateRangePicker
+                      value={period}
+                      onChange={(v) => {
+                        setPeriod(v);
+                        clearError("period");
+                      }}
+                    />
+                  </div>
+                </FormField>
+
+                {/* ── Assessment ── */}
+                <p className="pt-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                  Assessment
+                </p>
+
+                {/* Highlights */}
+                <DynamicList
+                  label="Highlights"
+                  htmlFor="ev-highlights"
+                  items={highlights}
+                  onChange={setHighlights}
+                  placeholder="e.g. Shipped the billing revamp two weeks early."
+                  hint="Key wins and strengths this period. Add one per line."
+                  optional
+                  hintAbove
+                  addLabel="Add highlight"
+                />
+
+                {/* Areas for improvement (formerly lowlights) */}
+                <DynamicList
+                  label="Areas for improvement"
+                  htmlFor="ev-areas"
+                  items={lowlights}
+                  onChange={setLowlights}
+                  placeholder="e.g. Tickets often shipped without test coverage."
+                  hint="Where there's room to grow. Keep it specific and constructive."
+                  optional
+                  hintAbove
+                  addLabel="Add area"
+                />
+
+                {/* Overall summary (formerly Evaluation) */}
+                <FormField
+                  label="Overall summary"
+                  htmlFor="ev-summary"
+                  error={errors.summary}
+                  hint="A short narrative tying the period together."
+                  optional
+                  hintAbove
+                >
+                  <Textarea
+                    id="ev-summary"
+                    placeholder="How did they do overall? Pull the highlights and areas into a few sentences."
+                    value={evaluationText}
+                    onChange={(e) => {
+                      setEvaluationText(e.target.value);
+                      clearError("summary");
+                    }}
+                    rows={4}
+                    aria-invalid={!!errors.summary}
+                  />
+                </FormField>
+
+                {/* Overall rating (formerly Grade) — a horizontal scale, placed after the evidence */}
+                <FormField
+                  label="Overall rating"
+                  htmlFor="ev-rating"
+                  error={errors.grade}
+                  hint="Pick the level that best matches the period as a whole."
+                  hintAbove
+                  required
+                >
+                  <div className="space-y-2">
+                    <div
+                      role="radiogroup"
+                      aria-label="Overall rating"
+                      aria-invalid={!!errors.grade}
+                      className="grid grid-cols-5 gap-2"
+                    >
+                      {RATING_OPTIONS.map((opt) => {
+                        const selected = grade === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => {
+                              setGrade(opt.value);
+                              clearError("grade");
+                            }}
+                            className={[
+                              "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                              selected
+                                ? "border-transparent bg-[color:hsl(var(--primary))] text-white"
+                                : "border-[color:var(--border-primary)] hover:bg-[color:var(--bg-secondary)]",
+                              errors.grade && !selected ? "border-[#D92D20]" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            aria-label={`${opt.value}: ${opt.label}`}
+                          >
+                            <span className="text-lg font-bold">{opt.value}</span>
+                            <span
+                              className={[
+                                "text-[11px] font-medium leading-tight",
+                                selected ? "text-white/90" : "text-[color:var(--text-tertiary)]",
+                              ].join(" ")}
+                            >
+                              {opt.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {grade && (
+                      <p className="text-xs text-[color:var(--text-tertiary)]">
+                        <span className="font-semibold text-[color:var(--text-secondary)]">
+                          {grade} · {RATING_OPTIONS.find((o) => o.value === grade)?.label}
+                        </span>{" "}
+                        — {RATING_OPTIONS.find((o) => o.value === grade)?.desc}
+                      </p>
+                    )}
+                  </div>
+                </FormField>
+
+                {/* Recommendation */}
+                <FormField
+                  label="Recommendation"
+                  htmlFor="ev-rec"
+                  hint="What should happen next? e.g. promotion, a stretch project, a development plan."
+                  optional
+                  hintAbove
+                >
+                  <Textarea
+                    id="ev-rec"
+                    placeholder="What should happen next for this person?"
+                    value={recommendationText}
+                    onChange={(e) => setRecommendationText(e.target.value)}
+                    rows={3}
+                  />
+                </FormField>
+
+                {/* Supporting links (formerly Supporting documents) — split add-on with a static prefix */}
+                <FormField
+                  label="Supporting links"
+                  htmlFor="ev-doc"
+                  error={errors.doc}
+                  hint="Paste a link to anything that backs this up (docs, dashboards, 1:1 notes)."
+                  optional
+                  hintAbove
+                >
+                  <div className="space-y-1.5">
+                    <div
+                      className={[
+                        "flex h-10 w-full items-stretch overflow-hidden rounded-md border bg-white shadow-xs transition-colors focus-within:border-transparent focus-within:[background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(45deg,#fccec0,#ebacc9_33%,#ceb6da_66%,#9fcaed)_border-box]",
+                        errors.doc
+                          ? "border-[#D92D20] focus-within:shadow-[0_0_0_3px_rgba(217,45,32,0.15)]"
+                          : "border-input focus-within:shadow-[0_0_0_3px_rgba(24,29,39,0.06)]",
+                      ].join(" ")}
+                    >
+                      <span className="flex select-none items-center pl-3.5 pr-2.5 text-sm font-medium text-[color:var(--text-tertiary)]">
+                        https://
+                      </span>
+                      <span className="my-2 w-px bg-[color:var(--border-primary)]" aria-hidden="true" />
+                      <input
+                        id="ev-doc"
+                        type="text"
+                        inputMode="url"
+                        value={supportingDocUrl.replace(/^\s*https?:\/\//i, "")}
+                        onChange={(e) => {
+                          const rest = e.target.value.replace(/^\s*https?:\/\//i, "");
+                          setSupportingDocUrl(rest ? `https://${rest}` : "");
+                          clearError("doc");
+                        }}
+                        placeholder="docs.example.com/report"
+                        aria-invalid={!!errors.doc}
+                        className="min-w-0 flex-1 bg-transparent px-3 text-sm font-medium text-[color:var(--text-primary)] placeholder:text-[#a4a7ae] focus:outline-none"
+                      />
+                    </div>
+                    {draftDocValid && (
+                      <a
+                        href={supportingDocUrl.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block text-xs text-[color:hsl(var(--primary))] underline"
+                      >
+                        Open link
+                      </a>
+                    )}
+                  </div>
+                </FormField>
+              </>
+            )}
           </div>
 
-          <div className="mt-5 flex justify-end gap-2 border-t border-[color:var(--border-primary)] pt-4">
-            <Button variant="secondary" type="button" onClick={onClose}>
-              {isViewOnly ? "Close" : "Cancel"}
-            </Button>
-            {!isViewOnly && (
-              <Button type="submit" disabled={saving}>
-                {saving ? "Saving…" : initial ? "Save changes" : "Create draft"}
+          {/* Bottom bar — divider sits flush with the scroll edge (no gap above the line) */}
+          <div className="flex items-center gap-2 border-t border-[color:var(--border-primary)] pt-4">
+            {isDraft && (
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={() => onRequestDelete(initial)}
+                className="text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+              >
+                <Trash2 size={14} className="mr-1" /> Delete draft
               </Button>
             )}
+            <div className="ml-auto flex gap-2">
+              {isViewOnly ? (
+                <Button variant="secondary" type="button" onClick={onClose}>
+                  Close
+                </Button>
+              ) : (
+                <>
+                  <Button variant="secondary" type="button" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant={isDraft ? "secondary" : undefined} disabled={saving}>
+                    {saving ? "Saving…" : isDraft ? "Save changes" : "Create draft"}
+                  </Button>
+                  {isDraft && (
+                    <Button type="button" onClick={handleSend}>
+                      <Send size={14} className="mr-1" /> Send evaluation
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </form>
       </DialogContent>
@@ -683,6 +921,7 @@ export default function EvaluationsPage() {
       onSuccess: () => {
         toast.success("Evaluation sent. It is now read-only.");
         setSendingId(null);
+        setEditorOpen(false);
       },
       onError: (e) => {
         toast.error(e instanceof Error ? e.message : "Could not send evaluation.");
@@ -697,6 +936,7 @@ export default function EvaluationsPage() {
       onSuccess: () => {
         toast.success("Draft deleted.");
         setDeletingId(null);
+        setEditorOpen(false);
       },
       onError: (e) => {
         toast.error(e instanceof Error ? e.message : "Could not delete draft.");
@@ -853,6 +1093,9 @@ export default function EvaluationsPage() {
     ? "Try a different search or status filter."
     : "Create your first evaluation for a direct report.";
 
+  const sendingEval = sendingId ? evals.find((e) => e.id === sendingId) : undefined;
+  const sendingName = sendingEval ? nameOf(sendingEval) : "the employee";
+
   return (
     <div className="min-w-0">
       <ScreenHeader id="evaluations" level="page" />
@@ -993,6 +1236,8 @@ export default function EvaluationsPage() {
         reviewees={revieweeList}
         saving={createMutation.isPending || updateMutation.isPending}
         onSubmit={handleSubmit}
+        onRequestSend={(ev) => setSendingId(ev.id)}
+        onRequestDelete={(ev) => setDeletingId(ev.id)}
       />
 
       {/* Send confirm */}
@@ -1001,14 +1246,13 @@ export default function EvaluationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Send this evaluation?</AlertDialogTitle>
             <AlertDialogDescription>
-              Once sent, the evaluation is delivered to the employee and can no longer be edited or
-              deleted.
+              Once sent, it can&apos;t be edited or deleted, and {sendingName} will be notified.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
             <AlertDialogAction onClick={handleSend} disabled={sendMutation.isPending}>
-              <Send size={14} className="mr-1" /> {sendMutation.isPending ? "Sending…" : "Send evaluation"}
+              <Send size={14} className="mr-1" /> {sendMutation.isPending ? "Sending…" : "Send"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -90,6 +90,17 @@
   }
 }
 
+@layer utilities {
+  /* Extra-thin scrollbar for dense surfaces like modal bodies. */
+  .scrollbar-thin { scrollbar-width: thin; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--gray-300); border-radius: 9999px;
+    border: 1px solid transparent; background-clip: content-box;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+}
+
 @layer components {
   /* The ONE gradient moment for a status pill (pipeline "active/current"). Use sparingly. */
   .jia-badge-active {

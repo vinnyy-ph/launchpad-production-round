@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { cn } from "@/shared/lib/utils";
@@ -9,6 +9,8 @@ import { cn } from "@/shared/lib/utils";
 export interface ComboboxOption {
   value: string;
   label: string;
+  /** Secondary text shown after the label, in a lighter/thinner gray (e.g. a job title). */
+  sublabel?: string;
 }
 
 export interface ComboboxProps {
@@ -54,8 +56,25 @@ export function Combobox({
             className
           )}
         >
-          {selected ? selected.label : placeholder}
-          <ChevronsUpDown className="h-4 w-4 shrink-0 text-[color:var(--text-tertiary)]" aria-hidden="true" />
+          {selected ? (
+            <span className="flex min-w-0 items-baseline gap-1.5 truncate">
+              <span className="truncate">{selected.label}</span>
+              {selected.sublabel && (
+                <span className="truncate font-normal text-[color:var(--text-tertiary)]">
+                  {selected.sublabel}
+                </span>
+              )}
+            </span>
+          ) : (
+            placeholder
+          )}
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-[color:var(--text-tertiary)] transition-transform duration-200",
+              open && "rotate-180"
+            )}
+            aria-hidden="true"
+          />
         </button>
       </PopoverTrigger>
       <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] p-0" align="start">
@@ -74,8 +93,15 @@ export function Combobox({
                     setOpen(false);
                   }}
                 >
-                  <Check className={cn("mr-2 h-4 w-4", value === o.value ? "opacity-100" : "opacity-0")} aria-hidden="true" />
-                  {o.label}
+                  <Check className={cn("mr-2 h-4 w-4 shrink-0", value === o.value ? "opacity-100" : "opacity-0")} aria-hidden="true" />
+                  <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                    <span className="truncate">{o.label}</span>
+                    {o.sublabel && (
+                      <span className="truncate font-normal text-[color:var(--text-tertiary)]">
+                        {o.sublabel}
+                      </span>
+                    )}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>
