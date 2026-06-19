@@ -67,7 +67,6 @@ export class EvaluationsValidation {
       ...(b.lowlights !== undefined && { lowlights: this.parseItemArray(b.lowlights, "lowlights") }),
       ...(typeof b.evaluation === "string" && { evaluation: b.evaluation }),
       ...(typeof b.recommendation === "string" && { recommendation: b.recommendation }),
-      ...(typeof b.supportingDocUrl === "string" && { supportingDocUrl: b.supportingDocUrl }),
       ...(typeof b.send === "boolean" && { send: b.send }),
     };
   }
@@ -114,7 +113,7 @@ export class EvaluationsValidation {
       result.lowlights = this.parseItemArray(b.lowlights, "lowlights");
     }
 
-    for (const field of ["evaluation", "recommendation", "supportingDocUrl"] as const) {
+    for (const field of ["evaluation", "recommendation"] as const) {
       if (b[field] !== undefined) {
         if (typeof b[field] !== "string") throw new Error(`${field} must be a string`);
         result[field] = b[field] as string;
