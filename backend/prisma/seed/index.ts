@@ -47,6 +47,7 @@ async function clearAll() {
   await prisma.surveyAudienceMember.deleteMany()
   await prisma.evaluationAcknowledgement.deleteMany()
   await prisma.performanceEvaluation.deleteMany()
+  await prisma.surveyVisibilityConfig.deleteMany()
   await prisma.surveyReminderConfig.deleteMany()
   await prisma.surveyAudienceConfig.deleteMany()
   await prisma.surveyQuestion.deleteMany()
