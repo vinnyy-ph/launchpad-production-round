@@ -15,6 +15,7 @@ import type {
 } from "./dto";
 import type { ApiSuccessResponseDto } from "../../../core/dto";
 import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
+import { NotificationsService } from "../../notifications/notifications.service";
 import { resolveAudience } from "./rules/audience";
 import { buildAudienceDb, toAudienceSpec } from "./surveys.audience";
 import { validateSchedule } from "./rules/recurrence";
@@ -26,7 +27,10 @@ import {
 } from "./surveys.repository";
 
 export class SurveysService {
-  constructor(private readonly surveysRepository = new SurveysRepository()) {}
+  constructor(
+    private readonly surveysRepository = new SurveysRepository(),
+    private readonly notificationsService = new NotificationsService(),
+  ) {}
 
   async create(
     input: CreateSurveyInput,
@@ -212,6 +216,8 @@ export class SurveysService {
       deadline: survey.deadline,
     };
     const updated = await this.surveysRepository.activate(id, occurrenceData, audienceIds);
+
+    await this.notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name);
 
     return {
       success: true,

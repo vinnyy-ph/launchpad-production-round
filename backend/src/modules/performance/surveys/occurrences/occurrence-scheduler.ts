@@ -1,7 +1,10 @@
 import { prisma } from "../../../../core/database/prisma.service";
+import { NotificationsService } from "../../../notifications/notifications.service";
 import { resolveAudience } from "../rules/audience";
 import { planCatchUpOccurrences, scheduleOffsetMs, type Cadence } from "../rules/recurrence";
 import { buildAudienceDb, toAudienceSpec } from "../surveys.audience";
+
+const notificationsService = new NotificationsService();
 
 /**
  * Lazy recurrence — the "on-read scheduler". For every ACTIVE, non-ONE_TIME survey whose
@@ -64,5 +67,8 @@ export async function advanceDueOccurrences(now: Date = new Date()): Promise<voi
         });
       }
     });
+
+    // A newly-opened recurring occurrence notifies its audience, same as first activation.
+    await notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name);
   }
 }

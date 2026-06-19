@@ -3,6 +3,7 @@ import { prisma } from "../../../core/database/prisma.service";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
 import { EvaluationsRepository } from "./evaluations.repository";
+import { NotificationsService } from "../../notifications/notifications.service";
 import { downwardChain, upwardChain, ACTIVE_EMPLOYEE } from "../../shared";
 import type {
   CreateEvaluationInput,
@@ -22,6 +23,7 @@ type EvaluationWithAck = PerformanceEvaluation & {
 export class EvaluationsService {
   constructor(
     private readonly evaluationsRepository = new EvaluationsRepository(),
+    private readonly notificationsService = new NotificationsService(),
   ) {}
 
   async list(query: ListEvaluationsQuery, currentUser: User): Promise<ListEvaluationsResponseDto> {
@@ -140,6 +142,13 @@ export class EvaluationsService {
       acknowledgement = null;
     }
 
+    if (input.send) {
+      await this.notificationsService.notifyNewEvaluation(
+        evaluation.revieweeId,
+        evaluation.id,
+      );
+    }
+
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EVALUATION_CREATED,
@@ -211,6 +220,13 @@ export class EvaluationsService {
       acknowledgement = null;
     }
 
+    if (input.send) {
+      await this.notificationsService.notifyNewEvaluation(
+        updated.revieweeId,
+        evaluationId,
+      );
+    }
+
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EVALUATION_UPDATED,
@@ -252,6 +268,11 @@ export class EvaluationsService {
         data: { evaluationId, employeeId: evaluation.revieweeId, isDeemedAck: false },
       }),
     ]);
+
+    await this.notificationsService.notifyNewEvaluation(
+      evaluation.revieweeId,
+      evaluationId,
+    );
 
     return {
       success: true,
