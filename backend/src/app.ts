@@ -1,8 +1,9 @@
 import cors from "cors";
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { authenticate } from "./core/middleware/auth.middleware";
 import { API_ROUTES } from "./core/globals";
 import { employeesRouter } from "./modules/people/employees";
+import { departmentsRouter } from "./modules/people/departments";
 import { teamsRouter } from "./modules/people/teams";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -23,6 +24,10 @@ import { clearanceRouter } from "./modules/people/offboarding/clearance";
 import { pulseSurveysRouter } from "./modules/performance/surveys";
 import { notificationsRouter } from "./modules/notifications";
 import { supervisorOnboardingRouter } from "./modules/people/onboarding/supervisor-onboarding";
+import {
+  API_ERROR_MESSAGES,
+  HTTP_STATUS_CODES,
+} from "./core/globals";
 
 export const app = express();
 
@@ -73,6 +78,7 @@ app.get(`${API_ROUTES.VERSIONED_ROOT}/me`, authenticate, (req, res) =>
 );
 
 app.use(`${API_ROUTES.VERSIONED_ROOT}/users`, authenticate, usersRouter);
+app.use(`${API_ROUTES.VERSIONED_ROOT}/departments`, authenticate, departmentsRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/employees`, authenticate, employeesRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/teams`, authenticate, teamsRouter);
 app.use(`${API_ROUTES.VERSIONED_ROOT}/onboarding`, authenticate, onboardingRouter);
@@ -98,3 +104,19 @@ app.use(
   offboardingRouter,
 );
 app.use(`${API_ROUTES.VERSIONED_ROOT}/clearance`, authenticate, clearanceRouter);
+
+/** Fallback for unhandled errors — returns JSON instead of a blank 500 page. */
+app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.error(error);
+  }
+
+  if (res.headersSent) {
+    return;
+  }
+
+  return res.status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+    success: false,
+    message: API_ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+  });
+});

@@ -12,6 +12,10 @@ export const queryKeys = {
       filters ? (["employees", "list", filters] as const) : (["employees", "list"] as const),
     detail: (id: string) => ["employees", "detail", id] as const,
   },
+  departments: {
+    all: ["departments"] as const,
+    list: ["departments", "list"] as const,
+  },
   teams: {
     all: ["teams"] as const,
     list: (filters?: Record<string, unknown>) =>
@@ -42,6 +46,7 @@ export const queryKeys = {
     status: (employeeId: string) => ["onboarding", "status", employeeId] as const,
     // The signed-in employee's own onboarding checklist.
     mine: ["onboarding", "mine"] as const,
+    invitations: (recordId: string) => ["onboarding", "invitations", recordId] as const,
   },
   offboarding: {
     all: ["offboarding"] as const,

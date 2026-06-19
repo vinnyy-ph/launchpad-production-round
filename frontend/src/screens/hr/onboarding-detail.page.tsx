@@ -2,39 +2,70 @@
 
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ClipboardList, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { ClipboardList, Mail, CheckCircle2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import {
-  Button,
-  Separator,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  FormField,
-  Textarea,
-} from "@/shared/ui";
+import { Button, Separator, Skeleton, Input, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, FormField } from "@/shared/ui";
 import { EmptyState, ErrorState, StatusBadge, ConfirmProvider, useConfirm } from "@/shared/ui/patterns";
+import { DocumentReviewCard } from "@/modules/people/onboarding/components/documents/document-review-card";
+import { ApproveDocumentDialog } from "@/modules/people/onboarding/components/documents/approve-document-dialog";
+import { RejectDocumentDialog } from "@/modules/people/onboarding/components/documents/reject-document-dialog";
+import { InviteStatusBadge } from "@/modules/people/onboarding/components/invite-status-badge";
 import { useOnboardingRecord } from "@/modules/people/onboarding/hooks/use-onboarding-record";
 import { useApproveDocument, useRejectDocument } from "@/modules/people/onboarding/hooks/use-review-document";
 import { useCompleteOnboarding } from "@/modules/people/onboarding/hooks/use-complete-onboarding";
-import { useSendInvite } from "@/modules/people/onboarding/hooks/use-send-invite";
-import type { DocumentReview, OnboardingDocStatus } from "@/modules/people/onboarding/types/onboarding.types";
+import { useInvitationStatus, useResendInvite, useSendInvite, useUpdateInvitationEmail } from "@/modules/people/onboarding/hooks/use-invitation";
+import type { DocumentReview } from "@/modules/people/onboarding/types/onboarding.types";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
-function DocStatusIcon({ status }: { status: OnboardingDocStatus }) {
-  if (status === "approved")
-    return <CheckCircle2 className="h-4 w-4 text-[#067647]" aria-label="Approved" />;
-  if (status === "rejected")
-    return <XCircle className="h-4 w-4 text-[#B42318]" aria-label="Rejected" />;
-  return <Clock className="h-4 w-4 text-[color:var(--text-quaternary)]" aria-label="Pending review" />;
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
 }
 
-// ─── page ───────────────────────────────────────────────────────────────────
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function DetailSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-4 w-48" />
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-40" />
+      </div>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <Skeleton className="mb-4 h-4 w-32" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProfileRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex flex-col gap-1.5 px-6 py-4 sm:flex-row sm:items-start sm:gap-4">
+      <span className="w-full text-xs font-medium text-[color:var(--text-secondary)] sm:w-48 sm:flex-shrink-0">
+        {label}
+      </span>
+      <span className="min-w-0 break-words text-sm text-[color:var(--text-primary)]">
+        {value?.trim() ? value : "—"}
+      </span>
+    </div>
+  );
+}
 
 function OnboardingDetailInner() {
   const params = useParams();
@@ -49,12 +80,19 @@ function OnboardingDetailInner() {
   const reject = useRejectDocument();
   const complete = useCompleteOnboarding();
   const invite = useSendInvite();
+  const resend = useResendInvite();
+  const updateEmail = useUpdateInvitationEmail();
 
-  // Reject-with-note dialog state.
+  const recordId = status?.recordId ?? reviews.find((r) => r.employee.id === employeeId)?.recordId ?? null;
+  const { latestInvitation, reload: reloadInvitation } = useInvitationStatus(recordId);
+
   const [rejectTarget, setRejectTarget] = useState<DocumentReview | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+  const [approveTarget, setApproveTarget] = useState<DocumentReview | null>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteEmailError, setInviteEmailError] = useState<string | undefined>();
 
-  // This employee's submissions, keyed by document config id (latest wins).
   const submissionsByDoc = useMemo(() => {
     const mine = reviews
       .filter((r) => r.employee.id === employeeId)
@@ -64,13 +102,6 @@ function OnboardingDetailInner() {
     return map;
   }, [reviews, employeeId]);
 
-  const recordId = useMemo(
-    () => reviews.find((r) => r.employee.id === employeeId)?.recordId ?? null,
-    [reviews, employeeId],
-  );
-
-  // The new hire's custom fields with their actual answers. Prefer the HR-scoped
-  // status (carries answers); fall back to org-wide config labels while it loads.
   const customFields = useMemo(
     () =>
       status?.customFields ??
@@ -83,16 +114,16 @@ function OnboardingDetailInner() {
     [status, customFieldConfigs],
   );
 
-  async function handleApprove(sub: DocumentReview) {
-    const ok = await confirm({
-      title: `Approve "${sub.documentName}"?`,
-      description: "Approving all required documents lets you mark onboarding complete.",
-      confirmLabel: "Approve",
-      cancelLabel: "Cancel",
-    });
-    if (!ok) return;
-    approve.mutate(sub.id, {
-      onSuccess: () => toast.success(`"${sub.documentName}" approved.`),
+  const profile = status?.profile;
+  const invitationStatus = status?.invitationStatus ?? latestInvitation?.status ?? null;
+
+  function submitApprove() {
+    if (!approveTarget) return;
+    approve.mutate(approveTarget.id, {
+      onSuccess: () => {
+        toast.success(`"${approveTarget.documentName}" approved.`);
+        setApproveTarget(null);
+      },
       onError: (e) => toast.error(e instanceof Error ? e.message : "Could not approve document."),
     });
   }
@@ -119,7 +150,7 @@ function OnboardingDetailInner() {
   async function handleComplete() {
     const ok = await confirm({
       title: "Mark onboarding complete?",
-      description: "This activates the employee's account once all requirements are met.",
+      description: "This activates the employee once all required documents are approved.",
       confirmLabel: "Mark complete",
       cancelLabel: "Cancel",
     });
@@ -144,9 +175,59 @@ function OnboardingDetailInner() {
     });
   }
 
-  // ─── render guards ──────────────────────────────────────────────────────
+  function handleResendInvite() {
+    const invitationId = latestInvitation?.id;
+    if (!invitationId) {
+      handleSendInvite();
+      return;
+    }
+    resend.mutate(invitationId, {
+      onSuccess: () => {
+        toast.success("Invitation resent.");
+        void reloadInvitation();
+      },
+      onError: (e) => toast.error(e instanceof Error ? e.message : "Could not resend invitation."),
+    });
+  }
 
-  if (loading) return null;
+  function openEmailDialog() {
+    setInviteEmail(latestInvitation?.sentToEmail ?? employee?.companyEmail ?? "");
+    setInviteEmailError(undefined);
+    setEmailDialogOpen(true);
+  }
+
+  function handleUpdateInviteEmail() {
+    const invitationId = latestInvitation?.id;
+    if (!invitationId) {
+      toast.error("No invitation found to update.");
+      return;
+    }
+    if (!EMAIL_RE.test(inviteEmail.trim())) {
+      setInviteEmailError("Enter a valid email address.");
+      return;
+    }
+    updateEmail.mutate(
+      { invitationId, input: { email: inviteEmail.trim() } },
+      {
+        onSuccess: () => {
+          toast.success("Invitation email updated and resent.");
+          setEmailDialogOpen(false);
+          void reloadInvitation();
+          reload();
+        },
+        onError: (e) =>
+          toast.error(e instanceof Error ? e.message : "Could not update the invitation email."),
+      },
+    );
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <DetailSkeleton />
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -171,21 +252,27 @@ function OnboardingDetailInner() {
 
   const employeeName = employee.fullName;
   const isComplete = employee.status === "active";
+  const allRequiredDocsApproved =
+    documentConfigs.length === 0 ||
+    documentConfigs
+      .filter((doc) => doc.isRequired)
+      .every((doc) => submissionsByDoc.get(doc.id)?.status === "approved");
+  const canEditInviteEmail =
+    !isComplete && latestInvitation != null && invitationStatus !== "accepted";
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
       <nav className="text-xs text-[color:var(--text-tertiary)]" aria-label="Breadcrumb">
         <button
           onClick={() => router.push("/hr/onboarding")}
-          className="hover:text-[color:var(--text-primary)] transition-colors"
+          className="transition-colors hover:text-[color:var(--text-primary)]"
         >
           HR
         </button>
         <span className="mx-1">›</span>
         <button
           onClick={() => router.push("/hr/onboarding")}
-          className="hover:text-[color:var(--text-primary)] transition-colors"
+          className="transition-colors hover:text-[color:var(--text-primary)]"
         >
           Onboarding
         </button>
@@ -193,31 +280,111 @@ function OnboardingDetailInner() {
         <span className="text-[color:var(--text-secondary)]">{employeeName}</span>
       </nav>
 
-      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <PageHeader level="page" title={employeeName} subtitle={employee.companyEmail} />
-          <div className="flex items-center gap-3 -mt-4">
+          <div className="-mt-4 flex items-center gap-3">
             <StatusBadge status={employee.status} dot />
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
           {!isComplete && recordId && (
-            <Button variant="outline" onClick={handleSendInvite} disabled={invite.isPending}>
-              {invite.isPending ? "Sending…" : "Resend invite"}
+            <Button
+              variant="outline"
+              onClick={handleResendInvite}
+              disabled={invite.isPending || resend.isPending}
+            >
+              <Mail aria-hidden="true" />
+              {invite.isPending || resend.isPending ? "Sending…" : "Resend invite"}
             </Button>
           )}
           {!isComplete && (
-            <Button onClick={handleComplete} disabled={complete.isPending}>
-              {complete.isPending ? "Completing…" : "Mark complete"}
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button onClick={handleComplete} disabled={complete.isPending || !allRequiredDocsApproved}>
+                <CheckCircle2 aria-hidden="true" />
+                {complete.isPending ? "Completing…" : "Mark complete"}
+              </Button>
+              {!allRequiredDocsApproved && documentConfigs.some((d) => d.isRequired) && (
+                <p className="text-[11px] text-[color:var(--text-tertiary)]">
+                  Approve all required documents first.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Custom Fields — the new hire's ACTUAL answers (from the HR-scoped status). */}
+      <section
+        className="rounded-xl border border-[color:var(--border-primary)] bg-white"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+        aria-label="Invitation"
+      >
+        <div className="px-6 pt-5 pb-4">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+            Invitation
+          </h2>
+        </div>
+        <Separator />
+        <div className="divide-y divide-[color:var(--border-primary)]">
+          <div className="flex flex-col gap-1.5 px-6 py-4 sm:flex-row sm:items-center sm:gap-4">
+            <span className="w-full text-xs font-medium text-[color:var(--text-secondary)] sm:w-48 sm:flex-shrink-0">
+              Status
+            </span>
+            <InviteStatusBadge status={invitationStatus} dot />
+          </div>
+          <div className="flex flex-col gap-1.5 px-6 py-4 sm:flex-row sm:items-center sm:gap-4">
+            <span className="w-full text-xs font-medium text-[color:var(--text-secondary)] sm:w-48 sm:flex-shrink-0">
+              Sent to
+            </span>
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+              <span className="min-w-0 break-words text-sm text-[color:var(--text-primary)]">
+                {latestInvitation?.sentToEmail ?? employee.companyEmail}
+              </span>
+              {canEditInviteEmail && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 shrink-0"
+                  aria-label="Correct invitation email"
+                  onClick={openEmailDialog}
+                >
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              )}
+            </div>
+          </div>
+          <ProfileRow label="Sent on" value={formatDate(latestInvitation?.sentAt)} />
+          <ProfileRow label="Expires on" value={formatDate(latestInvitation?.expiresAt)} />
+        </div>
+      </section>
+
+      <section
+        className="rounded-xl border border-[color:var(--border-primary)] bg-white"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+        aria-label="Profile"
+      >
+        <div className="px-6 pt-5 pb-4">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+            Profile
+          </h2>
+        </div>
+        <Separator />
+        <div className="divide-y divide-[color:var(--border-primary)]">
+          <ProfileRow
+            label="Full name"
+            value={[profile?.firstName, profile?.middleName, profile?.lastName].filter(Boolean).join(" ")}
+          />
+          <ProfileRow label="Personal email" value={profile?.personalEmail} />
+          <ProfileRow label="Job title" value={profile?.jobTitle ?? employee.jobTitle} />
+          <ProfileRow label="Department" value={profile?.department ?? employee.department} />
+          <ProfileRow label="Birthday" value={profile?.birthday ? formatDate(profile.birthday) : null} />
+          <ProfileRow label="Address" value={profile?.address} />
+          <ProfileRow label="Emergency contact" value={profile?.emergencyContact} />
+        </div>
+      </section>
+
       <section
         className="rounded-xl border border-[color:var(--border-primary)] bg-white"
         style={{ boxShadow: "var(--shadow-xs)" }}
@@ -261,7 +428,6 @@ function OnboardingDetailInner() {
         </div>
       </section>
 
-      {/* Documents */}
       <section
         className="rounded-xl border border-[color:var(--border-primary)] bg-white"
         style={{ boxShadow: "var(--shadow-xs)" }}
@@ -279,109 +445,72 @@ function OnboardingDetailInner() {
               No documents requested.
             </p>
           ) : (
-            documentConfigs.map((doc) => {
-              const sub = submissionsByDoc.get(doc.id) ?? null;
-              return (
-                <div
-                  key={doc.id}
-                  className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <DocStatusIcon status={sub?.status ?? "pending"} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-[color:var(--text-primary)]">
-                        {doc.documentName}
-                      </p>
-                      {sub ? (
-                        <StatusBadge status={sub.status} shape="pill" />
-                      ) : (
-                        <span className="text-xs text-[color:var(--text-tertiary)]">
-                          Not submitted
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* HR approve / reject — only for submitted (pending) docs */}
-                  {sub && sub.status === "pending" && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-[#067647] border-[#ABEFC6] hover:bg-[#ECFDF3]"
-                        onClick={() => void handleApprove(sub)}
-                        disabled={approve.isPending}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-[#B42318] border-[#FECDCA] hover:bg-[#FEF3F2]"
-                        onClick={() => {
-                          setRejectTarget(sub);
-                          setRejectNote("");
-                        }}
-                        disabled={reject.isPending}
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  )}
-
-                  {sub?.status === "approved" && (
-                    <span className="text-xs font-medium text-[#067647]">Approved</span>
-                  )}
-                  {sub?.status === "rejected" && (
-                    <span className="text-xs font-medium text-[#B42318]">Rejected</span>
-                  )}
-                </div>
-              );
-            })
+            documentConfigs.map((doc) => (
+              <DocumentReviewCard
+                key={doc.id}
+                doc={doc}
+                submission={submissionsByDoc.get(doc.id) ?? null}
+                onApprove={(sub) => setApproveTarget(sub)}
+                onReject={(sub) => {
+                  setRejectTarget(sub);
+                  setRejectNote("");
+                }}
+                approvePending={approve.isPending && approveTarget?.id === submissionsByDoc.get(doc.id)?.id}
+                rejectPending={reject.isPending}
+              />
+            ))
           )}
         </div>
       </section>
 
-      {/* Reject-with-note dialog */}
-      <Dialog
+      <ApproveDocumentDialog
+        open={approveTarget !== null}
+        employeeName={employeeName}
+        documentName={approveTarget?.documentName}
+        onCancel={() => setApproveTarget(null)}
+        onSubmit={submitApprove}
+        pending={approve.isPending}
+      />
+
+      <RejectDocumentDialog
         open={rejectTarget !== null}
-        onOpenChange={(o) => {
-          if (!o) {
-            setRejectTarget(null);
-            setRejectNote("");
-          }
+        employeeName={employeeName}
+        documentName={rejectTarget?.documentName}
+        rejectNote={rejectNote}
+        onRejectNoteChange={setRejectNote}
+        onCancel={() => {
+          setRejectTarget(null);
+          setRejectNote("");
         }}
-      >
+        onSubmit={submitReject}
+        pending={reject.isPending}
+      />
+
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject document</DialogTitle>
+            <DialogTitle>Correct invitation email</DialogTitle>
             <DialogDescription>
-              Tell {employeeName} why &ldquo;{rejectTarget?.documentName}&rdquo; needs to be re-uploaded.
+              Update the work email before the employee creates their account. This re-sends the
+              invitation.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2">
-            <FormField label="Reason" htmlFor="reject-note" required>
-              <Textarea
-                id="reject-note"
-                value={rejectNote}
-                onChange={(e) => setRejectNote(e.target.value)}
-                placeholder="e.g. The ID photo is blurry — please re-upload a clear scan."
-                rows={3}
-              />
-            </FormField>
-          </div>
+          <FormField label="Work email" htmlFor="invite-email" required error={inviteEmailError}>
+            <Input
+              id="invite-email"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="name@swiftwork.demo"
+            />
+          </FormField>
           <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setRejectTarget(null);
-                setRejectNote("");
-              }}
-            >
+            <Button variant="secondary" onClick={() => setEmailDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={submitReject} disabled={reject.isPending}>
-              {reject.isPending ? "Rejecting…" : "Reject document"}
+            <Button onClick={handleUpdateInviteEmail} disabled={updateEmail.isPending}>
+              <Mail aria-hidden="true" />
+              {updateEmail.isPending ? "Sending…" : "Update & resend"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -389,8 +518,6 @@ function OnboardingDetailInner() {
     </div>
   );
 }
-
-// ─── page export (wraps with ConfirmProvider) ─────────────────────────────────
 
 export default function OnboardingDetailPage() {
   return (

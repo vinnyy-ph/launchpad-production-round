@@ -12,12 +12,18 @@ export class OnboardingRepository {
    * Returns true when a User account with this email already exists.
    */
   async emailExists(email: string): Promise<boolean> {
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
+    const [user, employee] = await Promise.all([
+      prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      }),
+      prisma.employee.findUnique({
+        where: { companyEmail: email },
+        select: { id: true },
+      }),
+    ]);
 
-    return Boolean(user);
+    return Boolean(user || employee);
   }
 
   /**
@@ -39,14 +45,13 @@ export class OnboardingRepository {
    * Returns true when another employee already uses the same emergency contact phone number.
    */
   async emergencyContactPhoneInUse(normalizedPhone: string): Promise<boolean> {
-    const employees = await prisma.employee.findMany({
-      where: { NOT: { emergencyContact: null } },
-      select: { emergencyContact: { select: { emergencyContactNumber: true } } },
+    const contacts = await prisma.employeeEmergencyContact.findMany({
+      select: { emergencyContactNumber: true },
     });
 
-    return employees.some((employee) => {
+    return contacts.some((contact) => {
       const existingPhone = tryExtractNormalizedPhilippinePhone(
-        employee.emergencyContact!.emergencyContactNumber ?? "",
+        contact.emergencyContactNumber ?? "",
       );
 
       return existingPhone === normalizedPhone;
@@ -61,7 +66,9 @@ export class OnboardingRepository {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + INVITATION_EXPIRY_DAYS);
 
-    return prisma.$transaction(async (tx) => {
+    // Neon + PrismaPg can be slow on cold connections; default 5s interactive tx timeout is too tight.
+    return prisma.$transaction(
+      async (tx) => {
       const user = await tx.user.create({
         data: {
           email: dto.companyEmail,
@@ -124,7 +131,9 @@ export class OnboardingRepository {
       });
 
       return { user, employee, record, invitation };
-    });
+      },
+      { maxWait: 15_000, timeout: 60_000 },
+    );
   }
 
   /**

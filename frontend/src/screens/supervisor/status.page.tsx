@@ -127,12 +127,14 @@ export default function HierarchyStatusPage() {
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           label="In onboarding"
-          value={loading ? "—" : onboardingCount}
+          value={onboardingCount}
+          loading={loading}
           variant={onboardingCount > 0 ? "warn" : "default"}
         />
         <StatCard
           label="In offboarding"
-          value={loading ? "—" : offboardingCount}
+          value={offboardingCount}
+          loading={loading}
           variant={offboardingCount > 0 ? "alert" : "default"}
         />
       </div>

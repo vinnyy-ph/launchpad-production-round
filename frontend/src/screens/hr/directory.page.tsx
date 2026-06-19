@@ -40,6 +40,7 @@ import type {
 const ALL = "ALL";
 const ALL_TEAMS = "ALL_TEAMS";
 const PAGE_SIZE = 10;
+const MAX_VISIBLE_TEAMS = 2;
 
 const STATUS_OPTIONS: { value: typeof ALL | EmployeeStatus; label: string }[] = [
   { value: ALL, label: "All statuses" },
@@ -66,38 +67,58 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
     return <span className="text-sm text-[color:var(--text-tertiary)]">-</span>;
   }
 
-  const [primaryTeam] = teams;
+  const visibleTeams = teams.slice(0, MAX_VISIBLE_TEAMS);
+  const overflowTeams = teams.slice(MAX_VISIBLE_TEAMS);
+  const overflowCount = overflowTeams.length;
+
+  const teamBadgeClassName =
+    "max-w-[110px] truncate rounded-full border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]";
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="inline-flex max-w-[220px] items-center justify-center gap-1.5">
-            <Badge variant="secondary" className="max-w-[150px] truncate">
-              {primaryTeam.name}
-            </Badge>
-            {teams.length > 1 ? (
-              <Badge
-                variant="outline"
-                className="border-[color:var(--border-secondary)] bg-white text-[color:var(--text-secondary)]"
-                aria-label={`${teams.length} teams total`}
+    <div className="inline-flex max-w-[260px] flex-wrap items-center justify-center gap-1.5">
+      {visibleTeams.map((team) => (
+        <Badge key={team.id} variant="outline" pill className={teamBadgeClassName}>
+          {team.name}
+        </Badge>
+      ))}
+
+      {overflowCount > 0 ? (
+        <TooltipProvider delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`${overflowCount} more teams`}
+                onClick={(event) => event.stopPropagation()}
               >
-                {teams.length}+
-              </Badge>
-            ) : null}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent className="bg-white text-[color:var(--text-secondary)] shadow-md">
-          <ul className="space-y-1">
-            {teams.map((team) => (
-              <li key={team.id} className="whitespace-nowrap">
-                {team.name}
-              </li>
-            ))}
-          </ul>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+                <Badge
+                  variant="outline"
+                  pill
+                  className="border-transparent bg-white font-semibold text-[color:var(--text-secondary)] shadow-sm"
+                >
+                  +{overflowCount}
+                </Badge>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              align="start"
+              className="max-w-[260px] rounded-md border border-[color:var(--border-primary)] bg-white p-3 text-[color:var(--text-secondary)] shadow-xl"
+            >
+              <p className="mb-2 text-xs font-bold text-[color:var(--text-primary)]">More Teams:</p>
+              <div className="flex flex-wrap gap-2">
+                {overflowTeams.map((team) => (
+                  <Badge key={team.id} variant="outline" pill className={teamBadgeClassName}>
+                    {team.name}
+                  </Badge>
+                ))}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : null}
+    </div>
   );
 }
 

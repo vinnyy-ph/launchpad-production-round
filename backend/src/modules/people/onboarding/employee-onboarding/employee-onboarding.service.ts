@@ -1,5 +1,7 @@
 import type { DocumentStatus, InviteStatus, User } from "@prisma/client";
+import type { Express } from "express";
 import { API_SUCCESS_MESSAGES } from "../../../../core/globals";
+import { CloudinaryService } from "../../../../core/cloudinary";
 import type {
   AcceptInvitationResponseDto,
   CompleteOnboardingResponseDto,
@@ -11,7 +13,6 @@ import type {
   SubmitCustomFieldsRequestDto,
   SubmitCustomFieldsResponseDto,
   SubmitDocumentParamsDto,
-  SubmitDocumentRequestDto,
   SubmitDocumentResponseDto,
   UpdateProfileRequestDto,
   UpdateProfileResponseDto,
@@ -31,6 +32,7 @@ export class EmployeeOnboardingService {
   constructor(
     private readonly employeeOnboardingRepository = new EmployeeOnboardingRepository(),
     private readonly notificationsService = new NotificationsService(),
+    private readonly cloudinaryService = new CloudinaryService(),
   ) {}
 
   /**
@@ -182,12 +184,12 @@ export class EmployeeOnboardingService {
   }
 
   /**
-   * Submits or re-submits a required onboarding document.
+   * Uploads a required onboarding document via Cloudinary and records the submission.
    */
   async submitDocument(
     user: User,
     params: SubmitDocumentParamsDto,
-    dto: SubmitDocumentRequestDto,
+    file: Express.Multer.File,
   ): Promise<SubmitDocumentResponseDto> {
     const record = await this.requireActiveRecord(user);
     const document = await this.employeeOnboardingRepository.findTemplateDocument(
@@ -199,7 +201,7 @@ export class EmployeeOnboardingService {
       throw new Error("Document not found");
     }
 
-    this.validateFileType(dto.fileUrl, document.allowedFileTypes);
+    this.validateFileExtension(file.originalname, document.allowedFileTypes);
 
     const latestSubmission =
       await this.employeeOnboardingRepository.findLatestSubmission(
@@ -217,10 +219,16 @@ export class EmployeeOnboardingService {
       }
     }
 
+    const fileUrl = await this.cloudinaryService.uploadOnboardingDocument(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+    );
+
     const submission = await this.employeeOnboardingRepository.createDocumentSubmission(
       record.id,
       params.documentId,
-      dto.fileUrl,
+      fileUrl,
     );
 
     return {
@@ -240,43 +248,28 @@ export class EmployeeOnboardingService {
   }
 
   /**
-   * Marks onboarding complete when all requirements are satisfied.
+   * Submits the employee's onboarding packet for HR review.
+   * Does not activate the employee — HR marks onboarding complete after approving all documents.
    */
   async completeOnboarding(user: User): Promise<CompleteOnboardingResponseDto> {
     const record = await this.requireActiveRecord(user);
 
     this.assertProfileComplete(record.employee);
     this.assertCustomFieldsComplete(record);
-    this.assertDocumentsComplete(record);
+    this.assertDocumentsSubmitted(record);
 
-    const completedAt = new Date();
-
-    await this.employeeOnboardingRepository.completeOnboarding(
-      record.id,
-      record.employee.id,
-    );
-
-    await this.notificationsService.notifyHrOnboardingComplete(
+    await this.notificationsService.notifyHrOnboardingSubmittedForReview(
       `${record.employee.firstName} ${record.employee.lastName}`,
       record.employee.id,
     );
 
-    if (record.employee.supervisorId) {
-      await this.notificationsService.notifySupervisorOnboardingComplete(
-        `${record.employee.firstName} ${record.employee.lastName}`,
-        record.employee.id,
-        record.employee.supervisorId,
-      );
-    }
-
     return {
       success: true,
-      message: API_SUCCESS_MESSAGES.ONBOARDING_COMPLETED,
+      message: API_SUCCESS_MESSAGES.ONBOARDING_SUBMITTED_FOR_REVIEW,
       data: {
         recordId: record.id,
-        isComplete: true,
-        completedAt: completedAt.toISOString(),
-        employeeStatus: "active",
+        isComplete: false,
+        submittedForReview: true,
       },
     };
   }
@@ -352,8 +345,8 @@ export class EmployeeOnboardingService {
     }
   }
 
-  /** Ensures all required documents have a pending or approved submission. */
-  private assertDocumentsComplete(record: OnboardingRecordWithRelations) {
+  /** Ensures all required documents are submitted and none are rejected. */
+  private assertDocumentsSubmitted(record: OnboardingRecordWithRelations) {
     const requiredDocuments = record.template.documents.filter(
       (document) => document.isRequired,
     );
@@ -377,8 +370,8 @@ export class EmployeeOnboardingService {
   }
 
   /** Validates the uploaded file extension against the document checklist. */
-  private validateFileType(fileUrl: string, allowedFileTypes: string) {
-    const extension = this.extractFileExtension(fileUrl);
+  private validateFileExtension(filename: string, allowedFileTypes: string) {
+    const extension = this.extractExtensionFromFilename(filename);
     const allowed = allowedFileTypes
       .split(",")
       .map((part) => part.trim().toLowerCase())
@@ -389,12 +382,16 @@ export class EmployeeOnboardingService {
     }
   }
 
-  private extractFileExtension(fileUrl: string): string | null {
-    const pathname = new URL(fileUrl).pathname;
-    const parts = pathname.split(".");
-    const extension = parts[parts.length - 1]?.toLowerCase();
+  private extractExtensionFromFilename(filename: string): string | null {
+    const dot = filename.lastIndexOf(".");
 
-    return extension && extension.length > 0 ? extension : null;
+    if (dot < 0) {
+      return null;
+    }
+
+    const extension = filename.slice(dot + 1).toLowerCase();
+
+    return extension.length > 0 ? extension : null;
   }
 
   private isInvitationExpired(expiresAt: Date): boolean {

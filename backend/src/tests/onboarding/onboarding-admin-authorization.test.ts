@@ -16,7 +16,8 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
     user: { findUnique: jest.fn() },
-    employee: { findFirst: jest.fn(), findMany: jest.fn() },
+    employee: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn() },
+    employeeEmergencyContact: { findMany: jest.fn().mockResolvedValue([]) },
     $transaction: jest.fn(),
   },
 }));

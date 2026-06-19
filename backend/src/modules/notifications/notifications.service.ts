@@ -9,6 +9,8 @@ import type {
 } from "./dto";
 import { NotificationsRepository } from "./notifications.repository";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Orchestrates notification creation, listing, and real-time delivery.
  */
@@ -17,6 +19,46 @@ export class NotificationsService {
     private readonly notificationsRepository = new NotificationsRepository(),
     private readonly inAppChannel = new InAppChannel(),
   ) {}
+
+  /**
+   * Notifies all HR users when an employee submits onboarding for document review.
+   * Failures are swallowed so submission is never blocked.
+   */
+  async notifyHrOnboardingSubmittedForReview(
+    employeeName: string,
+    employeeId: string,
+  ): Promise<void> {
+    try {
+      const hrEmployees = await this.notificationsRepository.findAllHrEmployees();
+
+      if (hrEmployees.length === 0) {
+        return;
+      }
+
+      const subject = "Onboarding ready for review";
+      const body = `${employeeName} submitted their onboarding for document review.`;
+      const linkUrl = `/hr/onboarding/${employeeId}`;
+
+      for (const hrEmployee of hrEmployees) {
+        const notification = await this.notificationsRepository.create({
+          recipientId: hrEmployee.id,
+          type: "ONBOARDING_STATUS",
+          subject,
+          body,
+          linkUrl,
+          sourceType: "Employee",
+          sourceId: employeeId,
+        });
+
+        this.inAppChannel.deliver(
+          hrEmployee.userId,
+          this.toNotificationDto(notification),
+        );
+      }
+    } catch {
+      // Fire-and-forget: submission must succeed even if notification delivery fails.
+    }
+  }
 
   /**
    * Notifies all HR users when an employee completes onboarding and becomes active.
@@ -239,6 +281,185 @@ export class NotificationsService {
       }
     } catch {
       // Fire-and-forget: the reject action must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Notifies a reviewee that a performance evaluation has been sent to them for
+   * acknowledgement. Deep-links to the exact evaluation.
+   * Failures are swallowed so sending the evaluation is never blocked.
+   */
+  async notifyNewEvaluation(
+    revieweeId: string,
+    evaluationId: string,
+  ): Promise<void> {
+    try {
+      const reviewee =
+        await this.notificationsRepository.findEmployeeWithUserById(revieweeId);
+
+      if (!reviewee) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: reviewee.id,
+        type: "NEW_EVALUATION",
+        subject: "New performance evaluation",
+        body: "Your supervisor has sent you a performance evaluation to acknowledge.",
+        linkUrl: `/evaluations/${evaluationId}`,
+        sourceType: "PerformanceEvaluation",
+        sourceId: evaluationId,
+      });
+
+      this.inAppChannel.deliver(
+        reviewee.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: sending the evaluation must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Notifies every resolved audience member that a new pulse survey is open.
+   * Deep-links to the survey.
+   * Failures are swallowed so activating the survey is never blocked.
+   */
+  async notifyNewPulse(
+    audienceEmployeeIds: string[],
+    surveyId: string,
+    surveyName: string,
+  ): Promise<void> {
+    try {
+      const recipients =
+        await this.notificationsRepository.findEmployeesWithUserByIds(
+          audienceEmployeeIds,
+        );
+
+      if (recipients.length === 0) {
+        return;
+      }
+
+      const subject = "New survey available";
+      const body = `A new pulse survey "${surveyName}" is now open. Please respond before the deadline.`;
+      const linkUrl = `/surveys/${surveyId}`;
+
+      for (const recipient of recipients) {
+        const notification = await this.notificationsRepository.create({
+          recipientId: recipient.id,
+          type: "NEW_PULSE",
+          subject,
+          body,
+          linkUrl,
+          sourceType: "PulseSurvey",
+          sourceId: surveyId,
+        });
+
+        this.inAppChannel.deliver(
+          recipient.userId,
+          this.toNotificationDto(notification),
+        );
+      }
+    } catch {
+      // Fire-and-forget: activation must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Sends a pulse reminder to a non-responder, throttled to the configured cadence:
+   * skips unless `intervalDays` have elapsed since the last reminder (or, for the first
+   * one, since the occurrence opened — `anchorDate`). The notification table is the dedup
+   * ledger. Failures are swallowed so a reminder sweep never throws into a read path.
+   */
+  async remindPulseIfDue(
+    recipientId: string,
+    intervalDays: number,
+    anchorDate: Date,
+    surveyId: string,
+    surveyName: string,
+    now: Date,
+  ): Promise<void> {
+    try {
+      const recipient =
+        await this.notificationsRepository.findEmployeeWithUserById(recipientId);
+      if (!recipient) {
+        return;
+      }
+
+      const last = await this.notificationsRepository.findLatestReminder(
+        recipient.id,
+        "PULSE_REMINDER",
+        surveyId,
+      );
+      const since = last?.createdAt ?? anchorDate;
+      if (now.getTime() - since.getTime() < intervalDays * DAY_MS) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: recipient.id,
+        type: "PULSE_REMINDER",
+        subject: "Reminder: pulse survey awaiting your response",
+        body: `The pulse survey "${surveyName}" is still open. Please respond before the deadline.`,
+        linkUrl: `/surveys/${surveyId}`,
+        sourceType: "PulseSurvey",
+        sourceId: surveyId,
+      });
+
+      this.inAppChannel.deliver(
+        recipient.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
+    }
+  }
+
+  /**
+   * Sends an evaluation-acknowledgement reminder to a reviewee, throttled to the configured
+   * cadence (anchored to issuance — `sentAt` — for the first one). Same dedup-via-ledger
+   * and swallow-failures contract as `remindPulseIfDue`.
+   */
+  async remindEvalAckIfDue(
+    recipientId: string,
+    intervalDays: number,
+    anchorDate: Date,
+    evaluationId: string,
+    now: Date,
+  ): Promise<void> {
+    try {
+      const recipient =
+        await this.notificationsRepository.findEmployeeWithUserById(recipientId);
+      if (!recipient) {
+        return;
+      }
+
+      const last = await this.notificationsRepository.findLatestReminder(
+        recipient.id,
+        "EVAL_ACK_REMINDER",
+        evaluationId,
+      );
+      const since = last?.createdAt ?? anchorDate;
+      if (now.getTime() - since.getTime() < intervalDays * DAY_MS) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: recipient.id,
+        type: "EVAL_ACK_REMINDER",
+        subject: "Action required: acknowledge your evaluation",
+        body: "You have a performance evaluation from your supervisor awaiting your acknowledgement.",
+        linkUrl: `/evaluations/${evaluationId}`,
+        sourceType: "PerformanceEvaluation",
+        sourceId: evaluationId,
+      });
+
+      this.inAppChannel.deliver(
+        recipient.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
     }
   }
 

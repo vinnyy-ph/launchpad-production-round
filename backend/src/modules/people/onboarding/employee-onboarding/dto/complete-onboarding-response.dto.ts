@@ -1,11 +1,12 @@
 import type { ApiSuccessResponseDto } from "../../../../../core/dto";
 
-/** Summary returned when onboarding is marked complete. */
+/** Summary returned when the employee submits onboarding for HR review. */
 export interface CompleteOnboardingDataDto {
   recordId: string;
   isComplete: boolean;
-  completedAt: string;
-  employeeStatus: "active";
+  submittedForReview?: boolean;
+  completedAt?: string;
+  employeeStatus?: "active" | "onboarding";
 }
 
 /**

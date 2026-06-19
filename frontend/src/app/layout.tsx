@@ -6,7 +6,7 @@ import "@/index.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "SwiftWork",
+  title: "Manage Jia",
   description: "People and performance, in one place.",
 };
 

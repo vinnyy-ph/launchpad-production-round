@@ -1,4 +1,5 @@
 import type { Role } from "@prisma/client";
+import type { Test } from "supertest";
 import { prisma } from "../../../core/database/prisma.service";
 
 export const RECORD_ID = "onboarding-record-id";
@@ -266,4 +267,9 @@ export function buildSubmitDocumentBody() {
   return {
     fileUrl: "https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.pdf",
   };
+}
+
+/** Attaches a valid PDF file for multipart document submit tests. */
+export function attachSubmitDocumentFile(req: Test, filename = "nbi-clearance.pdf") {
+  return req.attach("file", Buffer.from("%PDF-1.4 fake content"), filename);
 }

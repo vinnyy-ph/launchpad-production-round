@@ -2,17 +2,26 @@ import request from "supertest";
 import { app } from "../../../app";
 import {
   DOCUMENT_ID,
+  attachSubmitDocumentFile,
   buildDocumentRecord,
   buildEmployeeUser,
   buildOnboardingRecord,
   buildSubmissionRecord,
-  buildSubmitDocumentBody,
   onboardingDocumentFindFirstMock,
   onboardingDocumentSubmissionCreateMock,
   onboardingDocumentSubmissionFindFirstMock,
   onboardingRecordFindFirstMock,
   resetEmployeeOnboardingMocks,
 } from "./employee-onboarding-test.helpers";
+
+const uploadOnboardingDocumentMock = jest.fn();
+
+jest.mock("../../../core/cloudinary", () => ({
+  CloudinaryService: jest.fn().mockImplementation(() => ({
+    uploadOnboardingDocument: (...args: unknown[]) =>
+      uploadOnboardingDocumentMock(...args),
+  })),
+}));
 
 jest.mock("../../../core/middleware/auth.middleware", () => ({
   authenticate: (req: { user?: unknown }, _res: unknown, next: () => void) => {
@@ -37,6 +46,10 @@ jest.mock("../../../core/database/prisma.service", () => ({
 describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => {
   beforeEach(() => {
     resetEmployeeOnboardingMocks();
+    uploadOnboardingDocumentMock.mockReset();
+    uploadOnboardingDocumentMock.mockResolvedValue(
+      "https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.pdf",
+    );
   });
 
   it("creates a pending document submission", async () => {
@@ -47,10 +60,11 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
       buildSubmissionRecord(),
     );
 
-    const response = await request(app)
-      .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
-      .send(buildSubmitDocumentBody())
-      .expect(201);
+    const response = await attachSubmitDocumentFile(
+      request(app).post(
+        `/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`,
+      ),
+    ).expect(201);
 
     expect(response.body).toMatchObject({
       success: true,
@@ -61,6 +75,7 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
         status: "pending",
       },
     });
+    expect(uploadOnboardingDocumentMock).toHaveBeenCalled();
   });
 
   it("allows re-upload when the previous submission was rejected", async () => {
@@ -76,10 +91,11 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
       buildSubmissionRecord({ id: "new-submission-id" }),
     );
 
-    const response = await request(app)
-      .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
-      .send(buildSubmitDocumentBody())
-      .expect(201);
+    const response = await attachSubmitDocumentFile(
+      request(app).post(
+        `/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`,
+      ),
+    ).expect(201);
 
     expect(response.body.data.status).toBe("pending");
     expect(onboardingDocumentSubmissionCreateMock).toHaveBeenCalled();
@@ -92,10 +108,11 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
       buildSubmissionRecord({ status: "PENDING" }),
     );
 
-    const response = await request(app)
-      .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
-      .send(buildSubmitDocumentBody())
-      .expect(409);
+    const response = await attachSubmitDocumentFile(
+      request(app).post(
+        `/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`,
+      ),
+    ).expect(409);
 
     expect(response.body).toMatchObject({
       success: false,
@@ -110,14 +127,13 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
 
     const response = await request(app)
       .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
-      .send({
-        fileUrl: "https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.exe",
-      })
+      .attach("file", Buffer.from("fake executable"), "nbi-clearance.exe")
       .expect(400);
 
     expect(response.body).toMatchObject({
       success: false,
       errorCode: "INVALID_FILE_TYPE",
     });
+    expect(uploadOnboardingDocumentMock).not.toHaveBeenCalled();
   });
 });

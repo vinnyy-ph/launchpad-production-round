@@ -15,8 +15,8 @@ jest.mock("../../core/database/prisma.service", () => ({
     employee: { findUnique: jest.fn() },
     pulseSurvey: { findFirst: jest.fn() },
     surveyOccurrence: { findUnique: jest.fn() },
-    surveyResponse: { findMany: jest.fn() },
-    surveyAudienceMember: { findMany: jest.fn() },
+    surveyResponse: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
+    surveyAudienceMember: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
   },
 }));
 
@@ -214,10 +214,15 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
 
     surveyResponseFindManyMock.mockResolvedValue(responses);
     surveyAudienceFindManyMock.mockResolvedValue([]);
+    (prisma.surveyAudienceMember.count as jest.Mock).mockResolvedValue(5);
+    (prisma.surveyResponse.count as jest.Mock).mockResolvedValue(2);
 
     const response = await request(app).get(`${URL}/survey-001/results`).expect(200);
 
     expect(response.body.success).toBe(true);
+    // Occurrence-level summary totals (unfiltered) for the stat cards.
+    expect(response.body.data.recipientCount).toBe(5);
+    expect(response.body.data.respondedCount).toBe(2);
     const qs = response.body.data.questions;
     expect(qs).toHaveLength(4);
 
@@ -255,6 +260,55 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       responseCount: 2,
       counts: { X: 2, Y: 1 },
     });
+  });
+
+  it("normalizes wrapped {value}/{selected}/{choices} answer + option shapes (no [object Object])", async () => {
+    const s = mockSurvey({
+      questions: [
+        { id: "q-2", type: "LINEAR_SCALE", questionText: "Scale Q", scaleMin: 1, scaleMax: 5, orderIndex: 1 },
+        { id: "q-3", type: "MULTIPLE_CHOICE", questionText: "MC Q", options: { choices: ["Good", "Fair"] }, orderIndex: 2 },
+        { id: "q-4", type: "CHECKBOX", questionText: "CB Q", options: { choices: ["A", "B"] }, orderIndex: 3 },
+      ],
+    });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    const responses = [
+      {
+        id: "r1",
+        answers: [
+          { questionId: "q-2", answerText: null, answerData: { value: 4 } },
+          { questionId: "q-3", answerText: null, answerData: { selected: "Good" } },
+          { questionId: "q-4", answerText: null, answerData: { selected: ["A", "B"] } },
+        ],
+      },
+      {
+        id: "r2",
+        answers: [
+          { questionId: "q-2", answerText: null, answerData: { value: 2 } },
+          { questionId: "q-3", answerText: null, answerData: { selected: "Fair" } },
+          { questionId: "q-4", answerText: null, answerData: { selected: ["A"] } },
+        ],
+      },
+      {
+        id: "r3",
+        answers: [
+          { questionId: "q-2", answerText: null, answerData: { value: 4 } },
+          { questionId: "q-3", answerText: null, answerData: { selected: "Good" } },
+          { questionId: "q-4", answerText: null, answerData: { selected: ["B"] } },
+        ],
+      },
+    ];
+    surveyResponseFindManyMock.mockResolvedValue(responses);
+    surveyAudienceFindManyMock.mockResolvedValue([]);
+
+    const response = await request(app).get(`${URL}/survey-001/results`).expect(200);
+    const qs = response.body.data.questions;
+
+    expect(qs[0].distribution).toMatchObject({ "2": 1, "4": 2 });
+    expect(qs[0].average).toBeCloseTo(3.33, 1);
+    expect(qs[1].counts).toEqual({ Good: 2, Fair: 1 });
+    expect(qs[2].counts).toEqual({ A: 2, B: 2 });
+    expect(JSON.stringify(qs)).not.toContain("[object Object]");
   });
 
   it("hides individual SHORT_ANSWER text when isAnonymous = true (at/above the min-group threshold)", async () => {

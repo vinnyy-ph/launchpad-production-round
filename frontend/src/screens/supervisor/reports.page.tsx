@@ -195,16 +195,18 @@ export default function ReportsPage() {
 
       {/* Stat cards */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Headcount" value={loading ? "—" : stats.total} variant="brand" />
-        <StatCard label="Active" value={loading ? "—" : stats.active} />
+        <StatCard label="Headcount" value={stats.total} loading={loading} variant="brand" />
+        <StatCard label="Active" value={stats.active} loading={loading} />
         <StatCard
           label="Onboarding"
-          value={loading ? "—" : stats.onboarding}
+          value={stats.onboarding}
+          loading={loading}
           variant={stats.onboarding > 0 ? "warn" : "default"}
         />
         <StatCard
           label="Offboarding"
-          value={loading ? "—" : stats.offboarding}
+          value={stats.offboarding}
+          loading={loading}
           variant={stats.offboarding > 0 ? "alert" : "default"}
         />
       </div>

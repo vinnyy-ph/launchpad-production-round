@@ -4,7 +4,6 @@ import * as React from "react";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
-import { Button } from "./button";
 import { Calendar } from "./calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { cn } from "@/shared/lib/utils";
@@ -21,7 +20,7 @@ export interface DateRangePickerProps {
 export function DateRangePicker({ value, onChange, disabled, className }: DateRangePickerProps) {
   const label =
     value?.from && value?.to
-      ? `${format(value.from, "LLL d")} – ${format(value.to, "LLL d, y")}`
+      ? `${format(value.from, "LLL d")} - ${format(value.to, "LLL d, y")}`
       : value?.from
         ? format(value.from, "LLL d, y")
         : "Pick a range";
@@ -29,17 +28,33 @@ export function DateRangePicker({ value, onChange, disabled, className }: DateRa
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
+        {/* Matches the DS dropdown trigger (.dd-trigger): hover gray-50, open → gradient border ring,
+            caret-style icon, and crucially no press-scale / size change. */}
+        <button
+          type="button"
           disabled={disabled}
-          className={cn("w-full justify-start text-left font-normal", !value?.from && "text-muted-foreground", className)}
+          className={cn(
+            "flex h-10 w-full items-center justify-start gap-2 whitespace-nowrap rounded-md border border-input bg-white px-3.5 text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-[.38]",
+            "data-[state=open]:border-transparent data-[state=open]:shadow-[0_0_0_3px_rgba(24,29,39,0.06)] data-[state=open]:[background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(45deg,#fccec0,#ebacc9_33%,#ceb6da_66%,#9fcaed)_border-box]",
+            !value?.from && "text-[#a4a7ae]",
+            className
+          )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+          <CalendarIcon className="h-4 w-4 shrink-0 text-[color:var(--text-tertiary)]" aria-hidden="true" />
           {label}
-        </Button>
+        </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="range" selected={value} onSelect={onChange} numberOfMonths={2} />
+      {/* Popup matches the trigger width; the calendar fills it. */}
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        {/* Single month, no adjacent-month days — avoids the "two end dates" confusion. */}
+        <Calendar
+          mode="range"
+          selected={value}
+          onSelect={onChange}
+          numberOfMonths={1}
+          showOutsideDays={false}
+          className="!w-full"
+        />
       </PopoverContent>
     </Popover>
   );

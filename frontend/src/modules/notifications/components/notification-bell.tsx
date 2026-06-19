@@ -5,12 +5,16 @@ import { Bell } from "lucide-react";
 import { NotificationDropdown } from "./notification-dropdown";
 import { useNotifications } from "../hooks/use-notifications";
 import { useMarkRead } from "../hooks/use-mark-read";
+import { useNotificationSocket } from "../hooks/use-notification-socket";
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { notifications, loading, unreadCount } = useNotifications(10);
   const { markRead } = useMarkRead();
+
+  // Live-refresh the badge/list when the server pushes a new notification.
+  useNotificationSocket();
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
