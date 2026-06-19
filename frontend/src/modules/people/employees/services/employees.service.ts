@@ -70,3 +70,24 @@ export interface EmployeeActivityLogsResult {
 export async function getEmployeeActivityLogs(employeeId: string): Promise<EmployeeActivityLogsResult> {
   return apiFetch<EmployeeActivityLogsResult>(`${BASE}/${employeeId}/activity-logs`);
 }
+
+export type EmployeeDocumentStatus = "pending" | "approved" | "rejected";
+
+export interface EmployeeDocument {
+  id: string;
+  documentName: string;
+  fileUrl: string;
+  status: EmployeeDocumentStatus;
+  rejectionNote: string | null;
+  submittedAt: string;
+  reviewedAt: string | null;
+}
+
+export interface EmployeeDocumentsResult {
+  data: EmployeeDocument[];
+}
+
+/** Returns documents uploaded by one employee (HR/Admin only). */
+export async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocumentsResult> {
+  return apiFetch<EmployeeDocumentsResult>(`${BASE}/${employeeId}/documents`);
+}

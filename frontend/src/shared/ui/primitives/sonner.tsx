@@ -20,6 +20,9 @@ function Toaster(props: ToasterProps) {
           description: "group-[.toast]:text-muted-foreground",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+          // Override the neutral base color for typed toasts so success/error get their own colors.
+          success: "!bg-[#ECFDF3] !text-[#027A48] !border-[#6CE9A6]",
+          error: "!bg-[#FEF3F2] !text-[#7A271A] !border-[#B42318]",
         },
       }}
       {...props}

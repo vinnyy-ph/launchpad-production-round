@@ -84,6 +84,51 @@ type EmployeeProfileRecord = Prisma.EmployeeGetPayload<{
  */
 export class EmployeesRepository {
   /**
+   * Counts directory employees with no supervisor, optionally excluding one employee.
+   * Used to enforce the single-root-node constraint before clearing a supervisor assignment.
+   */
+  async countRootEmployees(excludeEmployeeId: string): Promise<number> {
+    return prisma.employee.count({
+      where: {
+        supervisorId: null,
+        id: { not: excludeEmployeeId },
+        user: { role: { in: EMPLOYEE_DIRECTORY_ROLES } },
+      },
+    });
+  }
+
+  /**
+   * Returns true if assigning proposedSupervisorId as the supervisor of employeeId would
+   * create a cycle in the supervision tree. Walks upward from the proposed supervisor until
+   * reaching a root (null supervisorId) or detecting employeeId in the chain.
+   */
+  async wouldCreateCycle(employeeId: string, proposedSupervisorId: string): Promise<boolean> {
+    const visited = new Set<string>();
+    let currentId: string | null = proposedSupervisorId;
+
+    while (currentId !== null) {
+      if (currentId === employeeId) {
+        return true;
+      }
+
+      // Guard against infinite loops caused by pre-existing cycles in the data.
+      if (visited.has(currentId)) {
+        return false;
+      }
+      visited.add(currentId);
+
+      const node: { supervisorId: string | null } | null = await prisma.employee.findFirst({
+        where: { id: currentId },
+        select: { supervisorId: true },
+      });
+
+      currentId = node?.supervisorId ?? null;
+    }
+
+    return false;
+  }
+
+  /**
    * Finds employees matching the list filters and returns the total count for pagination metadata.
    */
   async findMany(filters: ListEmployeesQueryDto) {

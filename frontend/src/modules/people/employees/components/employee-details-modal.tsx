@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BriefcaseBusiness,
   Check,
+  Eye,
   FileText,
   History,
   LogOut,
@@ -13,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
+import { Combobox } from "@/shared/ui/primitives/combobox";
 import {
   Dialog,
   DialogContent,
@@ -28,9 +30,13 @@ import {
   SelectValue,
 } from "@/shared/ui/primitives/select";
 import { StatusBadge } from "@/shared/ui/patterns";
+import { ApiError } from "@/shared/lib/api-client";
+import type { EmployeeDocument, EmployeeDocumentStatus } from "../services/employees.service";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
+import { useEmployeeDocuments } from "../hooks/use-employee-documents";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
+import { useEmployees } from "../hooks/use-employees";
 import { useUpdateEmployee } from "../hooks/use-update-employee";
 import type {
   EmployeeListItem,
@@ -68,6 +74,7 @@ type EditDraft = {
   jobTitle: string;
   department: string;
   status: EmployeeStatus;
+  supervisorId: string;
 };
 
 const NO_DEPARTMENT = "__none__";
@@ -86,6 +93,43 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string }[] = [
   { value: "offboarding", label: "Offboarding" },
   { value: "inactive", label: "Inactive" },
 ];
+
+const GENERIC_SAVE_ERROR =
+  "We couldn't save these changes. Please review the highlighted fields and try again.";
+
+/**
+ * Maps known backend validation messages to friendly, descriptive copy. Messages stay
+ * helpful without disclosing internal details (IDs, roles, or data that isn't the editor's).
+ * Unknown failures fall back to a safe generic message so backend internals never leak.
+ */
+const SAVE_ERROR_MESSAGES: Record<string, string> = {
+  "Circular supervisory relationship detected":
+    "That supervisor can't be assigned — it would create a reporting loop, where someone ends up reporting to a person who reports to them.",
+  "Another employee is already the root node":
+    "Every employee needs a supervisor except the top of the organization, and that spot is already taken. Assign a supervisor instead of leaving this field empty.",
+  "Employee cannot supervise themselves": "An employee can't be set as their own supervisor.",
+  "Supervisor not found":
+    "The selected supervisor is no longer available. Please refresh the page and choose another.",
+  "Invalid employee birthday": "Please enter a valid birthday.",
+};
+
+/**
+ * Resolves a user-facing message from a failed profile save. Prefers a friendly mapping keyed
+ * on the API's field-level message, then the top-level message, then a safe generic fallback.
+ */
+function resolveSaveErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    const fieldMessage = err.fieldErrors.find((entry) => entry.message)?.message;
+    if (fieldMessage && SAVE_ERROR_MESSAGES[fieldMessage]) {
+      return SAVE_ERROR_MESSAGES[fieldMessage];
+    }
+    if (err.message && SAVE_ERROR_MESSAGES[err.message]) {
+      return SAVE_ERROR_MESSAGES[err.message];
+    }
+  }
+
+  return GENERIC_SAVE_ERROR;
+}
 
 function fullName(employee: EmployeeListItem): string {
   return (
@@ -134,6 +178,7 @@ function blankDraft(): EditDraft {
     jobTitle: "",
     department: "",
     status: "active",
+    supervisorId: "",
   };
 }
 
@@ -155,6 +200,7 @@ function draftFromProfile(profile: EmployeeProfile | EmployeeListItem): EditDraf
     jobTitle: profile.jobTitle ?? "",
     department: profile.department ?? "",
     status: profile.status,
+    supervisorId: profile.supervisor?.id ?? "",
   };
 }
 
@@ -199,6 +245,17 @@ function formatActivityDate(timestamp: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+const DOCUMENT_STATUS_STYLES: Record<EmployeeDocumentStatus, { label: string; className: string }> = {
+  pending: { label: "Pending", className: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]" },
+  approved: { label: "Approved", className: "bg-[#ECFDF3] text-[#027A48] border-[#6CE9A6]" },
+  rejected: { label: "Rejected", className: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]" },
+};
+
+/** Detects whether a stored document URL points to an image (vs a PDF/other file). */
+function isImageUrl(url: string): boolean {
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(url.split("?")[0]);
 }
 
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
@@ -324,11 +381,14 @@ export function EmployeeDetailsModal({
   const { employee, loading, error, reload } = useEmployeeProfile(employeeId);
   const { update, saving } = useUpdateEmployee(employeeId);
   const { logs: activityLogs, loading: activityLoading } = useEmployeeActivityLogs(employeeId);
+  const { documents, loading: documentsLoading } = useEmployeeDocuments(employeeId);
   const { departments, loading: departmentsLoading } = useDepartments();
+  const { employees: allEmployees } = useEmployees({ limit: 100 });
   const profile = employee ?? fallbackEmployee;
   const profileDetails = profile as EmployeeProfile | null;
   const [draft, setDraft] = useState<EditDraft>(blankDraft);
   const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
+  const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
   const unsavedToastIdRef = useRef<string | number | null>(null);
   const sidebarAction = profile ? sidebarActionLabel(profile.status) : null;
 
@@ -342,6 +402,26 @@ export function EmployeeDetailsModal({
     }
     return departments;
   }, [departments, draft.department]);
+
+  const supervisorOptions = useMemo(
+    () =>
+      allEmployees
+        .filter((emp) => emp.id !== employeeId)
+        .map((emp) => ({ value: emp.id, label: emp.fullName })),
+    [allEmployees, employeeId],
+  );
+
+  // Resolved from the fetched list first, then falls back to the saved profile supervisor
+  // so the context fields show correctly even before the full employee list loads.
+  const selectedSupervisor = useMemo(() => {
+    if (!draft.supervisorId) return null;
+    const fromList = allEmployees.find((emp) => emp.id === draft.supervisorId);
+    if (fromList) return { email: fromList.companyEmail, jobTitle: fromList.jobTitle };
+    if (profile?.supervisor?.id === draft.supervisorId) {
+      return { email: profile.supervisor.companyEmail, jobTitle: profile.supervisor.jobTitle };
+    }
+    return null;
+  }, [allEmployees, draft.supervisorId, profile]);
 
   useEffect(() => {
     if (profile) {
@@ -415,17 +495,23 @@ export function EmployeeDetailsModal({
       jobTitle: nullableTrim(draft.jobTitle),
       department: nullableTrim(draft.department),
       status: draft.status,
+      // Only include supervisorId when the user changed it — avoids running the cycle
+      // check on every save and prevents false positives from pre-existing DB data.
+      ...(draft.supervisorId !== savedDraft.supervisorId
+        ? { supervisorId: draft.supervisorId || null }
+        : {}),
     };
 
     try {
       await update(input);
       toast.success("Employee details updated");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update employee details");
+      toast.error(resolveSaveErrorMessage(err));
     }
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className={`directory-profile-dialog h-[88vh] w-[90vw] max-w-[90vw] origin-center gap-0 overflow-hidden p-0 sm:rounded-xl [&>button]:z-30 [&>button]:p-1 [&>button]:text-[color:var(--text-secondary)] ${
@@ -509,22 +595,6 @@ export function EmployeeDetailsModal({
               <h2 className="truncate text-lg font-bold text-[color:var(--text-primary)]">
                 {profile ? `${fullName(profile)} File` : "Employee File"}
               </h2>
-              {profile && hasUnsavedChanges ? (
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={saving}
-                    onClick={() => setDraft(savedDraft)}
-                  >
-                    Discard
-                  </Button>
-                  <Button type="submit" size="sm" disabled={saving}>
-                    <Check /> {saving ? "Saving..." : "Save changes"}
-                  </Button>
-                </div>
-              ) : null}
             </header>
 
             <div className="px-8 py-8 pb-24">
@@ -687,17 +757,26 @@ export function EmployeeDetailsModal({
                               Supervisor
                             </p>
                             <div className="grid gap-4 lg:grid-cols-3">
+                              <label>
+                                <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
+                                  Assign supervisor
+                                </span>
+                                <Combobox
+                                  options={supervisorOptions}
+                                  value={draft.supervisorId}
+                                  onChange={(value) => updateDraft("supervisorId", value)}
+                                  placeholder="No supervisor (root node)"
+                                  searchPlaceholder="Search employees…"
+                                  emptyText="No employees found."
+                                />
+                              </label>
                               <ReadField
-                                label="Supervisor name"
-                                value={profile.supervisor?.fullName}
+                                label="Email"
+                                value={selectedSupervisor?.email}
                               />
                               <ReadField
-                                label="Supervisor email"
-                                value={profile.supervisor?.companyEmail}
-                              />
-                              <ReadField
-                                label="Supervisor title / lead"
-                                value={profile.supervisor?.jobTitle}
+                                label="Title / lead"
+                                value={selectedSupervisor?.jobTitle}
                               />
                             </div>
                           </div>
@@ -754,10 +833,66 @@ export function EmployeeDetailsModal({
 
                   <div ref={(node) => { sectionRefs.current.documents = node; }} className="scroll-mt-[88px]">
                     <DetailSection title="Documents" icon={FileText}>
-                      <EmptyPanel
-                        title="No documents yet"
-                        body="Uploaded employee files will appear here."
-                      />
+                      {documentsLoading ? (
+                        <div className="space-y-3">
+                          {Array.from({ length: 3 }).map((_, index) => (
+                            <div
+                              key={index}
+                              className="h-16 rounded-lg bg-[color:var(--bg-secondary)]"
+                            />
+                          ))}
+                        </div>
+                      ) : documents.length === 0 ? (
+                        <EmptyPanel
+                          title="No documents yet"
+                          body="Uploaded employee files will appear here."
+                        />
+                      ) : (
+                        <ul className="space-y-3">
+                          {documents.map((document) => {
+                            const statusStyle = DOCUMENT_STATUS_STYLES[document.status];
+                            return (
+                              <li
+                                key={document.id}
+                                className="flex items-center justify-between gap-4 rounded-lg border border-[color:var(--border-primary)] bg-white p-4"
+                              >
+                                <div className="flex min-w-0 items-center gap-3">
+                                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[color:var(--bg-secondary)]">
+                                    <FileText
+                                      className="h-5 w-5 text-[color:var(--text-secondary)]"
+                                      aria-hidden="true"
+                                    />
+                                  </span>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-bold text-[color:var(--text-primary)]">
+                                      {document.documentName}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
+                                      Uploaded {formatActivityDate(document.submittedAt)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-3">
+                                  <span
+                                    className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyle.className}`}
+                                  >
+                                    {statusStyle.label}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setViewingDocument(document)}
+                                    aria-label={`View ${document.documentName}`}
+                                  >
+                                    <Eye /> View
+                                  </Button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
                     </DetailSection>
                   </div>
 
@@ -820,10 +955,61 @@ export function EmployeeDetailsModal({
                 </div>
               ) : null}
             </div>
+
+            {profile && hasUnsavedChanges ? (
+              <footer className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-[color:var(--border-primary)] bg-white px-8 py-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => setDraft(savedDraft)}
+                >
+                  Discard
+                </Button>
+                <Button type="submit" size="sm" disabled={saving}>
+                  <Check /> {saving ? "Saving..." : "Save changes"}
+                </Button>
+              </footer>
+            ) : null}
             </form>
           </main>
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog
+      open={viewingDocument !== null}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setViewingDocument(null);
+      }}
+    >
+      <DialogContent className="grid h-[88vh] w-[90vw] max-w-[90vw] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:rounded-xl">
+        <DialogTitle className="border-b border-[color:var(--border-primary)] px-6 py-4 pr-12 text-base font-bold text-[color:var(--text-primary)]">
+          {viewingDocument?.documentName ?? "Document"}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          Preview of the selected employee document.
+        </DialogDescription>
+        {viewingDocument ? (
+          <div className="flex min-h-0 items-center justify-center overflow-auto bg-[color:var(--bg-secondary)] p-4">
+            {isImageUrl(viewingDocument.fileUrl) ? (
+              <img
+                src={viewingDocument.fileUrl}
+                alt={viewingDocument.documentName}
+                className="max-h-full max-w-full object-contain"
+              />
+            ) : (
+              <iframe
+                src={viewingDocument.fileUrl}
+                title={viewingDocument.documentName}
+                className="h-full w-full border-0 bg-white"
+              />
+            )}
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
