@@ -196,6 +196,83 @@
   .employee-unsaved-toast-shake {
     animation: employee-unsaved-toast-shake 420ms cubic-bezier(.36,.07,.19,.97) both;
   }
+
+  /* ── Org chart: top-down tree with connector lines (CEO → reports). ──
+     Classic pure-CSS tree: each node connects to a horizontal "bus" via ::before/::after,
+     and each children group drops a vertical line from its parent. Tokens keep it on-brand. */
+  .org-tree,
+  .org-tree ul {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .org-tree ul {
+    position: relative;
+    justify-content: center;
+    padding-top: 22px;
+  }
+  .org-tree li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 22px 14px 0;
+  }
+  /* drop line + half of the horizontal bus for each node.
+     border-image paints the connectors with the brand pink gradient. */
+  .org-tree li::before,
+  .org-tree li::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 50%;
+    width: 50%;
+    height: 22px;
+    border-top: 1.5px solid var(--brand-pink);
+    border-image: linear-gradient(135deg, var(--brand-peach), var(--brand-pink)) 1;
+  }
+  .org-tree li::after {
+    right: auto;
+    left: 50%;
+    border-left: 1.5px solid var(--brand-pink);
+  }
+  /* a lone child needs only a straight line, no bus */
+  .org-tree li:only-child::before,
+  .org-tree li:only-child::after {
+    display: none;
+  }
+  /* trim the bus so it doesn't overhang the outer edges */
+  .org-tree li:first-child::before,
+  .org-tree li:last-child::after {
+    border: 0 none;
+  }
+  .org-tree li:last-child::before {
+    border-right: 1.5px solid var(--brand-pink);
+    border-radius: 0 6px 0 0;
+  }
+  .org-tree li:first-child::after {
+    border-radius: 6px 0 0 0;
+  }
+  /* vertical line from a parent down into its children group */
+  .org-tree ul::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 22px;
+    border-left: 1.5px solid var(--brand-pink);
+    border-image: linear-gradient(135deg, var(--brand-peach), var(--brand-pink)) 1;
+  }
+  /* top-level roots have no parent above them, so no connectors */
+  .org-tree > li {
+    padding-top: 0;
+  }
+  .org-tree > li::before,
+  .org-tree > li::after {
+    display: none;
+  }
 }
 
 @keyframes directory-profile-dialog-in {
