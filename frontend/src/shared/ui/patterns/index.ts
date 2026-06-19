@@ -6,6 +6,7 @@ export { ProgressBar, type ProgressBarProps } from "./progress-bar";
 export { StatusBadge } from "./status-badge";
 export { ConfirmProvider, useConfirm } from "./confirm-dialog";
 export { DataTable, type Column, type DataTableSort } from "./data-table";
+export { PageTabs, type PageTabItem } from "./page-tabs";
 export { TablePagination } from "./table-pagination";
 export { FormField, type FormFieldProps } from "./form-field";
 export * from "./page-section";

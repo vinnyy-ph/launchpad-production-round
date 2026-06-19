@@ -22,11 +22,11 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  PageTabs,
   StatusBadge,
   type Column,
   type DataTableSort,
 } from "@/shared/ui/patterns";
-import { cn } from "@/shared/lib/utils";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
@@ -129,70 +129,6 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
   );
 }
 
-/** Underlined directory tabs with per-segment counts and a gradient-pink active indicator. */
-function DirectoryTabs({
-  active,
-  counts,
-  onChange,
-}: {
-  active: DirectoryTab;
-  counts: Record<DirectoryTab, number>;
-  onChange: (tab: DirectoryTab) => void;
-}) {
-  const tabs: { value: DirectoryTab; label: string }[] = [
-    { value: "all", label: "All" },
-    { value: "onboarding", label: "Onboarding" },
-    { value: "offboarding", label: "Offboarding" },
-  ];
-
-  return (
-    <div
-      role="tablist"
-      aria-label="Employee segments"
-      className="mb-5 flex items-center gap-6 border-b border-[color:var(--border-primary)]"
-    >
-      {tabs.map((tab) => {
-        const isActive = active === tab.value;
-        return (
-          <button
-            key={tab.value}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onChange(tab.value)}
-            className={cn(
-              "relative inline-flex items-center gap-2 px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              isActive
-                ? "text-[color:var(--text-primary)]"
-                : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
-            )}
-          >
-            {tab.label}
-            <span
-              className={cn(
-                "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold",
-                isActive
-                  ? "bg-[color:var(--text-primary)] text-white"
-                  : "bg-[color:var(--bg-secondary)] text-[color:var(--text-tertiary)]",
-              )}
-            >
-              {counts[tab.value]}
-            </span>
-            {isActive && (
-              <span
-                aria-hidden="true"
-                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
-                style={{
-                  background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
-                }}
-              />
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 export default function DirectoryPage() {
   const router = useRouter();
@@ -324,13 +260,18 @@ export default function DirectoryPage() {
         }
       />
 
-      <DirectoryTabs
-        active={tab}
-        counts={counts}
+      <PageTabs
+        ariaLabel="Employee segments"
+        value={tab}
         onChange={(nextTab) => {
-          setTab(nextTab);
+          setTab(nextTab as DirectoryTab);
           setPage(1);
         }}
+        items={[
+          { value: "all", label: "All", count: counts.all },
+          { value: "onboarding", label: "Onboarding", count: counts.onboarding },
+          { value: "offboarding", label: "Offboarding", count: counts.offboarding },
+        ]}
       />
 
       {tab === "onboarding" ? (
