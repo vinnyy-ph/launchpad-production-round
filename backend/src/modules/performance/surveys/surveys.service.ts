@@ -383,6 +383,7 @@ export class SurveysService {
   }
 
   private toListItem(survey: SurveyListRow): SurveyListItemDto {
+    const latest = survey.occurrences?.[0];
     return {
       id: survey.id,
       name: survey.name,
@@ -392,6 +393,8 @@ export class SurveysService {
       visibility: survey.visibility,
       isActive: survey.isActive,
       occurrenceCount: survey._count.occurrences,
+      recipientCount: latest?._count.audienceMembers ?? 0,
+      respondedCount: latest?._count.completions ?? 0,
       createdAt: survey.createdAt,
       updatedAt: survey.updatedAt,
     };

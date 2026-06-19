@@ -85,7 +85,11 @@ export function buildSurveyListItem(overrides?: {
   name?: string;
   isActive?: boolean;
   occurrenceCount?: number;
+  recipientCount?: number;
+  respondedCount?: number;
 }) {
+  const hasLatest =
+    overrides?.recipientCount !== undefined || overrides?.respondedCount !== undefined;
   return {
     id: overrides?.id ?? "survey-001",
     createdBy: "emp-hr-id",
@@ -98,6 +102,16 @@ export function buildSurveyListItem(overrides?: {
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     _count: { occurrences: overrides?.occurrenceCount ?? 0 },
+    occurrences: hasLatest
+      ? [
+          {
+            _count: {
+              audienceMembers: overrides?.recipientCount ?? 0,
+              completions: overrides?.respondedCount ?? 0,
+            },
+          },
+        ]
+      : [],
   };
 }
 

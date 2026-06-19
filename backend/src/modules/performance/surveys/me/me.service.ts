@@ -1,5 +1,5 @@
 import { MeRepository } from "./me.repository";
-import type { PendingSurveyItem } from "./me.types";
+import type { AnsweredSurveyItem, PendingSurveyItem } from "./me.types";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { advanceDueOccurrences } from "../occurrences/occurrence-scheduler";
 import { sweepPulseReminders } from "../reminders/reminders.service";
@@ -26,5 +26,14 @@ export class MeService {
     }
 
     return this.repository.findPendingSurveys(employeeId, new Date());
+  }
+
+  async getAnsweredSurveys(userId: string): Promise<AnsweredSurveyItem[]> {
+    const employeeId = await this.repository.findEmployeeIdByUserId(userId);
+    if (!employeeId) {
+      throw new Error(SURVEY_ERROR_MESSAGES.CREATOR_NOT_EMPLOYEE);
+    }
+
+    return this.repository.findAnsweredSurveys(employeeId);
   }
 }

@@ -1,9 +1,11 @@
+import { cn } from "@/shared/lib/utils";
+
 type Tone = "dark" | "light";
 
 interface ManageJiaLogoProps {
   /** dark = ink wordmark (on light surfaces); light = white wordmark (on dark/gradient). */
   tone?: Tone;
-  /** Logo height in px. The full lockup keeps its 2:1 aspect; the mark is square. */
+  /** Mark height in px. The wordmark scales with it. */
   size?: number;
   className?: string;
   /** Render just the gradient mark (no wordmark). */
@@ -11,8 +13,10 @@ interface ManageJiaLogoProps {
 }
 
 /**
- * Manage Jia brand lockup — uses the Jia design-system logo assets
- * (Manage Jia rides on the Jia brand mark). Assets live in /public/brand.
+ * Manage Jia brand lockup — the Jia design-system gradient mark plus a live
+ * "Manage Jia" wordmark (Satoshi). The wordmark is rendered as text rather than
+ * baked into the logo image, so the product always reads "Manage Jia" (the old
+ * jia-logo.svg lockup rendered just "Jia"). Assets live in /public/brand.
  */
 export function ManageJiaLogo({ tone = "dark", size = 38, className, markOnly = false }: ManageJiaLogoProps) {
   if (markOnly) {
@@ -29,15 +33,28 @@ export function ManageJiaLogo({ tone = "dark", size = 38, className, markOnly = 
     );
   }
 
-  const src = tone === "light" ? "/brand/jia-logo-on-dark.svg" : "/brand/jia-logo.svg";
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt="Manage Jia"
-      height={size}
-      className={className}
-      style={{ height: size, width: "auto" }}
-    />
+    <span className={cn("inline-flex items-center gap-2.5", className)} aria-label="Manage Jia">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/jia-logomark.svg"
+        alt=""
+        aria-hidden="true"
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+      />
+      <span
+        style={{
+          fontSize: Math.round(size * 0.52),
+          fontWeight: 700,
+          letterSpacing: "-0.02em",
+          lineHeight: 1,
+          color: tone === "light" ? "#ffffff" : "var(--text-primary)",
+        }}
+      >
+        Manage Jia
+      </span>
+    </span>
   );
 }

@@ -87,7 +87,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           if (!nextOpen && !confirming) settle(false);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="dialog-pop">
           <AlertDialogHeader>
             <AlertDialogTitle>{opts?.title}</AlertDialogTitle>
             {opts?.description && (

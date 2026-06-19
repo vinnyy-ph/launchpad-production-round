@@ -1,5 +1,5 @@
 import { prisma } from "../../../../core/database/prisma.service";
-import type { PendingSurveyItem } from "./me.types";
+import type { AnsweredSurveyItem, PendingSurveyItem } from "./me.types";
 
 export class MeRepository {
   async findEmployeeIdByUserId(userId: string): Promise<string | null> {
@@ -36,6 +36,7 @@ export class MeRepository {
               select: {
                 id: true,
                 name: true,
+                isAnonymous: true,
                 questions: {
                   orderBy: { orderIndex: "asc" },
                   select: {
@@ -68,10 +69,38 @@ export class MeRepository {
         occurrenceId: occ.id,
         surveyId: srv.id,
         surveyName: srv.name,
+        isAnonymous: srv.isAnonymous,
         deadline: occ.deadline,
         occurrenceNumber: occ.occurrenceNumber,
         questions: srv.questions,
       };
     });
+  }
+
+  /** Pulses this employee has already completed, most recent first. */
+  async findAnsweredSurveys(employeeId: string): Promise<AnsweredSurveyItem[]> {
+    const completions = await prisma.surveyCompletion.findMany({
+      where: { employeeId },
+      orderBy: { completedAt: "desc" },
+      select: {
+        completedAt: true,
+        occurrence: {
+          select: {
+            id: true,
+            occurrenceNumber: true,
+            survey: { select: { id: true, name: true, isAnonymous: true } },
+          },
+        },
+      },
+    });
+
+    return completions.map((c) => ({
+      occurrenceId: c.occurrence.id,
+      surveyId: c.occurrence.survey.id,
+      surveyName: c.occurrence.survey.name,
+      isAnonymous: c.occurrence.survey.isAnonymous,
+      occurrenceNumber: c.occurrence.occurrenceNumber,
+      completedAt: c.completedAt,
+    }));
   }
 }

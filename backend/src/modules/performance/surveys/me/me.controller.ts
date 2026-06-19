@@ -47,4 +47,41 @@ export class MeController {
       next(error);
     }
   };
+
+  getAnsweredSurveys = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+        return;
+      }
+
+      const answeredSurveys = await this.service.getAnsweredSurveys(userId);
+
+      res.status(HTTP_STATUS_CODES.OK).json({
+        success: true,
+        message: "Answered surveys retrieved successfully",
+        data: answeredSurveys,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === SURVEY_ERROR_MESSAGES.CREATOR_NOT_EMPLOYEE) {
+          res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+            success: false,
+            message: API_ERROR_MESSAGES.CREATOR_NOT_EMPLOYEE,
+            errorCode: API_ERROR_CODES.CREATOR_NOT_EMPLOYEE,
+          });
+          return;
+        }
+      }
+      next(error);
+    }
+  };
 }

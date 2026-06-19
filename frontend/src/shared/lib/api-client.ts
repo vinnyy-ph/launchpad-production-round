@@ -12,6 +12,37 @@ async function getIdToken(): Promise<string | null> {
   }
 }
 
+/** One field-level validation error returned by the API in an error response `errors` array. */
+export interface ApiFieldError {
+  field?: string;
+  message?: string;
+  code?: string;
+}
+
+/**
+ * Error thrown for non-2xx API responses. Carries the structured details (errorCode and
+ * field-level errors) so callers can map specific failures to user-friendly messages without
+ * parsing the raw response again. `message` stays the top-level message for generic display.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly errorCode?: string;
+  readonly fieldErrors: ApiFieldError[];
+
+  constructor(
+    message: string,
+    status: number,
+    errorCode?: string,
+    fieldErrors: ApiFieldError[] = [],
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.errorCode = errorCode;
+    this.fieldErrors = fieldErrors;
+  }
+}
+
 export async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const isFormData = options.body instanceof FormData;
   const token = await getIdToken();
@@ -24,8 +55,18 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}): Promi
     },
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-    throw new Error(body.message ?? body.error ?? res.statusText);
+    const body = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      error?: string;
+      errorCode?: string;
+      errors?: ApiFieldError[];
+    };
+    throw new ApiError(
+      body.message ?? body.error ?? res.statusText,
+      res.status,
+      body.errorCode,
+      body.errors ?? [],
+    );
   }
   if (res.status === 204 || res.headers.get("content-length") === "0") {
     return undefined as T;

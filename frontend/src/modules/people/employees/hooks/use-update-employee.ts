@@ -15,6 +15,7 @@ export function useUpdateEmployee(employeeId: string | null) {
     onSuccess: () => {
       if (employeeId) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.employees.detail(employeeId) });
+        void queryClient.invalidateQueries({ queryKey: ["employee-activity-logs", employeeId] });
       }
       void queryClient.invalidateQueries({ queryKey: queryKeys.employees.all });
     },

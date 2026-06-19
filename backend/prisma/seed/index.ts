@@ -20,20 +20,18 @@ import { seedSurveys } from './surveys'
 import { seedEvaluations } from './evaluations'
 import { seedNotifications } from './notifications'
 
-const databaseUrl = process.env.DATABASE_URL
+// Prefer the direct (unpooled) connection for seeding — it carries the interactive
+// transactions seedUsers and friends rely on.
+const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL
 
 if (!databaseUrl) {
   throw new Error('DATABASE_URL is required to run the seed script')
 }
 
 function createSeedAdapter(connectionString: string) {
-  const hostname = new URL(connectionString).hostname
-  const isNeonHost = hostname.includes('neon.tech')
-
-  if (isNeonHost) {
-    return new PrismaNeonHttp(connectionString, {})
-  }
-
+  // PrismaPg (pg over TCP) supports interactive transactions; the Neon HTTP adapter
+  // does not ("Transactions are not supported in HTTP mode"), which breaks the seed.
+  // Mirrors the runtime adapter in src/core/database/prisma.service.ts.
   return new PrismaPg(connectionString)
 }
 
@@ -49,6 +47,7 @@ async function clearAll() {
   await prisma.surveyAudienceMember.deleteMany()
   await prisma.evaluationAcknowledgement.deleteMany()
   await prisma.performanceEvaluation.deleteMany()
+  await prisma.surveyVisibilityConfig.deleteMany()
   await prisma.surveyReminderConfig.deleteMany()
   await prisma.surveyAudienceConfig.deleteMany()
   await prisma.surveyQuestion.deleteMany()

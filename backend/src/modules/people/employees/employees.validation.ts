@@ -39,7 +39,7 @@ export class EmployeesValidation {
       status,
       teamId: this.parseOptionalString(query.teamId),
       team: this.parseOptionalString(query.team),
-      supervisorId: this.parseOptionalString(query.supervisorId),
+      supervisorIds: this.parseIdList(query.supervisorId),
       sortBy: this.parseSortBy(query.sortBy),
       sortDirection: this.parseSortDirection(query.sortDirection),
     };
@@ -99,6 +99,27 @@ export class EmployeesValidation {
     }
 
     return update as UpdateEmployeeProfileRequestDto;
+  }
+
+  /**
+   * Parses a comma-separated id list (e.g. "a,b,c") into a deduped array of trimmed ids.
+   * Returns undefined when no ids are present so the filter stays unset.
+   */
+  private parseIdList(value: unknown): string[] | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const ids = Array.from(
+      new Set(
+        value
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0),
+      ),
+    );
+
+    return ids.length > 0 ? ids : undefined;
   }
 
   /** Returns a trimmed string when present, otherwise leaves the optional filter unset. */

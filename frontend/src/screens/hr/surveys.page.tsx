@@ -11,13 +11,14 @@ import {
   Square,
   BarChart3,
   Filter,
-  ArrowUpDown,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import {
   Button,
   Badge,
+  BadgeDot,
   Input,
   Select,
   SelectContent,
@@ -61,24 +62,76 @@ import {
   deriveStatus,
 } from "@/modules/performance/surveys/types/surveys.types";
 
+const PAGE_SIZE = 10;
+const STATUS_OPTIONS: { value: SurveyStatus | "ALL"; label: string }[] = [
+  { value: "ALL", label: "All statuses" },
+  { value: "draft", label: STATUS_LABEL.draft },
+  { value: "active", label: STATUS_LABEL.active },
+  { value: "closed", label: STATUS_LABEL.closed },
+];
+
+// ─── Cell pieces ──────────────────────────────────────────────────────────────
+
 const STATUS_VARIANT: Record<SurveyStatus, "success" | "warning" | "neutral"> = {
   active: "success",
   draft: "neutral",
   closed: "warning",
 };
 
-const PAGE_SIZE = 10;
-const STATUS_OPTIONS: { value: SurveyStatus | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All statuses" },
-  { value: "active", label: STATUS_LABEL.active },
-  { value: "draft", label: STATUS_LABEL.draft },
-  { value: "closed", label: STATUS_LABEL.closed },
-];
-const SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: "name", label: "Name" },
-  { value: "occurrences", label: "Occurrences" },
-  { value: "status", label: "Status" },
-];
+function StatusChip({ status }: { status: SurveyStatus }) {
+  return (
+    <Badge variant={STATUS_VARIANT[status]} pill>
+      <BadgeDot />
+      {STATUS_LABEL[status]}
+    </Badge>
+  );
+}
+
+function AnonymityChip({ anonymous }: { anonymous: boolean }) {
+  return anonymous ? (
+    <Badge variant="brand" pill>
+      Anonymous
+    </Badge>
+  ) : (
+    <Badge variant="modern" pill>
+      Named
+    </Badge>
+  );
+}
+
+/** Audience · Recurrence · N rounds (rounds shown only for recurring surveys). */
+function audienceSummary(s: SurveyListItem): string {
+  const parts = [AUDIENCE_TYPE_LABEL[s.audienceType], RECURRING_TYPE_LABEL[s.recurringType]];
+  if (s.recurringType !== "ONE_TIME" && s.occurrenceCount > 0) {
+    parts.push(`${s.occurrenceCount} round${s.occurrenceCount === 1 ? "" : "s"}`);
+  }
+  return parts.join(" · ");
+}
+
+function ResponsesCell({ s }: { s: SurveyListItem }) {
+  const status = deriveStatus(s);
+  if (status === "draft") {
+    return <span className="text-sm text-[color:var(--text-quaternary)]">Not sent yet</span>;
+  }
+  const pct = s.recipientCount > 0 ? Math.round((s.respondedCount / s.recipientCount) * 100) : 0;
+  return (
+    <div className="flex items-center justify-end gap-2.5 md:justify-start">
+      <span className="h-2 w-16 flex-none overflow-hidden rounded-full bg-[color:var(--bg-secondary)]">
+        <span
+          className="block h-full rounded-full bg-[color:var(--text-primary)]"
+          style={{ width: `${pct}%` }}
+        />
+      </span>
+      <span className="whitespace-nowrap text-[13px] text-[color:var(--text-primary)]">
+        <b className="font-semibold">{pct}%</b>{" "}
+        <span className="text-[color:var(--text-tertiary)]">
+          · {s.respondedCount}/{s.recipientCount}
+          {status === "closed" ? " final" : ""}
+        </span>
+      </span>
+    </div>
+  );
+}
 
 export default function HRSurveysPage() {
   const router = useRouter();
@@ -114,17 +167,7 @@ export default function HRSurveysPage() {
 
   const sorted = useMemo(() => {
     const dir = sort.direction === "asc" ? 1 : -1;
-    return [...filtered].sort((a, b) => {
-      switch (sort.key) {
-        case "occurrences":
-          return dir * (a.occurrenceCount - b.occurrenceCount);
-        case "status":
-          return dir * deriveStatus(a).localeCompare(deriveStatus(b));
-        case "name":
-        default:
-          return dir * a.name.localeCompare(b.name);
-      }
-    });
+    return [...filtered].sort((a, b) => dir * a.name.localeCompare(b.name));
   }, [filtered, sort]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -151,7 +194,26 @@ export default function HRSurveysPage() {
     setEditingId(null);
   };
 
-  const handleSave = (input: CreateSurveyInput) => {
+  // Row click lands on the thing that exists for that survey: results for any survey
+  // that's been sent (active/closed), the editor for an unsent draft.
+  const openRow = (s: SurveyListItem) => {
+    if (deriveStatus(s) === "draft") openEdit(s);
+    else router.push(`/hr/surveys/${s.id}/results`);
+  };
+
+  // Activation is a separate endpoint that snapshots the audience and sets the survey live.
+  // "Create & activate" chains it onto the save so the builder can offer one primary action.
+  const activateAndClose = (id: string) =>
+    activateSurvey.mutate(id, {
+      onSuccess: () => {
+        toast.success("Survey activated");
+        closeBuilder();
+      },
+      onError: (e) => toast.error(e.message),
+    });
+
+  const handleSave = (input: CreateSurveyInput, opts?: { activate?: boolean }) => {
+    const activate = !!opts?.activate;
     if (editingId) {
       // Once a survey is activated the server locks every field except name + visibility.
       // Sending the locked fields back (even unchanged) trips the guard and 409s, so trim
@@ -163,18 +225,26 @@ export default function HRSurveysPage() {
       updateSurvey.mutate(
         { id: editingId, input: payload },
         {
-          onSuccess: () => {
-            toast.success("Survey updated.");
-            closeBuilder();
+          onSuccess: (updated) => {
+            if (activate && !isLocked) {
+              activateAndClose(updated.id);
+            } else {
+              toast.success("Survey updated.");
+              closeBuilder();
+            }
           },
           onError: (e) => toast.error(e.message),
         },
       );
     } else {
       createSurvey.mutate(input, {
-        onSuccess: () => {
-          toast.success("Survey saved as a draft.");
-          closeBuilder();
+        onSuccess: (created) => {
+          if (activate) {
+            activateAndClose(created.id);
+          } else {
+            toast.success("Survey saved as a draft.");
+            closeBuilder();
+          }
         },
         onError: (e) => toast.error(e.message),
       });
@@ -184,7 +254,7 @@ export default function HRSurveysPage() {
   const handleDelete = () => {
     if (!deletingId) return;
     deleteSurvey.mutate(deletingId, {
-      onSuccess: () => toast.success("Survey deleted."),
+      onSuccess: () => toast.success("Draft deleted"),
       onError: (e) => toast.error(e.message),
       onSettled: () => setDeletingId(null),
     });
@@ -193,7 +263,7 @@ export default function HRSurveysPage() {
   const handleActivate = () => {
     if (!activatingId) return;
     activateSurvey.mutate(activatingId, {
-      onSuccess: () => toast.success("Survey activated — it is now live."),
+      onSuccess: () => toast.success("Survey activated"),
       onError: (e) => toast.error(e.message),
       onSettled: () => setActivatingId(null),
     });
@@ -202,28 +272,28 @@ export default function HRSurveysPage() {
   const handleDeactivate = () => {
     if (!deactivatingId) return;
     deactivateSurvey.mutate(deactivatingId, {
-      onSuccess: () => toast.success("Survey deactivated."),
+      onSuccess: () => toast.success("Survey deactivated"),
       onError: (e) => toast.error(e.message),
       onSettled: () => setDeactivatingId(null),
     });
   };
 
-  const saving = createSurvey.isPending || updateSurvey.isPending;
+  const saving =
+    createSurvey.isPending || updateSurvey.isPending || activateSurvey.isPending;
 
   const columns: Column<SurveyListItem>[] = [
     {
       header: "Name",
       sortable: true,
       sortKey: "name",
+      className: "w-[34%]",
       cell: (s) => (
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+        <div className="min-w-0 py-1">
+          <p className="truncate text-[15px] font-semibold text-[color:var(--text-primary)]">
             {s.name}
           </p>
-          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-            {AUDIENCE_TYPE_LABEL[s.audienceType]}
-            {" · "}
-            {RECURRING_TYPE_LABEL[s.recurringType]}
+          <p className="truncate text-[12.5px] text-[color:var(--text-tertiary)]">
+            {audienceSummary(s)}
           </p>
         </div>
       ),
@@ -231,35 +301,25 @@ export default function HRSurveysPage() {
     {
       header: "Anonymity",
       mobileLabel: "Anonymity",
-      cell: (s) => (
-        <Badge variant={s.isAnonymous ? "success" : "neutral"}>
-          {s.isAnonymous ? "Anonymous" : "Named"}
-        </Badge>
-      ),
+      className: "w-[14%] whitespace-nowrap",
+      cell: (s) => <AnonymityChip anonymous={s.isAnonymous} />,
     },
     {
-      header: "Occurrences",
-      mobileLabel: "Occurrences",
-      sortable: true,
-      sortKey: "occurrences",
-      cell: (s) => (
-        <span className="text-sm text-[color:var(--text-secondary)]">{s.occurrenceCount}</span>
-      ),
+      header: "Responses",
+      mobileLabel: "Responses",
+      className: "w-[24%] whitespace-nowrap",
+      cell: (s) => <ResponsesCell s={s} />,
     },
     {
       header: "Status",
       mobileLabel: "Status",
-      sortable: true,
-      sortKey: "status",
-      cell: (s) => {
-        const status = deriveStatus(s);
-        return <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>;
-      },
+      className: "w-[14%] whitespace-nowrap",
+      cell: (s) => <StatusChip status={deriveStatus(s)} />,
     },
     {
-      header: "",
+      header: <span className="block w-full text-right">Actions</span>,
       mobileFooter: true,
-      className: "w-[1%] whitespace-nowrap text-right",
+      className: "w-[150px] whitespace-nowrap text-right",
       cell: (s) => {
         const status = deriveStatus(s);
         return (
@@ -280,7 +340,7 @@ export default function HRSurveysPage() {
                   <BarChart3 className="h-4 w-4" />
                 </Button>
               )}
-              {status === "active" ? (
+              {status === "active" && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -294,7 +354,8 @@ export default function HRSurveysPage() {
                 >
                   <Square className="h-4 w-4" />
                 </Button>
-              ) : (
+              )}
+              {status === "draft" && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -317,8 +378,8 @@ export default function HRSurveysPage() {
                   e.stopPropagation();
                   openEdit(s);
                 }}
-                aria-label="Edit survey"
-                title="Edit survey"
+                aria-label={status === "draft" ? "Continue editing" : "Edit survey"}
+                title={status === "draft" ? "Continue editing" : "Edit survey"}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -331,8 +392,8 @@ export default function HRSurveysPage() {
                     e.stopPropagation();
                     setDeletingId(s.id);
                   }}
-                  aria-label="Delete survey"
-                  title="Delete survey"
+                  aria-label="Delete draft"
+                  title="Delete draft"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -349,50 +410,24 @@ export default function HRSurveysPage() {
       <PageHeader
         level="page"
         title="Pulse surveys"
-        subtitle="Build and manage surveys across the organisation."
+        subtitle="Send pulses, track responses, and see how the team's doing."
       />
 
       <FilterBar aria-label="Filter surveys" className="gap-3">
         <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <Input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name…"
-            aria-label="Search surveys"
-            className="w-full sm:max-w-[320px]"
-          />
-          <div className="flex w-full gap-2 md:hidden">
-            <Select
-              value={sort.key}
-              onValueChange={(v: string) => setSort((cur) => ({ key: v, direction: cur.direction }))}
-            >
-              <SelectTrigger className="w-full min-w-0" aria-label="Sort by">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                {SORT_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              onClick={() =>
-                setSort((cur) => ({
-                  key: cur.key,
-                  direction: cur.direction === "asc" ? "desc" : "asc",
-                }))
-              }
-              aria-label={`Sort ${sort.direction === "asc" ? "descending" : "ascending"}`}
-            >
-              <ArrowUpDown className="h-4 w-4" />
-            </Button>
+          <div className="relative w-full min-w-0 sm:max-w-[360px] sm:flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
+              aria-hidden="true"
+            />
+            <Input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name…"
+              aria-label="Search surveys"
+              className="w-full pl-9"
+            />
           </div>
           <Select
             value={statusFilter}
@@ -421,8 +456,8 @@ export default function HRSurveysPage() {
       </FilterBar>
 
       <div
-        className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
-        style={{ boxShadow: "var(--shadow-xs)" }}
+        className="overflow-hidden rounded-2xl border border-[color:var(--border-primary)] bg-white"
+        style={{ boxShadow: "var(--shadow-sm)" }}
       >
         <DataTable
           columns={columns}
@@ -431,16 +466,16 @@ export default function HRSurveysPage() {
           error={surveysQuery.isError ? (surveysQuery.error?.message ?? "Could not load surveys.") : null}
           onRetry={() => void surveysQuery.refetch()}
           getRowId={(s) => s.id}
-          onRowClick={(s) => openEdit(s)}
+          onRowClick={openRow}
           sort={sort}
           onSortChange={setSort}
           emptyState={
             <EmptyState
               icon={ClipboardList}
-              title={hasFilters ? "No matching surveys" : "No surveys yet"}
+              title={hasFilters ? "No surveys match that." : "No surveys yet"}
               body={
                 hasFilters
-                  ? "Try a different search or status filter."
+                  ? "Try a different name or status filter."
                   : "Create your first pulse survey to start gathering insights."
               }
               action={hasFilters ? undefined : { label: "Create survey", onClick: openCreate }}
@@ -466,9 +501,10 @@ export default function HRSurveysPage() {
       <AlertDialog open={!!deletingId} onOpenChange={(o) => !o && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this survey?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this draft?</AlertDialogTitle>
             <AlertDialogDescription>
-              This cannot be undone. Only draft surveys can be deleted.
+              This draft hasn&apos;t been sent, so nothing is lost for employees. This can&apos;t be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -505,7 +541,8 @@ export default function HRSurveysPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Deactivate this survey?</AlertDialogTitle>
             <AlertDialogDescription>
-              The survey will stop accepting responses until it is reactivated.
+              This closes the current round and stops all future ones. Responses already collected
+              stay, and you can reopen it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

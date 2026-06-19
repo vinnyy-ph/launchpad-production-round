@@ -9,6 +9,7 @@ import type {
   PreviewAudienceInput,
   SurveyStatus,
   PendingSurvey,
+  AnsweredSurvey,
   AnswerInput,
   SurveyResults,
   ResultsFilter,
@@ -110,6 +111,12 @@ export async function fetchMySurveys(): Promise<PendingSurvey[]> {
       options: normalizeQuestionOptions(q.options),
     })),
   }));
+}
+
+/** The signed-in employee's already-answered pulses (history). */
+export async function fetchAnsweredSurveys(): Promise<AnsweredSurvey[]> {
+  const res = await apiFetch<{ data: AnsweredSurvey[] }>(`${PULSE}/me/surveys/answered`);
+  return res.data;
 }
 
 /** Submit answers to a pulse occurrence. Anonymity + validation enforced server-side. */

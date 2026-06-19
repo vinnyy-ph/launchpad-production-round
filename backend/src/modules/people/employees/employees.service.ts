@@ -105,11 +105,31 @@ export class EmployeesService {
       throw new Error("Employee cannot supervise themselves");
     }
 
-    if (update.supervisorId) {
-      const supervisor = await this.employeesRepository.findById(update.supervisorId);
+    if (update.supervisorId !== undefined) {
+      if (update.supervisorId) {
+        const supervisor = await this.employeesRepository.findById(update.supervisorId);
 
-      if (!supervisor) {
-        throw new Error("Supervisor not found");
+        if (!supervisor) {
+          throw new Error("Supervisor not found");
+        }
+
+        const hasCycle = await this.employeesRepository.wouldCreateCycle(
+          params.employeeId,
+          update.supervisorId,
+        );
+
+        if (hasCycle) {
+          throw new Error("Circular supervisory relationship detected");
+        }
+      } else {
+        // Clearing the supervisor — enforce the single root node constraint.
+        const existingRootCount = await this.employeesRepository.countRootEmployees(
+          params.employeeId,
+        );
+
+        if (existingRootCount > 0) {
+          throw new Error("Another employee is already the root node");
+        }
       }
     }
 

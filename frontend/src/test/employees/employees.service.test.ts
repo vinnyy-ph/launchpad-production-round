@@ -31,9 +31,16 @@ describe("getEmployees", () => {
   });
 
   it("supports team and supervisor filters", async () => {
-    await getEmployees({ teamId: "team-1", team: "platform", supervisorId: "employee-1" });
+    await getEmployees({ teamId: "team-1", team: "platform", supervisorIds: ["employee-1"] });
     expect(apiFetch).toHaveBeenCalledWith(
       "/api/v1/employees?teamId=team-1&team=platform&supervisorId=employee-1&page=1&limit=10",
+    );
+  });
+
+  it("joins multiple supervisor ids into a comma-separated param", async () => {
+    await getEmployees({ supervisorIds: ["employee-1", "employee-2"] });
+    expect(apiFetch).toHaveBeenCalledWith(
+      "/api/v1/employees?supervisorId=employee-1%2Cemployee-2&page=1&limit=10",
     );
   });
 
