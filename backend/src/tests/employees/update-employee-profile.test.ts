@@ -20,7 +20,13 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 // updateProfile runs inside prisma.$transaction and writes activity-log entries, so the
 // mock exposes a transaction that runs the callback against the same mocked client.
 jest.mock("../../core/database/prisma.service", () => {
-  const prisma = {
+  // Explicit type breaks the circular inference (prisma referenced in its own
+  // $transaction initializer), which otherwise trips TS7022/TS7024 under `tsc`.
+  const prisma: {
+    employee: { findMany: jest.Mock; count: jest.Mock; findFirst: jest.Mock; update: jest.Mock };
+    activityLog: { createMany: jest.Mock };
+    $transaction: jest.Mock;
+  } = {
     employee: {
       findMany: jest.fn(),
       count: jest.fn(),
