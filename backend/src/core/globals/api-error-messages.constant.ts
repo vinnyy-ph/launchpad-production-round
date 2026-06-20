@@ -88,6 +88,11 @@ export const API_ERROR_MESSAGES = {
   SIGNATURE_REQUEST_NOT_PENDING:
     "This clearance request has already been actioned",
   REJECTION_NOTE_REQUIRED: "A note is required when rejecting a clearance",
+  DEPARTMENT_NOT_FOUND: "Department not found",
+  DEPARTMENT_ALREADY_EXISTS: "A department with this name already exists",
+  DEPARTMENT_HAS_EMPLOYEES:
+    "This department cannot be deleted while employees are still assigned to it",
+  INVALID_DEPARTMENT: "Invalid department",
 } as const;
 
 export type ApiErrorMessage =

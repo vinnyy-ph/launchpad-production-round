@@ -15,6 +15,10 @@ export const queryKeys = {
   departments: {
     all: ["departments"] as const,
     list: ["departments", "list"] as const,
+    table: (filters?: Record<string, unknown>) =>
+      filters
+        ? (["departments", "table", filters] as const)
+        : (["departments", "table"] as const),
   },
   teams: {
     all: ["teams"] as const,
