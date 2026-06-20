@@ -67,6 +67,10 @@ export const API_SUCCESS_MESSAGES = {
   CLEARANCE_SIGNED: "Clearance signed successfully",
   CLEARANCE_REJECTED: "Clearance rejected successfully",
   CLEARANCE_RESET: "Clearance request reset to pending successfully",
+  DEPARTMENTS_RETRIEVED: "Departments retrieved successfully",
+  DEPARTMENT_CREATED: "Department created successfully",
+  DEPARTMENT_UPDATED: "Department updated successfully",
+  DEPARTMENT_DELETED: "Department deleted successfully",
 } as const;
 
 export type ApiSuccessMessage =

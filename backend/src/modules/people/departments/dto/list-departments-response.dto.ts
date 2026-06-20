@@ -1,6 +1,7 @@
-import type { DepartmentResponseDto } from "./department-response.dto";
+import { PaginatedApiResponseDto } from "../../../../core/dto";
+import type { DepartmentListItemResponseDto } from "./department-list-item-response.dto";
 
-/** Success envelope returned by GET /api/v1/departments. */
-export interface ListDepartmentsResponseDto {
-  data: DepartmentResponseDto[];
-}
+/**
+ * Paginated response returned by GET /api/v1/departments.
+ */
+export class ListDepartmentsResponseDto extends PaginatedApiResponseDto<DepartmentListItemResponseDto> {}

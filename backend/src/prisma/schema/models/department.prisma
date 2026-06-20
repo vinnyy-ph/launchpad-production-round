@@ -6,6 +6,8 @@ model Department {
   createdAt DateTime   @default(now())
 
   updatedAt DateTime @updatedAt
+  /// Soft-delete marker. Null = active; a timestamp hides the row from HR listings.
+  deletedAt DateTime?
 
   @@map("departments")
 }
