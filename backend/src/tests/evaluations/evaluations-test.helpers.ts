@@ -63,7 +63,7 @@ export function buildEvaluationRecord(overrides?: {
     lowlights: [],
     evaluation: null,
     recommendation: null,
-    supportingDocUrl: null,
+    supportingDocUrls: [],
     isSent: overrides?.isSent ?? false,
     sentAt: overrides?.sentAt ?? null,
     ackDeadline: overrides?.ackDeadline ?? null,

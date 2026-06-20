@@ -7,6 +7,6 @@ export interface UpdateEvaluationInput {
   lowlights?: string[];
   evaluation?: string;
   recommendation?: string;
-  supportingDocUrl?: string;
+  supportingDocUrls?: string[];
   send?: boolean;
 }

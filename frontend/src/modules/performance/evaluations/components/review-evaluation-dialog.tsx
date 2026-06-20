@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { CheckCircle2, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,7 @@ import {
   Button,
 } from "@/shared/ui";
 import type { Evaluation } from "../types/evaluations.types";
+import { downloadSupportingDoc } from "../services/evaluations.service";
 
 const GRADE_LABELS: Record<number, string> = {
   1: "Unsatisfactory",
@@ -25,14 +27,41 @@ function fmtDate(iso?: string | null): string {
   const d = new Date(iso);
   return isNaN(d.getTime())
     ? "—"
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    : d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
 }
 
 function formatPeriod(startIso: string, endIso: string): string {
   return `${fmtDate(startIso)} – ${fmtDate(endIso)}`;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function extractFilename(value: string): string {
+  const last = value.split("/").pop() ?? value;
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
+}
+
+async function handleDownload(evaluationId: string, docIndex: number): Promise<void> {
+  try {
+    await downloadSupportingDoc(evaluationId, docIndex);
+  } catch {
+    toast.error("Couldn't download the document. Please try again.");
+  }
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
@@ -83,7 +112,9 @@ export function ReviewEvaluationDialog({
           <DialogTitle className="mt-1 text-xl font-bold tracking-tight">
             {formatPeriod(ev.periodStart, ev.periodEnd)}
           </DialogTitle>
-          <DialogDescription>From {ev.reviewer?.fullName ?? "Your supervisor"}</DialogDescription>
+          <DialogDescription>
+            From {ev.reviewer?.fullName ?? "Your supervisor"}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-6 pt-5">
@@ -96,7 +127,9 @@ export function ReviewEvaluationDialog({
               <p className="text-base font-bold text-[color:var(--text-primary)]">
                 {GRADE_LABELS[ev.grade] ?? `Grade ${ev.grade}`}
               </p>
-              <p className="text-[13px] text-[color:var(--text-tertiary)]">Overall grade</p>
+              <p className="text-[13px] text-[color:var(--text-tertiary)]">
+                Overall grade
+              </p>
             </div>
           </div>
 
@@ -148,17 +181,21 @@ export function ReviewEvaluationDialog({
             </Section>
           )}
 
-          {ev.supportingDocUrl && (
-            <Section title="Links">
-              <a
-                href={ev.supportingDocUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 break-all text-sm text-[color:var(--brand-blue)] underline underline-offset-2"
-              >
-                <ExternalLink size={14} className="flex-none" />
-                {ev.supportingDocUrl}
-              </a>
+          {ev.supportingDocUrls.length > 0 && (
+            <Section title="Supporting documents">
+              <div className="space-y-1.5">
+                {ev.supportingDocUrls.map((publicId, index) => (
+                  <button
+                    key={publicId}
+                    type="button"
+                    onClick={() => handleDownload(ev.id, index)}
+                    className="inline-flex items-center gap-1.5 text-sm text-[color:var(--brand-blue)] underline underline-offset-2 break-all text-left"
+                  >
+                    <FileText size={14} className="flex-none" />
+                    {extractFilename(publicId)}
+                  </button>
+                ))}
+              </div>
             </Section>
           )}
         </div>
@@ -174,13 +211,15 @@ export function ReviewEvaluationDialog({
             </p>
           ) : isDeemed ? (
             <p className="text-center text-[13px] text-[color:var(--text-tertiary)]">
-              Deemed acknowledged on {fmtDate(ev.ackDeadline)} — no action needed.
+              Deemed acknowledged on {fmtDate(ev.ackDeadline)} — no action
+              needed.
             </p>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="max-w-md text-[12.5px] text-[color:var(--text-tertiary)]">
-                Acknowledging confirms you&apos;ve read this. It doesn&apos;t mean you agree.
-                Auto-acknowledged on {fmtDate(ev.ackDeadline)} if not done.
+                Acknowledging confirms you&apos;ve read this. It doesn&apos;t
+                mean you agree. Auto-acknowledged on {fmtDate(ev.ackDeadline)}{" "}
+                if not done.
               </p>
               <Button
                 onClick={() => {

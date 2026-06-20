@@ -11,6 +11,8 @@ import {
   Eye,
   ChevronLeft,
   ArrowUpDown,
+  FileText,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
@@ -58,6 +60,7 @@ import {
   useUpdateEvaluation,
   useDeleteEvaluation,
   useSendEvaluation,
+  downloadSupportingDoc,
   GRADE_LABELS,
   type Evaluation,
   type EvaluationInput,
@@ -95,13 +98,26 @@ function formatRelativeDate(iso: string): string {
   return format(target, sameYear ? "LLL d" : "LLL d, yyyy");
 }
 
-function isValidUrl(value: string): boolean {
+function extractFilename(value: string): string {
+  const last = value.split("/").pop() ?? value;
   try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return decodeURIComponent(last);
   } catch {
-    return false;
+    return last;
   }
+}
+
+async function handleDownload(evaluationId: string, docIndex: number): Promise<void> {
+  try {
+    await downloadSupportingDoc(evaluationId, docIndex);
+  } catch {
+    toast.error("Couldn't download the document. Please try again.");
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 type AckTone = "warning" | "success" | "info" | "error";
@@ -223,12 +239,129 @@ function DynamicList({ label, htmlFor, items, onChange, placeholder, hint, optio
   );
 }
 
+// ─── PDF file picker ──────────────────────────────────────────────────────────
+
+interface PdfFilePickerProps {
+  files: File[];
+  existingUrls: string[];
+  onChange: (files: File[]) => void;
+  error?: string;
+}
+
+function PdfFilePicker({ files, existingUrls, onChange, error }: PdfFilePickerProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    // Reset so the same file can be re-selected after removal.
+    e.target.value = "";
+
+    const validFiles: File[] = [];
+    for (const file of selected) {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        toast.error(`"${file.name}" is not a PDF.`);
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds the 10 MB limit.`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    const combined = [...files, ...validFiles];
+    const totalExisting = existingUrls.length;
+    const newCount = files.length + validFiles.length;
+    if (totalExisting + newCount > 5 || combined.length > 5) {
+      toast.error("You can attach up to 5 files total.");
+      // Take only as many as fit.
+      const slotsLeft = Math.max(0, 5 - files.length - existingUrls.length);
+      onChange([...files, ...validFiles.slice(0, slotsLeft)]);
+      return;
+    }
+    onChange(combined);
+  };
+
+  const remove = (idx: number) => onChange(files.filter((_, i) => i !== idx));
+
+  const showExisting = existingUrls.length > 0 && files.length === 0;
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept=".pdf"
+        className="sr-only"
+        onChange={handleSelect}
+        aria-label="Upload PDF files"
+      />
+
+      {showExisting && (
+        <div className="space-y-1.5 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
+          {existingUrls.map((url) => (
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-[color:hsl(var(--primary))] underline"
+            >
+              <FileText size={14} className="flex-none" />
+              {extractFilename(url)}
+            </a>
+          ))}
+          <p className="text-xs text-[color:var(--text-tertiary)]">Upload new files to replace these.</p>
+        </div>
+      )}
+
+      {files.length > 0 && (
+        <div className="space-y-1.5 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
+          {files.map((file, idx) => (
+            <div key={file.name} className="flex items-center gap-2">
+              <FileText size={14} className="flex-none text-[color:var(--text-tertiary)]" />
+              <span className="min-w-0 flex-1 truncate text-sm text-[color:var(--text-primary)]">
+                {file.name}
+              </span>
+              <span className="shrink-0 text-xs text-[color:var(--text-tertiary)]">
+                {formatFileSize(file.size)}
+              </span>
+              <button
+                type="button"
+                onClick={() => remove(idx)}
+                className="rounded p-0.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Remove ${file.name}`}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => inputRef.current?.click()}
+      >
+        <Plus size={12} /> Add PDFs
+      </Button>
+
+      {error && <p className="text-xs text-[color:var(--color-error-600)]">{error}</p>}
+    </div>
+  );
+}
+
 // ─── Evaluation editor dialog ─────────────────────────────────────────────────
 
 interface SendPayload {
   existing: Evaluation | null;
   input: EvaluationInput;
   name: string;
+  files: File[];
 }
 
 interface EditorProps {
@@ -237,7 +370,7 @@ interface EditorProps {
   initial: Evaluation | null;
   reviewees: Reviewee[];
   saving: boolean;
-  onSubmit: (input: EvaluationInput) => void;
+  onSubmit: (input: EvaluationInput, files: File[]) => void;
   onRequestSend: (payload: SendPayload) => void;
 }
 
@@ -257,7 +390,8 @@ function EvaluationEditorDialog({
   const [lowlights, setLowlights] = useState<string[]>([]);
   const [evaluationText, setEvaluationText] = useState("");
   const [recommendationText, setRecommendationText] = useState("");
-  const [supportingDocUrl, setSupportingDocUrl] = useState("");
+  const [localFiles, setLocalFiles] = useState<File[]>([]);
+  const [existingDocUrls, setExistingDocUrls] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Two-step flow: fill the form → review the preview → save or send.
   const [step, setStep] = useState<"form" | "preview">("form");
@@ -286,7 +420,8 @@ function EvaluationEditorDialog({
       setLowlights(initial.lowlights ?? []);
       setEvaluationText(initial.evaluation ?? "");
       setRecommendationText(initial.recommendation ?? "");
-      setSupportingDocUrl(initial.supportingDocUrl ?? "");
+      setExistingDocUrls(initial.supportingDocUrls ?? []);
+      setLocalFiles([]);
     } else {
       // Reviewee starts empty (placeholder "Select employee").
       setRevieweeId("");
@@ -298,19 +433,18 @@ function EvaluationEditorDialog({
       setLowlights([]);
       setEvaluationText("");
       setRecommendationText("");
-      setSupportingDocUrl("");
+      setExistingDocUrls([]);
+      setLocalFiles([]);
     }
     setErrors({});
   }, [open, initial, reviewees]);
 
-  /** Required to create/save a draft: reviewee, period, rating, and a valid link if present. */
+  /** Required to create/save a draft: reviewee, period, and rating. */
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!revieweeId) errs.reviewee = "Select an employee.";
     if (!period?.from || !period?.to) errs.period = "Select an evaluation period.";
     if (!grade) errs.grade = "Pick an overall rating.";
-    if (supportingDocUrl.trim() && !isValidUrl(supportingDocUrl.trim()))
-      errs.doc = "Enter a valid URL starting with https://.";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -327,7 +461,6 @@ function EvaluationEditorDialog({
       lowlights: lowlights.map((l) => l.trim()).filter(Boolean),
       evaluation: evaluationText.trim() || undefined,
       recommendation: recommendationText.trim() || undefined,
-      supportingDocUrl: supportingDocUrl.trim() || undefined,
     };
   };
 
@@ -338,7 +471,7 @@ function EvaluationEditorDialog({
       setStep("form");
       return;
     }
-    onSubmit(input);
+    onSubmit(input, localFiles);
   };
 
   /** Sending is irreversible — require reviewee, period, rating, and an overall summary, pointing at
@@ -357,11 +490,10 @@ function EvaluationEditorDialog({
       toast.error("Fill in the required fields before sending.");
       return;
     }
-    onRequestSend({ existing: initial, input, name: previewName });
+    onRequestSend({ existing: initial, input, name: previewName, files: localFiles });
   };
 
   const revieweeName = (id: string) => reviewees.find((r) => r.id === id)?.fullName ?? id;
-  const draftDocValid = !!supportingDocUrl.trim() && isValidUrl(supportingDocUrl.trim());
 
   const previewName = initial?.reviewee?.fullName ?? (revieweeId ? revieweeName(revieweeId) : "the employee");
   const previewPeriod =
@@ -479,19 +611,27 @@ function EvaluationEditorDialog({
                   </div>
                 )}
 
-                {supportingDocUrl.trim() && (
+                {(localFiles.length > 0 || existingDocUrls.length > 0) && (
                   <div>
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Supporting links
+                      Supporting documents
                     </p>
-                    <a
-                      href={supportingDocUrl.trim()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="break-all text-sm text-[color:hsl(var(--primary))] underline"
-                    >
-                      {supportingDocUrl}
-                    </a>
+                    {localFiles.length > 0 ? (
+                      localFiles.map((f) => (
+                        <p key={f.name} className="flex items-center gap-1.5 text-sm text-[color:var(--text-primary)]">
+                          <FileText size={13} className="flex-none text-[color:var(--text-tertiary)]" />
+                          {f.name}
+                        </p>
+                      ))
+                    ) : (
+                      existingDocUrls.map((publicId, index) => (
+                        <button key={publicId} type="button" onClick={() => initial && handleDownload(initial.id, index)}
+                          className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left">
+                          <FileText size={13} className="flex-none" />
+                          {extractFilename(publicId)}
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
 
@@ -693,54 +833,20 @@ function EvaluationEditorDialog({
                   />
                 </FormField>
 
-                {/* Supporting links (formerly Supporting documents) — split add-on with a static prefix */}
+                {/* Supporting documents — PDF file picker */}
                 <FormField
-                  label="Supporting links"
-                  htmlFor="ev-doc"
-                  error={errors.doc}
-                  hint="Paste a link to anything that backs this up (docs, dashboards, 1:1 notes)."
+                  label="Supporting documents"
+                  htmlFor="ev-docs"
+                  hint="PDF files only · up to 5 files · 10 MB each"
                   optional
                   hintAbove
                 >
-                  <div className="space-y-1.5">
-                    <div
-                      className={[
-                        "flex h-10 w-full items-stretch overflow-hidden rounded-md border bg-white shadow-xs transition-colors focus-within:border-transparent focus-within:[background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(45deg,#fccec0,#ebacc9_33%,#ceb6da_66%,#9fcaed)_border-box]",
-                        errors.doc
-                          ? "border-[#D92D20] focus-within:shadow-[0_0_0_3px_rgba(217,45,32,0.15)]"
-                          : "border-input focus-within:shadow-[0_0_0_3px_rgba(24,29,39,0.06)]",
-                      ].join(" ")}
-                    >
-                      <span className="flex select-none items-center pl-3.5 pr-2.5 text-sm font-medium text-[color:var(--text-tertiary)]">
-                        https://
-                      </span>
-                      <span className="my-2 w-px bg-[color:var(--border-primary)]" aria-hidden="true" />
-                      <input
-                        id="ev-doc"
-                        type="text"
-                        inputMode="url"
-                        value={supportingDocUrl.replace(/^\s*https?:\/\//i, "")}
-                        onChange={(e) => {
-                          const rest = e.target.value.replace(/^\s*https?:\/\//i, "");
-                          setSupportingDocUrl(rest ? `https://${rest}` : "");
-                          clearError("doc");
-                        }}
-                        placeholder="docs.example.com/report"
-                        aria-invalid={!!errors.doc}
-                        className="min-w-0 flex-1 bg-transparent px-3 text-sm font-medium text-[color:var(--text-primary)] placeholder:text-[#a4a7ae] focus:outline-none"
-                      />
-                    </div>
-                    {draftDocValid && (
-                      <a
-                        href={supportingDocUrl.trim()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block text-xs text-[color:hsl(var(--primary))] underline"
-                      >
-                        Open link
-                      </a>
-                    )}
-                  </div>
+                  <PdfFilePicker
+                    files={localFiles}
+                    existingUrls={existingDocUrls}
+                    onChange={setLocalFiles}
+                    error={errors.doc}
+                  />
                 </FormField>
               </>
             )}
@@ -820,6 +926,7 @@ export default function EvaluationsPage() {
     existing: Evaluation | null;
     input?: EvaluationInput;
     name: string;
+    files?: File[];
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -898,10 +1005,10 @@ export default function EvaluationsPage() {
     setEditorOpen(true);
   };
 
-  const handleSubmit = (input: EvaluationInput) => {
+  const handleSubmit = (input: EvaluationInput, files: File[]) => {
     if (editing) {
       updateMutation.mutate(
-        { id: editing.id, input },
+        { id: editing.id, input, files },
         {
           onSuccess: () => {
             toast.success("Draft saved.");
@@ -911,19 +1018,22 @@ export default function EvaluationsPage() {
         },
       );
     } else {
-      createMutation.mutate(input, {
-        onSuccess: () => {
-          toast.success("Draft evaluation created.");
-          setEditorOpen(false);
+      createMutation.mutate(
+        { input, files },
+        {
+          onSuccess: () => {
+            toast.success("Draft evaluation created.");
+            setEditorOpen(false);
+          },
+          onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create draft."),
         },
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create draft."),
-      });
+      );
     }
   };
 
   const handleSend = () => {
     if (!pendingSend) return;
-    const { existing, input } = pendingSend;
+    const { existing, input, files = [] } = pendingSend;
 
     const fail = (e: unknown) => {
       toast.error(e instanceof Error ? e.message : "Could not send evaluation.");
@@ -942,7 +1052,7 @@ export default function EvaluationsPage() {
     if (existing && input) {
       // Persist the latest edits, then send.
       updateMutation.mutate(
-        { id: existing.id, input },
+        { id: existing.id, input, files },
         { onSuccess: () => sendById(existing.id), onError: fail },
       );
     } else if (existing) {
@@ -950,10 +1060,13 @@ export default function EvaluationsPage() {
       sendById(existing.id);
     } else if (input) {
       // Brand-new evaluation: create the draft, then send it.
-      createMutation.mutate(input, {
-        onSuccess: (created) => sendById(created.id),
-        onError: fail,
-      });
+      createMutation.mutate(
+        { input, files },
+        {
+          onSuccess: (created) => sendById(created.id),
+          onError: fail,
+        },
+      );
     }
   };
 
