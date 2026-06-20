@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, FilteText, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { CheckCircle2, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,7 @@ import {
   Button,
 } from "@/shared/ui";
 import type { Evaluation } from "../types/evaluations.types";
+import { downloadSupportingDoc } from "../services/evaluations.service";
 
 const GRADE_LABELS: Record<number, string> = {
   1: "Unsatisfactory",
@@ -36,12 +38,20 @@ function formatPeriod(startIso: string, endIso: string): string {
   return `${fmtDate(startIso)} – ${fmtDate(endIso)}`;
 }
 
-function extractFilename(url: string): string {
+function extractFilename(value: string): string {
+  const last = value.split("/").pop() ?? value;
   try {
-    const parts = new URL(url).pathname.split("/");
-    return decodeURIComponent(parts[parts.length - 1] ?? url);
+    return decodeURIComponent(last);
   } catch {
-    return url;
+    return last;
+  }
+}
+
+async function handleDownload(evaluationId: string, docIndex: number): Promise<void> {
+  try {
+    await downloadSupportingDoc(evaluationId, docIndex);
+  } catch {
+    toast.error("Couldn't download the document. Please try again.");
   }
 }
 
@@ -174,17 +184,16 @@ export function ReviewEvaluationDialog({
           {ev.supportingDocUrls.length > 0 && (
             <Section title="Supporting documents">
               <div className="space-y-1.5">
-                {ev.supportingDocUrls.map((url) => (
-                  <a
-                    key={url}
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-[color:var(--brand-blue)] underline underline-offset-2 break-all"
+                {ev.supportingDocUrls.map((publicId, index) => (
+                  <button
+                    key={publicId}
+                    type="button"
+                    onClick={() => handleDownload(ev.id, index)}
+                    className="inline-flex items-center gap-1.5 text-sm text-[color:var(--brand-blue)] underline underline-offset-2 break-all text-left"
                   >
                     <FileText size={14} className="flex-none" />
-                    {extractFilename(url)}
-                  </a>
+                    {extractFilename(publicId)}
+                  </button>
                 ))}
               </div>
             </Section>

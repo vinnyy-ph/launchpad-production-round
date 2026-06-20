@@ -72,3 +72,19 @@ export async function acknowledgeEvaluation(id: string): Promise<Evaluation> {
   const res = await apiFetch<MutationResponse>(`${BASE}/${id}/acknowledge`, { method: "PATCH" });
   return res.data;
 }
+
+/**
+ * Downloads a supporting document. The backend authorizes the request and returns a
+ * short-lived signed Cloudinary URL (the docs aren't publicly accessible), which we then
+ * navigate to so the browser downloads the file.
+ */
+export async function downloadSupportingDoc(evaluationId: string, docIndex: number): Promise<void> {
+  const { url } = await apiFetch<{ url: string }>(`${BASE}/${evaluationId}/documents/${docIndex}/download`);
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}

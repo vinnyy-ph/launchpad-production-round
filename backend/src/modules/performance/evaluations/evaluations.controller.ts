@@ -506,6 +506,62 @@ export class EvaluationsController {
     }
   };
 
+  downloadDocument = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const { evaluationId, docIndex } = req.params;
+
+      // Reuse the same visibility/authorization rules as viewing the evaluation; the
+      // client never supplies the public_id, so it can only reach docs it may already see.
+      const evaluation = await this.evaluationsService.get(evaluationId, req.user);
+
+      const index = Number(docIndex);
+      const publicId = evaluation.supportingDocUrls[index];
+      if (!Number.isInteger(index) || !publicId) {
+        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EVALUATION_NOT_FOUND,
+          errorCode: API_ERROR_CODES.EVALUATION_NOT_FOUND,
+        });
+      }
+
+      const url = this.cloudinaryService.getSupportingDocumentDownloadUrl(publicId);
+      return res.json({ url });
+    } catch (error) {
+      if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND) {
+        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+          success: false,
+          message: API_ERROR_MESSAGES.EVALUATION_NOT_FOUND,
+          errorCode: API_ERROR_CODES.EVALUATION_NOT_FOUND,
+        });
+      }
+
+      if (
+        error instanceof Error &&
+        (error.message === EVAL_ERROR_MESSAGES.NOT_AUTHORIZED ||
+          error.message === EVAL_ERROR_MESSAGES.REVIEWER_NOT_EMPLOYEE)
+      ) {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: API_ERROR_MESSAGES.FORBIDDEN,
+          errorCode: API_ERROR_CODES.NOT_EVALUATION_REVIEWER,
+        });
+      }
+
+      return next(error);
+    }
+  };
+
   listReviewees = async (
     req: Request,
     res: Response,

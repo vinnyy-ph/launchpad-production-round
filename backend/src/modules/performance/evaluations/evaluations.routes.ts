@@ -10,6 +10,7 @@ const controller = new EvaluationsController();
 
 router.get("/", controller.listEvaluations);
 router.get("/reviewees", controller.listReviewees);
+router.get("/:evaluationId/documents/:docIndex/download", controller.downloadDocument);
 router.get("/:evaluationId", controller.getEvaluation);
 router.post("/", evaluationDocumentUpload, controller.createEvaluation);
 router.patch("/:evaluationId/send", controller.sendEvaluation);

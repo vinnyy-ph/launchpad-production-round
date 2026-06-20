@@ -60,6 +60,7 @@ import {
   useUpdateEvaluation,
   useDeleteEvaluation,
   useSendEvaluation,
+  downloadSupportingDoc,
   GRADE_LABELS,
   type Evaluation,
   type EvaluationInput,
@@ -97,12 +98,20 @@ function formatRelativeDate(iso: string): string {
   return format(target, sameYear ? "LLL d" : "LLL d, yyyy");
 }
 
-function extractFilename(url: string): string {
+function extractFilename(value: string): string {
+  const last = value.split("/").pop() ?? value;
   try {
-    const parts = new URL(url).pathname.split("/");
-    return decodeURIComponent(parts[parts.length - 1] ?? url);
+    return decodeURIComponent(last);
   } catch {
-    return url;
+    return last;
+  }
+}
+
+async function handleDownload(evaluationId: string, docIndex: number): Promise<void> {
+  try {
+    await downloadSupportingDoc(evaluationId, docIndex);
+  } catch {
+    toast.error("Couldn't download the document. Please try again.");
   }
 }
 
@@ -615,12 +624,12 @@ function EvaluationEditorDialog({
                         </p>
                       ))
                     ) : (
-                      existingDocUrls.map((url) => (
-                        <a key={url} href={url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline">
+                      existingDocUrls.map((publicId, index) => (
+                        <button key={publicId} type="button" onClick={() => initial && handleDownload(initial.id, index)}
+                          className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left">
                           <FileText size={13} className="flex-none" />
-                          {extractFilename(url)}
-                        </a>
+                          {extractFilename(publicId)}
+                        </button>
                       ))
                     )}
                   </div>
