@@ -8,7 +8,7 @@ import {
   type SurveyVisibilityInfo,
 } from "../rules/results-visibility";
 import { ResultsRepository } from "./results.repository";
-import type { QuestionResult, SurveyResultsResponseDto } from "./results.types";
+import type { QuestionResult, SurveyResultsResponseDto, VisibleResultSurveyDto } from "./results.types";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -389,5 +389,65 @@ export class ResultsService {
         questions: gated.suppressed ? [] : gated.data,
       },
     };
+  }
+
+  /** Surveys whose results the caller may view. HR sees all activated; non-HR are gated by visibility. */
+  async listViewableSurveys(
+    userId: string,
+    role: string,
+  ): Promise<{ success: true; data: VisibleResultSurveyDto[] }> {
+    const isHR = role === "HR" || role === "ADMIN";
+    const surveys = await this.repo.findActivatedSurveysWithConfigs();
+
+    const toRow = (s: any): VisibleResultSurveyDto => ({
+      id: s.id,
+      name: s.name,
+      isAnonymous: s.isAnonymous,
+      status: s.isActive ? "active" : "closed",
+    });
+
+    if (isHR) {
+      return { success: true, data: surveys.map(toRow) };
+    }
+
+    const caller = await prisma.employee.findUnique({
+      where: { userId },
+      include: { teamMemberships: true },
+    });
+    if (!caller) {
+      return { success: true, data: [] };
+    }
+
+    const chains = createOrgChains(prisma);
+    const callerDownward = await chains.downwardChain(caller.id);
+    const callerTeamIds = caller.teamMemberships.map((m) => m.teamId);
+
+    // Resolve SUPERVISOR_BASED overlap in one batch query.
+    const supSurveyIds = surveys
+      .filter((s: any) => s.visibility === "SUPERVISOR_BASED")
+      .map((s: any) => s.id);
+    const overlapIds = new Set(
+      await this.repo.findSurveyIdsWithAudienceMembers(supSurveyIds, callerDownward),
+    );
+
+    const ctx: ResultsViewerContext = {
+      isHR: false,
+      caller: { supervisorId: caller.supervisorId, teamIds: callerTeamIds },
+    };
+
+    const data = surveys
+      .filter((s: any) => {
+        const info: SurveyVisibilityInfo = {
+          visibility: s.visibility,
+          audienceConfigTeamIds: s.audienceConfigs
+            .map((c: any) => c.teamId)
+            .filter((id: any): id is string => !!id),
+          visibilityConfigTeamIds: (s.visibilityConfigs ?? []).map((vc: any) => vc.teamId),
+        };
+        return canViewSurveyResults(ctx, info, overlapIds.has(s.id));
+      })
+      .map(toRow);
+
+    return { success: true, data };
   }
 }

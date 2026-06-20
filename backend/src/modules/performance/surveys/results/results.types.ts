@@ -24,6 +24,13 @@ export type QuestionResult =
       counts: Record<string, number>;
     };
 
+export interface VisibleResultSurveyDto {
+  id: string;
+  name: string;
+  isAnonymous: boolean;
+  status: "active" | "closed";
+}
+
 export interface SurveyResultsResponseDto {
   success: boolean;
   data: {
