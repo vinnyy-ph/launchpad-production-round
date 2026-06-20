@@ -2,6 +2,11 @@ import { prisma } from "../../../../core/database/prisma.service";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { gate, MIN_TEAM_SIZE } from "../rules/results";
 import { createOrgChains } from "../../../shared/org/chains";
+import {
+  canViewSurveyResults,
+  type ResultsViewerContext,
+  type SurveyVisibilityInfo,
+} from "../rules/results-visibility";
 import { ResultsRepository } from "./results.repository";
 import type { QuestionResult, SurveyResultsResponseDto } from "./results.types";
 import type { Prisma } from "@prisma/client";
@@ -108,53 +113,42 @@ export class ResultsService {
       }
     }
 
-    // 5. Visibility check
+    // 5. Visibility check (server-side access gate). Reuses the shared predicate.
     if (!isHR && !smallTeamOverride) {
       if (!caller) {
         throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
       }
 
-      const chains = createOrgChains(prisma);
-      const callerDownward = await chains.downwardChain(caller.id);
-
-      if (survey.visibility === "EVERYONE") {
-        // Pass
-      } else if (survey.visibility === "SUPERVISOR_BASED") {
-        // check if caller's downward chain includes any audience member of this survey / occurrence
+      // SUPERVISOR_BASED needs to know whether any audience member is in the
+      // caller's downward chain. Resolve that here; other visibilities ignore it.
+      let supervisorAudienceOverlap = false;
+      if (survey.visibility === "SUPERVISOR_BASED") {
+        const chains = createOrgChains(prisma);
+        const callerDownward = await chains.downwardChain(caller.id);
         const audienceMembers = await this.repo.findAudienceMembers(
-          occurrenceId
-            ? { occurrenceId }
-            : { occurrence: { surveyId: survey.id } }
+          occurrenceId ? { occurrenceId } : { occurrence: { surveyId: survey.id } },
         );
-        const audienceEmployeeIds = audienceMembers.map((m) => m.employeeId);
-        const isAllowed = audienceEmployeeIds.some((id) => callerDownward.includes(id));
-        if (!isAllowed) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
-        }
-      } else if (survey.visibility === "TEAM_BASED") {
-        // any team member whose team is part of the survey audience
-        const audienceTeamIds = survey.audienceConfigs
+        supervisorAudienceOverlap = audienceMembers.some((m) =>
+          callerDownward.includes(m.employeeId),
+        );
+      }
+
+      const ctx: ResultsViewerContext = {
+        isHR: false,
+        caller: {
+          supervisorId: caller.supervisorId,
+          teamIds: caller.teamMemberships.map((m) => m.teamId),
+        },
+      };
+      const info: SurveyVisibilityInfo = {
+        visibility: survey.visibility,
+        audienceConfigTeamIds: survey.audienceConfigs
           .map((c: any) => c.teamId)
-          .filter((id: any): id is string => !!id);
-        const callerTeamIds = caller.teamMemberships.map((m) => m.teamId);
-        const isAllowed = callerTeamIds.some((id) => audienceTeamIds.includes(id));
-        if (!isAllowed) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
-        }
-      } else if (survey.visibility === "HR_ROOT_ONLY") {
-        // HR only + the root node employee (employee with no supervisor)
-        if (caller.supervisorId !== null) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
-        }
-      } else if (survey.visibility === "SPECIFIC_TEAMS") {
-        // employees belonging to any team in SurveyVisibilityConfig
-        const allowedTeamIds = (survey.visibilityConfigs ?? []).map((vc: any) => vc.teamId);
-        const callerTeamIds = caller.teamMemberships.map((m) => m.teamId);
-        const isAllowed = callerTeamIds.some((id) => allowedTeamIds.includes(id));
-        if (!isAllowed) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
-        }
-      } else {
+          .filter((id: any): id is string => !!id),
+        visibilityConfigTeamIds: (survey.visibilityConfigs ?? []).map((vc: any) => vc.teamId),
+      };
+
+      if (!canViewSurveyResults(ctx, info, supervisorAudienceOverlap)) {
         throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
       }
     }
