@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, FileText } from "lucide-react";
+import { CheckCircle2, FilteText, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,11 @@ function fmtDate(iso?: string | null): string {
   const d = new Date(iso);
   return isNaN(d.getTime())
     ? "—"
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    : d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
 }
 
 function formatPeriod(startIso: string, endIso: string): string {
@@ -41,7 +45,13 @@ function extractFilename(url: string): string {
   }
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
@@ -92,7 +102,9 @@ export function ReviewEvaluationDialog({
           <DialogTitle className="mt-1 text-xl font-bold tracking-tight">
             {formatPeriod(ev.periodStart, ev.periodEnd)}
           </DialogTitle>
-          <DialogDescription>From {ev.reviewer?.fullName ?? "Your supervisor"}</DialogDescription>
+          <DialogDescription>
+            From {ev.reviewer?.fullName ?? "Your supervisor"}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-6 pt-5">
@@ -105,7 +117,9 @@ export function ReviewEvaluationDialog({
               <p className="text-base font-bold text-[color:var(--text-primary)]">
                 {GRADE_LABELS[ev.grade] ?? `Grade ${ev.grade}`}
               </p>
-              <p className="text-[13px] text-[color:var(--text-tertiary)]">Overall grade</p>
+              <p className="text-[13px] text-[color:var(--text-tertiary)]">
+                Overall grade
+              </p>
             </div>
           </div>
 
@@ -188,13 +202,15 @@ export function ReviewEvaluationDialog({
             </p>
           ) : isDeemed ? (
             <p className="text-center text-[13px] text-[color:var(--text-tertiary)]">
-              Deemed acknowledged on {fmtDate(ev.ackDeadline)} — no action needed.
+              Deemed acknowledged on {fmtDate(ev.ackDeadline)} — no action
+              needed.
             </p>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="max-w-md text-[12.5px] text-[color:var(--text-tertiary)]">
-                Acknowledging confirms you&apos;ve read this. It doesn&apos;t mean you agree.
-                Auto-acknowledged on {fmtDate(ev.ackDeadline)} if not done.
+                Acknowledging confirms you&apos;ve read this. It doesn&apos;t
+                mean you agree. Auto-acknowledged on {fmtDate(ev.ackDeadline)}{" "}
+                if not done.
               </p>
               <Button
                 onClick={() => {

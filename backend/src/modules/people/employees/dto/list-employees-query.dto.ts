@@ -19,7 +19,8 @@ export interface ListEmployeesQueryDto {
   status?: EmployeeStatus;
   teamId?: string;
   team?: string;
-  supervisorId?: string;
+  /** One or more supervisor ids; results match any of them. Parsed from a comma-separated param. */
+  supervisorIds?: string[];
   sortBy?: EmployeeSortBy;
   sortDirection?: SortDirection;
   page: number;

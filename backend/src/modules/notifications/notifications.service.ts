@@ -101,6 +101,77 @@ export class NotificationsService {
   }
 
   /**
+   * Notifies an employee when HR approves one of their onboarding documents.
+   * Failures are swallowed so the review action is never blocked.
+   */
+  async notifyEmployeeDocumentApproved(
+    employeeId: string,
+    documentName: string,
+  ): Promise<void> {
+    try {
+      const employee =
+        await this.notificationsRepository.findEmployeeWithUserById(employeeId);
+
+      if (!employee) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: employee.id,
+        type: "ONBOARDING_STATUS",
+        subject: "Document approved",
+        body: `Your "${documentName}" was approved by HR.`,
+        linkUrl: `/employee/onboarding`,
+        sourceType: "Employee",
+        sourceId: employeeId,
+      });
+
+      this.inAppChannel.deliver(
+        employee.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: the review action must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Notifies an employee when HR rejects one of their onboarding documents, so they
+   * can re-upload it. Failures are swallowed so the review action is never blocked.
+   */
+  async notifyEmployeeDocumentRejected(
+    employeeId: string,
+    documentName: string,
+    note: string,
+  ): Promise<void> {
+    try {
+      const employee =
+        await this.notificationsRepository.findEmployeeWithUserById(employeeId);
+
+      if (!employee) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: employee.id,
+        type: "ONBOARDING_STATUS",
+        subject: "Document needs to be re-uploaded",
+        body: `Your "${documentName}" was rejected: "${note}". Please re-upload it.`,
+        linkUrl: `/employee/onboarding`,
+        sourceType: "Employee",
+        sourceId: employeeId,
+      });
+
+      this.inAppChannel.deliver(
+        employee.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: the review action must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
    * Notifies a supervisor when a direct report starts onboarding.
    * Failures are swallowed so onboarding creation is never blocked.
    */

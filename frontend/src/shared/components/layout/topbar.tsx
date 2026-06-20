@@ -18,6 +18,7 @@ import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { breadcrumbForPath, findNav, type NavIcon } from "./nav-config";
+import { useExtraBreadcrumbs } from "./breadcrumb-context";
 
 const ROLE_ACRONYMS = new Set(["ADMIN", "HR"]);
 const TOPBAR_HISTORY_KEY = "swiftwork:topbar-history";
@@ -132,7 +133,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { appUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname() ?? "/";
-  const breadcrumb = breadcrumbForPath(pathname);
+  const extraCrumbs = useExtraBreadcrumbs();
+  const breadcrumb = [...breadcrumbForPath(pathname), ...extraCrumbs];
   const clock = useClock();
   const TopbarIcon = iconForPath(pathname);
   const { canGoBack, canGoForward } = useTopbarHistory(pathname);

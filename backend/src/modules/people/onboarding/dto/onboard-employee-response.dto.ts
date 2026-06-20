@@ -1,4 +1,8 @@
 import type { ApiSuccessResponseDto } from "../../../../core/dto";
+import type {
+  OnboardingAddressDto,
+  OnboardingEmergencyContactDto,
+} from "../employee-onboarding/dto";
 
 /**
  * Summary of the newly created employee returned after onboarding.
@@ -11,8 +15,8 @@ export interface OnboardedEmployeeDto {
   middleName: string | null;
   personalEmail: string | null;
   birthday: string | null;
-  address: string | null;
-  emergencyContact: string | null;
+  address: OnboardingAddressDto | null;
+  emergencyContact: OnboardingEmergencyContactDto | null;
   jobTitle: string;
   department: string;
   supervisor: {

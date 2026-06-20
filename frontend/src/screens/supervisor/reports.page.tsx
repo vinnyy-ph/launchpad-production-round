@@ -176,7 +176,7 @@ export default function ReportsPage() {
   // Supervisors are EMPLOYEE-role callers, so the API returns the REDACTED list (no PII).
   // The server-side `supervisorId` filter scopes it to this supervisor's direct reports.
   const { employees, loading } = useEmployees({
-    supervisorId: employeeId,
+    supervisorIds: employeeId ? [employeeId] : undefined,
     page: 1,
     limit: 100,
   });

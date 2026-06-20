@@ -59,14 +59,13 @@ function parseDateInputValue(raw: string): Date | undefined {
   return parsed;
 }
 
-/** Birthdate field: type YYYY-MM-DD or use the browser date picker (year/month dropdowns). */
+/** Birthdate field: type mm/dd/yyyy or use the browser date picker (year/month dropdowns). */
 function BirthdatePicker({
   value,
   onChange,
   disabled,
   className,
 }: Pick<DatePickerProps, "value" | "onChange" | "disabled" | "className">) {
-  const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState(() => toDateInputValue(value));
 
   React.useEffect(() => {
@@ -74,53 +73,21 @@ function BirthdatePicker({
   }, [value]);
 
   return (
-    <div className={cn("flex gap-2", className)}>
-      <Input
-        type="date"
-        disabled={disabled}
-        min={toDateInputValue(BIRTHDATE_START)}
-        max={todayInputMax()}
-        value={draft}
-        className="min-w-0 flex-1"
-        onChange={(e) => {
-          const raw = e.target.value;
-          setDraft(raw);
-          const next = parseDateInputValue(raw);
-          if (next) onChange?.(next);
-          else if (!raw.trim()) onChange?.(undefined);
-        }}
-      />
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            disabled={disabled}
-            aria-label="Open calendar"
-            className="shrink-0"
-          >
-            <CalendarIcon className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
-          <Calendar
-            mode="single"
-            selected={value}
-            captionLayout="dropdown"
-            startMonth={BIRTHDATE_START}
-            endMonth={new Date()}
-            defaultMonth={value ?? new Date(2000, 0, 1)}
-            disabled={{ after: new Date() }}
-            onSelect={(date) => {
-              onChange?.(date);
-              setDraft(toDateInputValue(date));
-              setOpen(false);
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
+    <Input
+      type="date"
+      disabled={disabled}
+      min={toDateInputValue(BIRTHDATE_START)}
+      max={todayInputMax()}
+      value={draft}
+      className={cn("min-w-0", className)}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        const next = parseDateInputValue(raw);
+        if (next) onChange?.(next);
+        else if (!raw.trim()) onChange?.(undefined);
+      }}
+    />
   );
 }
 

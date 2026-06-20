@@ -3,6 +3,8 @@ export * from "./types/onboarding.types";
 export * from "./services/onboarding.service";
 
 export { InviteStatusBadge, inviteStatusLabel } from "./components/invite-status-badge";
+export { OnboardingCasesTable } from "./components/onboarding-cases-table";
+export { AddEmployeeDialog } from "./components/add-employee-dialog";
 export { DocumentReviewCard } from "./components/documents/document-review-card";
 export { RejectDocumentDialog } from "./components/documents/reject-document-dialog";
 export { DocumentUploadRow } from "./components/documents/document-upload";

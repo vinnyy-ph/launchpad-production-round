@@ -440,9 +440,24 @@ export class EmployeeOnboardingService {
       lastName: employee.lastName,
       middleName: employee.middleName,
       personalEmail: employee.personalEmail,
-      birthday: employee.birthday?.toISOString() ?? null,
-      address: employee.address?.address ?? null,
-      emergencyContact: employee.emergencyContact?.emergencyContactNumber ?? null,
+      birthday: employee.birthday
+        ? employee.birthday.toISOString().slice(0, 10)
+        : null,
+      address: employee.address
+        ? {
+            address: employee.address.address ?? null,
+            city: employee.address.city ?? null,
+            province: employee.address.province ?? null,
+            country: employee.address.country ?? null,
+          }
+        : null,
+      emergencyContact: employee.emergencyContact
+        ? {
+            emergencyContactName: employee.emergencyContact.emergencyContactName ?? null,
+            emergencyContactNumber:
+              employee.emergencyContact.emergencyContactNumber ?? null,
+          }
+        : null,
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
     };

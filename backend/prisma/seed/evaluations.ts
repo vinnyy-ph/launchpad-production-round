@@ -6,7 +6,7 @@ export type SeededEvaluations = {
   pendingAck: { evaluationId: string; revieweeId: string }[]
 }
 
-// Q1 2026 evaluation period (now a date range, not free text).
+// Q1 2026 evaluation period.
 const PERIOD_Q1_2026 = {
   periodStart: new Date('2026-01-01'),
   periodEnd: new Date('2026-03-31'),
@@ -18,16 +18,76 @@ function ackDeadlineFrom(sentAt: Date): Date {
 }
 
 export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers): Promise<SeededEvaluations> {
-  const { vn, thea, placeholders } = users
+  const { kurt, vn, theaV, staff } = users
   const pendingAck: { evaluationId: string; revieweeId: string }[] = []
 
-  // ── Vn's evaluations ──
+  // ── Vn's RECEIVED evaluations (the logged-in demo account, reviewed by the CEO) ──
+  // Gives the employee self-view both a pending acknowledgment and a past, acknowledged one.
 
-  // Alex — draft
+  const vnSentAt = new Date('2026-06-16')
+  const vnPendingEval = await prisma.performanceEvaluation.create({
+    data: {
+      reviewerId: kurt.id,
+      revieweeId: vn.id,
+      ...PERIOD_Q1_2026,
+      grade: 4,
+      highlights: [
+        'Kept Team Alpha shipping through a tight roadmap with no missed releases',
+        'Drove the cross-team incident review that cut repeat outages',
+      ],
+      lowlights: [
+        'Spread thin across too many initiatives at once',
+        'Delegation could start earlier in the cycle',
+      ],
+      evaluation:
+        'A strong quarter leading Team Alpha. Delivery stayed steady under pressure and the incident review had real downstream impact. The main growth area is protecting focus by delegating sooner.',
+      recommendation:
+        'Hand off two of the smaller workstreams next quarter and lead the reliability initiative end to end.',
+      supportingDocUrl: 'https://docs.dgtech.co/q1-team-alpha-review',
+      isSent: true,
+      sentAt: vnSentAt,
+      ackDeadline: ackDeadlineFrom(vnSentAt),
+    },
+  })
+  pendingAck.push({ evaluationId: vnPendingEval.id, revieweeId: vn.id })
+
+  const vnPastSentAt = new Date('2026-01-05')
+  const vnPastEval = await prisma.performanceEvaluation.create({
+    data: {
+      reviewerId: kurt.id,
+      revieweeId: vn.id,
+      periodStart: new Date('2025-10-01'),
+      periodEnd: new Date('2025-12-31'),
+      grade: 4,
+      highlights: [
+        'Stood up Team Alpha and set its delivery cadence',
+        'Mentored two new hires to a full ramp',
+      ],
+      lowlights: ['Reporting to leadership was inconsistent early on'],
+      evaluation:
+        'A solid first full quarter leading the team, with a clear ramp in ownership and people management.',
+      recommendation: 'Keep building the leadership habits; formalize a weekly status to leadership.',
+      isSent: true,
+      sentAt: vnPastSentAt,
+      ackDeadline: ackDeadlineFrom(vnPastSentAt),
+    },
+  })
+  await prisma.evaluationAcknowledgement.create({
+    data: {
+      evaluationId: vnPastEval.id,
+      employeeId: vn.id,
+      isDeemedAck: false,
+      acknowledgedAt: new Date('2026-01-07'),
+    },
+  })
+
+  // ── Vn's evaluations (Operations) ──
+
+  // Alex (staff[0]) — draft
   await prisma.performanceEvaluation.create({
     data: {
       reviewerId: vn.id,
-      revieweeId: placeholders[0].id,
+      revieweeId: staff[0].id,
       ...PERIOD_Q1_2026,
       grade: 3,
       highlights: ['Delivered all sprint tasks on time', 'Proactive in code reviews'],
@@ -38,12 +98,12 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     },
   })
 
-  // Sam — sent + explicitly acknowledged
+  // Sam (staff[1]) — sent + explicitly acknowledged
   const samSentAt = new Date('2026-06-01')
   const samEval = await prisma.performanceEvaluation.create({
     data: {
       reviewerId: vn.id,
-      revieweeId: placeholders[1].id,
+      revieweeId: staff[1].id,
       ...PERIOD_Q1_2026,
       grade: 4,
       highlights: [
@@ -60,15 +120,15 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     },
   })
   await prisma.evaluationAcknowledgement.create({
-    data: { evaluationId: samEval.id, employeeId: placeholders[1].id, isDeemedAck: false, acknowledgedAt: new Date('2026-06-03') },
+    data: { evaluationId: samEval.id, employeeId: staff[1].id, isDeemedAck: false, acknowledgedAt: new Date('2026-06-03') },
   })
 
-  // Jordan — sent + pending (no acknowledgement row yet)
+  // Jordan (staff[2]) — sent + pending (no acknowledgement row yet)
   const jordanSentAt = new Date('2026-06-05')
   const jordanEval = await prisma.performanceEvaluation.create({
     data: {
       reviewerId: vn.id,
-      revieweeId: placeholders[2].id,
+      revieweeId: staff[2].id,
       ...PERIOD_Q1_2026,
       grade: 3,
       highlights: ['Maintained high bug catch rate in QA cycles', 'Clear and detailed bug reports'],
@@ -80,15 +140,15 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
       ackDeadline: ackDeadlineFrom(jordanSentAt),
     },
   })
-  pendingAck.push({ evaluationId: jordanEval.id, revieweeId: placeholders[2].id })
+  pendingAck.push({ evaluationId: jordanEval.id, revieweeId: staff[2].id })
 
-  // ── Thea's evaluations ──
+  // ── Thea V's evaluations (Product) ──
 
-  // Riley — draft
+  // Riley (staff[4]) — draft
   await prisma.performanceEvaluation.create({
     data: {
-      reviewerId: thea.id,
-      revieweeId: placeholders[5].id,
+      reviewerId: theaV.id,
+      revieweeId: staff[4].id,
       ...PERIOD_Q1_2026,
       grade: 4,
       highlights: ['Delivered high-fidelity designs ahead of schedule', 'User research synthesis was exceptional'],
@@ -99,12 +159,12 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     },
   })
 
-  // Taylor — sent + explicitly acknowledged
+  // Taylor (staff[5]) — sent + explicitly acknowledged
   const taylorSentAt = new Date('2026-06-01')
   const taylorEval = await prisma.performanceEvaluation.create({
     data: {
-      reviewerId: thea.id,
-      revieweeId: placeholders[6].id,
+      reviewerId: theaV.id,
+      revieweeId: staff[5].id,
       ...PERIOD_Q1_2026,
       grade: 4,
       highlights: [
@@ -121,15 +181,15 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     },
   })
   await prisma.evaluationAcknowledgement.create({
-    data: { evaluationId: taylorEval.id, employeeId: placeholders[6].id, isDeemedAck: false, acknowledgedAt: new Date('2026-06-02') },
+    data: { evaluationId: taylorEval.id, employeeId: staff[5].id, isDeemedAck: false, acknowledgedAt: new Date('2026-06-02') },
   })
 
-  // Drew — sent + pending (no acknowledgement row yet)
+  // Drew (staff[6]) — sent + pending (no acknowledgement row yet)
   const drewSentAt = new Date('2026-06-05')
   const drewEval = await prisma.performanceEvaluation.create({
     data: {
-      reviewerId: thea.id,
-      revieweeId: placeholders[7].id,
+      reviewerId: theaV.id,
+      revieweeId: staff[6].id,
       ...PERIOD_Q1_2026,
       grade: 3,
       highlights: ['Reliable backend service delivery', 'Quick to onboard onto new services'],
@@ -141,14 +201,14 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
       ackDeadline: ackDeadlineFrom(drewSentAt),
     },
   })
-  pendingAck.push({ evaluationId: drewEval.id, revieweeId: placeholders[7].id })
+  pendingAck.push({ evaluationId: drewEval.id, revieweeId: staff[6].id })
 
-  // Cameron — sent + deemed acknowledged (ack window elapsed without a response)
+  // Cameron (staff[7]) — sent + deemed acknowledged (ack window elapsed without a response)
   const cameronSentAt = new Date('2026-05-20')
   const cameronEval = await prisma.performanceEvaluation.create({
     data: {
-      reviewerId: thea.id,
-      revieweeId: placeholders[8].id,
+      reviewerId: theaV.id,
+      revieweeId: staff[7].id,
       ...PERIOD_Q1_2026,
       grade: 5,
       highlights: [
@@ -165,7 +225,7 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
     },
   })
   await prisma.evaluationAcknowledgement.create({
-    data: { evaluationId: cameronEval.id, employeeId: placeholders[8].id, isDeemedAck: true, acknowledgedAt: new Date('2026-05-30') },
+    data: { evaluationId: cameronEval.id, employeeId: staff[7].id, isDeemedAck: true, acknowledgedAt: new Date('2026-05-30') },
   })
 
   return { pendingAck }

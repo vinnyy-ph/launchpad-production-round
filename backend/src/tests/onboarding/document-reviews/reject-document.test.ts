@@ -1,6 +1,8 @@
 import request from "supertest";
 import { app } from "../../../app";
+import { NotificationsService } from "../../../modules/notifications/notifications.service";
 import {
+  EMPLOYEE_ID,
   SUBMISSION_ID,
   buildHrUser,
   buildRejectDocumentBody,
@@ -29,8 +31,17 @@ jest.mock("../../../core/database/prisma.service", () => ({
 }));
 
 describe("PATCH /api/v1/onboarding/document-reviews/:submissionId/reject", () => {
+  let notifyRejectedSpy: jest.SpyInstance;
+
   beforeEach(() => {
     resetDocumentReviewMocks();
+    notifyRejectedSpy = jest
+      .spyOn(NotificationsService.prototype, "notifyEmployeeDocumentRejected")
+      .mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    notifyRejectedSpy.mockRestore();
   });
 
   it("rejects a pending document submission with a note", async () => {
@@ -71,6 +82,12 @@ describe("PATCH /api/v1/onboarding/document-reviews/:submissionId/reject", () =>
           reviewerId: "hr-employee-id",
         }),
       }),
+    );
+
+    expect(notifyRejectedSpy).toHaveBeenCalledWith(
+      EMPLOYEE_ID,
+      "NBI Clearance",
+      expect.any(String),
     );
   });
 

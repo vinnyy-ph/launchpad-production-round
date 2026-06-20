@@ -1,5 +1,6 @@
 import type { InviteStatus, OnboardingInvitation } from "@prisma/client";
 import { EmailService } from "../../../../core/email";
+import { buildOnboardingInvitationEmailHtml } from "../../../../core/email/templates/onboarding-invitation.template";
 import { API_SUCCESS_MESSAGES } from "../../../../core/globals";
 import { INVITATION_EXPIRY_DAYS } from "../onboarding.constants";
 import type {
@@ -190,12 +191,13 @@ export class InvitationService {
     try {
       await this.emailService.sendEmail({
         to: invitation.sentToEmail,
-        subject: "You are invited to complete onboarding",
-        html: this.buildInvitationEmailHtml(
+        subject: "You're invited to join Manage Jia",
+        html: buildOnboardingInvitationEmailHtml({
           firstName,
           lastName,
-          invitation.sentToEmail,
-        ),
+          email: invitation.sentToEmail,
+          appUrl: this.resolveAppUrl(),
+        }),
       });
 
       return this.invitationRepository.updateStatus(invitation.id, "PENDING");
@@ -209,23 +211,11 @@ export class InvitationService {
     }
   }
 
-  /** Builds a simple onboarding invitation email body. */
-  private buildInvitationEmailHtml(
-    firstName: string,
-    lastName: string,
-    email: string,
-  ): string {
-    const appUrl =
-      process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:5173";
-    const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-
-    return `
-      <p>Hello ${fullName || "there"},</p>
-      <p>HR has invited you to complete your employee onboarding.</p>
-      <p>Sign in with Google using <strong>${email}</strong>.</p>
-      <p><a href="${appUrl}">Open Launchpad</a></p>
-      <p>If you did not expect this email, please contact HR.</p>
-    `;
+  /** Returns the frontend base URL used in invitation links and assets. */
+  private resolveAppUrl(): string {
+    return (
+      process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:3000"
+    );
   }
 
   /** Computes expiry when an invitation is still pending past its expiry date. */

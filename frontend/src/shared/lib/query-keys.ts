@@ -79,5 +79,7 @@ export const queryKeys = {
         : (["surveys", "results", id] as const),
     // The signed-in employee's open pulses to answer.
     mine: ["surveys", "mine"] as const,
+    // The signed-in employee's already-answered pulses (history).
+    mineAnswered: ["surveys", "mine", "answered"] as const,
   },
 } as const;

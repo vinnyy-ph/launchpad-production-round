@@ -42,13 +42,12 @@ export class CloudinaryService {
     const base64 = buffer.toString("base64");
     const dataUri = `data:${mimeType || "application/octet-stream"};base64,${base64}`;
 
-    const normalizedName = originalName.toLowerCase();
-    const isPdf =
-      normalizedName.endsWith(".pdf") || mimeType.toLowerCase() === "application/pdf";
-
+    // "auto" lets Cloudinary classify PDFs as image resources, which (unlike "raw")
+    // are delivered inline so HR can preview them in a browser/iframe instead of
+    // forcing a download.
     const result = await cloudinary.uploader.upload(dataUri, {
       folder: "onboarding",
-      resource_type: isPdf ? "raw" : "auto",
+      resource_type: "auto",
       use_filename: true,
       unique_filename: true,
       filename_override: originalName.replace(/[^\w.\-]+/g, "_"),

@@ -17,16 +17,27 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 }));
 
 // Mock Prisma so this update scenario can assert the generated update payload.
-jest.mock("../../core/database/prisma.service", () => ({
-  prisma: {
+// updateProfile runs inside prisma.$transaction and writes activity-log entries, so the
+// mock exposes a transaction that runs the callback against the same mocked client.
+jest.mock("../../core/database/prisma.service", () => {
+  // Explicit type breaks the circular inference (prisma referenced in its own
+  // $transaction initializer), which otherwise trips TS7022/TS7024 under `tsc`.
+  const prisma: {
+    employee: { findMany: jest.Mock; count: jest.Mock; findFirst: jest.Mock; update: jest.Mock };
+    activityLog: { createMany: jest.Mock };
+    $transaction: jest.Mock;
+  } = {
     employee: {
       findMany: jest.fn(),
       count: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
     },
-  },
-}));
+    activityLog: { createMany: jest.fn() },
+    $transaction: jest.fn((callback: (tx: unknown) => unknown) => callback(prisma)),
+  };
+  return { prisma };
+});
 
 describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () => {
   beforeEach(() => {

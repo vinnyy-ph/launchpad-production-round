@@ -58,6 +58,21 @@ export class OnboardingRepository {
     });
   }
 
+  /** True when the HR pre-fill includes any address field. */
+  private hasAddress(dto: OnboardEmployeeRequestDto): boolean {
+    return (
+      dto.address !== undefined ||
+      dto.city !== undefined ||
+      dto.province !== undefined ||
+      dto.country !== undefined
+    );
+  }
+
+  /** True when the HR pre-fill includes an emergency contact name or number. */
+  private hasEmergencyContact(dto: OnboardEmployeeRequestDto): boolean {
+    return dto.emergencyContactName !== undefined || dto.emergencyContact !== undefined;
+  }
+
   /**
    * Creates a User, Employee, OnboardingRecord, and OnboardingInvitation in one atomic transaction.
    * Also finds-or-creates the default OnboardingTemplate and the Department by name.
@@ -86,11 +101,23 @@ export class OnboardingRepository {
           middleName: dto.middleName ?? null,
           personalEmail: dto.personalEmail ?? null,
           birthday: dto.birthday ? new Date(dto.birthday) : null,
-          address: dto.address
-            ? { create: { address: dto.address } }
+          address: this.hasAddress(dto)
+            ? {
+                create: {
+                  address: dto.address ?? null,
+                  city: dto.city ?? null,
+                  province: dto.province ?? null,
+                  country: dto.country ?? null,
+                },
+              }
             : undefined,
-          emergencyContact: dto.emergencyContact
-            ? { create: { emergencyContactNumber: dto.emergencyContact } }
+          emergencyContact: this.hasEmergencyContact(dto)
+            ? {
+                create: {
+                  emergencyContactName: dto.emergencyContactName ?? null,
+                  emergencyContactNumber: dto.emergencyContact ?? null,
+                },
+              }
             : undefined,
           jobTitle: dto.jobTitle,
           supervisor: { connect: { id: dto.supervisorId } },
@@ -104,8 +131,12 @@ export class OnboardingRepository {
         include: {
           department: { select: { name: true } },
           supervisor: { select: { id: true, firstName: true, lastName: true } },
-          address: { select: { address: true } },
-          emergencyContact: { select: { emergencyContactNumber: true } },
+          address: {
+            select: { address: true, city: true, province: true, country: true },
+          },
+          emergencyContact: {
+            select: { emergencyContactName: true, emergencyContactNumber: true },
+          },
         },
       });
 
@@ -146,8 +177,12 @@ export class OnboardingRepository {
         employee: {
           include: {
             department: { select: { name: true } },
-            address: { select: { address: true } },
-            emergencyContact: { select: { emergencyContactNumber: true } },
+            address: {
+              select: { address: true, city: true, province: true, country: true },
+            },
+            emergencyContact: {
+              select: { emergencyContactName: true, emergencyContactNumber: true },
+            },
           },
         },
         template: {

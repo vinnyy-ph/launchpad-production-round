@@ -31,6 +31,10 @@ export interface SurveyResultsResponseDto {
     occurrenceId?: string; // only on the occurrence-level endpoint
     isAnonymous: boolean;
     totalResponses: number;
+    /** Recipients of the occurrence(s) in view — denominator for the response rate (unfiltered). */
+    recipientCount: number;
+    /** Completed responses for the occurrence(s) in view, ignoring scope filters. */
+    respondedCount: number;
     filter: { teamId?: string; supervisorId?: string } | null;
     suppressed: boolean; // true when min-group-size rule fired
     questions: QuestionResult[]; // empty when suppressed = true

@@ -41,8 +41,12 @@ export class EmployeeOnboardingRepository {
       employee: {
         include: {
           department: { select: { name: true } },
-          address: { select: { address: true } },
-          emergencyContact: { select: { emergencyContactNumber: true } },
+          address: {
+            select: { address: true, city: true, province: true, country: true },
+          },
+          emergencyContact: {
+            select: { emergencyContactName: true, emergencyContactNumber: true },
+          },
         },
       },
       template: {
@@ -108,6 +112,22 @@ export class EmployeeOnboardingRepository {
 
   /** Updates the employee profile during onboarding. */
   async updateEmployeeProfile(employeeId: string, dto: UpdateProfileRequestDto) {
+    const addressData: Prisma.EmployeeAddressUpdateInput = {};
+    if (dto.address !== undefined) addressData.address = dto.address;
+    if (dto.city !== undefined) addressData.city = dto.city;
+    if (dto.province !== undefined) addressData.province = dto.province;
+    if (dto.country !== undefined) addressData.country = dto.country;
+    const hasAddress = Object.keys(addressData).length > 0;
+
+    const emergencyData: Prisma.EmployeeEmergencyContactUpdateInput = {};
+    if (dto.emergencyContactName !== undefined) {
+      emergencyData.emergencyContactName = dto.emergencyContactName;
+    }
+    if (dto.emergencyContact !== undefined) {
+      emergencyData.emergencyContactNumber = dto.emergencyContact;
+    }
+    const hasEmergency = Object.keys(emergencyData).length > 0;
+
     return prisma.employee.update({
       where: { id: employeeId },
       data: {
@@ -116,29 +136,31 @@ export class EmployeeOnboardingRepository {
         middleName: dto.middleName,
         personalEmail: dto.personalEmail?.toLowerCase(),
         birthday: dto.birthday ? new Date(dto.birthday) : undefined,
-        address:
-          dto.address === undefined
-            ? undefined
-            : {
-                upsert: {
-                  create: { address: dto.address },
-                  update: { address: dto.address },
-                },
+        address: hasAddress
+          ? {
+              upsert: {
+                create: addressData as Prisma.EmployeeAddressCreateWithoutEmployeeInput,
+                update: addressData,
               },
-        emergencyContact:
-          dto.emergencyContact === undefined
-            ? undefined
-            : {
-                upsert: {
-                  create: { emergencyContactNumber: dto.emergencyContact },
-                  update: { emergencyContactNumber: dto.emergencyContact },
-                },
+            }
+          : undefined,
+        emergencyContact: hasEmergency
+          ? {
+              upsert: {
+                create: emergencyData as Prisma.EmployeeEmergencyContactCreateWithoutEmployeeInput,
+                update: emergencyData,
               },
+            }
+          : undefined,
       },
       include: {
         department: { select: { name: true } },
-        address: { select: { address: true } },
-        emergencyContact: { select: { emergencyContactNumber: true } },
+        address: {
+          select: { address: true, city: true, province: true, country: true },
+        },
+        emergencyContact: {
+          select: { emergencyContactName: true, emergencyContactNumber: true },
+        },
       },
     });
   }

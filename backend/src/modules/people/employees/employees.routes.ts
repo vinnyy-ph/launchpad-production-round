@@ -1,8 +1,12 @@
 import { Router } from "express";
 import { requireRole } from "../../../core/middleware/roles.middleware";
 import { EmployeesController } from "./employees.controller";
+import { ActivityLogController } from "../activity-log/activity-log.controller";
+import { EmployeeDocumentsController } from "../employee-documents/employee-documents.controller";
 
 const employeesController = new EmployeesController();
+const activityLogController = new ActivityLogController();
+const employeeDocumentsController = new EmployeeDocumentsController();
 
 export const employeesRouter = Router();
 
@@ -24,4 +28,18 @@ employeesRouter.patch(
   "/:employeeId",
   requireRole("ADMIN", "HR"),
   employeesController.updateEmployeeProfile,
+);
+
+/** Lists profile field edit history for one employee. Restricted to HR and Admin. */
+employeesRouter.get(
+  "/:employeeId/activity-logs",
+  requireRole("ADMIN", "HR"),
+  activityLogController.listEmployeeActivityLogs,
+);
+
+/** Lists documents uploaded by one employee. Restricted to HR and Admin. */
+employeesRouter.get(
+  "/:employeeId/documents",
+  requireRole("ADMIN", "HR"),
+  employeeDocumentsController.listEmployeeDocuments,
 );

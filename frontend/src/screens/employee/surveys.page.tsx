@@ -1,94 +1,44 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import {
-  ClipboardList,
-  CheckCircle2,
-  AlertCircle,
-  RefreshCw,
-  CheckSquare,
-  ChevronUp,
-  ChevronDown,
-} from "lucide-react";
+import { ClipboardList, AlertCircle, RefreshCw, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import {
-  Button,
-  Badge,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/shared/ui";
-import { EmptyState } from "@/shared/ui/patterns";
+import { Button, Badge } from "@/shared/ui";
+import { EmptyState, PageTabs } from "@/shared/ui/patterns";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEvaluations } from "@/modules/performance/evaluations/hooks/use-evaluations";
 import { useAcknowledgeEvaluation } from "@/modules/performance/evaluations/hooks/use-acknowledge-evaluation";
+import { ReviewEvaluationDialog } from "@/modules/performance/evaluations/components/review-evaluation-dialog";
 import type { Evaluation as PerfEvaluation } from "@/modules/performance/evaluations/types/evaluations.types";
 import { useMySurveys } from "@/modules/performance/surveys/hooks/use-my-surveys";
-import { useSubmitResponse } from "@/modules/performance/surveys/hooks/use-submit-response";
-import {
-  QuestionField,
-  type AnswerValue,
-} from "@/modules/performance/surveys/components/questions/question-field";
+import { useAnsweredSurveys } from "@/modules/performance/surveys/hooks/use-answered-surveys";
 import { SurveyCard } from "@/modules/performance/surveys/components/survey-card";
+import { TakeSurveyDialog } from "@/modules/performance/surveys/components/take-survey-dialog";
 import type {
   PendingSurvey,
-  AnswerInput,
-  Question,
+  AnsweredSurvey,
 } from "@/modules/performance/surveys/types/surveys.types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const GRADE_LABELS: Record<number, string> = {
-  1: "Unsatisfactory",
-  2: "Needs improvement",
-  3: "Meets expectations",
-  4: "Exceeds expectations",
-  5: "Exceptional",
-};
 
 function formatPeriod(startIso: string, endIso: string): string {
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
   return `${new Date(startIso).toLocaleDateString(undefined, opts)} – ${new Date(endIso).toLocaleDateString(undefined, opts)}`;
 }
 
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+      {children}
+    </p>
+  );
+}
+
 /** An evaluation issued to the employee stays pending until acknowledged or deemed-acknowledged. */
 function isPendingAck(ev: PerfEvaluation): boolean {
   const ack = ev.acknowledgement;
   return ev.isSent && !ack?.acknowledgedAt && !ack?.isDeemedAck;
-}
-
-/** Build the wire payload for one question from its in-form value. Returns null when an
- *  optional question was left blank (so it is simply omitted). */
-function toAnswerInput(question: Question, value: AnswerValue): AnswerInput | null {
-  switch (question.type) {
-    case "SHORT_ANSWER":
-    case "LONG_ANSWER": {
-      const text = typeof value === "string" ? value.trim() : "";
-      return text === "" ? null : { questionId: question.id, answerText: text };
-    }
-    case "LINEAR_SCALE":
-      return typeof value === "number" ? { questionId: question.id, answerData: value } : null;
-    case "MULTIPLE_CHOICE":
-      return typeof value === "string" && value !== ""
-        ? { questionId: question.id, answerData: value }
-        : null;
-    case "CHECKBOX":
-      return Array.isArray(value) && value.length > 0
-        ? { questionId: question.id, answerData: value }
-        : null;
-    default:
-      return null;
-  }
 }
 
 function useMyEvaluations(employeeId: string) {
@@ -103,7 +53,7 @@ function useMyEvaluations(employeeId: string) {
 
   const acknowledge = (evaluationId: string) => {
     ackMutation.mutate(evaluationId, {
-      onSuccess: () => toast.success("Evaluation acknowledged."),
+      onSuccess: () => toast.success("Evaluation acknowledged"),
       onError: () => toast.error("Could not acknowledge — please try again."),
     });
   };
@@ -114,117 +64,29 @@ function useMyEvaluations(employeeId: string) {
     error: isError ? "Could not load your evaluations." : null,
     reload: () => void refetch(),
     acknowledge,
+    acknowledging: ackMutation.isPending,
   };
 }
 
-// ─── Survey taker ─────────────────────────────────────────────────────────────
-
-function SurveyTaker({
-  survey,
-  onSubmitted,
-  onCancel,
-}: {
-  survey: PendingSurvey;
-  onSubmitted: () => void;
-  onCancel: () => void;
-}) {
-  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const submit = useSubmitResponse();
-
-  const setAnswer = (qid: string, value: AnswerValue) =>
-    setAnswers((prev) => ({ ...prev, [qid]: value }));
-
-  const validate = () => {
-    const errs: Record<string, string> = {};
-    for (const q of survey.questions) {
-      if (!q.isRequired) continue;
-      const a = answers[q.id];
-      const empty = a === undefined || a === "" || (Array.isArray(a) && a.length === 0);
-      if (empty) errs[q.id] = "Please answer this question.";
-    }
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const handleSubmit = () => {
-    if (!validate()) return;
-    const payload = survey.questions
-      .map((q) => toAnswerInput(q, answers[q.id]))
-      .filter((a): a is AnswerInput => a !== null);
-
-    submit.mutate(
-      { occurrenceId: survey.occurrenceId, answers: payload },
-      {
-        onSuccess: () => {
-          toast.success("Response submitted — thank you.");
-          onSubmitted();
-        },
-        onError: (e) => toast.error(e.message),
-      },
-    );
-  };
-
-  return (
-    <div className="space-y-6">
-      <div
-        className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-        style={{ boxShadow: "var(--shadow-xs)" }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-base font-bold text-[color:var(--text-primary)]">
-              {survey.surveyName}
-            </h2>
-            <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">
-              {survey.questions.length}{" "}
-              {survey.questions.length === 1 ? "question" : "questions"} · Due{" "}
-              {new Date(survey.deadline).toLocaleDateString()}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={submit.isPending}
-            className="text-xs text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-
-      {survey.questions.map((q, idx) => (
-        <QuestionField
-          key={q.id}
-          question={q}
-          index={idx}
-          value={answers[q.id]}
-          error={errors[q.id]}
-          onChange={(v) => setAnswer(q.id, v)}
-          disabled={submit.isPending}
-        />
-      ))}
-
-      <div className="flex justify-end">
-        <Button onClick={handleSubmit} size="lg" disabled={submit.isPending}>
-          {submit.isPending ? "Submitting…" : "Submit response"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Survey list (Pulse surveys tab) ─────────────────────────────────────────
+// ─── Pulse surveys tab ────────────────────────────────────────────────────────
 
 interface SurveysTabProps {
   pending: PendingSurvey[];
+  answered: AnsweredSurvey[];
   loading: boolean;
   error: string | null;
   onReload: () => void;
   initialOccurrenceId?: string | null;
 }
 
-function SurveysTab({ pending, loading, error, onReload, initialOccurrenceId }: SurveysTabProps) {
+function SurveysTab({
+  pending,
+  answered,
+  loading,
+  error,
+  onReload,
+  initialOccurrenceId,
+}: SurveysTabProps) {
   const [takingId, setTakingId] = useState<string | null>(null);
 
   // Auto-open the taker once when arriving from a "new pulse" notification/banner.
@@ -268,7 +130,9 @@ function SurveysTab({ pending, loading, error, onReload, initialOccurrenceId }: 
     );
   }
 
-  if (pending.length === 0) {
+  const takingSurvey = pending.find((p) => p.occurrenceId === takingId) ?? null;
+
+  if (pending.length === 0 && answered.length === 0) {
     return (
       <div className="pt-4">
         <EmptyState
@@ -280,31 +144,74 @@ function SurveysTab({ pending, loading, error, onReload, initialOccurrenceId }: 
     );
   }
 
-  if (takingId) {
-    const survey = pending.find((p) => p.occurrenceId === takingId);
-    if (survey) {
-      return (
-        <div className="pt-4">
-          <SurveyTaker
-            survey={survey}
-            onSubmitted={() => setTakingId(null)}
-            onCancel={() => setTakingId(null)}
-          />
-        </div>
-      );
-    }
-  }
-
   return (
-    <div className="space-y-3 pt-4">
-      {pending.map((p) => (
-        <SurveyCard key={p.occurrenceId} survey={p} onTake={() => setTakingId(p.occurrenceId)} />
-      ))}
+    <div className="pt-4">
+      <section className="mb-8">
+        <SectionHeader>To answer</SectionHeader>
+        {pending.length > 0 ? (
+          <div className="space-y-3">
+            {pending.map((p) => (
+              <SurveyCard
+                key={p.occurrenceId}
+                survey={p}
+                onTake={() => setTakingId(p.occurrenceId)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-[color:var(--border-strong)] px-5 py-6 text-center text-sm text-[color:var(--text-tertiary)]">
+            You&apos;re all caught up — nothing to answer right now.
+          </p>
+        )}
+      </section>
+
+      {answered.length > 0 && (
+        <section>
+          <SectionHeader>Answered</SectionHeader>
+          <div
+            className="divide-y divide-[color:var(--border-secondary)] overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          >
+            {answered.map((a) => (
+              <div
+                key={a.occurrenceId}
+                className="flex items-center justify-between gap-3 px-5 py-3.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+                    {a.surveyName}
+                  </p>
+                  <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                    {a.occurrenceNumber > 1 ? `Round ${a.occurrenceNumber} · ` : ""}Answered{" "}
+                    {new Date(a.completedAt).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                <Badge variant={a.isAnonymous ? "brand" : "modern"} size="sm" pill>
+                  {a.isAnonymous ? "Anonymous" : "Named"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <TakeSurveyDialog
+        open={!!takingId}
+        survey={takingSurvey}
+        onClose={() => setTakingId(null)}
+        onSubmitted={() => {
+          setTakingId(null);
+          onReload();
+        }}
+      />
     </div>
   );
 }
 
-// ─── Acknowledgements tab ─────────────────────────────────────────────────────
+// ─── Evaluations tab ──────────────────────────────────────────────────────────
 
 interface AcksTabProps {
   evals: PerfEvaluation[];
@@ -312,6 +219,7 @@ interface AcksTabProps {
   error: string | null;
   onReload: () => void;
   onAcknowledge: (evaluationId: string) => void;
+  acknowledging: boolean;
   initialExpandedId?: string | null;
 }
 
@@ -321,17 +229,17 @@ function AcknowledgementsTab({
   error,
   onReload,
   onAcknowledge,
+  acknowledging,
   initialExpandedId,
 }: AcksTabProps) {
-  const [ackingId, setAckingId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
-  // Expand the exact evaluation once when arriving from a "new evaluation" notification.
+  // Open the exact evaluation once when arriving from a "new evaluation" notification.
   const deepLinkApplied = useRef(false);
   useEffect(() => {
     if (deepLinkApplied.current) return;
     if (initialExpandedId && evals.some((e) => e.id === initialExpandedId)) {
-      setExpandedId(initialExpandedId);
+      setReviewingId(initialExpandedId);
       deepLinkApplied.current = true;
     }
   }, [initialExpandedId, evals]);
@@ -379,199 +287,82 @@ function AcknowledgementsTab({
     );
   }
 
-  return (
-    <div className="space-y-3 pt-4">
-      {evals.map((ev) => {
-        const ack = ev.acknowledgement;
-        const isExpanded = expandedId === ev.id;
-        const isAcknowledged = !!ack?.acknowledgedAt;
-        const isDeemedAck = !isAcknowledged && !!ack?.isDeemedAck;
+  const reviewing = evals.find((e) => e.id === reviewingId) ?? null;
 
-        return (
-          <div
-            key={ev.id}
-            className="rounded-xl border border-[color:var(--border-primary)] bg-white"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          >
-            <button
-              type="button"
-              onClick={() => setExpandedId(isExpanded ? null : ev.id)}
-              className="flex w-full items-center gap-3 px-5 py-4 text-left"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                    {formatPeriod(ev.periodStart, ev.periodEnd)} · Performance evaluation
-                  </p>
-                  {isAcknowledged && <Badge variant="success">Acknowledged</Badge>}
-                  {!isAcknowledged && isDeemedAck && (
-                    <Badge variant="warning">Deemed acknowledged</Badge>
-                  )}
-                  {!isAcknowledged && !isDeemedAck && <Badge variant="neutral">Pending</Badge>}
-                </div>
-                <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
-                  From {ev.reviewer?.fullName ?? "Your supervisor"} · Shared{" "}
-                  {ev.sentAt ? new Date(ev.sentAt).toLocaleDateString() : "—"}
-                </p>
-              </div>
-              {isExpanded ? (
-                <ChevronUp
-                  size={16}
-                  className="text-[color:var(--text-quaternary)]"
-                  aria-hidden="true"
-                />
-              ) : (
-                <ChevronDown
-                  size={16}
-                  className="text-[color:var(--text-quaternary)]"
-                  aria-hidden="true"
-                />
-              )}
-            </button>
+  const pendingEvals = evals.filter((e) => {
+    const a = e.acknowledgement;
+    return !a?.acknowledgedAt && !a?.isDeemedAck;
+  });
+  const pastEvals = evals.filter((e) => {
+    const a = e.acknowledgement;
+    return !!a?.acknowledgedAt || !!a?.isDeemedAck;
+  });
 
-            {isExpanded && (
-              <div className="border-t border-[color:var(--border-primary)] px-5 pb-5 pt-4 space-y-4">
-                {/* Grade */}
-                {ev.grade !== undefined && ev.grade !== null && (
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Overall grade
-                    </p>
-                    <p className="text-sm text-[color:var(--text-primary)]">
-                      <span className="mr-1.5 text-xl font-bold">{ev.grade}</span>
-                      <span className="text-[color:var(--text-secondary)]">
-                        — {GRADE_LABELS[ev.grade] ?? ""}
-                      </span>
-                    </p>
-                  </div>
-                )}
+  const renderRow = (ev: PerfEvaluation) => {
+    const ack = ev.acknowledgement;
+    const isAcknowledged = !!ack?.acknowledgedAt;
+    const isDeemed = !isAcknowledged && !!ack?.isDeemedAck;
+    const pending = !isAcknowledged && !isDeemed;
 
-                {/* Highlights */}
-                {ev.highlights && ev.highlights.length > 0 && (
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Highlights
-                    </p>
-                    <ul className="space-y-1">
-                      {ev.highlights.map((h, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-[color:var(--text-primary)]">
-                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-500" />
-                          {h}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Lowlights */}
-                {ev.lowlights && ev.lowlights.length > 0 && (
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Areas for improvement
-                    </p>
-                    <ul className="space-y-1">
-                      {ev.lowlights.map((l, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-[color:var(--text-primary)]">
-                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400" />
-                          {l}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Evaluation text */}
-                {ev.evaluation && (
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Evaluation
-                    </p>
-                    <p className="text-sm leading-relaxed text-[color:var(--text-primary)]">
-                      {ev.evaluation}
-                    </p>
-                  </div>
-                )}
-
-                {/* Recommendation text */}
-                {ev.recommendation && (
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Recommendation
-                    </p>
-                    <p className="text-sm leading-relaxed text-[color:var(--text-primary)]">
-                      {ev.recommendation}
-                    </p>
-                  </div>
-                )}
-
-                {/* Supporting document */}
-                {ev.supportingDocUrl && (
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Supporting document
-                    </p>
-                    <a
-                      href={ev.supportingDocUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="break-all text-sm text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
-                    >
-                      {ev.supportingDocUrl}
-                    </a>
-                  </div>
-                )}
-
-                {/* Ack action */}
-                {!isAcknowledged && isDeemedAck && (
-                  <p className="text-xs text-[color:var(--text-tertiary)]">
-                    Deemed acknowledged on{" "}
-                    {ev.ackDeadline ? new Date(ev.ackDeadline).toLocaleDateString() : "—"} — no
-                    action needed.
-                  </p>
-                )}
-                {isAcknowledged && (
-                  <p className="flex items-center gap-1.5 text-xs text-[color:var(--text-tertiary)]">
-                    <CheckCircle2 size={12} className="text-green-600" />
-                    Acknowledged on{" "}
-                    {ack?.acknowledgedAt
-                      ? new Date(ack.acknowledgedAt).toLocaleDateString()
-                      : "—"}
-                  </p>
-                )}
-                {!isAcknowledged && !isDeemedAck && (
-                  <Button onClick={() => setAckingId(ev.id)}>
-                    <CheckCircle2 size={14} className="mr-1" />
-                    Acknowledge
-                  </Button>
-                )}
-              </div>
-            )}
+    return (
+      <div
+        key={ev.id}
+        className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-4"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[color:var(--text-primary)] text-sm font-bold text-white">
+            {ev.grade}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
+              Performance evaluation · from {ev.reviewer?.fullName ?? "Your supervisor"}
+            </p>
+            <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+              {formatPeriod(ev.periodStart, ev.periodEnd)}
+            </p>
           </div>
-        );
-      })}
+        </div>
 
-      <AlertDialog open={!!ackingId} onOpenChange={(o) => !o && setAckingId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Acknowledge this evaluation?</AlertDialogTitle>
-            <AlertDialogDescription>
-              By acknowledging, you confirm you have read and understood your performance
-              evaluation.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Not yet</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (ackingId) onAcknowledge(ackingId);
-                setAckingId(null);
-              }}
-            >
-              Acknowledge
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <div className="flex items-center gap-3">
+          {isAcknowledged && <Badge variant="success">Acknowledged</Badge>}
+          {isDeemed && <Badge variant="warning">Deemed acknowledged</Badge>}
+          {pending && <Badge variant="neutral">Pending</Badge>}
+          <Button
+            variant={pending ? undefined : "secondary"}
+            size="sm"
+            onClick={() => setReviewingId(ev.id)}
+          >
+            {pending ? "Review" : "View"}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-8 pt-4">
+      {pendingEvals.length > 0 && (
+        <section>
+          <SectionHeader>Needs your acknowledgment</SectionHeader>
+          <div className="space-y-3">{pendingEvals.map(renderRow)}</div>
+        </section>
+      )}
+
+      {pastEvals.length > 0 && (
+        <section>
+          <SectionHeader>Past evaluations</SectionHeader>
+          <div className="space-y-3">{pastEvals.map(renderRow)}</div>
+        </section>
+      )}
+
+      <ReviewEvaluationDialog
+        open={!!reviewingId}
+        evaluation={reviewing}
+        onClose={() => setReviewingId(null)}
+        onAcknowledge={onAcknowledge}
+        acknowledging={acknowledging}
+      />
     </div>
   );
 }
@@ -584,6 +375,8 @@ export default function EmployeeSurveysPage() {
 
   const mySurveys = useMySurveys();
   const pending = mySurveys.data ?? [];
+  const myAnswered = useAnsweredSurveys();
+  const answered = myAnswered.data ?? [];
 
   const {
     evals,
@@ -591,6 +384,7 @@ export default function EmployeeSurveysPage() {
     error: evalError,
     reload: reloadEvals,
     acknowledge,
+    acknowledging,
   } = useMyEvaluations(employeeId);
 
   // Notification click-to-land: open the exact tab/item the link points at.
@@ -618,37 +412,36 @@ export default function EmployeeSurveysPage() {
         subtitle="Answer active pulse surveys and acknowledge your performance evaluations."
       />
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "survey" | "acknowledgements")}>
-        <TabsList>
-          <TabsTrigger value="survey">
-            Pulse surveys{unansweredCount > 0 ? ` (${unansweredCount})` : ""}
-          </TabsTrigger>
-          <TabsTrigger value="acknowledgements">
-            Evaluations{pendingAcks > 0 ? ` (${pendingAcks})` : ""}
-          </TabsTrigger>
-        </TabsList>
+      <PageTabs
+        ariaLabel="Performance sections"
+        value={tab}
+        onChange={(v) => setTab(v as "survey" | "acknowledgements")}
+        items={[
+          { value: "survey", label: "Pulse surveys", count: unansweredCount },
+          { value: "acknowledgements", label: "Evaluations", count: pendingAcks },
+        ]}
+      />
 
-        <TabsContent value="survey" className="mt-5">
-          <SurveysTab
-            pending={pending}
-            loading={mySurveys.isLoading}
-            error={mySurveys.isError ? (mySurveys.error?.message ?? "Could not load surveys.") : null}
-            onReload={() => void mySurveys.refetch()}
-            initialOccurrenceId={deepLink.pulse}
-          />
-        </TabsContent>
-
-        <TabsContent value="acknowledgements">
-          <AcknowledgementsTab
-            evals={evals}
-            loading={evalLoading}
-            error={evalError}
-            onReload={reloadEvals}
-            onAcknowledge={acknowledge}
-            initialExpandedId={deepLink.eval}
-          />
-        </TabsContent>
-      </Tabs>
+      {tab === "survey" ? (
+        <SurveysTab
+          pending={pending}
+          answered={answered}
+          loading={mySurveys.isLoading}
+          error={mySurveys.isError ? (mySurveys.error?.message ?? "Could not load surveys.") : null}
+          onReload={() => void mySurveys.refetch()}
+          initialOccurrenceId={deepLink.pulse}
+        />
+      ) : (
+        <AcknowledgementsTab
+          evals={evals}
+          loading={evalLoading}
+          error={evalError}
+          onReload={reloadEvals}
+          onAcknowledge={acknowledge}
+          acknowledging={acknowledging}
+          initialExpandedId={deepLink.eval}
+        />
+      )}
     </div>
   );
 }
