@@ -113,10 +113,17 @@ const EXTRA_CRUMBS: Record<string, string[]> = {
   "/employee/onboarding": ["My onboarding"],
   "/employee/clearance": ["My clearances"],
   "/offboarding": ["My offboarding"],
-  "/hr/onboarding": ["Organization", "Onboarding"],
-  "/hr/offboarding": ["Organization", "Offboarding"],
   "/supervisor/status": ["My Team", "Hierarchy status"],
 };
+
+/**
+ * Deep-linkable sub-tabs of the People directory. They have no sidebar item of their own,
+ * so `findNav` resolves their routes to "People"; the breadcrumb appends them explicitly.
+ */
+const DIRECTORY_SUBTABS: { prefix: string; label: string; href: string }[] = [
+  { prefix: "/hr/directory/onboarding", label: "Onboarding", href: "/hr/directory/onboarding" },
+  { prefix: "/hr/directory/offboarding", label: "Offboarding", href: "/hr/directory/offboarding" },
+];
 
 /** Does this user hold the given role lane? `employee` is the base every authed user has. */
 export function hasNavRole(user: AppUser | null | undefined, role: NavRole): boolean {
@@ -178,7 +185,15 @@ export function breadcrumbForPath(pathname: string): BreadcrumbCrumb[] {
   const match = findNav(pathname);
   if (match) {
     const item: BreadcrumbCrumb = { label: match.item.label, href: match.item.href };
-    return match.section.title === "General" ? [item] : [{ label: match.section.title }, item];
+    const base: BreadcrumbCrumb[] =
+      match.section.title === "General" ? [item] : [{ label: match.section.title }, item];
+    // The People directory's Onboarding/Offboarding sub-tabs are routes without a nav item,
+    // so add their crumb here (clickable back to the tab) when on one of those paths.
+    if (match.item.href === "/hr/directory") {
+      const sub = DIRECTORY_SUBTABS.find((s) => pathname.startsWith(s.prefix));
+      if (sub) base.push({ label: sub.label, href: sub.href });
+    }
+    return base;
   }
   if (EXTRA_CRUMBS[pathname]) return extraCrumbsToTrail(EXTRA_CRUMBS[pathname], pathname);
   const key = Object.keys(EXTRA_CRUMBS)

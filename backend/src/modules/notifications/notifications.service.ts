@@ -37,7 +37,7 @@ export class NotificationsService {
 
       const subject = "Onboarding ready for review";
       const body = `${employeeName} submitted their onboarding for document review.`;
-      const linkUrl = `/hr/onboarding/${employeeId}`;
+      const linkUrl = `/hr/directory/onboarding/${employeeId}`;
 
       for (const hrEmployee of hrEmployees) {
         const notification = await this.notificationsRepository.create({

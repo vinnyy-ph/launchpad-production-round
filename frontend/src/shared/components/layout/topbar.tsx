@@ -67,11 +67,11 @@ function iconForPath(pathname: string): LucideIcon | NavIcon {
   if (navMatch) return navMatch.item.icon;
 
   if (pathname.startsWith("/employee/profile")) return User;
-  if (pathname.startsWith("/employee/onboarding") || pathname.startsWith("/hr/onboarding")) {
+  if (pathname.startsWith("/employee/onboarding") || pathname.startsWith("/hr/directory/onboarding")) {
     return ClipboardList;
   }
   if (pathname.startsWith("/employee/clearance")) return ClipboardCheck;
-  if (pathname.startsWith("/offboarding") || pathname.startsWith("/hr/offboarding")) return LogOut;
+  if (pathname.startsWith("/offboarding") || pathname.startsWith("/hr/directory/offboarding")) return LogOut;
   if (pathname.startsWith("/supervisor/status")) return Network;
 
   return BriefcaseBusiness;

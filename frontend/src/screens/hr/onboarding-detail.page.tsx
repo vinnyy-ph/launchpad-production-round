@@ -247,7 +247,7 @@ function OnboardingDetailInner() {
           icon={ClipboardList}
           title="Employee not found"
           body="This onboarding case does not exist or has been removed."
-          action={{ label: "Back to Onboarding", onClick: () => router.push("/hr/onboarding") }}
+          action={{ label: "Back to Onboarding", onClick: () => router.push("/hr/directory/onboarding") }}
         />
       </div>
     );
