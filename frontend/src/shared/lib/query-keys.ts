@@ -85,5 +85,7 @@ export const queryKeys = {
     mine: ["surveys", "mine"] as const,
     // The signed-in employee's already-answered pulses (history).
     mineAnswered: ["surveys", "mine", "answered"] as const,
+    // Surveys whose results the signed-in user may view.
+    viewableResults: ["surveys", "viewable-results"] as const,
   },
 } as const;

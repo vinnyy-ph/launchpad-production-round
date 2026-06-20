@@ -193,10 +193,22 @@ export type QuestionResult =
       counts: Record<string, number>;
     };
 
+/** A survey whose results the signed-in user may view (discovery list). */
+export interface VisibleResultSurvey {
+  id: string;
+  name: string;
+  isAnonymous: boolean;
+  status: SurveyStatus;
+}
+
 export interface SurveyResults {
   surveyId: string;
   occurrenceId?: string;
   isAnonymous: boolean;
+  surveyName: string;
+  deadline: string;
+  isActive: boolean;
+  occurrenceCount: number;
   totalResponses: number;
   /** Recipients of the occurrence(s) in view — denominator for the response rate (unfiltered). */
   recipientCount: number;
