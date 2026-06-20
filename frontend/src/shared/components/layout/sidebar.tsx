@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsUpDown } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { visibleSections, WORKSPACE_NAME } from "./nav-config";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
@@ -44,7 +43,7 @@ export function Sidebar({
 
       {/* Workspace card */}
       <div
-        className="mx-5 mb-6 mt-4 flex cursor-pointer items-center gap-2 rounded-xl bg-white p-3"
+        className="mx-5 mb-6 mt-4 flex items-center gap-2 rounded-xl bg-white p-3"
         style={{ boxShadow: "inset 0 0 0 1px rgb(233,234,235)" }}
       >
         <div
@@ -56,7 +55,6 @@ export function Sidebar({
             {WORKSPACE_NAME}
           </p>
         </div>
-        <ChevronsUpDown size={16} className="flex-shrink-0 text-[#717680]" aria-hidden="true" />
       </div>
 
       {/* Navigation */}
