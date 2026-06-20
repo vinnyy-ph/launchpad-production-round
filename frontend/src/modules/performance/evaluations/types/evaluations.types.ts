@@ -12,7 +12,7 @@ export interface Evaluation {
   lowlights: string[];
   evaluation: string | null;
   recommendation: string | null;
-  supportingDocUrl: string | null;
+  supportingDocUrls: string[];
   isSent: boolean;
   sentAt: string | null;
   ackDeadline: string | null;
@@ -38,7 +38,6 @@ export interface EvaluationInput {
   lowlights?: string[];
   evaluation?: string;
   recommendation?: string;
-  supportingDocUrl?: string;
 }
 
 export const GRADE_LABELS: Record<number, string> = {
