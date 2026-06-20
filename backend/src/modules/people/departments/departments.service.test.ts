@@ -33,6 +33,26 @@ function fakeRepo(overrides: Partial<DepartmentsRepository> = {}): DepartmentsRe
   return { ...base, ...overrides } as DepartmentsRepository;
 }
 
+describe("DepartmentsService.listDepartments", () => {
+  it("maps records to DTOs and computes pagination metadata", async () => {
+    const repo = fakeRepo({
+      findMany: jest.fn().mockResolvedValue({
+        departments: [record({ id: "d1", name: "Engineering", employees: 4 })],
+        total: 12,
+      }),
+    });
+    const service = new DepartmentsService(repo);
+
+    const result = await service.listDepartments({ page: 2, limit: 5 });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual([
+      expect.objectContaining({ id: "d1", name: "Engineering", employeeCount: 4 }),
+    ]);
+    expect(result.meta).toEqual({ page: 2, limit: 5, total: 12, totalPages: 3 });
+  });
+});
+
 describe("DepartmentsService.createDepartment", () => {
   it("rejects a name already used by an active department", async () => {
     const repo = fakeRepo({
@@ -114,6 +134,35 @@ describe("DepartmentsService.deleteDepartment", () => {
 });
 
 describe("DepartmentsService.updateDepartment", () => {
+  it("renames an existing department when the new name is free", async () => {
+    const update = jest.fn().mockResolvedValue(record({ id: "d1", name: "Platform" }));
+    const repo = fakeRepo({
+      findById: jest.fn().mockResolvedValue(record({ id: "d1", name: "Engineering" })),
+      update,
+    });
+    const service = new DepartmentsService(repo);
+
+    const result = await service.updateDepartment({ departmentId: "d1" }, { name: "Platform" });
+
+    expect(update).toHaveBeenCalledWith("d1", "Platform");
+    expect(result.data.name).toBe("Platform");
+  });
+
+  it("rejects renaming to a name already used by another active department", async () => {
+    const update = jest.fn();
+    const repo = fakeRepo({
+      findById: jest.fn().mockResolvedValue(record({ id: "d1", name: "Engineering" })),
+      findActiveByNameInsensitive: jest.fn().mockResolvedValue({ id: "other" }),
+      update,
+    });
+    const service = new DepartmentsService(repo);
+
+    await expect(
+      service.updateDepartment({ departmentId: "d1" }, { name: "Sales" }),
+    ).rejects.toThrow("Department already exists");
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("rejects renaming a department that does not exist", async () => {
     const repo = fakeRepo({ findById: jest.fn().mockResolvedValue(null) });
     const service = new DepartmentsService(repo);
