@@ -389,6 +389,12 @@ export function SurveyBuilderDialog({
         )
       : [];
 
+  // When an anonymous survey targets a sub-3-member team, results are forced to HR + the
+  // managers above that team's supervisor (enforced server-side). Lock the selector so it
+  // can't be set to something the backend would override anyway — purely a UI affordance;
+  // the saved `visibility` value is left untouched.
+  const visibilityLockedToHrHeads = smallTargetedTeams.length > 0;
+
   // Populate from initial when the dialog opens.
   useEffect(() => {
     if (!open) return;
@@ -850,9 +856,14 @@ export function SurveyBuilderDialog({
                     <Select
                       value={form.visibility}
                       onValueChange={(v) => set("visibility", v as Visibility)}
+                      disabled={visibilityLockedToHrHeads}
                     >
                       <SelectTrigger id="sv-visibility">
-                        <SelectValue />
+                        {visibilityLockedToHrHeads ? (
+                          <span>HR and heads above</span>
+                        ) : (
+                          <SelectValue />
+                        )}
                       </SelectTrigger>
                       <SelectContent>
                         {VISIBILITY_OPTIONS.map((o) => (
@@ -863,8 +874,9 @@ export function SurveyBuilderDialog({
                       </SelectContent>
                     </Select>
                     <InfoNote>
-                      This controls who sees the summary. Even when someone can view results,
-                      anonymous responses are never tied back to names.
+                      {visibilityLockedToHrHeads
+                        ? "This anonymous survey targets a team with fewer than 3 members, so results are limited to HR and the managers above that team's supervisor. Anonymous responses are never tied back to names."
+                        : "This controls who sees the summary. Even when someone can view results, anonymous responses are never tied back to names."}
                     </InfoNote>
                   </FormField>
                 </SectionCard>
