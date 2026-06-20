@@ -69,6 +69,9 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       ],
       audienceConfigs: [],
       visibilityConfigs: [],
+      isActive: true,
+      deadline: new Date("2030-01-01").toISOString(),
+      _count: { occurrences: 1 },
       ...overrides,
     };
   };
@@ -262,6 +265,11 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       responseCount: 2,
       counts: { X: 2, Y: 1 },
     });
+
+    expect(response.body.data.surveyName).toBe("Test Survey");
+    expect(response.body.data).toHaveProperty("deadline");
+    expect(response.body.data).toHaveProperty("isActive");
+    expect(response.body.data).toHaveProperty("occurrenceCount");
   });
 
   it("normalizes wrapped {value}/{selected}/{choices} answer + option shapes (no [object Object])", async () => {
@@ -517,5 +525,92 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
       expect(res.body.data.suppressed).toBe(true);
     });
+  });
+
+  it("scopes the aggregate to the caller's own chain for a non-HR SUPERVISOR_BASED viewer (no filter)", async () => {
+    const s = mockSurvey({ visibility: "SUPERVISOR_BASED" });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    employeeFindMock.mockResolvedValue({
+      id: "sup-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [],
+    });
+
+    // sup-1 manages report-1 and report-2; report-1 is in the audience → access granted.
+    mockCreateOrgChains.mockReturnValue({
+      downwardChain: jest.fn().mockResolvedValue(["report-1", "report-2"]),
+    });
+    surveyAudienceFindManyMock.mockResolvedValue([{ employeeId: "report-1" }]);
+    surveyResponseFindManyMock.mockResolvedValue([]);
+
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+
+    await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    // The aggregation query must be constrained to the caller's own chain, NOT the whole
+    // audience — otherwise a supervisor reads responses from outside their scope.
+    const whereArg = surveyResponseFindManyMock.mock.calls[0][0].where;
+    expect(whereArg.AND).toEqual(
+      expect.arrayContaining([
+        { respondentSupervisorId: { in: ["sup-1", "report-1", "report-2"] } },
+      ]),
+    );
+  });
+
+  it("scopes the headline counts to the caller's chain for a non-HR SUPERVISOR_BASED viewer", async () => {
+    const s = mockSurvey({ visibility: "SUPERVISOR_BASED" });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    employeeFindMock.mockResolvedValue({
+      id: "sup-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [],
+    });
+
+    mockCreateOrgChains.mockReturnValue({
+      downwardChain: jest.fn().mockResolvedValue(["report-1", "report-2"]),
+    });
+    surveyAudienceFindManyMock.mockResolvedValue([{ employeeId: "report-1" }]);
+    surveyResponseFindManyMock.mockResolvedValue([]);
+
+    const audienceCount = prisma.surveyAudienceMember.count as jest.Mock;
+    const responseCount = prisma.surveyResponse.count as jest.Mock;
+    audienceCount.mockResolvedValue(2);
+    responseCount.mockResolvedValue(1);
+
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+
+    await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    // Both the denominator (recipients) and numerator (responses) must be bounded to the
+    // caller's chain, otherwise the headline rate leaks org-wide totals.
+    const ids = ["sup-1", "report-1", "report-2"];
+    expect(audienceCount.mock.calls[0][0].where).toMatchObject({ employeeId: { in: ids } });
+    expect(responseCount.mock.calls[0][0].where).toMatchObject({
+      respondentSupervisorId: { in: ids },
+    });
+  });
+
+  it("does NOT scope a non-HR EVERYONE viewer — they are entitled to the org-wide aggregate", async () => {
+    const s = mockSurvey({ visibility: "EVERYONE" });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    employeeFindMock.mockResolvedValue({
+      id: "emp-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [{ teamId: "team-1" }],
+    });
+    surveyResponseFindManyMock.mockResolvedValue([]);
+
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+
+    await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    const whereArg = surveyResponseFindManyMock.mock.calls[0][0].where;
+    expect(whereArg.AND).toBeUndefined();
   });
 });

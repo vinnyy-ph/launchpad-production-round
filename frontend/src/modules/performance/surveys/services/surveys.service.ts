@@ -13,6 +13,7 @@ import type {
   AnswerInput,
   SurveyResults,
   ResultsFilter,
+  VisibleResultSurvey,
 } from "../types/surveys.types";
 import { normalizeQuestionOptions } from "../types/surveys.types";
 
@@ -142,5 +143,11 @@ export async function fetchSurveyResults(
   if (filter?.supervisorId) qs.set("supervisorId", filter.supervisorId);
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const res = await apiFetch<{ data: SurveyResults }>(`${BASE}/${surveyId}/results${suffix}`);
+  return res.data;
+}
+
+/** Surveys whose results the signed-in user may view (supervisor/employee discovery). */
+export async function fetchVisibleResultSurveys(): Promise<VisibleResultSurvey[]> {
+  const res = await apiFetch<{ data: VisibleResultSurvey[] }>(`${PULSE}/me/result-surveys`);
   return res.data;
 }

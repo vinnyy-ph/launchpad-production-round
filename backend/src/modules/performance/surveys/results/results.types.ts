@@ -24,12 +24,23 @@ export type QuestionResult =
       counts: Record<string, number>;
     };
 
+export interface VisibleResultSurveyDto {
+  id: string;
+  name: string;
+  isAnonymous: boolean;
+  status: "active" | "closed";
+}
+
 export interface SurveyResultsResponseDto {
   success: boolean;
   data: {
     surveyId: string;
     occurrenceId?: string; // only on the occurrence-level endpoint
     isAnonymous: boolean;
+    surveyName: string;
+    deadline: string; // ISO
+    isActive: boolean;
+    occurrenceCount: number;
     totalResponses: number;
     /** Recipients of the occurrence(s) in view — denominator for the response rate (unfiltered). */
     recipientCount: number;

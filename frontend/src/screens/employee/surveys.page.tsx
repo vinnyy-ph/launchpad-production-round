@@ -19,6 +19,7 @@ import type {
   PendingSurvey,
   AnsweredSurvey,
 } from "@/modules/performance/surveys/types/surveys.types";
+import { VisibleResultsList } from "@/modules/performance/surveys/components/visible-results-list";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -388,7 +389,7 @@ export default function EmployeeSurveysPage() {
   } = useMyEvaluations(employeeId);
 
   // Notification click-to-land: open the exact tab/item the link points at.
-  const [tab, setTab] = useState<"survey" | "acknowledgements">("survey");
+  const [tab, setTab] = useState<"survey" | "acknowledgements" | "results">("survey");
   const [deepLink, setDeepLink] = useState<{ pulse: string | null; eval: string | null }>({
     pulse: null,
     eval: null,
@@ -415,10 +416,11 @@ export default function EmployeeSurveysPage() {
       <PageTabs
         ariaLabel="Performance sections"
         value={tab}
-        onChange={(v) => setTab(v as "survey" | "acknowledgements")}
+        onChange={(v) => setTab(v as "survey" | "acknowledgements" | "results")}
         items={[
           { value: "survey", label: "Pulse surveys", count: unansweredCount },
           { value: "acknowledgements", label: "Evaluations", count: pendingAcks },
+          { value: "results", label: "Results" },
         ]}
       />
 
@@ -431,7 +433,7 @@ export default function EmployeeSurveysPage() {
           onReload={() => void mySurveys.refetch()}
           initialOccurrenceId={deepLink.pulse}
         />
-      ) : (
+      ) : tab === "acknowledgements" ? (
         <AcknowledgementsTab
           evals={evals}
           loading={evalLoading}
@@ -441,6 +443,10 @@ export default function EmployeeSurveysPage() {
           acknowledging={acknowledging}
           initialExpandedId={deepLink.eval}
         />
+      ) : (
+        <div className="pt-4">
+          <VisibleResultsList />
+        </div>
       )}
     </div>
   );
