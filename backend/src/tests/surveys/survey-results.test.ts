@@ -69,6 +69,9 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       ],
       audienceConfigs: [],
       visibilityConfigs: [],
+      isActive: true,
+      deadline: new Date("2030-01-01").toISOString(),
+      _count: { occurrences: 1 },
       ...overrides,
     };
   };
@@ -262,6 +265,11 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       responseCount: 2,
       counts: { X: 2, Y: 1 },
     });
+
+    expect(response.body.data.surveyName).toBe("Test Survey");
+    expect(response.body.data).toHaveProperty("deadline");
+    expect(response.body.data).toHaveProperty("isActive");
+    expect(response.body.data).toHaveProperty("occurrenceCount");
   });
 
   it("normalizes wrapped {value}/{selected}/{choices} answer + option shapes (no [object Object])", async () => {
