@@ -17,12 +17,14 @@ jest.mock("../../core/database/prisma.service", () => ({
     surveyOccurrence: { findUnique: jest.fn() },
     surveyResponse: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
     surveyAudienceMember: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
+    team: { findUnique: jest.fn() },
   },
 }));
 
 jest.mock("../../modules/shared/org/chains", () => ({
   createOrgChains: jest.fn(() => ({
     downwardChain: jest.fn().mockResolvedValue([]),
+    upwardChain: jest.fn().mockResolvedValue([]),
   })),
 }));
 
@@ -370,6 +372,13 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     const s = mockSurvey({ isAnonymous: true });
     surveyFindFirstMock.mockResolvedValue(s);
 
+    // Team is large enough that the small-team overlay does NOT fire — this asserts the
+    // response-count (MIN_GROUP) suppression, not the team-size rule.
+    (prisma.team.findUnique as jest.Mock).mockResolvedValue({
+      leaderId: "leader-emp",
+      _count: { members: 5 },
+    });
+
     // Only 2 responses match the filter
     const responses = [
       {
@@ -391,6 +400,122 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     expect(response.body.data).toMatchObject({
       suppressed: true,
       questions: [],
+    });
+  });
+
+  // Anonymous survey + team-scoped view of a team with fewer than 3 members: hidden from
+  // that team's own supervisor (leader); HR and managers above the leader still see it.
+  describe("anonymous small-team (< 3 members) visibility overlay", () => {
+    const teamFindMock = prisma.team.findUnique as jest.Mock;
+
+    const twoResponses = [
+      { id: "r1", answers: [{ questionId: "q-1", answerText: "A", answerData: null }] },
+      { id: "r2", answers: [{ questionId: "q-1", answerText: "B", answerData: null }] },
+    ];
+
+    it("403s the small team's supervisor (leader) with a dedicated error code", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
+      teamFindMock.mockResolvedValue({ leaderId: "leader-emp", _count: { members: 2 } });
+      mockCreateOrgChains.mockReturnValue({
+        downwardChain: jest.fn().mockResolvedValue([]),
+        upwardChain: jest.fn().mockResolvedValue(["boss-emp"]),
+      });
+      employeeFindMock.mockResolvedValue({
+        id: "leader-emp",
+        userId: "leader-user",
+        supervisorId: "boss-emp",
+        teamMemberships: [{ teamId: "team-small" }],
+      });
+      setAuthUser({ id: "leader-user", role: "EMPLOYEE" });
+
+      const res = await request(app)
+        .get(`${URL}/survey-001/results?teamId=team-small`)
+        .expect(403);
+      expect(res.body).toMatchObject({
+        success: false,
+        errorCode: "RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR",
+      });
+    });
+
+    it("lets a manager above the supervisor see the small team's results (suppression lifted)", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
+      teamFindMock.mockResolvedValue({ leaderId: "leader-emp", _count: { members: 2 } });
+      mockCreateOrgChains.mockReturnValue({
+        downwardChain: jest.fn().mockResolvedValue([]),
+        upwardChain: jest.fn().mockResolvedValue(["boss-emp"]),
+      });
+      employeeFindMock.mockResolvedValue({
+        id: "boss-emp",
+        userId: "boss-user",
+        supervisorId: null,
+        teamMemberships: [],
+      });
+      surveyResponseFindManyMock.mockResolvedValue(twoResponses);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+      setAuthUser({ id: "boss-user", role: "EMPLOYEE" });
+
+      const res = await request(app)
+        .get(`${URL}/survey-001/results?teamId=team-small`)
+        .expect(200);
+      expect(res.body.data.suppressed).toBe(false);
+      expect(res.body.data.questions.length).toBeGreaterThan(0);
+    });
+
+    it("lets HR see the small team's results even below the min-group threshold", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
+      teamFindMock.mockResolvedValue({ leaderId: "leader-emp", _count: { members: 2 } });
+      surveyResponseFindManyMock.mockResolvedValue(twoResponses);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+      // caller is HR (default auth)
+
+      const res = await request(app)
+        .get(`${URL}/survey-001/results?teamId=team-small`)
+        .expect(200);
+      expect(res.body.data.suppressed).toBe(false);
+    });
+
+    it("does not apply to non-anonymous surveys (supervisor still sees results)", async () => {
+      surveyFindFirstMock.mockResolvedValue(
+        mockSurvey({ isAnonymous: false, visibility: "EVERYONE" }),
+      );
+      teamFindMock.mockResolvedValue({ leaderId: "leader-emp", _count: { members: 2 } });
+      surveyResponseFindManyMock.mockResolvedValue([]);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+      employeeFindMock.mockResolvedValue({
+        id: "leader-emp",
+        userId: "leader-user",
+        supervisorId: "boss-emp",
+        teamMemberships: [{ teamId: "team-small" }],
+      });
+      setAuthUser({ id: "leader-user", role: "EMPLOYEE" });
+
+      await request(app)
+        .get(`${URL}/survey-001/results?teamId=team-small`)
+        .expect(200);
+    });
+
+    it("lets HR see the unfiltered view when the whole audience is below 3 (e.g. a single 2-person team)", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
+      surveyResponseFindManyMock.mockResolvedValue(twoResponses);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+      (prisma.surveyAudienceMember.count as jest.Mock).mockResolvedValue(2);
+      (prisma.surveyResponse.count as jest.Mock).mockResolvedValue(2);
+      // caller is HR (default auth), no team/supervisor filter
+
+      const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
+      expect(res.body.data.suppressed).toBe(false);
+      expect(res.body.data.questions.length).toBeGreaterThan(0);
+    });
+
+    it("still suppresses the unfiltered view for HR when the audience is large but few responded", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
+      surveyResponseFindManyMock.mockResolvedValue(twoResponses);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+      (prisma.surveyAudienceMember.count as jest.Mock).mockResolvedValue(20);
+      (prisma.surveyResponse.count as jest.Mock).mockResolvedValue(2);
+
+      const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
+      expect(res.body.data.suppressed).toBe(true);
     });
   });
 });

@@ -109,6 +109,14 @@ export class ResultsController {
         });
         return;
       }
+      if (error.message === SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR) {
+        res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR,
+          errorCode: "RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR",
+        });
+        return;
+      }
       if (error.message === SURVEY_ERROR_MESSAGES.BOTH_FILTERS_PROVIDED) {
         res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
           success: false,

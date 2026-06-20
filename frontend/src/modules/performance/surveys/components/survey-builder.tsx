@@ -59,6 +59,7 @@ import { cn } from "@/shared/lib/utils";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useAudienceOptions } from "../hooks/use-audience-options";
 import { usePreviewAudience } from "../hooks/use-preview-audience";
+import { useTeams } from "@/modules/people/teams";
 import type {
   SurveyDetail,
   QuestionType,
@@ -376,6 +377,17 @@ export function SurveyBuilderDialog({
   const optionsQuery = useAudienceOptions(open);
   const supervisors = optionsQuery.data?.supervisors ?? [];
   const teams = optionsQuery.data?.teams ?? [];
+
+  // Member counts aren't on the audience options (id + name only), so read them from the
+  // people module's teams list to warn — purely in the UI — that anonymous results from a
+  // sub-3-member targeted team won't reach that team's supervisor.
+  const { teams: teamsWithCounts } = useTeams();
+  const smallTargetedTeams =
+    form.isAnonymous && form.audienceType === "SPECIFIC_TEAMS"
+      ? teamsWithCounts.filter(
+          (t) => form.audienceTeamIds.includes(t.id) && t.memberCount < 3,
+        )
+      : [];
 
   // Populate from initial when the dialog opens.
   useEffect(() => {
@@ -818,6 +830,20 @@ export function SurveyBuilderDialog({
                       className="mt-0.5"
                     />
                   </div>
+
+                  {/* Small-team anonymity reminder (UI only — enforced server-side at view time) */}
+                  {smallTargetedTeams.length > 0 && (
+                    <div className="flex items-start gap-2 rounded-[10px] border border-[#FEDF89] bg-[color:var(--color-warning-50)] px-3 py-2.5 text-xs leading-relaxed text-[color:var(--color-warning-600)]">
+                      <Lock size={14} className="mt-0.5 flex-none" aria-hidden="true" />
+                      <span>
+                        Heads up: {smallTargetedTeams.map((t) => t.name).join(", ")}{" "}
+                        {smallTargetedTeams.length === 1 ? "has" : "have"} fewer than 3 members.
+                        Because this survey is anonymous, those teams&apos; results won&apos;t be
+                        shown to their own supervisor — only HR and the managers above them can view
+                        them.
+                      </span>
+                    </div>
+                  )}
 
                   {/* Visibility */}
                   <FormField label="Who can see results?" htmlFor="sv-visibility">
