@@ -23,10 +23,25 @@ export async function fetchReviewees(): Promise<Reviewee[]> {
   return res.data;
 }
 
-export async function createEvaluation(input: EvaluationInput): Promise<Evaluation> {
+function buildEvaluationFormData(input: Partial<EvaluationInput> & { send?: boolean }, files: File[]): FormData {
+  const fd = new FormData();
+  if (input.revieweeId !== undefined) fd.append("revieweeId", input.revieweeId);
+  if (input.periodStart !== undefined) fd.append("periodStart", input.periodStart);
+  if (input.periodEnd !== undefined) fd.append("periodEnd", input.periodEnd);
+  if (input.grade !== undefined) fd.append("grade", String(input.grade));
+  (input.highlights ?? []).forEach((h) => fd.append("highlights", h));
+  (input.lowlights ?? []).forEach((l) => fd.append("lowlights", l));
+  if (input.evaluation) fd.append("evaluation", input.evaluation);
+  if (input.recommendation) fd.append("recommendation", input.recommendation);
+  if (input.send !== undefined) fd.append("send", String(input.send));
+  files.forEach((f) => fd.append("files", f));
+  return fd;
+}
+
+export async function createEvaluation(input: EvaluationInput, files: File[] = []): Promise<Evaluation> {
   const res = await apiFetch<MutationResponse>(BASE, {
     method: "POST",
-    body: JSON.stringify(input),
+    body: buildEvaluationFormData(input, files),
   });
   return res.data;
 }
@@ -34,10 +49,11 @@ export async function createEvaluation(input: EvaluationInput): Promise<Evaluati
 export async function updateEvaluation(
   id: string,
   input: Partial<EvaluationInput>,
+  files: File[] = [],
 ): Promise<Evaluation> {
   const res = await apiFetch<MutationResponse>(`${BASE}/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(input),
+    body: buildEvaluationFormData(input, files),
   });
   return res.data;
 }
