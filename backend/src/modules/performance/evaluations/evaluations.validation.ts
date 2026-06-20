@@ -146,9 +146,10 @@ export class EvaluationsValidation {
 
   /** Itemized text → trimmed, non-empty string list. */
   private parseItemArray(value: unknown, field: string): string[] {
-    if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+    const arr = Array.isArray(value) ? value : (typeof value === "string" ? [value] : value);
+    if (!Array.isArray(arr) || !arr.every((item) => typeof item === "string")) {
       throw new Error(`${field} must be an array of strings`);
     }
-    return (value as string[]).map((item) => item.trim()).filter((item) => item.length > 0);
+    return (arr as string[]).map((item) => item.trim()).filter((item) => item.length > 0);
   }
 }
