@@ -251,6 +251,21 @@ export default function HRSurveysPage() {
     }
   };
 
+  // Silent autosave persist: create the draft on first valid save (capturing its id so the
+  // builder switches to incremental updates), update it thereafter. No toast, no close.
+  const handleAutosave = async (
+    input: CreateSurveyInput,
+    id: string | null,
+  ): Promise<string> => {
+    if (id) {
+      await updateSurvey.mutateAsync({ id, input });
+      return id;
+    }
+    const created = await createSurvey.mutateAsync(input);
+    setEditingId(created.id);
+    return created.id;
+  };
+
   const handleDelete = () => {
     if (!deletingId) return;
     deleteSurvey.mutate(deletingId, {
@@ -495,6 +510,8 @@ export default function HRSurveysPage() {
         loading={!!editingId && detailQuery.isLoading}
         saving={saving}
         onSave={handleSave}
+        draftId={editingId}
+        onAutosave={handleAutosave}
       />
 
       {/* Delete confirm */}
