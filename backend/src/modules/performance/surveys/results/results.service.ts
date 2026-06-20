@@ -1,6 +1,6 @@
 import { prisma } from "../../../../core/database/prisma.service";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
-import { gate } from "../rules/results";
+import { gate, MIN_TEAM_SIZE } from "../rules/results";
 import { createOrgChains } from "../../../shared/org/chains";
 import { ResultsRepository } from "./results.repository";
 import type { QuestionResult, SurveyResultsResponseDto } from "./results.types";
@@ -83,8 +83,33 @@ export class ResultsService {
 
     const isHR = role === "HR" || role === "ADMIN";
 
+    // 4b. Small-team anonymity overlay. On anonymous surveys, a team-scoped view of a team
+    //     with fewer than MIN_TEAM_SIZE members is hidden from that team's own supervisor
+    //     (its leader), while HR and every manager above the leader may still see it — even
+    //     though the group is below the normal min-group-size threshold. When granted, this
+    //     overrides the generic visibility/filter checks below and lifts gate() suppression.
+    let smallTeamOverride = false;
+    if (survey.isAnonymous && teamIdQuery) {
+      const team = await prisma.team.findUnique({
+        where: { id: teamIdQuery },
+        select: { leaderId: true, _count: { select: { members: true } } },
+      });
+
+      if (team && team._count.members < MIN_TEAM_SIZE) {
+        const headsAbove = await createOrgChains(prisma).upwardChain(team.leaderId);
+        const isLeader = !!caller && caller.id === team.leaderId;
+        const isHeadAbove = !!caller && headsAbove.includes(caller.id);
+
+        if (isHR || isHeadAbove) {
+          smallTeamOverride = true;
+        } else if (isLeader) {
+          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR);
+        }
+      }
+    }
+
     // 5. Visibility check
-    if (!isHR) {
+    if (!isHR && !smallTeamOverride) {
       if (!caller) {
         throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
       }
@@ -135,7 +160,7 @@ export class ResultsService {
     }
 
     // 6. Check filter restrictions for non-HR callers
-    if (!isHR && caller) {
+    if (!isHR && !smallTeamOverride && caller) {
       const chains = createOrgChains(prisma);
       const callerDownward = await chains.downwardChain(caller.id);
 
@@ -262,14 +287,11 @@ export class ResultsService {
       }
     });
 
-    // 9. Apply minimum-group-size suppression. For anonymous surveys this fires on ANY view
-    //    with fewer than MIN_GROUP responses — the top-level summary as well as every
-    //    team/supervisor filter — never only on filtered views.
     const isFilterActive = !!teamIdQuery || !!supervisorIdQuery;
-    const gated = gate({ count: responses.length, data: questionResults }, survey.isAnonymous);
 
-    // Occurrence-level totals for the summary stat cards — independent of the scope filter,
-    // so the headline response rate reflects the whole audience, not the filtered slice.
+    // Occurrence-level totals for the summary stat cards — independent of the scope filter, so the
+    // headline response rate reflects the whole audience, not the filtered slice. Computed before
+    // suppression because the small-survey override below depends on the recipient count.
     const scopeWhere = occurrenceId
       ? { occurrenceId }
       : { occurrence: { surveyId: survey.id } };
@@ -277,6 +299,19 @@ export class ResultsService {
       this.repo.countAudienceMembers(scopeWhere),
       this.repo.countResponses(scopeWhere),
     ]);
+
+    // 9. Minimum-group-size suppression for anonymous surveys. It fires on ANY view with fewer
+    //    than MIN_GROUP responses, EXCEPT where an override lifts it:
+    //    (a) smallTeamOverride — a team-scoped view of a sub-3-member team, for HR / heads-above;
+    //    (b) smallSurveyHrOverride — the survey's whole audience is itself below MIN_TEAM_SIZE and
+    //        the caller is HR, so the unfiltered view IS that small group. The team's supervisor,
+    //        being non-HR, stays suppressed here just as on a direct team filter.
+    const smallSurveyHrOverride =
+      survey.isAnonymous && isHR && !isFilterActive && recipientCount < MIN_TEAM_SIZE;
+    const gated =
+      smallTeamOverride || smallSurveyHrOverride
+        ? { suppressed: false as const, data: questionResults }
+        : gate({ count: responses.length, data: questionResults }, survey.isAnonymous);
 
     return {
       success: true,

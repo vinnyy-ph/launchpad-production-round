@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Badge, BadgeDot, Button } from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
+import { ApiError } from "@/shared/lib/api-client";
 import { useSurvey } from "../hooks/use-survey";
 import { useSurveyResults } from "../hooks/use-survey-results";
 import type {
@@ -41,6 +42,12 @@ function fmtDay(iso?: string): string {
 
 function pct(count: number, total: number): number {
   return total > 0 ? Math.round((count / total) * 100) : 0;
+}
+
+// The team-supervisor block for small anonymous teams comes back as a dedicated 403 code
+// (not a `suppressed` payload), so it's rendered as an informational notice, not an error.
+function isSmallTeamSupervisorBlock(err: unknown): boolean {
+  return err instanceof ApiError && err.errorCode === "RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR";
 }
 
 const QTYPE_LABEL: Record<QuestionResult["type"], string> = {
@@ -355,20 +362,32 @@ export function SurveyResults({ surveyId }: { surveyId: string }) {
 
       {query.isLoading && <ResultsSkeleton />}
 
-      {query.isError && (
-        <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
-          <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-          <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
-            {query.error.message}
-          </span>
-          <button
-            onClick={() => void query.refetch()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-          >
-            <RefreshCw size={12} /> Retry
-          </button>
-        </div>
-      )}
+      {query.isError &&
+        (isSmallTeamSupervisorBlock(query.error) ? (
+          <div className="flex gap-3 rounded-2xl border border-[#FEDF89] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
+            <Lock size={18} className="mt-0.5 flex-none" />
+            <div>
+              <p className="text-sm font-bold">Results hidden for this team&apos;s supervisor.</p>
+              <p className="mt-1 text-[13px] font-medium">
+                This team has fewer than 3 members, so its anonymous results aren&apos;t shown to the
+                team&apos;s supervisor. HR and managers above the supervisor can view them.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
+            <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
+            <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
+              {query.error.message}
+            </span>
+            <button
+              onClick={() => void query.refetch()}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
+            >
+              <RefreshCw size={12} /> Retry
+            </button>
+          </div>
+        ))}
 
       {results && (
         <>
