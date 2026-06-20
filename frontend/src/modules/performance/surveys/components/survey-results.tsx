@@ -286,24 +286,38 @@ function OpenTextBody({
 
 // ─── container ──────────────────────────────────────────────────────────────────
 
-/** HR results dashboard for one survey: header, summary stats, scope filters, per-question charts. */
-export function SurveyResults({ surveyId }: { surveyId: string }) {
+/** Results dashboard for one survey: header, summary stats, scope filters, per-question charts.
+ *  canFilter (default true) controls whether HR-only features (getSurvey, ResultsFilters) are active. */
+export function SurveyResults({
+  surveyId,
+  canFilter = true,
+}: {
+  surveyId: string;
+  canFilter?: boolean;
+}) {
   const [filter, setFilter] = useState<ResultsFilter>({});
-  const { data: survey } = useSurvey(surveyId);
+  // HR fetches full detail for the rich header + subtitle; non-HR derive the header
+  // from the results DTO so they never hit the HR-only getSurvey endpoint.
+  const { data: survey } = useSurvey(canFilter ? surveyId : null);
   const query = useSurveyResults(surveyId, filter);
   const results = query.data;
 
-  const status = survey ? deriveStatus(survey) : null;
+  const status = survey
+    ? deriveStatus(survey)
+    : results
+      ? deriveStatus({ isActive: results.isActive, occurrenceCount: results.occurrenceCount })
+      : null;
   const STATUS_VARIANT = { active: "success", draft: "neutral", closed: "warning" } as const;
 
   const filterActive = !!(filter.teamId || filter.supervisorId);
   const canExport = !!results && !results.suppressed && results.respondedCount > 0;
 
-  const daysLeft = survey?.deadline
-    ? Math.ceil((new Date(survey.deadline).getTime() - Date.now()) / 86_400_000)
+  const deadlineIso = survey?.deadline ?? results?.deadline;
+  const daysLeft = deadlineIso
+    ? Math.ceil((new Date(deadlineIso).getTime() - Date.now()) / 86_400_000)
     : null;
   const untilCloses =
-    !survey || status !== "active"
+    status !== "active"
       ? "Closed"
       : daysLeft === null
         ? "—"
@@ -333,7 +347,7 @@ export function SurveyResults({ surveyId }: { surveyId: string }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-[28px] font-bold tracking-tight text-[color:var(--text-primary)]">
-              {survey?.name ?? "Survey results"}
+              {survey?.name ?? results?.surveyName ?? "Survey results"}
             </h1>
             {status && (
               <Badge variant={STATUS_VARIANT[status]} pill>
@@ -341,7 +355,7 @@ export function SurveyResults({ surveyId }: { surveyId: string }) {
                 {STATUS_LABEL[status]}
               </Badge>
             )}
-            {survey?.isAnonymous && (
+            {(survey?.isAnonymous ?? results?.isAnonymous) && (
               <Badge variant="brand" pill>
                 Anonymous
               </Badge>
@@ -405,7 +419,7 @@ export function SurveyResults({ surveyId }: { surveyId: string }) {
           </div>
 
           {/* Filters + showing line */}
-          <ResultsFilters filter={filter} onChange={setFilter} />
+          {canFilter && <ResultsFilters filter={filter} onChange={setFilter} />}
           <p className="mb-4 mt-2 text-[13px] text-[color:var(--text-tertiary)]">{showingText}</p>
 
           {results.suppressed ? (
