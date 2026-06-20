@@ -518,4 +518,56 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       expect(res.body.data.suppressed).toBe(true);
     });
   });
+
+  it("scopes the aggregate to the caller's own chain for a non-HR SUPERVISOR_BASED viewer (no filter)", async () => {
+    const s = mockSurvey({ visibility: "SUPERVISOR_BASED" });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    employeeFindMock.mockResolvedValue({
+      id: "sup-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [],
+    });
+
+    // sup-1 manages report-1 and report-2; report-1 is in the audience → access granted.
+    mockCreateOrgChains.mockReturnValue({
+      downwardChain: jest.fn().mockResolvedValue(["report-1", "report-2"]),
+    });
+    surveyAudienceFindManyMock.mockResolvedValue([{ employeeId: "report-1" }]);
+    surveyResponseFindManyMock.mockResolvedValue([]);
+
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+
+    await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    // The aggregation query must be constrained to the caller's own chain, NOT the whole
+    // audience — otherwise a supervisor reads responses from outside their scope.
+    const whereArg = surveyResponseFindManyMock.mock.calls[0][0].where;
+    expect(whereArg.AND).toEqual(
+      expect.arrayContaining([
+        { respondentSupervisorId: { in: ["sup-1", "report-1", "report-2"] } },
+      ]),
+    );
+  });
+
+  it("does NOT scope a non-HR EVERYONE viewer — they are entitled to the org-wide aggregate", async () => {
+    const s = mockSurvey({ visibility: "EVERYONE" });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    employeeFindMock.mockResolvedValue({
+      id: "emp-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [{ teamId: "team-1" }],
+    });
+    surveyResponseFindManyMock.mockResolvedValue([]);
+
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+
+    await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    const whereArg = surveyResponseFindManyMock.mock.calls[0][0].where;
+    expect(whereArg.AND).toBeUndefined();
+  });
 });

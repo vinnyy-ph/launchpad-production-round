@@ -178,7 +178,7 @@ export class ResultsService {
       }
     }
 
-    // 7. Build responses where filter
+    // 7. Build the response filter.
     const where: Prisma.SurveyResponseWhereInput = {};
     if (occurrenceId) {
       where.occurrenceId = occurrenceId;
@@ -187,15 +187,45 @@ export class ResultsService {
     }
 
     const chains = createOrgChains(prisma);
+    const scopeFilters: Prisma.SurveyResponseWhereInput[] = [];
 
+    // 7a. Mandatory caller-scope for non-HR viewers. The visibility check in step 5 only
+    //     gates ACCESS (may this viewer open the results at all); it does NOT constrain
+    //     WHICH responses are aggregated. Without this, an unfiltered query would
+    //     aggregate the whole audience and expose responses — including named free text —
+    //     from respondents outside the caller's scope. HR/ADMIN are entitled to the full
+    //     audience and skip this.
+    if (!isHR && caller) {
+      if (survey.visibility === "SUPERVISOR_BASED") {
+        const callerDownward = await chains.downwardChain(caller.id);
+        scopeFilters.push({ respondentSupervisorId: { in: [caller.id, ...callerDownward] } });
+      } else if (survey.visibility === "TEAM_BASED") {
+        const callerTeamIds = caller.teamMemberships.map((m) => m.teamId);
+        scopeFilters.push({ respondentTeamIds: { hasSome: callerTeamIds } });
+      } else if (survey.visibility === "SPECIFIC_TEAMS") {
+        const allowedTeamIds = (survey.visibilityConfigs ?? []).map((vc: any) => vc.teamId);
+        const callerTeamIds = caller.teamMemberships
+          .map((m) => m.teamId)
+          .filter((id) => allowedTeamIds.includes(id));
+        scopeFilters.push({ respondentTeamIds: { hasSome: callerTeamIds } });
+      }
+      // EVERYONE / HR_ROOT_ONLY: the viewer is entitled to the org-wide aggregate.
+    }
+
+    // 7b. Optional explicit scope filter (already validated against the caller's own scope
+    //     in step 6). AND-composed with 7a so it can only narrow the view, never widen it.
     if (teamIdQuery) {
-      where.respondentTeamIds = { has: teamIdQuery };
+      scopeFilters.push({ respondentTeamIds: { has: teamIdQuery } });
     }
 
     if (supervisorIdQuery) {
       const targetDownward = await chains.downwardChain(supervisorIdQuery);
       const targetSupervisors = [supervisorIdQuery, ...targetDownward];
-      where.respondentSupervisorId = { in: targetSupervisors };
+      scopeFilters.push({ respondentSupervisorId: { in: targetSupervisors } });
+    }
+
+    if (scopeFilters.length > 0) {
+      where.AND = scopeFilters;
     }
 
     // Fetch responses with answers
