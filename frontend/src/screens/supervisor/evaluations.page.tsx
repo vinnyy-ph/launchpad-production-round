@@ -267,7 +267,7 @@ function PdfFilePicker({ files, existingUrls, onChange, error }: PdfFilePickerPr
     if (totalExisting + newCount > 5 || combined.length > 5) {
       toast.error("You can attach up to 5 files total.");
       // Take only as many as fit.
-      const slotsLeft = Math.max(0, 5 - files.length);
+      const slotsLeft = Math.max(0, 5 - files.length - existingUrls.length);
       onChange([...files, ...validFiles.slice(0, slotsLeft)]);
       return;
     }
@@ -341,7 +341,7 @@ function PdfFilePicker({ files, existingUrls, onChange, error }: PdfFilePickerPr
         <Plus size={12} /> Add PDFs
       </Button>
 
-      {error && <p className="text-xs text-[#D92D20]">{error}</p>}
+      {error && <p className="text-xs text-[color:var(--color-error-600)]">{error}</p>}
     </div>
   );
 }
