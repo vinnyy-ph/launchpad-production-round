@@ -187,41 +187,55 @@ export class ResultsService {
     }
 
     const chains = createOrgChains(prisma);
-    const scopeFilters: Prisma.SurveyResponseWhereInput[] = [];
 
-    // 7a. Mandatory caller-scope for non-HR viewers. The visibility check in step 5 only
-    //     gates ACCESS (may this viewer open the results at all); it does NOT constrain
-    //     WHICH responses are aggregated. Without this, an unfiltered query would
-    //     aggregate the whole audience and expose responses — including named free text —
-    //     from respondents outside the caller's scope. HR/ADMIN are entitled to the full
-    //     audience and skip this.
+    // Resolve the caller's entitled scope once (non-HR only). The visibility check in
+    // step 5 only gates ACCESS (may this viewer open the results at all); this is the data
+    // boundary that constrains WHICH responses they may see. It is reused below by both
+    // the breakdown filter and the headline counts. Without it an unfiltered query would
+    // aggregate the whole audience and expose responses — including named free text —
+    // from respondents outside the caller's scope. HR/ADMIN are entitled to the full
+    // audience, so callerScope stays null for them.
+    let callerScope:
+      | { kind: "supervisor"; ids: string[] }
+      | { kind: "team"; teamIds: string[] }
+      | null = null;
+
     if (!isHR && caller) {
       if (survey.visibility === "SUPERVISOR_BASED") {
         const callerDownward = await chains.downwardChain(caller.id);
-        scopeFilters.push({ respondentSupervisorId: { in: [caller.id, ...callerDownward] } });
+        callerScope = { kind: "supervisor", ids: [caller.id, ...callerDownward] };
       } else if (survey.visibility === "TEAM_BASED") {
-        const callerTeamIds = caller.teamMemberships.map((m) => m.teamId);
-        scopeFilters.push({ respondentTeamIds: { hasSome: callerTeamIds } });
+        callerScope = { kind: "team", teamIds: caller.teamMemberships.map((m) => m.teamId) };
       } else if (survey.visibility === "SPECIFIC_TEAMS") {
         const allowedTeamIds = (survey.visibilityConfigs ?? []).map((vc: any) => vc.teamId);
-        const callerTeamIds = caller.teamMemberships
-          .map((m) => m.teamId)
-          .filter((id) => allowedTeamIds.includes(id));
-        scopeFilters.push({ respondentTeamIds: { hasSome: callerTeamIds } });
+        callerScope = {
+          kind: "team",
+          teamIds: caller.teamMemberships
+            .map((m) => m.teamId)
+            .filter((id) => allowedTeamIds.includes(id)),
+        };
       }
-      // EVERYONE / HR_ROOT_ONLY: the viewer is entitled to the org-wide aggregate.
+      // EVERYONE / HR_ROOT_ONLY: callerScope stays null — entitled to the org-wide view.
+    }
+
+    const scopeFilters: Prisma.SurveyResponseWhereInput[] = [];
+
+    // 7a. Mandatory caller-scope (non-HR).
+    if (callerScope?.kind === "supervisor") {
+      scopeFilters.push({ respondentSupervisorId: { in: callerScope.ids } });
+    } else if (callerScope?.kind === "team") {
+      scopeFilters.push({ respondentTeamIds: { hasSome: callerScope.teamIds } });
     }
 
     // 7b. Optional explicit scope filter (already validated against the caller's own scope
-    //     in step 6). AND-composed with 7a so it can only narrow the view, never widen it.
+    //     in step 6). AND-composed with 7a so a drill-down can only narrow, never widen.
     if (teamIdQuery) {
       scopeFilters.push({ respondentTeamIds: { has: teamIdQuery } });
     }
 
     if (supervisorIdQuery) {
       const targetDownward = await chains.downwardChain(supervisorIdQuery);
-      const targetSupervisors = [supervisorIdQuery, ...targetDownward];
-      scopeFilters.push({ respondentSupervisorId: { in: targetSupervisors } });
+      scopeFilters.push({ respondentSupervisorId: { in: [supervisorIdQuery, ...targetDownward] } });
     }
 
     if (scopeFilters.length > 0) {
@@ -319,15 +333,30 @@ export class ResultsService {
 
     const isFilterActive = !!teamIdQuery || !!supervisorIdQuery;
 
-    // Occurrence-level totals for the summary stat cards — independent of the scope filter, so the
-    // headline response rate reflects the whole audience, not the filtered slice. Computed before
-    // suppression because the small-survey override below depends on the recipient count.
-    const scopeWhere = occurrenceId
+    // Occurrence-level totals for the summary stat cards. For non-HR viewers these are bounded to
+    // the caller's entitled scope (their slice) via callerScope below; for HR / unfiltered views no
+    // scope is applied, so recipientCount reflects the whole audience — which the small-survey HR
+    // override below depends on. Computed before suppression.
+    const audienceCountWhere: Prisma.SurveyAudienceMemberWhereInput = occurrenceId
       ? { occurrenceId }
       : { occurrence: { surveyId: survey.id } };
+    const responseCountWhere: Prisma.SurveyResponseWhereInput = occurrenceId
+      ? { occurrenceId }
+      : { occurrence: { surveyId: survey.id } };
+
+    if (callerScope?.kind === "supervisor") {
+      audienceCountWhere.employeeId = { in: callerScope.ids };
+      responseCountWhere.respondentSupervisorId = { in: callerScope.ids };
+    } else if (callerScope?.kind === "team") {
+      audienceCountWhere.employee = {
+        teamMemberships: { some: { teamId: { in: callerScope.teamIds } } },
+      };
+      responseCountWhere.respondentTeamIds = { hasSome: callerScope.teamIds };
+    }
+
     const [recipientCount, respondedCount] = await Promise.all([
-      this.repo.countAudienceMembers(scopeWhere),
-      this.repo.countResponses(scopeWhere),
+      this.repo.countAudienceMembers(audienceCountWhere),
+      this.repo.countResponses(responseCountWhere),
     ]);
 
     // 9. Minimum-group-size suppression for anonymous surveys. It fires on ANY view with fewer

@@ -551,6 +551,41 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     );
   });
 
+  it("scopes the headline counts to the caller's chain for a non-HR SUPERVISOR_BASED viewer", async () => {
+    const s = mockSurvey({ visibility: "SUPERVISOR_BASED" });
+    surveyFindFirstMock.mockResolvedValue(s);
+
+    employeeFindMock.mockResolvedValue({
+      id: "sup-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [],
+    });
+
+    mockCreateOrgChains.mockReturnValue({
+      downwardChain: jest.fn().mockResolvedValue(["report-1", "report-2"]),
+    });
+    surveyAudienceFindManyMock.mockResolvedValue([{ employeeId: "report-1" }]);
+    surveyResponseFindManyMock.mockResolvedValue([]);
+
+    const audienceCount = prisma.surveyAudienceMember.count as jest.Mock;
+    const responseCount = prisma.surveyResponse.count as jest.Mock;
+    audienceCount.mockResolvedValue(2);
+    responseCount.mockResolvedValue(1);
+
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+
+    await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    // Both the denominator (recipients) and numerator (responses) must be bounded to the
+    // caller's chain, otherwise the headline rate leaks org-wide totals.
+    const ids = ["sup-1", "report-1", "report-2"];
+    expect(audienceCount.mock.calls[0][0].where).toMatchObject({ employeeId: { in: ids } });
+    expect(responseCount.mock.calls[0][0].where).toMatchObject({
+      respondentSupervisorId: { in: ids },
+    });
+  });
+
   it("does NOT scope a non-HR EVERYONE viewer — they are entitled to the org-wide aggregate", async () => {
     const s = mockSurvey({ visibility: "EVERYONE" });
     surveyFindFirstMock.mockResolvedValue(s);
