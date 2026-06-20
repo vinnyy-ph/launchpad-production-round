@@ -66,6 +66,8 @@ import {
   type EvaluationInput,
   type Reviewee,
 } from "@/modules/performance/evaluations";
+import { useAutosave } from "@/modules/performance/shared/use-autosave";
+import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -372,6 +374,20 @@ interface EditorProps {
   saving: boolean;
   onSubmit: (input: EvaluationInput, files: File[]) => void;
   onRequestSend: (payload: SendPayload) => void;
+  /** Silent autosave persist. Creates when no id, updates otherwise; returns the draft id. */
+  onAutosave?: (input: EvaluationInput, draftId: string | null) => Promise<string>;
+}
+
+/** Serializable field snapshot for autosave change-detection + localStorage buffer. */
+interface EvalSnapshot {
+  revieweeId: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  grade: number | null;
+  highlights: string[];
+  lowlights: string[];
+  evaluation: string;
+  recommendation: string;
 }
 
 function EvaluationEditorDialog({
@@ -382,6 +398,7 @@ function EvaluationEditorDialog({
   saving,
   onSubmit,
   onRequestSend,
+  onAutosave,
 }: EditorProps) {
   const [revieweeId, setRevieweeId] = useState("");
   const [period, setPeriod] = useState<DateRange | undefined>();
@@ -409,12 +426,52 @@ function EvaluationEditorDialog({
       return next;
     });
 
+  // ── Autosave (drafts only; a sent evaluation is read-only) ──
+  // Files are deliberately excluded — uploads happen only on explicit Save/Send, so autosave
+  // never re-uploads or wipes attached documents.
+  const draftId = initial?.id ?? null;
+  const snapshot = useMemo<EvalSnapshot>(
+    () => ({
+      revieweeId,
+      periodStart: period?.from ? period.from.toISOString() : null,
+      periodEnd: period?.to ? period.to.toISOString() : null,
+      grade,
+      highlights,
+      lowlights,
+      evaluation: evaluationText,
+      recommendation: recommendationText,
+    }),
+    [revieweeId, period, grade, highlights, lowlights, evaluationText, recommendationText],
+  );
+  const canPersist = !!revieweeId && !!period?.from && !!period?.to && !!grade;
+  const saveRef = useRef<(id: string | null) => Promise<string>>(async (id) => id ?? "");
+  const autosave = useAutosave({
+    open,
+    enabled: !isViewOnly && !!onAutosave,
+    draftId,
+    snapshot,
+    canPersist,
+    storageKey: `autosave:eval:${draftId ?? "new"}`,
+    onSave: (id) => saveRef.current(id),
+  });
+
+  // Hydrate once per open. Guarded so autosave creating the draft — which flips `initial`
+  // from null to the saved evaluation — does not re-hydrate over the in-progress edits.
+  const hydratedRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hydratedRef.current = false;
+      return;
+    }
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
     setStep("form");
+    let baseline: EvalSnapshot;
     if (initial) {
+      const start = new Date(initial.periodStart);
+      const end = new Date(initial.periodEnd);
       setRevieweeId(initial.revieweeId);
-      setPeriod({ from: new Date(initial.periodStart), to: new Date(initial.periodEnd) });
+      setPeriod({ from: start, to: end });
       setGrade(initial.grade ?? null);
       setHighlights(initial.highlights ?? []);
       setLowlights(initial.lowlights ?? []);
@@ -422,12 +479,24 @@ function EvaluationEditorDialog({
       setRecommendationText(initial.recommendation ?? "");
       setExistingDocUrls(initial.supportingDocUrls ?? []);
       setLocalFiles([]);
+      baseline = {
+        revieweeId: initial.revieweeId,
+        periodStart: start.toISOString(),
+        periodEnd: end.toISOString(),
+        grade: initial.grade ?? null,
+        highlights: initial.highlights ?? [],
+        lowlights: initial.lowlights ?? [],
+        evaluation: initial.evaluation ?? "",
+        recommendation: initial.recommendation ?? "",
+      };
     } else {
       // Reviewee starts empty (placeholder "Select employee").
       setRevieweeId("");
       // Smart default: prefill the current month as the evaluation period.
       const now = new Date();
-      setPeriod({ from: startOfMonth(now), to: endOfMonth(now) });
+      const from = startOfMonth(now);
+      const to = endOfMonth(now);
+      setPeriod({ from, to });
       setGrade(null);
       setHighlights([]);
       setLowlights([]);
@@ -435,9 +504,37 @@ function EvaluationEditorDialog({
       setRecommendationText("");
       setExistingDocUrls([]);
       setLocalFiles([]);
+      baseline = {
+        revieweeId: "",
+        periodStart: from.toISOString(),
+        periodEnd: to.toISOString(),
+        grade: null,
+        highlights: [],
+        lowlights: [],
+        evaluation: "",
+        recommendation: "",
+      };
     }
     setErrors({});
-  }, [open, initial, reviewees]);
+    autosave.setBaseline(baseline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial]);
+
+  /** Apply a recovered localStorage buffer to the form, then dismiss the prompt. */
+  const restoreFromBuffer = (b: EvalSnapshot) => {
+    setRevieweeId(b.revieweeId);
+    setPeriod(
+      b.periodStart && b.periodEnd
+        ? { from: new Date(b.periodStart), to: new Date(b.periodEnd) }
+        : undefined,
+    );
+    setGrade(b.grade);
+    setHighlights(b.highlights);
+    setLowlights(b.lowlights);
+    setEvaluationText(b.evaluation);
+    setRecommendationText(b.recommendation);
+    autosave.acceptRecovery();
+  };
 
   /** Required to create/save a draft: reviewee, period, and rating. */
   const validate = (): boolean => {
@@ -464,6 +561,14 @@ function EvaluationEditorDialog({
     };
   };
 
+  // Keep the autosave save closure pointed at the current buildInput / onAutosave.
+  saveRef.current = async (id) => {
+    if (!onAutosave) return id ?? "";
+    const input = buildInput();
+    if (!input) return id ?? "";
+    return onAutosave(input, id);
+  };
+
   const handleSubmit = () => {
     if (isViewOnly) return;
     const input = validate() ? buildInput() : null;
@@ -471,6 +576,9 @@ function EvaluationEditorDialog({
       setStep("form");
       return;
     }
+    // Manual save takes over: cancel any pending autosave and drop the local buffer.
+    autosave.cancel();
+    autosave.clearBuffer();
     onSubmit(input, localFiles);
   };
 
@@ -490,6 +598,8 @@ function EvaluationEditorDialog({
       toast.error("Fill in the required fields before sending.");
       return;
     }
+    autosave.cancel();
+    autosave.clearBuffer();
     onRequestSend({ existing: initial, input, name: previewName, files: localFiles });
   };
 
@@ -519,6 +629,28 @@ function EvaluationEditorDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+
+        {!isViewOnly && autosave.recoverable != null && (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3.5 py-2.5 text-[13px] text-[color:var(--text-secondary)]">
+            <span>You have unsaved changes from a previous session.</span>
+            <span className="flex flex-none gap-2">
+              <button
+                type="button"
+                onClick={() => restoreFromBuffer(autosave.recoverable as EvalSnapshot)}
+                className="font-semibold text-[color:var(--text-primary)] underline underline-offset-2"
+              >
+                Restore
+              </button>
+              <button
+                type="button"
+                onClick={autosave.discardRecovery}
+                className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
+              >
+                Discard
+              </button>
+            </span>
+          </div>
+        )}
 
         <form
           onSubmit={(e) => {
@@ -854,6 +986,14 @@ function EvaluationEditorDialog({
 
           {/* Bottom bar — divider sits flush with the scroll edge (no gap above the line) */}
           <div className="flex items-center gap-2 border-t border-[color:var(--border-primary)] pt-4">
+            {!isViewOnly && (
+              <DraftSaveStatus
+                status={autosave.status}
+                lastSavedAt={autosave.lastSavedAt}
+                canPersist={autosave.canPersist}
+                onRetry={autosave.retry}
+              />
+            )}
             {!isViewOnly && step === "preview" && (
               <Button variant="ghost" type="button" onClick={() => setStep("form")}>
                 <ChevronLeft size={14} className="mr-1" /> Back
@@ -1029,6 +1169,22 @@ export default function EvaluationsPage() {
         },
       );
     }
+  };
+
+  // Silent autosave persist: create the draft on first valid save (capturing it so the editor
+  // switches to incremental updates), update it thereafter. Files are never sent here — uploads
+  // happen only on an explicit Save/Send — so existing documents are preserved.
+  const handleAutosave = async (
+    input: EvaluationInput,
+    id: string | null,
+  ): Promise<string> => {
+    if (id) {
+      await updateMutation.mutateAsync({ id, input, files: [] });
+      return id;
+    }
+    const created = await createMutation.mutateAsync({ input, files: [] });
+    setEditing(created);
+    return created.id;
   };
 
   const handleSend = () => {
@@ -1376,6 +1532,7 @@ export default function EvaluationsPage() {
         saving={createMutation.isPending || updateMutation.isPending}
         onSubmit={handleSubmit}
         onRequestSend={(payload) => setPendingSend(payload)}
+        onAutosave={handleAutosave}
       />
 
       {/* Send confirm */}

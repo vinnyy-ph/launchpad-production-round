@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Plus,
   Trash2,
@@ -60,6 +60,8 @@ import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useAudienceOptions } from "../hooks/use-audience-options";
 import { usePreviewAudience } from "../hooks/use-preview-audience";
 import { useTeams } from "@/modules/people/teams";
+import { useAutosave } from "@/modules/performance/shared/use-autosave";
+import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
 import type {
   SurveyDetail,
   QuestionType,
@@ -212,6 +214,70 @@ function buildAudienceConfigs(state: BuilderState): AudienceConfigInput[] {
   return [];
 }
 
+// Pure validation (no React state) so the same rules drive both the on-submit error display
+// and the autosave "is this complete enough for the server to accept a create?" gate. Mirrors
+// the backend create requirements (name, future deadline, ≥1 valid question, named audience).
+function computeBuilderErrors(form: BuilderState): Record<string, string> {
+  const errs: Record<string, string> = {};
+  if (!form.name.trim()) errs.name = "Name is required.";
+  if (!form.deadline) {
+    errs.deadline = "Deadline is required.";
+  } else if (form.releaseDate && form.deadline <= form.releaseDate) {
+    errs.deadline = "Deadline must be after the release date.";
+  }
+  if (form.questions.length === 0) errs.questions = "Add at least one question.";
+  if (form.audienceType === "SUPERVISOR_BASED" && form.audienceSupervisorIds.length === 0) {
+    errs.audience = "Select at least one supervisor.";
+  }
+  if (form.audienceType === "SPECIFIC_TEAMS" && form.audienceTeamIds.length === 0) {
+    errs.audience = "Select at least one team.";
+  }
+  form.questions.forEach((q, i) => {
+    if (!q.questionText.trim()) errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
+    if (
+      (q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") &&
+      q.options.filter((o) => o.trim()).length < 1
+    ) {
+      errs[`q_opts_${q.id}`] = `Question ${i + 1} needs at least one option.`;
+    }
+    if (q.type === "LINEAR_SCALE" && q.scaleMax <= q.scaleMin) {
+      errs[`q_scale_${q.id}`] = `Question ${i + 1} max must be greater than min.`;
+    }
+  });
+  return errs;
+}
+
+// Serializable form snapshot for autosave change-detection and the localStorage buffer.
+// Question client ids are intentionally dropped (they regenerate on hydrate, so including
+// them would make the snapshot look perpetually dirty); restore re-assigns fresh ids.
+function toBuilderSnapshot(form: BuilderState) {
+  return {
+    name: form.name,
+    audienceType: form.audienceType,
+    audienceSupervisorIds: form.audienceSupervisorIds,
+    audienceTeamIds: form.audienceTeamIds,
+    isAnonymous: form.isAnonymous,
+    recurringType: form.recurringType,
+    releaseDate: form.releaseDate ? form.releaseDate.toISOString() : null,
+    deadline: form.deadline ? form.deadline.toISOString() : null,
+    reminderFrequency: form.reminderFrequency,
+    reminderEveryXDays: form.reminderEveryXDays,
+    visibility: form.visibility,
+    questions: form.questions.map((q) => ({
+      type: q.type,
+      questionText: q.questionText,
+      isRequired: q.isRequired,
+      options: q.options,
+      scaleMin: q.scaleMin,
+      scaleMax: q.scaleMax,
+      scaleMinLabel: q.scaleMinLabel,
+      scaleMaxLabel: q.scaleMaxLabel,
+    })),
+  };
+}
+
+type BuilderSnapshot = ReturnType<typeof toBuilderSnapshot>;
+
 /**
  * Coerce a question's stored `options` into the editor's `string[]`. API-created
  * questions store a JSON array, but seeded questions store `{ choices: [...] }`,
@@ -355,6 +421,10 @@ export interface SurveyBuilderDialogProps {
   saving?: boolean;
   /** Saves the survey. `activate` chains activation after the draft is created. */
   onSave: (input: CreateSurveyInput, opts?: { activate?: boolean }) => void;
+  /** Current draft id (= editing id); null while creating, set once autosave creates it. */
+  draftId?: string | null;
+  /** Silent autosave persist. Creates when no id, updates otherwise; returns the draft id. */
+  onAutosave?: (input: CreateSurveyInput, draftId: string | null) => Promise<string>;
 }
 
 export function SurveyBuilderDialog({
@@ -364,6 +434,8 @@ export function SurveyBuilderDialog({
   loading,
   saving,
   onSave,
+  draftId = null,
+  onAutosave,
 }: SurveyBuilderDialogProps) {
   const [form, setForm] = useState<BuilderState>(defaultBuilder());
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
@@ -395,48 +467,93 @@ export function SurveyBuilderDialog({
   // the saved `visibility` value is left untouched.
   const visibilityLockedToHrHeads = smallTargetedTeams.length > 0;
 
-  // Populate from initial when the dialog opens.
+  // ── Autosave (drafts only; an activated/locked survey keeps manual save) ──
+  const snapshot = useMemo(() => toBuilderSnapshot(form), [form]);
+  const canPersist = useMemo(() => Object.keys(computeBuilderErrors(form)).length === 0, [form]);
+  // saveRef defers to the latest buildInput/onAutosave (both defined below) so the hook's
+  // save closure is never stale.
+  const saveRef = useRef<(id: string | null) => Promise<string>>(async (id) => id ?? "");
+  const autosave = useAutosave({
+    open,
+    enabled: !isLocked && !!onAutosave,
+    loading: !!loading,
+    draftId,
+    snapshot,
+    canPersist,
+    storageKey: `autosave:survey:${draftId ?? "new"}`,
+    onSave: (id) => saveRef.current(id),
+  });
+
+  // Hydrate once per open (and wait for an edit's detail to load). Guarded so that autosave
+  // creating the draft — which flips `initial` from null to the saved survey — does not
+  // re-hydrate over the in-progress edits.
+  const hydratedRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    if (initial) {
-      setForm({
-        name: initial.name,
-        audienceType: initial.audienceType,
-        audienceSupervisorIds: initial.audienceConfigs
-          .map((c) => c.supervisorId)
-          .filter((v): v is string => !!v),
-        audienceTeamIds: initial.audienceConfigs
-          .map((c) => c.teamId)
-          .filter((v): v is string => !!v),
-        isAnonymous: initial.isAnonymous,
-        recurringType: initial.recurringType,
-        releaseDate: toDate(initial.releaseDate),
-        deadline: toDate(initial.deadline),
-        reminderFrequency: initial.reminderConfig?.frequency ?? "NONE",
-        reminderEveryXDays: initial.reminderConfig?.everyXDays ?? 3,
-        visibility: initial.visibility,
-        questions: initial.questions
-          .slice()
-          .sort((a, b) => a.orderIndex - b.orderIndex)
-          .map((q) => ({
-            id: uid(),
-            type: q.type,
-            questionText: q.questionText,
-            isRequired: q.isRequired,
-            options: normalizeOptions(q.options),
-            scaleMin: q.scaleMin ?? 1,
-            scaleMax: q.scaleMax ?? 5,
-            scaleMinLabel: q.scaleMinLabel ?? "",
-            scaleMaxLabel: q.scaleMaxLabel ?? "",
-          })),
-      });
-    } else {
-      setForm(defaultBuilder());
+    if (!open) {
+      hydratedRef.current = false;
+      return;
     }
+    if (loading || hydratedRef.current) return;
+    hydratedRef.current = true;
+    const next: BuilderState = initial
+      ? {
+          name: initial.name,
+          audienceType: initial.audienceType,
+          audienceSupervisorIds: initial.audienceConfigs
+            .map((c) => c.supervisorId)
+            .filter((v): v is string => !!v),
+          audienceTeamIds: initial.audienceConfigs
+            .map((c) => c.teamId)
+            .filter((v): v is string => !!v),
+          isAnonymous: initial.isAnonymous,
+          recurringType: initial.recurringType,
+          releaseDate: toDate(initial.releaseDate),
+          deadline: toDate(initial.deadline),
+          reminderFrequency: initial.reminderConfig?.frequency ?? "NONE",
+          reminderEveryXDays: initial.reminderConfig?.everyXDays ?? 3,
+          visibility: initial.visibility,
+          questions: initial.questions
+            .slice()
+            .sort((a, b) => a.orderIndex - b.orderIndex)
+            .map((q) => ({
+              id: uid(),
+              type: q.type,
+              questionText: q.questionText,
+              isRequired: q.isRequired,
+              options: normalizeOptions(q.options),
+              scaleMin: q.scaleMin ?? 1,
+              scaleMax: q.scaleMax ?? 5,
+              scaleMinLabel: q.scaleMinLabel ?? "",
+              scaleMaxLabel: q.scaleMaxLabel ?? "",
+            })),
+        }
+      : defaultBuilder();
+    setForm(next);
     setErrors({});
     setActiveTab("settings");
     setLaunchOpen(false);
-  }, [open, initial]);
+    autosave.setBaseline(toBuilderSnapshot(next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial, loading]);
+
+  /** Apply a recovered localStorage buffer to the form, then dismiss the prompt. */
+  const restoreFromBuffer = (buffered: BuilderSnapshot) => {
+    setForm({
+      name: buffered.name,
+      audienceType: buffered.audienceType,
+      audienceSupervisorIds: buffered.audienceSupervisorIds,
+      audienceTeamIds: buffered.audienceTeamIds,
+      isAnonymous: buffered.isAnonymous,
+      recurringType: buffered.recurringType,
+      releaseDate: buffered.releaseDate ? new Date(buffered.releaseDate) : undefined,
+      deadline: buffered.deadline ? new Date(buffered.deadline) : undefined,
+      reminderFrequency: buffered.reminderFrequency,
+      reminderEveryXDays: buffered.reminderEveryXDays,
+      visibility: buffered.visibility,
+      questions: buffered.questions.map((q) => ({ id: uid(), ...q })),
+    });
+    autosave.acceptRecovery();
+  };
 
   const set = <K extends keyof BuilderState>(key: K, value: BuilderState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -537,34 +654,9 @@ export function SurveyBuilderDialog({
 
   const audienceCount = previewQuery.data?.count ?? 0;
 
-  // ── Validation (mirrors server rules) ──
+  // ── Validation (mirrors server rules; see computeBuilderErrors) ──
   const validate = (): boolean => {
-    const errs: Record<string, string> = {};
-    if (!form.name.trim()) errs.name = "Name is required.";
-    if (!form.deadline) {
-      errs.deadline = "Deadline is required.";
-    } else if (form.releaseDate && form.deadline <= form.releaseDate) {
-      errs.deadline = "Deadline must be after the release date.";
-    }
-    if (form.questions.length === 0) errs.questions = "Add at least one question.";
-    if (form.audienceType === "SUPERVISOR_BASED" && form.audienceSupervisorIds.length === 0) {
-      errs.audience = "Select at least one supervisor.";
-    }
-    if (form.audienceType === "SPECIFIC_TEAMS" && form.audienceTeamIds.length === 0) {
-      errs.audience = "Select at least one team.";
-    }
-    form.questions.forEach((q, i) => {
-      if (!q.questionText.trim()) errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
-      if (
-        (q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") &&
-        q.options.filter((o) => o.trim()).length < 1
-      ) {
-        errs[`q_opts_${q.id}`] = `Question ${i + 1} needs at least one option.`;
-      }
-      if (q.type === "LINEAR_SCALE" && q.scaleMax <= q.scaleMin) {
-        errs[`q_scale_${q.id}`] = `Question ${i + 1} max must be greater than min.`;
-      }
-    });
+    const errs = computeBuilderErrors(form);
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
       const settingsErr = errs.name || errs.deadline || errs.audience;
@@ -618,9 +710,18 @@ export function SurveyBuilderDialog({
     return input;
   };
 
+  // Keep the autosave save closure pointed at the current buildInput / onAutosave.
+  saveRef.current = async (id) => {
+    if (!onAutosave) return id ?? "";
+    return onAutosave(buildInput(), id);
+  };
+
   // "Save & close" → draft only. "Create & activate" → confirm, then draft + activate.
+  // Manual save takes over: cancel any pending autosave and drop the local buffer.
   const submit = (activate: boolean) => {
     if (!validate()) return;
+    autosave.cancel();
+    autosave.clearBuffer();
     onSave(buildInput(), { activate });
   };
 
@@ -659,7 +760,29 @@ export function SurveyBuilderDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
+        {!isLocked && autosave.recoverable != null && (
+          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-6 py-2.5 text-[13px] text-[color:var(--text-secondary)]">
+            <span>You have unsaved changes from a previous session.</span>
+            <span className="flex flex-none gap-2">
+              <button
+                type="button"
+                onClick={() => restoreFromBuffer(autosave.recoverable as BuilderSnapshot)}
+                className="font-semibold text-[color:var(--text-primary)] underline underline-offset-2"
+              >
+                Restore
+              </button>
+              <button
+                type="button"
+                onClick={autosave.discardRecovery}
+                className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
+              >
+                Discard
+              </button>
+            </span>
+          </div>
+        )}
+
+        {loading && !hydratedRef.current ? (
           <div className="space-y-3 p-6">
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-10 w-full rounded-lg bg-[color:var(--bg-tertiary)]" />
@@ -1301,10 +1424,12 @@ export function SurveyBuilderDialog({
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border-primary)] px-6 py-3.5">
           {!isLocked ? (
-            <div className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--text-tertiary)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--text-quaternary)]" />
-              Saved as draft
-            </div>
+            <DraftSaveStatus
+              status={autosave.status}
+              lastSavedAt={autosave.lastSavedAt}
+              canPersist={autosave.canPersist}
+              onRetry={autosave.retry}
+            />
           ) : (
             <span className="flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--text-tertiary)]">
               <Lock size={13} /> Active survey
