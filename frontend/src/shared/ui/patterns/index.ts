@@ -3,6 +3,7 @@ export { Spinner, SkeletonRows, SkeletonText, PageSkeleton } from "./loading-spi
 export { ErrorState, ErrorBoundary } from "./error-boundary";
 export { SuccessState, type SuccessStateProps } from "./success-state";
 export { ProgressBar, type ProgressBarProps } from "./progress-bar";
+export { ProgressSteps, type ProgressStepItem, type ProgressStepStatus } from "./progress-steps";
 export { StatusBadge } from "./status-badge";
 export { ConfirmProvider, useConfirm } from "./confirm-dialog";
 export { DataTable, type Column, type DataTableSort } from "./data-table";
