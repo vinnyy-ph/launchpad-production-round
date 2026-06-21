@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { ClipboardList, AlertCircle, RefreshCw, CheckSquare } from "lucide-react";
+import { ClipboardList, AlertCircle, RefreshCw, CheckSquare, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Badge } from "@/shared/ui";
@@ -15,6 +15,7 @@ import { useMySurveys } from "@/modules/performance/surveys/hooks/use-my-surveys
 import { useAnsweredSurveys } from "@/modules/performance/surveys/hooks/use-answered-surveys";
 import { SurveyCard } from "@/modules/performance/surveys/components/survey-card";
 import { TakeSurveyDialog } from "@/modules/performance/surveys/components/take-survey-dialog";
+import { MyAnswersDialog } from "@/modules/performance/surveys/components/my-answers-dialog";
 import type {
   PendingSurvey,
   AnsweredSurvey,
@@ -89,6 +90,7 @@ function SurveysTab({
   initialOccurrenceId,
 }: SurveysTabProps) {
   const [takingId, setTakingId] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<AnsweredSurvey | null>(null);
 
   // Auto-open the taker once when arriving from a "new pulse" notification/banner.
   const deepLinkApplied = useRef(false);
@@ -174,9 +176,10 @@ function SurveysTab({
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             {answered.map((a) => (
-              <div
+              <button
                 key={a.occurrenceId}
-                className="flex items-center justify-between gap-3 px-5 py-3.5"
+                onClick={() => setViewing(a)}
+                className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors hover:bg-[color:var(--bg-secondary)]"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
@@ -190,10 +193,13 @@ function SurveysTab({
                     })}
                   </p>
                 </div>
-                <Badge variant={a.isAnonymous ? "brand" : "modern"} size="sm" pill>
-                  {a.isAnonymous ? "Anonymous" : "Named"}
-                </Badge>
-              </div>
+                <div className="flex flex-none items-center gap-2.5">
+                  <Badge variant={a.isAnonymous ? "brand" : "modern"} size="sm" pill>
+                    {a.isAnonymous ? "Anonymous" : "Named"}
+                  </Badge>
+                  <ChevronRight size={16} className="text-[color:var(--text-quaternary)]" />
+                </div>
+              </button>
             ))}
           </div>
         </section>
@@ -207,6 +213,12 @@ function SurveysTab({
           setTakingId(null);
           onReload();
         }}
+      />
+
+      <MyAnswersDialog
+        open={!!viewing}
+        answered={viewing}
+        onClose={() => setViewing(null)}
       />
     </div>
   );

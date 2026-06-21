@@ -276,11 +276,15 @@ export class EmployeesRepository {
         : {}),
     };
 
-    return prisma.$transaction(async (tx) => {
-      const updated = await tx.employee.update({
+    // Keep the transaction focused on the writes. The update still performs every nested
+    // write (address, emergency contact, user email, department, supervisor); we just drop
+    // the relation `include` so the ~9 relation SELECTs it triggers no longer run inside the
+    // transaction — those reads are what previously pushed it past the 5s interactive-tx
+    // timeout (P2028). The full profile is re-read after the commit instead.
+    await prisma.$transaction(async (tx) => {
+      await tx.employee.update({
         where: { id: employeeId },
         data,
-        include: employeeProfileInclude,
       });
 
       if (editor && diffs.length > 0) {
@@ -294,9 +298,9 @@ export class EmployeesRepository {
           })),
         });
       }
-
-      return updated;
     });
+
+    return this.findById(employeeId);
   }
 
   /**
@@ -400,7 +404,10 @@ export class EmployeesRepository {
       },
     };
 
-    if (filters.status) {
+    if (filters.statuses?.length) {
+      // Single status stays a plain match; multiple statuses match any of them.
+      where.status = filters.statuses.length === 1 ? filters.statuses[0] : { in: filters.statuses };
+    } else if (filters.status) {
       where.status = filters.status;
     }
 
@@ -410,6 +417,14 @@ export class EmployeesRepository {
         filters.supervisorIds.length === 1
           ? filters.supervisorIds[0]
           : { in: filters.supervisorIds };
+    }
+
+    if (filters.departmentIds?.length) {
+      // Single id stays a plain match; multiple ids match any of them.
+      where.departmentId =
+        filters.departmentIds.length === 1
+          ? filters.departmentIds[0]
+          : { in: filters.departmentIds };
     }
 
     if (filters.search) {
@@ -425,15 +440,21 @@ export class EmployeesRepository {
       ];
     }
 
-    if (filters.teamId || filters.team) {
-      where.teamMemberships = {
-        some: {
-          team: {
-            ...(filters.teamId ? { id: filters.teamId } : {}),
-            ...(filters.team ? { name: { contains: filters.team, mode: "insensitive" } } : {}),
-          },
-        },
-      };
+    if (filters.teamIds?.length || filters.teamId || filters.team) {
+      const teamWhere: Prisma.TeamWhereInput = {};
+
+      if (filters.teamIds?.length) {
+        // Single id stays a plain match; multiple ids match any of them.
+        teamWhere.id = filters.teamIds.length === 1 ? filters.teamIds[0] : { in: filters.teamIds };
+      } else if (filters.teamId) {
+        teamWhere.id = filters.teamId;
+      }
+
+      if (filters.team) {
+        teamWhere.name = { contains: filters.team, mode: "insensitive" };
+      }
+
+      where.teamMemberships = { some: { team: teamWhere } };
     }
 
     return where;

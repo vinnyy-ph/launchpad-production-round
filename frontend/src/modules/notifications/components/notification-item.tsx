@@ -20,9 +20,9 @@ function resolveRoute(n: Notification): string | null {
   switch (n.type) {
     case "NEW_PULSE":
     case "PULSE_REMINDER":
-      // The page keys pulses off the OCCURRENCE id, which the notification
-      // doesn't carry, so we can only land on the surveys tab (not auto-open).
-      return "/employee/surveys";
+      // The server stamps the OCCURRENCE id as the trailing segment of linkUrl;
+      // the surveys page auto-opens that exact pulse via `?pulse=<occurrenceId>`.
+      return id ? `/employee/surveys?tab=survey&pulse=${id}` : "/employee/surveys";
     case "NEW_EVALUATION":
     case "EVAL_ACK_REMINDER":
       return id
