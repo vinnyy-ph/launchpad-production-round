@@ -1,4 +1,8 @@
 import 'dotenv/config'
+import * as dns from 'node:dns'
+// Some networks (and this host) black-hole IPv6 to Neon, so pg/TCP connects time out.
+// Force IPv4 DNS ordering in-process so it can't be lost through a spawned ts-node.
+dns.setDefaultResultOrder('ipv4first')
 import * as https from 'https'
 // neonConfig must be set before importing the Prisma adapter
 import { neonConfig } from '@neondatabase/serverless'
@@ -32,7 +36,16 @@ function createSeedAdapter(connectionString: string) {
   // PrismaPg (pg over TCP) supports interactive transactions; the Neon HTTP adapter
   // does not ("Transactions are not supported in HTTP mode"), which breaks the seed.
   // Mirrors the runtime adapter in src/core/database/prisma.service.ts.
-  return new PrismaPg(connectionString)
+  //
+  // keepAlive + a generous connect timeout keep the long sequential seed alive over a
+  // remote Neon connection (the seed makes thousands of round-trips; without keep-alive
+  // the socket gets dropped by NAT/idle reapers part-way through).
+  return new PrismaPg({
+    connectionString,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+    connectionTimeoutMillis: 30000,
+  })
 }
 
 const adapter = createSeedAdapter(databaseUrl)
