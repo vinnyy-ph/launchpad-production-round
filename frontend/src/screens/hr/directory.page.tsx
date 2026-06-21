@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Settings2, Users, Filter } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
@@ -127,15 +127,10 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
 
 export default function DirectoryPage() {
   const router = useRouter();
-  const pathname = usePathname();
-  // Onboarding and Offboarding are deep-linkable routes nested under the People directory.
-  const isOnboardingRoute = pathname === "/hr/directory/onboarding";
-  const isOffboardingRoute = pathname === "/hr/directory/offboarding";
-  const tab: DirectoryTab = isOnboardingRoute
-    ? "onboarding"
-    : isOffboardingRoute
-      ? "offboarding"
-      : "all";
+  const searchParams = useSearchParams();
+  // The selected tab lives in the `?tab=` query param so it stays in sync with how tab clicks
+  // navigate (see PageTabs onChange below). Missing/invalid values fall back to All.
+  const tab: DirectoryTab = parseDirectoryTab(searchParams.get("tab"));
   const [search, setSearch] = useState("");
   const [teamIds, setTeamIds] = useState<Set<string>>(new Set());
   const [statuses, setStatuses] = useState<Set<string>>(new Set());
@@ -150,17 +145,6 @@ export default function DirectoryPage() {
     direction: "asc",
   });
   const debouncedSearch = useDebounce(search, 300);
-
-  // Each tab is its own route, so switching tabs is a navigation.
-  const handleTabChange = (nextTab: DirectoryTab) => {
-    const href =
-      nextTab === "onboarding"
-        ? "/hr/directory/onboarding"
-        : nextTab === "offboarding"
-          ? "/hr/directory/offboarding"
-          : "/hr/directory";
-    router.push(href);
-  };
 
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
   const { departments, loading: departmentsLoading } = useDepartments();
