@@ -83,6 +83,26 @@ export class ResultsController {
     }
   };
 
+  listViewableSurveys = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+        return;
+      }
+      const result = await this.service.listViewableSurveys(req.user.id, req.user.role);
+      res.status(HTTP_STATUS_CODES.OK).json(result);
+    } catch (error) {
+      this.handleError(error, res, next);
+    }
+  };
+
   private handleError(error: unknown, res: Response, next: NextFunction): void {
     if (error instanceof Error) {
       if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_NOT_FOUND) {
@@ -106,6 +126,14 @@ export class ResultsController {
           success: false,
           message: SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN,
           errorCode: "RESULTS_FORBIDDEN",
+        });
+        return;
+      }
+      if (error.message === SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR) {
+        res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR,
+          errorCode: "RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR",
         });
         return;
       }

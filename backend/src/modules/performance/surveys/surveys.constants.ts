@@ -20,6 +20,8 @@ export const SURVEY_ERROR_MESSAGES = {
   SURVEY_ALREADY_INACTIVE: "Survey is already inactive",
   OCCURRENCE_NOT_FOUND: "Occurrence not found",
   RESULTS_FORBIDDEN: "You do not have permission to view results",
+  RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR:
+    "This team has fewer than 3 members, so its anonymous results are not visible to the team supervisor",
   BOTH_FILTERS_PROVIDED: "Only one of teamId or supervisorId may be provided",
   RESULTS_SUPPRESSED: "Insufficient responses to display results",
 } as const;

@@ -27,10 +27,13 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     closeDisabled?: boolean;
+    /** Click handler for the dim backdrop — for close-on-backdrop while Radix's own
+     *  outside-dismiss is blocked (so portaled popovers don't close the dialog). */
+    onOverlayClick?: React.MouseEventHandler<HTMLDivElement>;
   }
->(({ className, children, closeDisabled, onEscapeKeyDown, ...props }, ref) => (
+>(({ className, children, closeDisabled, onEscapeKeyDown, onOverlayClick, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay onClick={onOverlayClick} />
     <DialogPrimitive.Content
       ref={ref}
       onEscapeKeyDown={(e) => {
@@ -38,7 +41,7 @@ const DialogContent = React.forwardRef<
         onEscapeKeyDown?.(e);
       }}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-2xl",
+        "dialog-pop fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-2xl sm:rounded-2xl",
         className
       )}
       {...props}

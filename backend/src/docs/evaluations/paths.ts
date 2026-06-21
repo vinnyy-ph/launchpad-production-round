@@ -36,9 +36,11 @@
  *         recommendation:
  *           type: string
  *           nullable: true
- *         supportingDocUrl:
- *           type: string
- *           nullable: true
+ *         supportingDocUrls:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Cloudinary public_ids of attached supporting documents.
  *         isSent:
  *           type: boolean
  *           example: false
@@ -96,8 +98,13 @@
  *           type: string
  *         recommendation:
  *           type: string
- *         supportingDocUrl:
- *           type: string
+ *         supportingDocUrls:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: >-
+ *             Public_ids of supporting documents. Documents are uploaded as multipart
+ *             `files` (PDF, max 5, 10MB each); this array holds the resulting public_ids.
  *         send:
  *           type: boolean
  *           default: false
@@ -122,8 +129,13 @@
  *           type: string
  *         recommendation:
  *           type: string
- *         supportingDocUrl:
- *           type: string
+ *         supportingDocUrls:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: >-
+ *             Public_ids of supporting documents. Documents are uploaded as multipart
+ *             `files` (PDF, max 5, 10MB each); this array holds the resulting public_ids.
  *         send:
  *           type: boolean
  *           description: When true, sends the evaluation (irreversible).

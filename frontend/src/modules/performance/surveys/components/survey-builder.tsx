@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Plus,
   Trash2,
@@ -59,6 +59,9 @@ import { cn } from "@/shared/lib/utils";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useAudienceOptions } from "../hooks/use-audience-options";
 import { usePreviewAudience } from "../hooks/use-preview-audience";
+import { useTeams } from "@/modules/people/teams";
+import { useAutosave } from "@/modules/performance/shared/use-autosave";
+import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
 import type {
   SurveyDetail,
   QuestionType,
@@ -177,13 +180,14 @@ const AUDIENCE_OPTIONS: { value: AudienceType; label: string }[] = [
   { value: "SPECIFIC_TEAMS", label: "Specific teams" },
 ];
 
-// "Who can see results?" copy (builder-local), ordered per the design.
-const VISIBILITY_OPTIONS: { value: Visibility; label: string }[] = [
-  { value: "SUPERVISOR_BASED", label: "Supervisors (their reports only)" },
-  { value: "EVERYONE", label: "Everyone" },
-  { value: "TEAM_BASED", label: "Each team sees its own" },
-  { value: "HR_ROOT_ONLY", label: "HR and the CEO only" },
-  { value: "SPECIFIC_TEAMS", label: "Specific teams" },
+// "Who can see results?" copy (builder-local), ordered per the design. Each option pairs a
+// bold label with a gray plain-language descriptor shown inline (not in parentheses).
+const VISIBILITY_OPTIONS: { value: Visibility; label: string; sub: string }[] = [
+  { value: "EVERYONE", label: "Everyone", sub: "whole company" },
+  { value: "SUPERVISOR_BASED", label: "Supervisors", sub: "their direct reports" },
+  { value: "TEAM_BASED", label: "Team members", sub: "their own teams" },
+  { value: "SPECIFIC_TEAMS", label: "Specific teams", sub: "selected teams" },
+  { value: "HR_ROOT_ONLY", label: "HR and leadership", sub: "top of the org" },
 ];
 
 const QUESTION_MENU: { type: QuestionType; icon: LucideIcon; label: string; desc: string }[] = [
@@ -211,6 +215,70 @@ function buildAudienceConfigs(state: BuilderState): AudienceConfigInput[] {
   return [];
 }
 
+// Pure validation (no React state) so the same rules drive both the on-submit error display
+// and the autosave "is this complete enough for the server to accept a create?" gate. Mirrors
+// the backend create requirements (name, future deadline, ≥1 valid question, named audience).
+function computeBuilderErrors(form: BuilderState): Record<string, string> {
+  const errs: Record<string, string> = {};
+  if (!form.name.trim()) errs.name = "Name is required.";
+  if (!form.deadline) {
+    errs.deadline = "Deadline is required.";
+  } else if (form.releaseDate && form.deadline <= form.releaseDate) {
+    errs.deadline = "Deadline must be after the release date.";
+  }
+  if (form.questions.length === 0) errs.questions = "Add at least one question.";
+  if (form.audienceType === "SUPERVISOR_BASED" && form.audienceSupervisorIds.length === 0) {
+    errs.audience = "Select at least one supervisor.";
+  }
+  if (form.audienceType === "SPECIFIC_TEAMS" && form.audienceTeamIds.length === 0) {
+    errs.audience = "Select at least one team.";
+  }
+  form.questions.forEach((q, i) => {
+    if (!q.questionText.trim()) errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
+    if (
+      (q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") &&
+      q.options.filter((o) => o.trim()).length < 1
+    ) {
+      errs[`q_opts_${q.id}`] = `Question ${i + 1} needs at least one option.`;
+    }
+    if (q.type === "LINEAR_SCALE" && q.scaleMax <= q.scaleMin) {
+      errs[`q_scale_${q.id}`] = `Question ${i + 1} max must be greater than min.`;
+    }
+  });
+  return errs;
+}
+
+// Serializable form snapshot for autosave change-detection and the localStorage buffer.
+// Question client ids are intentionally dropped (they regenerate on hydrate, so including
+// them would make the snapshot look perpetually dirty); restore re-assigns fresh ids.
+function toBuilderSnapshot(form: BuilderState) {
+  return {
+    name: form.name,
+    audienceType: form.audienceType,
+    audienceSupervisorIds: form.audienceSupervisorIds,
+    audienceTeamIds: form.audienceTeamIds,
+    isAnonymous: form.isAnonymous,
+    recurringType: form.recurringType,
+    releaseDate: form.releaseDate ? form.releaseDate.toISOString() : null,
+    deadline: form.deadline ? form.deadline.toISOString() : null,
+    reminderFrequency: form.reminderFrequency,
+    reminderEveryXDays: form.reminderEveryXDays,
+    visibility: form.visibility,
+    questions: form.questions.map((q) => ({
+      type: q.type,
+      questionText: q.questionText,
+      isRequired: q.isRequired,
+      options: q.options,
+      scaleMin: q.scaleMin,
+      scaleMax: q.scaleMax,
+      scaleMinLabel: q.scaleMinLabel,
+      scaleMaxLabel: q.scaleMaxLabel,
+    })),
+  };
+}
+
+type BuilderSnapshot = ReturnType<typeof toBuilderSnapshot>;
+
 /**
  * Coerce a question's stored `options` into the editor's `string[]`. API-created
  * questions store a JSON array, but seeded questions store `{ choices: [...] }`,
@@ -233,21 +301,18 @@ function normalizeOptions(raw: unknown): string[] {
 function SectionCard({
   icon: Icon,
   title,
-  subtitle,
   children,
 }: {
   icon: LucideIcon;
   title: string;
-  subtitle: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
-      <div className="flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-2">
         <Icon size={17} className="text-[color:var(--text-quaternary)]" aria-hidden="true" />
-        <h3 className="text-[15px] font-bold text-[color:var(--text-primary)]">{title}</h3>
+        <h3 className="text-base font-bold text-[color:var(--text-primary)]">{title}</h3>
       </div>
-      <p className="mb-4 mt-0.5 text-[13px] text-[color:var(--text-tertiary)]">{subtitle}</p>
       <div className="space-y-4">{children}</div>
     </section>
   );
@@ -354,6 +419,10 @@ export interface SurveyBuilderDialogProps {
   saving?: boolean;
   /** Saves the survey. `activate` chains activation after the draft is created. */
   onSave: (input: CreateSurveyInput, opts?: { activate?: boolean }) => void;
+  /** Current draft id (= editing id); null while creating, set once autosave creates it. */
+  draftId?: string | null;
+  /** Silent autosave persist. Creates when no id, updates otherwise; returns the draft id. */
+  onAutosave?: (input: CreateSurveyInput, draftId: string | null) => Promise<string>;
 }
 
 export function SurveyBuilderDialog({
@@ -363,6 +432,8 @@ export function SurveyBuilderDialog({
   loading,
   saving,
   onSave,
+  draftId = null,
+  onAutosave,
 }: SurveyBuilderDialogProps) {
   const [form, setForm] = useState<BuilderState>(defaultBuilder());
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
@@ -377,48 +448,121 @@ export function SurveyBuilderDialog({
   const supervisors = optionsQuery.data?.supervisors ?? [];
   const teams = optionsQuery.data?.teams ?? [];
 
-  // Populate from initial when the dialog opens.
+  // Member counts aren't on the audience options (id + name only), so read them from the
+  // people module's teams list to warn — purely in the UI — that anonymous results from a
+  // sub-3-member targeted team won't reach that team's supervisor.
+  const { teams: teamsWithCounts } = useTeams();
+  const smallTargetedTeams =
+    form.isAnonymous && form.audienceType === "SPECIFIC_TEAMS"
+      ? teamsWithCounts.filter(
+          (t) => form.audienceTeamIds.includes(t.id) && t.memberCount < 3,
+        )
+      : [];
+
+  // When an anonymous survey targets a sub-3-member team, results are forced to HR + the
+  // managers above that team's supervisor (enforced server-side). Lock the selector so it
+  // can't be set to something the backend would override anyway — purely a UI affordance;
+  // the saved `visibility` value is left untouched.
+  const visibilityLockedToHrHeads = smallTargetedTeams.length > 0;
+
+  // A sub-3-member anonymous team can only be seen by HR + the chain above its supervisor.
+  // Auto-switch the selector to "HR and leadership" so the saved value matches what the
+  // server enforces and the now-disabled options can't be left selected.
   useEffect(() => {
-    if (!open) return;
-    if (initial) {
-      setForm({
-        name: initial.name,
-        audienceType: initial.audienceType,
-        audienceSupervisorIds: initial.audienceConfigs
-          .map((c) => c.supervisorId)
-          .filter((v): v is string => !!v),
-        audienceTeamIds: initial.audienceConfigs
-          .map((c) => c.teamId)
-          .filter((v): v is string => !!v),
-        isAnonymous: initial.isAnonymous,
-        recurringType: initial.recurringType,
-        releaseDate: toDate(initial.releaseDate),
-        deadline: toDate(initial.deadline),
-        reminderFrequency: initial.reminderConfig?.frequency ?? "NONE",
-        reminderEveryXDays: initial.reminderConfig?.everyXDays ?? 3,
-        visibility: initial.visibility,
-        questions: initial.questions
-          .slice()
-          .sort((a, b) => a.orderIndex - b.orderIndex)
-          .map((q) => ({
-            id: uid(),
-            type: q.type,
-            questionText: q.questionText,
-            isRequired: q.isRequired,
-            options: normalizeOptions(q.options),
-            scaleMin: q.scaleMin ?? 1,
-            scaleMax: q.scaleMax ?? 5,
-            scaleMinLabel: q.scaleMinLabel ?? "",
-            scaleMaxLabel: q.scaleMaxLabel ?? "",
-          })),
-      });
-    } else {
-      setForm(defaultBuilder());
+    if (visibilityLockedToHrHeads) {
+      setForm((f) =>
+        f.visibility === "HR_ROOT_ONLY" ? f : { ...f, visibility: "HR_ROOT_ONLY" },
+      );
     }
+  }, [visibilityLockedToHrHeads]);
+
+  // ── Autosave (drafts only; an activated/locked survey keeps manual save) ──
+  const snapshot = useMemo(() => toBuilderSnapshot(form), [form]);
+  const canPersist = useMemo(() => Object.keys(computeBuilderErrors(form)).length === 0, [form]);
+  // saveRef defers to the latest buildInput/onAutosave (both defined below) so the hook's
+  // save closure is never stale.
+  const saveRef = useRef<(id: string | null) => Promise<string>>(async (id) => id ?? "");
+  const autosave = useAutosave({
+    open,
+    enabled: !isLocked && !!onAutosave,
+    loading: !!loading,
+    draftId,
+    snapshot,
+    canPersist,
+    storageKey: `autosave:survey:${draftId ?? "new"}`,
+    onSave: (id) => saveRef.current(id),
+  });
+
+  // Hydrate once per open (and wait for an edit's detail to load). Guarded so that autosave
+  // creating the draft — which flips `initial` from null to the saved survey — does not
+  // re-hydrate over the in-progress edits.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      hydratedRef.current = false;
+      return;
+    }
+    if (loading || hydratedRef.current) return;
+    hydratedRef.current = true;
+    const next: BuilderState = initial
+      ? {
+          name: initial.name,
+          audienceType: initial.audienceType,
+          audienceSupervisorIds: initial.audienceConfigs
+            .map((c) => c.supervisorId)
+            .filter((v): v is string => !!v),
+          audienceTeamIds: initial.audienceConfigs
+            .map((c) => c.teamId)
+            .filter((v): v is string => !!v),
+          isAnonymous: initial.isAnonymous,
+          recurringType: initial.recurringType,
+          releaseDate: toDate(initial.releaseDate),
+          deadline: toDate(initial.deadline),
+          reminderFrequency: initial.reminderConfig?.frequency ?? "NONE",
+          reminderEveryXDays: initial.reminderConfig?.everyXDays ?? 3,
+          visibility: initial.visibility,
+          questions: initial.questions
+            .slice()
+            .sort((a, b) => a.orderIndex - b.orderIndex)
+            .map((q) => ({
+              id: uid(),
+              type: q.type,
+              questionText: q.questionText,
+              isRequired: q.isRequired,
+              options: normalizeOptions(q.options),
+              scaleMin: q.scaleMin ?? 1,
+              scaleMax: q.scaleMax ?? 5,
+              scaleMinLabel: q.scaleMinLabel ?? "",
+              scaleMaxLabel: q.scaleMaxLabel ?? "",
+            })),
+        }
+      : defaultBuilder();
+    setForm(next);
     setErrors({});
     setActiveTab("settings");
     setLaunchOpen(false);
-  }, [open, initial]);
+    autosave.setBaseline(toBuilderSnapshot(next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial, loading]);
+
+  /** Apply a recovered localStorage buffer to the form, then dismiss the prompt. */
+  const restoreFromBuffer = (buffered: BuilderSnapshot) => {
+    setForm({
+      name: buffered.name,
+      audienceType: buffered.audienceType,
+      audienceSupervisorIds: buffered.audienceSupervisorIds,
+      audienceTeamIds: buffered.audienceTeamIds,
+      isAnonymous: buffered.isAnonymous,
+      recurringType: buffered.recurringType,
+      releaseDate: buffered.releaseDate ? new Date(buffered.releaseDate) : undefined,
+      deadline: buffered.deadline ? new Date(buffered.deadline) : undefined,
+      reminderFrequency: buffered.reminderFrequency,
+      reminderEveryXDays: buffered.reminderEveryXDays,
+      visibility: buffered.visibility,
+      questions: buffered.questions.map((q) => ({ id: uid(), ...q })),
+    });
+    autosave.acceptRecovery();
+  };
 
   const set = <K extends keyof BuilderState>(key: K, value: BuilderState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -519,34 +663,9 @@ export function SurveyBuilderDialog({
 
   const audienceCount = previewQuery.data?.count ?? 0;
 
-  // ── Validation (mirrors server rules) ──
+  // ── Validation (mirrors server rules; see computeBuilderErrors) ──
   const validate = (): boolean => {
-    const errs: Record<string, string> = {};
-    if (!form.name.trim()) errs.name = "Name is required.";
-    if (!form.deadline) {
-      errs.deadline = "Deadline is required.";
-    } else if (form.releaseDate && form.deadline <= form.releaseDate) {
-      errs.deadline = "Deadline must be after the release date.";
-    }
-    if (form.questions.length === 0) errs.questions = "Add at least one question.";
-    if (form.audienceType === "SUPERVISOR_BASED" && form.audienceSupervisorIds.length === 0) {
-      errs.audience = "Select at least one supervisor.";
-    }
-    if (form.audienceType === "SPECIFIC_TEAMS" && form.audienceTeamIds.length === 0) {
-      errs.audience = "Select at least one team.";
-    }
-    form.questions.forEach((q, i) => {
-      if (!q.questionText.trim()) errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
-      if (
-        (q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") &&
-        q.options.filter((o) => o.trim()).length < 1
-      ) {
-        errs[`q_opts_${q.id}`] = `Question ${i + 1} needs at least one option.`;
-      }
-      if (q.type === "LINEAR_SCALE" && q.scaleMax <= q.scaleMin) {
-        errs[`q_scale_${q.id}`] = `Question ${i + 1} max must be greater than min.`;
-      }
-    });
+    const errs = computeBuilderErrors(form);
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
       const settingsErr = errs.name || errs.deadline || errs.audience;
@@ -600,9 +719,18 @@ export function SurveyBuilderDialog({
     return input;
   };
 
+  // Keep the autosave save closure pointed at the current buildInput / onAutosave.
+  saveRef.current = async (id) => {
+    if (!onAutosave) return id ?? "";
+    return onAutosave(buildInput(), id);
+  };
+
   // "Save & close" → draft only. "Create & activate" → confirm, then draft + activate.
+  // Manual save takes over: cancel any pending autosave and drop the local buffer.
   const submit = (activate: boolean) => {
     if (!validate()) return;
+    autosave.cancel();
+    autosave.clearBuffer();
     onSave(buildInput(), { activate });
   };
 
@@ -623,25 +751,52 @@ export function SurveyBuilderDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         className="flex h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
-        // The builder hosts portaled Selects and date pickers; toggling those reads
-        // as an "outside" interaction and was slamming the dialog shut mid-edit.
-        // A multi-field form shouldn't close on an outside click anyway, so block
-        // every outside-interaction close — only X / Cancel / Esc dismiss it.
+        // Block Radix's own outside-dismiss entirely, so portaled Selects / date pickers /
+        // dropdowns — including clicking a Select trigger again to close it — can never close
+        // the modal. Closing on a *real* backdrop click is handled explicitly via
+        // onOverlayClick (a click on the dim overlay element, which dropdown interactions
+        // can't trigger); the draft autosave is flushed on the way out.
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onOverlayClick={() => {
+          if (!isLocked) autosave.flush();
+          onClose();
+        }}
       >
-        <DialogHeader className="border-b border-[color:var(--border-primary)] px-6 pb-4 pt-6 text-left">
+        <DialogHeader className="px-6 pb-4 pt-6 text-left">
           <DialogTitle className="text-2xl font-bold tracking-tight">
             {initial ? "Edit survey" : "Create survey"}
           </DialogTitle>
           <DialogDescription>
             {isLocked
               ? "This survey is active — only its name and visibility can be edited."
-              : "Set up your pulse, then add the questions you want to ask."}
+              : "Gather feedback from employees with a short survey."}
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
+        {!isLocked && autosave.recoverable != null && (
+          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-6 py-2.5 text-sm text-[color:var(--text-secondary)]">
+            <span>You have unsaved changes from a previous session.</span>
+            <span className="flex flex-none gap-2">
+              <button
+                type="button"
+                onClick={() => restoreFromBuffer(autosave.recoverable as BuilderSnapshot)}
+                className="font-semibold text-[color:var(--text-primary)] underline underline-offset-2"
+              >
+                Restore
+              </button>
+              <button
+                type="button"
+                onClick={autosave.discardRecovery}
+                className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
+              >
+                Discard
+              </button>
+            </span>
+          </div>
+        )}
+
+        {loading && !hydratedRef.current ? (
           <div className="space-y-3 p-6">
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-10 w-full rounded-lg bg-[color:var(--bg-tertiary)]" />
@@ -653,11 +808,43 @@ export function SurveyBuilderDialog({
             onValueChange={setActiveTab}
             className="flex min-h-0 flex-1 flex-col"
           >
-            <div className="px-6 pt-4">
-              <TabsList>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-                <TabsTrigger value="questions">
-                  Questions{form.questions.length > 0 ? ` (${form.questions.length})` : ""}
+            <div className="px-6">
+              <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b border-[color:var(--border-primary)] bg-transparent p-0">
+                <TabsTrigger
+                  value="settings"
+                  className="relative rounded-none px-1 pb-3 pt-1 text-sm font-semibold text-[color:var(--text-tertiary)] data-[state=active]:bg-transparent data-[state=active]:text-[color:var(--text-primary)] data-[state=active]:shadow-none"
+                >
+                  Settings
+                  {activeTab === "settings" && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
+                      style={{ background: "var(--gradient-jia)" }}
+                    />
+                  )}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="questions"
+                  className="relative gap-2 rounded-none px-1 pb-3 pt-1 text-sm font-semibold text-[color:var(--text-tertiary)] data-[state=active]:bg-transparent data-[state=active]:text-[color:var(--text-primary)] data-[state=active]:shadow-none"
+                >
+                  Questions
+                  <span
+                    className={cn(
+                      "inline-flex min-w-[20px] items-center justify-center rounded-full border px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                      activeTab === "questions"
+                        ? "border-[color:var(--border-primary)] bg-[color:var(--bg-tertiary)] text-[color:var(--text-secondary)]"
+                        : "border-transparent bg-[color:var(--bg-tertiary)] text-[color:var(--text-tertiary)]",
+                    )}
+                  >
+                    {form.questions.length}
+                  </span>
+                  {activeTab === "questions" && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
+                      style={{ background: "var(--gradient-jia)" }}
+                    />
+                  )}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -665,7 +852,7 @@ export function SurveyBuilderDialog({
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
               {/* ── Settings ── */}
               <TabsContent value="settings" className="mt-0 space-y-4">
-                <SectionCard icon={Type} title="Basics" subtitle="What is this pulse called?">
+                <SectionCard icon={Type} title="Basics">
                   <FormField
                     label="Survey name"
                     htmlFor="sv-name"
@@ -683,11 +870,7 @@ export function SurveyBuilderDialog({
                   </FormField>
                 </SectionCard>
 
-                <SectionCard
-                  icon={Users}
-                  title="Who & privacy"
-                  subtitle="Who gets it, and how their answers are handled."
-                >
+                <SectionCard icon={Users} title="Who & privacy">
                   <FormField
                     label="Who receives this?"
                     htmlFor="sv-audience-type"
@@ -726,7 +909,7 @@ export function SurveyBuilderDialog({
                   {/* Supervisor multi-select */}
                   {form.audienceType === "SUPERVISOR_BASED" && !isLocked && (
                     <div>
-                      <p className="mb-2 text-[12.5px] text-[color:var(--text-tertiary)]">
+                      <p className="mb-2 text-xs text-[color:var(--text-tertiary)]">
                         Pick supervisors. Their direct reports and everyone below them are included.
                       </p>
                       <MultiSelectChecklist
@@ -746,7 +929,7 @@ export function SurveyBuilderDialog({
                   {/* Team multi-select */}
                   {form.audienceType === "SPECIFIC_TEAMS" && !isLocked && (
                     <div>
-                      <p className="mb-2 text-[12.5px] text-[color:var(--text-tertiary)]">
+                      <p className="mb-2 text-xs text-[color:var(--text-tertiary)]">
                         Pick the teams that should receive this.
                       </p>
                       <MultiSelectChecklist
@@ -766,7 +949,7 @@ export function SurveyBuilderDialog({
                       className="mt-0.5 flex-shrink-0 text-[color:var(--text-tertiary)]"
                       aria-hidden="true"
                     />
-                    <div className="min-w-0 text-[13px]">
+                    <div className="min-w-0 text-sm">
                       {previewQuery.isError ? (
                         <p className="text-[color:var(--text-tertiary)]">
                           Could not load the audience preview.
@@ -800,14 +983,14 @@ export function SurveyBuilderDialog({
                   </div>
 
                   {/* Anonymity */}
-                  <div className="flex items-start justify-between gap-4 rounded-xl border border-[color:var(--border-primary)] px-4 py-3.5">
+                  <div className="flex items-center justify-between gap-4 rounded-xl border border-[color:var(--border-primary)] px-4 py-3.5">
                     <div>
                       <p className="flex items-center gap-2 text-sm font-medium text-[color:var(--text-primary)]">
                         Anonymous responses {isLocked && lockedNote}
                       </p>
                       <p className="mt-0.5 max-w-[46ch] text-xs text-[color:var(--text-tertiary)]">
-                        Responses are never linked to names. To protect that, we hide any group
-                        smaller than 3.
+                        Responses are never linked to names. To protect that, we hide results for
+                        any group smaller than 3.
                       </p>
                     </div>
                     <Switch
@@ -815,9 +998,21 @@ export function SurveyBuilderDialog({
                       onCheckedChange={(v) => set("isAnonymous", v)}
                       disabled={isLocked}
                       aria-label="Anonymous responses"
-                      className="mt-0.5"
                     />
                   </div>
+
+                  {/* Small-team anonymity reminder (UI only — enforced server-side at view time) */}
+                  {smallTargetedTeams.length > 0 && (
+                    <div className="flex items-start gap-2 rounded-[10px] border border-[#FEDF89] bg-[color:var(--color-warning-50)] px-3 py-2.5 text-xs leading-relaxed text-[color:var(--color-warning-600)]">
+                      <Lock size={14} className="mt-0.5 flex-none" aria-hidden="true" />
+                      <span>
+                        Heads up: {smallTargetedTeams.map((t) => t.name).join(", ")}{" "}
+                        {smallTargetedTeams.length === 1 ? "has" : "have"} fewer than 3 people, so
+                        their supervisor won&apos;t see the results. They&apos;ll stay with your HR
+                        team.
+                      </span>
+                    </div>
+                  )}
 
                   {/* Visibility */}
                   <FormField label="Who can see results?" htmlFor="sv-visibility">
@@ -826,28 +1021,41 @@ export function SurveyBuilderDialog({
                       onValueChange={(v) => set("visibility", v as Visibility)}
                     >
                       <SelectTrigger id="sv-visibility">
-                        <SelectValue />
+                        {(() => {
+                          const o = VISIBILITY_OPTIONS.find((x) => x.value === form.visibility);
+                          return o ? (
+                            <span className="truncate">
+                              <span className="text-[color:var(--text-primary)]">{o.label}</span>{" "}
+                              <span className="text-[color:var(--text-tertiary)]">{o.sub}</span>
+                            </span>
+                          ) : (
+                            <SelectValue />
+                          );
+                        })()}
                       </SelectTrigger>
                       <SelectContent>
-                        {VISIBILITY_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
+                        {VISIBILITY_OPTIONS.map((o) => {
+                          const disabled =
+                            visibilityLockedToHrHeads && o.value !== "HR_ROOT_ONLY";
+                          return (
+                            <SelectItem key={o.value} value={o.value} disabled={disabled}>
+                              <span>
+                                <span className="font-medium text-[color:var(--text-primary)]">
+                                  {o.label}
+                                </span>{" "}
+                                <span className="text-[color:var(--text-tertiary)]">
+                                  {disabled ? "Unavailable for teams under 3" : o.sub}
+                                </span>
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
-                    <InfoNote>
-                      This controls who sees the summary. Even when someone can view results,
-                      anonymous responses are never tied back to names.
-                    </InfoNote>
                   </FormField>
                 </SectionCard>
 
-                <SectionCard
-                  icon={CalendarDays}
-                  title="Schedule"
-                  subtitle="When it opens, when it closes, and whether it repeats."
-                >
+                <SectionCard icon={CalendarDays} title="Schedule">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <FormField
                       label="Release date"
@@ -859,6 +1067,7 @@ export function SurveyBuilderDialog({
                         onChange={(d) => set("releaseDate", d)}
                         placeholder="Pick a date"
                         disabled={isLocked}
+                        matchTriggerWidth
                       />
                     </FormField>
                     <FormField
@@ -872,6 +1081,7 @@ export function SurveyBuilderDialog({
                         onChange={(d) => set("deadline", d)}
                         placeholder="Pick a date"
                         disabled={isLocked}
+                        matchTriggerWidth
                       />
                     </FormField>
                   </div>
@@ -1069,7 +1279,7 @@ export function SurveyBuilderDialog({
                     {/* Per-type config */}
                     <div className="mt-3 border-t border-[color:var(--border-secondary)] pt-3">
                       {QUESTION_HINT[q.type] && (
-                        <p className="text-[12.5px] text-[color:var(--text-quaternary)]">
+                        <p className="text-xs text-[color:var(--text-quaternary)]">
                           {QUESTION_HINT[q.type]}
                         </p>
                       )}
@@ -1214,7 +1424,7 @@ export function SurveyBuilderDialog({
                       />
                       <label
                         htmlFor={`q-required-${q.id}`}
-                        className="cursor-pointer text-[13.5px] font-semibold text-[color:var(--text-tertiary)]"
+                        className="cursor-pointer text-sm font-semibold text-[color:var(--text-tertiary)]"
                       >
                         Required
                       </label>
@@ -1263,12 +1473,14 @@ export function SurveyBuilderDialog({
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border-primary)] px-6 py-3.5">
           {!isLocked ? (
-            <div className="flex items-center gap-2 text-[13px] font-medium text-[color:var(--text-tertiary)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--text-quaternary)]" />
-              Saved as draft
-            </div>
+            <DraftSaveStatus
+              status={autosave.status}
+              lastSavedAt={autosave.lastSavedAt}
+              canPersist={autosave.canPersist}
+              onRetry={autosave.retry}
+            />
           ) : (
-            <span className="flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--text-tertiary)]">
+            <span className="flex items-center gap-1.5 text-sm font-medium text-[color:var(--text-tertiary)]">
               <Lock size={13} /> Active survey
             </span>
           )}
@@ -1285,10 +1497,10 @@ export function SurveyBuilderDialog({
             ) : (
               <>
                 <Button variant="secondary" onClick={() => submit(false)} disabled={saving || loading}>
-                  Save &amp; close
+                  Save as draft
                 </Button>
                 <Button onClick={openLaunch} disabled={saving || loading}>
-                  {initial ? "Save & activate" : "Create & activate"}
+                  Send
                 </Button>
               </>
             )}
@@ -1323,7 +1535,7 @@ export function SurveyBuilderDialog({
               ].map((row) => (
                 <div
                   key={row.k}
-                  className="flex justify-between gap-3 border-b border-[color:var(--border-secondary)] py-2.5 text-[13.5px] last:border-b-0"
+                  className="flex justify-between gap-3 border-b border-[color:var(--border-secondary)] py-2.5 text-sm last:border-b-0"
                 >
                   <dt className="text-[color:var(--text-tertiary)]">{row.k}</dt>
                   <dd className="text-right font-semibold text-[color:var(--text-primary)]">

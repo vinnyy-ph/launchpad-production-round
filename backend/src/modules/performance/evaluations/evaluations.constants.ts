@@ -13,3 +13,9 @@ export const EVAL_ERROR_MESSAGES = {
 } as const;
 
 export const EVAL_ACK_DEADLINE_DAYS = 7;
+
+export const EVAL_UPLOAD_ERROR_MESSAGES = {
+  TOO_MANY_FILES: "Too many files — maximum 5 allowed",
+  INVALID_FILE_TYPE: "Only PDF files are allowed",
+  FILE_TOO_LARGE: "File size exceeds the 10 MB limit",
+} as const;

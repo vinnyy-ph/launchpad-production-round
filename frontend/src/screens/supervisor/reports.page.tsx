@@ -1,4 +1,5 @@
 import { AlertCircle, RefreshCw, ClipboardList } from "lucide-react";
+import { VisibleResultsList } from "@/modules/performance/surveys/components/visible-results-list";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import {
@@ -217,6 +218,13 @@ export default function ReportsPage() {
           Team performance
         </h2>
         <TeamPerformancePanel appUserEmployeeId={employeeId} />
+      </section>
+
+      <section className="mt-6">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+          Pulse results
+        </h2>
+        <VisibleResultsList />
       </section>
     </div>
   );

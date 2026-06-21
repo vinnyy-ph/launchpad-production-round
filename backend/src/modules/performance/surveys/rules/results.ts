@@ -1,6 +1,13 @@
 /** Anonymous surveys never reveal a breakdown computed from fewer than this many responses. */
 export const MIN_GROUP = 3;
 
+/**
+ * On anonymous surveys, a team-scoped result view is hidden from that team's own supervisor
+ * when the team has fewer than this many members — HR and the managers above that supervisor
+ * can still see it. Distinct from MIN_GROUP: this counts team membership, not responses.
+ */
+export const MIN_TEAM_SIZE = 3;
+
 export type Gated<T> = { suppressed: true } | { suppressed: false; data: T };
 
 /**

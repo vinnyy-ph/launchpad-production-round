@@ -11,7 +11,7 @@ export interface EvaluationResponseDto {
   lowlights: string[];
   evaluation: string | null;
   recommendation: string | null;
-  supportingDocUrl: string | null;
+  supportingDocUrls: string[];
   isSent: boolean;
   sentAt: Date | null;
   ackDeadline: Date | null;

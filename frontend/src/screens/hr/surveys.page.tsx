@@ -8,8 +8,7 @@ import {
   Pencil,
   Trash2,
   Play,
-  Square,
-  BarChart3,
+  Pause,
   Filter,
   Search,
 } from "lucide-react";
@@ -94,7 +93,7 @@ function AnonymityChip({ anonymous }: { anonymous: boolean }) {
     </Badge>
   ) : (
     <Badge variant="modern" pill>
-      Named
+      Identified
     </Badge>
   );
 }
@@ -113,23 +112,11 @@ function ResponsesCell({ s }: { s: SurveyListItem }) {
   if (status === "draft") {
     return <span className="text-sm text-[color:var(--text-quaternary)]">Not sent yet</span>;
   }
-  const pct = s.recipientCount > 0 ? Math.round((s.respondedCount / s.recipientCount) * 100) : 0;
   return (
-    <div className="flex items-center justify-end gap-2.5 md:justify-start">
-      <span className="h-2 w-16 flex-none overflow-hidden rounded-full bg-[color:var(--bg-secondary)]">
-        <span
-          className="block h-full rounded-full bg-[color:var(--text-primary)]"
-          style={{ width: `${pct}%` }}
-        />
-      </span>
-      <span className="whitespace-nowrap text-[13px] text-[color:var(--text-primary)]">
-        <b className="font-semibold">{pct}%</b>{" "}
-        <span className="text-[color:var(--text-tertiary)]">
-          · {s.respondedCount}/{s.recipientCount}
-          {status === "closed" ? " final" : ""}
-        </span>
-      </span>
-    </div>
+    <span className="whitespace-nowrap text-sm text-[color:var(--text-primary)]">
+      <b className="font-semibold">{s.respondedCount}</b>{" "}
+      <span className="text-[color:var(--text-tertiary)]">of {s.recipientCount}</span>
+    </span>
   );
 }
 
@@ -251,6 +238,21 @@ export default function HRSurveysPage() {
     }
   };
 
+  // Silent autosave persist: create the draft on first valid save (capturing its id so the
+  // builder switches to incremental updates), update it thereafter. No toast, no close.
+  const handleAutosave = async (
+    input: CreateSurveyInput,
+    id: string | null,
+  ): Promise<string> => {
+    if (id) {
+      await updateSurvey.mutateAsync({ id, input });
+      return id;
+    }
+    const created = await createSurvey.mutateAsync(input);
+    setEditingId(created.id);
+    return created.id;
+  };
+
   const handleDelete = () => {
     if (!deletingId) return;
     deleteSurvey.mutate(deletingId, {
@@ -299,8 +301,8 @@ export default function HRSurveysPage() {
       ),
     },
     {
-      header: "Anonymity",
-      mobileLabel: "Anonymity",
+      header: "Type",
+      mobileLabel: "Type",
       className: "w-[14%] whitespace-nowrap",
       cell: (s) => <AnonymityChip anonymous={s.isAnonymous} />,
     },
@@ -317,29 +319,14 @@ export default function HRSurveysPage() {
       cell: (s) => <StatusChip status={deriveStatus(s)} />,
     },
     {
-      header: <span className="block w-full text-right">Actions</span>,
+      header: "Actions",
       mobileFooter: true,
-      className: "w-[150px] whitespace-nowrap text-right",
+      className: "w-[150px] whitespace-nowrap",
       cell: (s) => {
         const status = deriveStatus(s);
         return (
-          <div className="flex w-full justify-end">
+          <div className="flex w-full justify-start">
             <div className="inline-flex items-center gap-1">
-              {status !== "draft" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push(`/hr/surveys/${s.id}/results`);
-                  }}
-                  aria-label="View results"
-                  title="View results"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                </Button>
-              )}
               {status === "active" && (
                 <Button
                   variant="ghost"
@@ -352,7 +339,7 @@ export default function HRSurveysPage() {
                   aria-label="Deactivate survey"
                   title="Deactivate survey"
                 >
-                  <Square className="h-4 w-4" />
+                  <Pause className="h-4 w-4" />
                 </Button>
               )}
               {status === "draft" && (
@@ -410,7 +397,7 @@ export default function HRSurveysPage() {
       <PageHeader
         level="page"
         title="Pulse surveys"
-        subtitle="Send pulses, track responses, and see how the team's doing."
+        subtitle="Check in with employees and see how they're doing."
       />
 
       <FilterBar aria-label="Filter surveys" className="gap-3">
@@ -495,6 +482,8 @@ export default function HRSurveysPage() {
         loading={!!editingId && detailQuery.isLoading}
         saving={saving}
         onSave={handleSave}
+        draftId={editingId}
+        onAutosave={handleAutosave}
       />
 
       {/* Delete confirm */}

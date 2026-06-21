@@ -1,5 +1,6 @@
 import type { ElementType } from "react";
-import { ChevronUp, ChevronDown, Info } from "lucide-react";
+import Link from "next/link";
+import { ChevronUp, ChevronDown, Info, ArrowUpRight } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import {
@@ -22,18 +23,30 @@ export interface KpiCardProps {
   delta?: { value: string; direction: "up" | "down" };
   /** Render the value as a skeleton while data loads. */
   loading?: boolean;
+  /** When set, the whole card becomes a link to this route, with a hover affordance. */
+  href?: string;
 }
 
 /**
  * Dashboard KPI card — mirrors the Jia UI-kit metric card: gray icon chip + label,
- * a period sub-line, a 40px value, and an optional green/red trend pill.
+ * a period sub-line, a 40px value, and an optional green/red trend pill. Pass `href`
+ * to make the whole card a link to where the metric is acted on.
  */
-export function KpiCard({ label, value, icon: Icon, period, hint, delta, loading = false }: KpiCardProps) {
-  return (
-    <div
-      className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-[18px]"
-      style={{ boxShadow: "var(--shadow-xs)" }}
-    >
+export function KpiCard({ label, value, icon: Icon, period, hint, delta, loading = false, href }: KpiCardProps) {
+  const interactive = !!href;
+  const className = cn(
+    "relative block overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-[18px]",
+    interactive &&
+      "group transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  );
+  const body = (
+    <>
+      {interactive && (
+        <ArrowUpRight
+          aria-hidden="true"
+          className="absolute right-4 top-4 h-4 w-4 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
+        />
+      )}
       <div className="flex items-center gap-2">
         {Icon && (
           <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
@@ -93,6 +106,19 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, loading
           compared to last month
         </div>
       )}
+    </>
+  );
+
+  if (interactive) {
+    return (
+      <Link href={href!} className={className} style={{ boxShadow: "var(--shadow-xs)" }}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <div className={className} style={{ boxShadow: "var(--shadow-xs)" }}>
+      {body}
     </div>
   );
 }

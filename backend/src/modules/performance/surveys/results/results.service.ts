@@ -1,9 +1,14 @@
 import { prisma } from "../../../../core/database/prisma.service";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
-import { gate } from "../rules/results";
+import { gate, MIN_TEAM_SIZE } from "../rules/results";
 import { createOrgChains } from "../../../shared/org/chains";
+import {
+  canViewSurveyResults,
+  type ResultsViewerContext,
+  type SurveyVisibilityInfo,
+} from "../rules/results-visibility";
 import { ResultsRepository } from "./results.repository";
-import type { QuestionResult, SurveyResultsResponseDto } from "./results.types";
+import type { QuestionResult, SurveyResultsResponseDto, VisibleResultSurveyDto } from "./results.types";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -83,59 +88,73 @@ export class ResultsService {
 
     const isHR = role === "HR" || role === "ADMIN";
 
-    // 5. Visibility check
-    if (!isHR) {
+    // 4b. Small-team anonymity overlay. On anonymous surveys, a team-scoped view of a team
+    //     with fewer than MIN_TEAM_SIZE members is hidden from that team's own supervisor
+    //     (its leader), while HR and every manager above the leader may still see it — even
+    //     though the group is below the normal min-group-size threshold. When granted, this
+    //     overrides the generic visibility/filter checks below and lifts gate() suppression.
+    let smallTeamOverride = false;
+    if (survey.isAnonymous && teamIdQuery) {
+      const team = await prisma.team.findUnique({
+        where: { id: teamIdQuery },
+        select: { leaderId: true, _count: { select: { members: true } } },
+      });
+
+      if (team && team._count.members < MIN_TEAM_SIZE) {
+        const headsAbove = await createOrgChains(prisma).upwardChain(team.leaderId);
+        const isLeader = !!caller && caller.id === team.leaderId;
+        const isHeadAbove = !!caller && headsAbove.includes(caller.id);
+
+        if (isHR || isHeadAbove) {
+          smallTeamOverride = true;
+        } else if (isLeader) {
+          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR);
+        }
+      }
+    }
+
+    // 5. Visibility check (server-side access gate). Reuses the shared predicate.
+    if (!isHR && !smallTeamOverride) {
       if (!caller) {
         throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
       }
 
-      const chains = createOrgChains(prisma);
-      const callerDownward = await chains.downwardChain(caller.id);
-
-      if (survey.visibility === "EVERYONE") {
-        // Pass
-      } else if (survey.visibility === "SUPERVISOR_BASED") {
-        // check if caller's downward chain includes any audience member of this survey / occurrence
+      // SUPERVISOR_BASED needs to know whether any audience member is in the
+      // caller's downward chain. Resolve that here; other visibilities ignore it.
+      let supervisorAudienceOverlap = false;
+      if (survey.visibility === "SUPERVISOR_BASED") {
+        const chains = createOrgChains(prisma);
+        const callerDownward = await chains.downwardChain(caller.id);
         const audienceMembers = await this.repo.findAudienceMembers(
-          occurrenceId
-            ? { occurrenceId }
-            : { occurrence: { surveyId: survey.id } }
+          occurrenceId ? { occurrenceId } : { occurrence: { surveyId: survey.id } },
         );
-        const audienceEmployeeIds = audienceMembers.map((m) => m.employeeId);
-        const isAllowed = audienceEmployeeIds.some((id) => callerDownward.includes(id));
-        if (!isAllowed) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
-        }
-      } else if (survey.visibility === "TEAM_BASED") {
-        // any team member whose team is part of the survey audience
-        const audienceTeamIds = survey.audienceConfigs
+        supervisorAudienceOverlap = audienceMembers.some((m) =>
+          callerDownward.includes(m.employeeId),
+        );
+      }
+
+      const ctx: ResultsViewerContext = {
+        isHR: false,
+        caller: {
+          supervisorId: caller.supervisorId,
+          teamIds: caller.teamMemberships.map((m) => m.teamId),
+        },
+      };
+      const info: SurveyVisibilityInfo = {
+        visibility: survey.visibility,
+        audienceConfigTeamIds: survey.audienceConfigs
           .map((c: any) => c.teamId)
-          .filter((id: any): id is string => !!id);
-        const callerTeamIds = caller.teamMemberships.map((m) => m.teamId);
-        const isAllowed = callerTeamIds.some((id) => audienceTeamIds.includes(id));
-        if (!isAllowed) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
-        }
-      } else if (survey.visibility === "HR_ROOT_ONLY") {
-        // HR only + the root node employee (employee with no supervisor)
-        if (caller.supervisorId !== null) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
-        }
-      } else if (survey.visibility === "SPECIFIC_TEAMS") {
-        // employees belonging to any team in SurveyVisibilityConfig
-        const allowedTeamIds = (survey.visibilityConfigs ?? []).map((vc: any) => vc.teamId);
-        const callerTeamIds = caller.teamMemberships.map((m) => m.teamId);
-        const isAllowed = callerTeamIds.some((id) => allowedTeamIds.includes(id));
-        if (!isAllowed) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
-        }
-      } else {
+          .filter((id: any): id is string => !!id),
+        visibilityConfigTeamIds: (survey.visibilityConfigs ?? []).map((vc: any) => vc.teamId),
+      };
+
+      if (!canViewSurveyResults(ctx, info, supervisorAudienceOverlap)) {
         throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
       }
     }
 
     // 6. Check filter restrictions for non-HR callers
-    if (!isHR && caller) {
+    if (!isHR && !smallTeamOverride && caller) {
       const chains = createOrgChains(prisma);
       const callerDownward = await chains.downwardChain(caller.id);
 
@@ -153,7 +172,7 @@ export class ResultsService {
       }
     }
 
-    // 7. Build responses where filter
+    // 7. Build the response filter.
     const where: Prisma.SurveyResponseWhereInput = {};
     if (occurrenceId) {
       where.occurrenceId = occurrenceId;
@@ -163,14 +182,58 @@ export class ResultsService {
 
     const chains = createOrgChains(prisma);
 
+    // Resolve the caller's entitled scope once (non-HR only). The visibility check in
+    // step 5 only gates ACCESS (may this viewer open the results at all); this is the data
+    // boundary that constrains WHICH responses they may see. It is reused below by both
+    // the breakdown filter and the headline counts. Without it an unfiltered query would
+    // aggregate the whole audience and expose responses — including named free text —
+    // from respondents outside the caller's scope. HR/ADMIN are entitled to the full
+    // audience, so callerScope stays null for them.
+    let callerScope:
+      | { kind: "supervisor"; ids: string[] }
+      | { kind: "team"; teamIds: string[] }
+      | null = null;
+
+    if (!isHR && caller) {
+      if (survey.visibility === "SUPERVISOR_BASED") {
+        const callerDownward = await chains.downwardChain(caller.id);
+        callerScope = { kind: "supervisor", ids: [caller.id, ...callerDownward] };
+      } else if (survey.visibility === "TEAM_BASED") {
+        callerScope = { kind: "team", teamIds: caller.teamMemberships.map((m) => m.teamId) };
+      } else if (survey.visibility === "SPECIFIC_TEAMS") {
+        const allowedTeamIds = (survey.visibilityConfigs ?? []).map((vc: any) => vc.teamId);
+        callerScope = {
+          kind: "team",
+          teamIds: caller.teamMemberships
+            .map((m) => m.teamId)
+            .filter((id) => allowedTeamIds.includes(id)),
+        };
+      }
+      // EVERYONE / HR_ROOT_ONLY: callerScope stays null — entitled to the org-wide view.
+    }
+
+    const scopeFilters: Prisma.SurveyResponseWhereInput[] = [];
+
+    // 7a. Mandatory caller-scope (non-HR).
+    if (callerScope?.kind === "supervisor") {
+      scopeFilters.push({ respondentSupervisorId: { in: callerScope.ids } });
+    } else if (callerScope?.kind === "team") {
+      scopeFilters.push({ respondentTeamIds: { hasSome: callerScope.teamIds } });
+    }
+
+    // 7b. Optional explicit scope filter (already validated against the caller's own scope
+    //     in step 6). AND-composed with 7a so a drill-down can only narrow, never widen.
     if (teamIdQuery) {
-      where.respondentTeamIds = { has: teamIdQuery };
+      scopeFilters.push({ respondentTeamIds: { has: teamIdQuery } });
     }
 
     if (supervisorIdQuery) {
       const targetDownward = await chains.downwardChain(supervisorIdQuery);
-      const targetSupervisors = [supervisorIdQuery, ...targetDownward];
-      where.respondentSupervisorId = { in: targetSupervisors };
+      scopeFilters.push({ respondentSupervisorId: { in: [supervisorIdQuery, ...targetDownward] } });
+    }
+
+    if (scopeFilters.length > 0) {
+      where.AND = scopeFilters;
     }
 
     // Fetch responses with answers
@@ -262,21 +325,46 @@ export class ResultsService {
       }
     });
 
-    // 9. Apply minimum-group-size suppression. For anonymous surveys this fires on ANY view
-    //    with fewer than MIN_GROUP responses — the top-level summary as well as every
-    //    team/supervisor filter — never only on filtered views.
     const isFilterActive = !!teamIdQuery || !!supervisorIdQuery;
-    const gated = gate({ count: responses.length, data: questionResults }, survey.isAnonymous);
 
-    // Occurrence-level totals for the summary stat cards — independent of the scope filter,
-    // so the headline response rate reflects the whole audience, not the filtered slice.
-    const scopeWhere = occurrenceId
+    // Occurrence-level totals for the summary stat cards. For non-HR viewers these are bounded to
+    // the caller's entitled scope (their slice) via callerScope below; for HR / unfiltered views no
+    // scope is applied, so recipientCount reflects the whole audience — which the small-survey HR
+    // override below depends on. Computed before suppression.
+    const audienceCountWhere: Prisma.SurveyAudienceMemberWhereInput = occurrenceId
       ? { occurrenceId }
       : { occurrence: { surveyId: survey.id } };
+    const responseCountWhere: Prisma.SurveyResponseWhereInput = occurrenceId
+      ? { occurrenceId }
+      : { occurrence: { surveyId: survey.id } };
+
+    if (callerScope?.kind === "supervisor") {
+      audienceCountWhere.employeeId = { in: callerScope.ids };
+      responseCountWhere.respondentSupervisorId = { in: callerScope.ids };
+    } else if (callerScope?.kind === "team") {
+      audienceCountWhere.employee = {
+        teamMemberships: { some: { teamId: { in: callerScope.teamIds } } },
+      };
+      responseCountWhere.respondentTeamIds = { hasSome: callerScope.teamIds };
+    }
+
     const [recipientCount, respondedCount] = await Promise.all([
-      this.repo.countAudienceMembers(scopeWhere),
-      this.repo.countResponses(scopeWhere),
+      this.repo.countAudienceMembers(audienceCountWhere),
+      this.repo.countResponses(responseCountWhere),
     ]);
+
+    // 9. Minimum-group-size suppression for anonymous surveys. It fires on ANY view with fewer
+    //    than MIN_GROUP responses, EXCEPT where an override lifts it:
+    //    (a) smallTeamOverride — a team-scoped view of a sub-3-member team, for HR / heads-above;
+    //    (b) smallSurveyHrOverride — the survey's whole audience is itself below MIN_TEAM_SIZE and
+    //        the caller is HR, so the unfiltered view IS that small group. The team's supervisor,
+    //        being non-HR, stays suppressed here just as on a direct team filter.
+    const smallSurveyHrOverride =
+      survey.isAnonymous && isHR && !isFilterActive && recipientCount < MIN_TEAM_SIZE;
+    const gated =
+      smallTeamOverride || smallSurveyHrOverride
+        ? { suppressed: false as const, data: questionResults }
+        : gate({ count: responses.length, data: questionResults }, survey.isAnonymous);
 
     return {
       success: true,
@@ -284,6 +372,10 @@ export class ResultsService {
         surveyId: survey.id,
         ...(occurrenceId && { occurrenceId }),
         isAnonymous: survey.isAnonymous,
+        surveyName: survey.name,
+        deadline: survey.deadline instanceof Date ? survey.deadline.toISOString() : survey.deadline,
+        isActive: survey.isActive,
+        occurrenceCount: survey._count?.occurrences ?? 0,
         totalResponses: responses.length,
         recipientCount,
         respondedCount,
@@ -297,5 +389,65 @@ export class ResultsService {
         questions: gated.suppressed ? [] : gated.data,
       },
     };
+  }
+
+  /** Surveys whose results the caller may view. HR sees all activated; non-HR are gated by visibility. */
+  async listViewableSurveys(
+    userId: string,
+    role: string,
+  ): Promise<{ success: true; data: VisibleResultSurveyDto[] }> {
+    const isHR = role === "HR" || role === "ADMIN";
+    const surveys = await this.repo.findActivatedSurveysWithConfigs();
+
+    const toRow = (s: any): VisibleResultSurveyDto => ({
+      id: s.id,
+      name: s.name,
+      isAnonymous: s.isAnonymous,
+      status: s.isActive ? "active" : "closed",
+    });
+
+    if (isHR) {
+      return { success: true, data: surveys.map(toRow) };
+    }
+
+    const caller = await prisma.employee.findUnique({
+      where: { userId },
+      include: { teamMemberships: true },
+    });
+    if (!caller) {
+      return { success: true, data: [] };
+    }
+
+    const chains = createOrgChains(prisma);
+    const callerDownward = await chains.downwardChain(caller.id);
+    const callerTeamIds = caller.teamMemberships.map((m) => m.teamId);
+
+    // Resolve SUPERVISOR_BASED overlap in one batch query.
+    const supSurveyIds = surveys
+      .filter((s: any) => s.visibility === "SUPERVISOR_BASED")
+      .map((s: any) => s.id);
+    const overlapIds = new Set(
+      await this.repo.findSurveyIdsWithAudienceMembers(supSurveyIds, callerDownward),
+    );
+
+    const ctx: ResultsViewerContext = {
+      isHR: false,
+      caller: { supervisorId: caller.supervisorId, teamIds: callerTeamIds },
+    };
+
+    const data = surveys
+      .filter((s: any) => {
+        const info: SurveyVisibilityInfo = {
+          visibility: s.visibility,
+          audienceConfigTeamIds: s.audienceConfigs
+            .map((c: any) => c.teamId)
+            .filter((id: any): id is string => !!id),
+          visibilityConfigTeamIds: (s.visibilityConfigs ?? []).map((vc: any) => vc.teamId),
+        };
+        return canViewSurveyResults(ctx, info, overlapIds.has(s.id));
+      })
+      .map(toRow);
+
+    return { success: true, data };
   }
 }

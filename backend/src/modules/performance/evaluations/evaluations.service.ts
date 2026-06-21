@@ -122,7 +122,7 @@ export class EvaluationsService {
       lowlights: input.lowlights ?? [],
       evaluation: input.evaluation ?? null,
       recommendation: input.recommendation ?? null,
-      supportingDocUrl: input.supportingDocUrl ?? null,
+      supportingDocUrls: input.supportingDocUrls ?? [],
       ...sendFields,
     };
 
@@ -204,7 +204,7 @@ export class EvaluationsService {
             ...(updateData.lowlights !== undefined && { lowlights: updateData.lowlights }),
             ...(updateData.evaluation !== undefined && { evaluation: updateData.evaluation }),
             ...(updateData.recommendation !== undefined && { recommendation: updateData.recommendation }),
-            ...(updateData.supportingDocUrl !== undefined && { supportingDocUrl: updateData.supportingDocUrl }),
+            ...(updateData.supportingDocUrls !== undefined && { supportingDocUrls: updateData.supportingDocUrls }),
             isSent: true,
             sentAt: updateData.sentAt,
             ackDeadline: updateData.ackDeadline,
@@ -387,7 +387,7 @@ export class EvaluationsService {
       lowlights: evaluation.lowlights,
       evaluation: evaluation.evaluation,
       recommendation: evaluation.recommendation,
-      supportingDocUrl: evaluation.supportingDocUrl,
+      supportingDocUrls: evaluation.supportingDocUrls,
       isSent: evaluation.isSent,
       sentAt: evaluation.sentAt,
       ackDeadline: evaluation.ackDeadline,
