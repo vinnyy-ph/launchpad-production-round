@@ -64,43 +64,50 @@ team-less.
 
 **Total: 300.** Sub-group headcounts sum exactly to their department totals.
 
-### Reporting tree (5 levels)
+### Reporting tree (4 levels)
 
-`CEO → C-suite → dept head (VP) → team lead → IC`
+`CEO → executive board (C-suite) → team lead → IC`
 
-- Every team member's `supervisorId` = their team lead.
-- Each team lead reports to the department head.
-- Each department head reports to the matching C-level.
-- C-levels report to the CEO.
-- Team-less depts (IT, Executive): members report to the dept head / CEO directly.
+- The CEO is the org root (`supervisorId` = null).
+- All other board members + the 2 generated exec support roles report to the CEO.
+- Each non-Executive department is **fully generated** and owned by a board member. The
+  department's **primary team lead** (generated) reports to the owning board member; the
+  department's other team leads report to that primary lead; ICs report to their own team lead.
+  (The `Department` schema has no head field, so the primary team lead doubles as dept head —
+  this keeps every department headcount exact, with no phantom "VP" rows.)
+- Team-less depts: **IT** — a generated IT Manager reports to the CIO, IT ICs report to the IT
+  Manager. **Executive** — see below.
 
-### Executive department (10)
+### Executive department (10) — the 8 real accounts + 2 generated support
 
-CEO (root) + CTO (Loreto) + 8 generated C-levels: CPO, CFO, COO, CGO, CCO, CDO, CISO,
-Chief of Staff. Department → C-level reporting lines:
+**All 8 login-capable accounts ARE the executive board.** This is deliberate: every account that
+can actually log in is a leader with company-wide visibility and a real org beneath them, and the
+CEO↔exec evaluation/survey loops happen between real accounts.
 
-- Engineering, IT → CTO (Loreto)
-- Product → CPO · Design → CDO · Finance → CFO · Operations → COO
-- Customer Support → CCO · Growth → CGO
-- People → **reports to CEO directly** (headed by Darben)
-
-### Real-account placement (these count toward the 300)
-
-| Account | Login email (unchanged) | Display name | Dept / Team | Role | Reports to |
+| Account | Login email (unchanged) | Display name | Board title | Role | Owns (departments) |
 |---|---|---|---|---|---|
-| CEO | allenkurtds.dev@gmail.com | **Rafael Bautista** | Executive | EMPLOYEE | — (root) |
-| CTO | loretorussellkelvinanthony@gmail.com | Loreto Russell | Executive | ADMIN | CEO |
-| Demo lead | vnferrer.work@gmail.com | Vn Ferrer | Engineering / **Frontend (lead)** | EMPLOYEE | VP Engineering |
-| Lead | theaverah@gmail.com | Thea Verah | Product / **Product Management (lead)** | EMPLOYEE | CPO |
-| HR head | darbenlamonte@gmail.com | Darben Lamonte | People (head) | HR | CEO |
-| HR | thea_sumagang@dlsu.edu.ph | Thea Sumagang | People / HR Operations | HR | Darben |
-| Sysadmin | ashasce@gmail.com | Asha Ce | IT | ADMIN | IT Manager → CTO |
-| Intern | ximen91101@gmail.com | **Angelo Galang** | Design / UX Design (member) | EMPLOYEE | **CEO (direct)** |
+| allenkurtds.dev@gmail.com | **Rafael Bautista** | **CEO** (root) | EMPLOYEE | — (oversees all) |
+| loretorussellkelvinanthony@gmail.com | Loreto Russell | **CTO** | ADMIN | Engineering |
+| ashasce@gmail.com | Asha Ce | **CIO** | ADMIN | IT |
+| theaverah@gmail.com | Thea Verah | **CPO** | EMPLOYEE | Product · Design |
+| vnferrer.work@gmail.com | Vn Ferrer | **COO** | EMPLOYEE | Operations · Customer Support |
+| darbenlamonte@gmail.com | Darben Lamonte | **CHRO** | HR | People |
+| thea_sumagang@dlsu.edu.ph | Thea Sumagang | **CFO** | HR | Finance |
+| ximen91101@gmail.com | **Angelo Galang** | **CGO** (Chief Growth Officer) | EMPLOYEE | Growth |
 
-**Login emails and `companyEmail` for the real accounts stay exactly as they are today** —
-only the two display names change (Kurt Ds → Rafael Bautista; Ximen Galang → Angelo Galang).
-Ximen/Angelo is a UX Design *team member* but reports straight to the CEO (intentional
-special case — gives a CEO→intern eval loop between two login-capable accounts).
+Plus **2 generated** Executive members reporting to the CEO with no department: **Chief of Staff**
+and **Executive Assistant**. Executive total = 8 real + 2 generated = 10.
+
+**Login emails and `companyEmail` for the real accounts stay exactly as they are today** — only
+the two display names change (Kurt Ds → **Rafael Bautista**; Ximen Galang → **Angelo Galang**).
+Roles are unchanged (Loreto/Asha = ADMIN, Darben/Thea S = HR, the rest = EMPLOYEE).
+
+Department → owning board member (the dept's primary generated team lead reports to this person):
+
+- Engineering → CTO (Loreto) · IT → CIO (Asha)
+- Product → CPO (Thea V) · Design → CPO (Thea V)
+- Operations → COO (Vn) · Customer Support → COO (Vn)
+- People → CHRO (Darben) · Finance → CFO (Thea S) · Growth → CGO (Angelo)
 
 ## Generated Employees (292 = 300 − 8 real)
 
@@ -111,12 +118,13 @@ special case — gives a CEO→intern eval loop between two login-capable accoun
   periods, drop honorific prefixes (`Ma.`, `Sta.`), take the first first-name token + full last
   name (e.g. "Ma. Theresa Dela Cruz" → `theresa.delacruz@dgtechnologies.com`). Collisions get a
   numeric suffix (`.2`, `.3`). `companyEmail` = same value.
-- **Distribution**: each team is filled to its exact headcount; the count of any real account
-  already placed in a team/dept is subtracted from the generated target (e.g. Frontend = 32 ⇒
-  Vn as lead + 31 generated). Team-less depts (IT, Executive) filled directly.
-- **Leads & heads**: teams without a real-account lead get one generated employee promoted to
-  `Team.leaderId`. Each department gets one generated VP head (except where a real account is the
-  head, e.g. People→Darben). Team-less depts get a generated head/manager (e.g. IT Manager).
+- **Distribution**: the 9 non-Executive departments are **fully generated**, each filled to its
+  exact team headcounts. Executive is filled with the 2 generated support roles (the other 8 are
+  real). IT (team-less) is filled directly under the IT Manager.
+- **Leads & heads**: every team gets one generated employee promoted to `Team.leaderId`. Each
+  department's primary team lead doubles as dept head and reports to the owning board member;
+  the other team leads report to that primary lead. IT gets a generated IT Manager (reports to
+  the CIO, Asha).
 - **Job titles**: derived per team with a seniority spread (Lead / Senior / Mid / Junior), e.g.
   "Senior Frontend Engineer", "QA Engineer", "Recruiter", "Accountant".
 - **Statuses**: most `ACTIVE`; a small number seeded as `ONBOARDING`, `OFFBOARDING`, `INACTIVE`
@@ -124,34 +132,35 @@ special case — gives a CEO→intern eval loop between two login-capable accoun
 
 ## Surveys & Evaluations (real-account-focused)
 
-### Evaluations — full state matrix, centered on Vn & Thea V
+### Evaluations — full state matrix, centered on the board (all real accounts)
 
 Reviewer = direct supervisor throughout (matches app rules).
 
-- **As reviewer** — Vn → Frontend reports, Thea V → PM reports, each produces:
-  one **draft** (ongoing), one **sent-pending-ack**, one **sent-acknowledged**, one
-  **deemed-acknowledged** ("expired").
-- **As reviewee** — Vn & Thea V each receive: one **pending** (actionable in their inbox) +
-  one **past acknowledged** from their supervisor. Darben → Thea S, IT Manager → Asha, and
-  **CEO (Rafael) → Ximen/Angelo** each get a sent evaluation (Ximen's exercises the CEO→intern
-  loop).
-- **Light scatter**: a few generated dept heads review a few of their reports, so the directory
-  isn't empty. Volume stays modest (≈25–40 evaluations total).
+- **CEO → each board member** (all real-account-to-real-account, since the CEO is the direct
+  supervisor of every other exec). Across the 7 reports the CEO produces one of each state so
+  every variant is demoable from a login-capable account: one **draft** (ongoing), a couple
+  **sent-pending-ack** (actionable in the exec's inbox), a couple **sent-acknowledged**, one
+  **deemed-acknowledged** ("expired"). This gives each exec a populated inbox and the CEO a full
+  outbox.
+- **Each board member → their department's primary lead** (generated). Gives every exec an
+  outbox with a real subordinate. Mix of states.
+- **Light scatter**: a few generated team leads review a few of their own reports, so the
+  directory isn't empty. Volume stays modest (≈25–40 evaluations total).
 
 ### Surveys — every lifecycle / visibility / anonymity variant
 
-1. **Closed, non-anonymous, company-wide** (creator: Darben) — the "completed" survey;
-   ~70% of all active employees respond → rich aggregate charts. All real accounts answered.
-2. **Active, anonymous, weekly recurring, `HR_ROOT_ONLY`** (creator: Darben) — one past
+1. **Closed, non-anonymous, company-wide** (creator: CHRO Darben) — the "completed" survey;
+   ~70% of all active employees respond → rich aggregate charts. All board members answered.
+2. **Active, anonymous, weekly recurring, `HR_ROOT_ONLY`** (creator: CHRO Darben) — one past
    **closed** occurrence (full anonymous responses with `employeeId=null` + supervisor/team
-   snapshots) + one **current open** occurrence (real accounts have answered, plus a per-occurrence
+   snapshots) + one **current open** occurrence (board members have answered, plus a per-occurrence
    `SurveyAudienceMember` snapshot).
-3. **Active, non-anonymous, `SPECIFIC_TEAMS` / `TEAM_BASED`** (creator: **Vn**) targeting the
-   Frontend/Engineering team — demonstrates a team lead as survey creator.
+3. **Active, non-anonymous, `SPECIFIC_TEAMS` / `TEAM_BASED`** (creator: **COO Vn**) targeting an
+   Engineering team — demonstrates a board member as survey creator with team-scoped visibility.
 4. **Closed, anonymous, one-time** — an "expired" survey for completeness.
 
-Each real account ends up with: answered surveys (populates "My Answers"), at least one open
-survey awaiting their response (populates their to-do), and — for Vn — a created survey.
+Each board member ends up with: answered surveys (populates "My Answers"), at least one open
+survey awaiting their response (populates their to-do), and — for Vn and Darben — a created survey.
 
 ## Code Structure
 
@@ -185,10 +194,12 @@ Keep the modular `backend/prisma/seed/` layout.
 1. `npm run db:seed` (backend) completes against the local `launchpad-pg` Postgres without error.
 2. DB contains exactly **300 employees / 300 users**, **10 departments**, **21 teams**, with team
    headcounts matching the table and the full reporting tree rooted at the CEO (no orphan cycles).
-3. The 8 real accounts retain their original login emails; the two renamed accounts show the new
-   display names; Ximen/Angelo's `supervisorId` = CEO.
-4. Logging in as each real account surfaces populated, navigable data: evaluations in every state
-   (as reviewer and reviewee where applicable), answered surveys, and at least one open survey.
+3. The 8 real accounts retain their original login emails and roles; all 8 are in the Executive
+   department; the two renamed accounts show the new display names (Rafael Bautista, Angelo
+   Galang); the CEO's `supervisorId` is null and every other board member reports to the CEO.
+4. Logging in as each board member surfaces populated, navigable data: evaluations as reviewee
+   (from the CEO) and as reviewer (of their dept's primary lead), in a spread of states; answered
+   surveys; and at least one open survey awaiting response.
 5. Company-wide survey shows realistic aggregate charts (~70% response rate); anonymous-survey
    responses have `employeeId=null` with populated supervisor/team snapshots.
 6. Re-running the seed is deterministic (stable names/emails/distribution).
