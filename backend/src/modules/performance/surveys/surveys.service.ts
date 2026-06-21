@@ -16,6 +16,8 @@ import type {
 import type { ApiSuccessResponseDto } from "../../../core/dto";
 import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
 import { NotificationsService } from "../../notifications/notifications.service";
+import { EmailService } from "../../../core/email";
+import { buildPulseSurveyInvitationEmailHtml } from "../../../core/email/templates/pulse-survey-invitation.template";
 import { resolveAudience } from "./rules/audience";
 import { buildAudienceDb, toAudienceSpec } from "./surveys.audience";
 import { validateSchedule } from "./rules/recurrence";
@@ -30,6 +32,7 @@ export class SurveysService {
   constructor(
     private readonly surveysRepository = new SurveysRepository(),
     private readonly notificationsService = new NotificationsService(),
+    private readonly emailService = new EmailService(),
   ) {}
 
   async create(
@@ -218,12 +221,63 @@ export class SurveysService {
     const updated = await this.surveysRepository.activate(id, occurrenceData, audienceIds);
 
     await this.notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name);
+    await this.sendSurveyInvitationEmails(audienceIds, survey.name);
 
     return {
       success: true,
       message: "Pulse survey activated successfully",
       data: this.toDetailResponse(updated),
     };
+  }
+
+  /**
+   * Emails every resolved audience member that a new pulse survey is open, with a
+   * deep link to answer it. Mirrors `notifyNewPulse`: fire-and-forget, so activation
+   * is never blocked by a delivery failure, and one failed send never stops the rest.
+   */
+  private async sendSurveyInvitationEmails(
+    audienceEmployeeIds: string[],
+    surveyName: string,
+  ): Promise<void> {
+    try {
+      if (audienceEmployeeIds.length === 0) {
+        return;
+      }
+
+      const recipients = await prisma.employee.findMany({
+        where: { id: { in: audienceEmployeeIds } },
+        select: { companyEmail: true, firstName: true, lastName: true },
+      });
+
+      // Surveys open in a modal rather than a dedicated page, so link to the list view.
+      const surveyUrl = `${this.resolveAppUrl()}/employee/surveys`;
+
+      for (const recipient of recipients) {
+        try {
+          await this.emailService.sendEmail({
+            to: recipient.companyEmail,
+            subject: "New pulse survey – please respond",
+            html: buildPulseSurveyInvitationEmailHtml({
+              firstName: recipient.firstName,
+              lastName: recipient.lastName,
+              surveyName,
+              surveyUrl,
+            }),
+          });
+        } catch {
+          // One failed send must not stop delivery to the rest of the audience.
+        }
+      }
+    } catch {
+      // Fire-and-forget: activation must succeed even if email delivery fails.
+    }
+  }
+
+  /** Returns the frontend base URL used in survey links. */
+  private resolveAppUrl(): string {
+    return (
+      process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:3000"
+    );
   }
 
   async deactivate(id: string): Promise<ApiSuccessResponseDto<SurveyDetailResponseDto>> {
