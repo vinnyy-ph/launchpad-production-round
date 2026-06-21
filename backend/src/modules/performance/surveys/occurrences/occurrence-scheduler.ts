@@ -50,7 +50,7 @@ export async function advanceDueOccurrences(now: Date = new Date()): Promise<voi
     );
     const audienceIds = await resolveAudience(spec, buildAudienceDb());
 
-    await prisma.$transaction(async (tx) => {
+    const occurrenceId = await prisma.$transaction(async (tx) => {
       await tx.surveyOccurrence.update({ where: { id: latest.id }, data: { isClosed: true } });
       const occurrence = await tx.surveyOccurrence.create({
         data: {
@@ -66,9 +66,10 @@ export async function advanceDueOccurrences(now: Date = new Date()): Promise<voi
           data: audienceIds.map((employeeId) => ({ occurrenceId: occurrence.id, employeeId })),
         });
       }
+      return occurrence.id;
     });
 
     // A newly-opened recurring occurrence notifies its audience, same as first activation.
-    await notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name);
+    await notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name, occurrenceId);
   }
 }

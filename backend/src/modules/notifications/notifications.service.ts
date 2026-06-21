@@ -400,6 +400,7 @@ export class NotificationsService {
     audienceEmployeeIds: string[],
     surveyId: string,
     surveyName: string,
+    occurrenceId: string,
   ): Promise<void> {
     try {
       const recipients =
@@ -413,7 +414,9 @@ export class NotificationsService {
 
       const subject = "New survey available";
       const body = `A new pulse survey "${surveyName}" is now open. Please respond before the deadline.`;
-      const linkUrl = `/surveys/${surveyId}`;
+      // Deep-link by occurrence id — the employee surveys page opens the exact pulse
+      // off the occurrence (?pulse=<id>). sourceId stays the survey for reminder dedup.
+      const linkUrl = `/surveys/${occurrenceId}`;
 
       for (const recipient of recipients) {
         const notification = await this.notificationsRepository.create({
@@ -449,6 +452,7 @@ export class NotificationsService {
     surveyId: string,
     surveyName: string,
     now: Date,
+    occurrenceId: string,
   ): Promise<void> {
     try {
       const recipient =
@@ -472,7 +476,7 @@ export class NotificationsService {
         type: "PULSE_REMINDER",
         subject: "Reminder: pulse survey awaiting your response",
         body: `The pulse survey "${surveyName}" is still open. Please respond before the deadline.`,
-        linkUrl: `/surveys/${surveyId}`,
+        linkUrl: `/surveys/${occurrenceId}`,
         sourceType: "PulseSurvey",
         sourceId: surveyId,
       });
