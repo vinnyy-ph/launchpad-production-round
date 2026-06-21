@@ -2,6 +2,9 @@
 export * from "./types/offboarding.types";
 export * from "./services/offboarding.service";
 
+export { OffboardingCasesTable } from "./components/offboarding-cases-table";
+export { InitiateOffboardingDialog } from "./components/initiate-offboarding-dialog";
+
 export { useOffboardings, useOffboarding, useMyOffboarding } from "./hooks/use-offboarding";
 export { useCreateOffboarding, useReassignOffboarding } from "./hooks/use-create-offboarding";
 export {

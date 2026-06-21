@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { RotateCcw, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
+import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
 import {
   Button,
   Separator,
@@ -94,6 +95,9 @@ function OffboardingDetailInner() {
   const { reset, resetting } = useResetClearance();
   const confirm = useConfirm();
 
+  // Topbar breadcrumb: Organization › People › Offboarding › {employee}.
+  usePageBreadcrumb(offboarding ? [fullName(offboarding.employee)] : []);
+
   // ── loading ───────────────────────────────────────────────────────────────
   if (loading) return <DetailSkeleton />;
 
@@ -119,7 +123,7 @@ function OffboardingDetailInner() {
             icon={LogOut}
             title="Case not found"
             body="This offboarding case does not exist or has been removed."
-            action={{ label: "Back to offboarding", onClick: () => router.push("/hr/offboarding") }}
+            action={{ label: "Back to offboarding", onClick: () => router.push("/hr/directory/offboarding") }}
           />
         </div>
       </div>
@@ -156,7 +160,7 @@ function OffboardingDetailInner() {
           HR
         </span>
         {" › "}
-        <span className="cursor-pointer hover:underline" onClick={() => router.push("/hr/offboarding")}>
+        <span className="cursor-pointer hover:underline" onClick={() => router.push("/hr/directory/offboarding")}>
           Offboarding
         </span>
         {" › "}
