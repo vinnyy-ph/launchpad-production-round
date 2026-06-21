@@ -262,7 +262,7 @@ function isImageUrl(url: string): boolean {
 
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
   return (
-    <section className="border-b border-[color:var(--border-primary)] pb-9">
+    <section className="pb-9">
       <div className="mb-6 flex items-center gap-2">
         <Icon className="h-4 w-4 text-[color:var(--text-secondary)]" aria-hidden="true" />
         <h3 className="text-sm font-bold text-[color:var(--text-primary)]">{title}</h3>

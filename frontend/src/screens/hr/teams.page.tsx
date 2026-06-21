@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown, Network, Plus, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Input, Skeleton } from "@/shared/ui";
@@ -280,14 +280,93 @@ interface OrgChartPanelProps {
 function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProps) {
   const { departments, loading: departmentsLoading } = useDepartments();
 
-  // CEO at the top → every department beneath → each department's in-supervisor hierarchy.
-  const roots = useMemo(
+  // Org-chart filters. Both are applied client-side because the chart is a hierarchy built from
+  // the already-loaded employee list — filtering server-side would drop intermediate supervisors
+  // and break the tree.
+  const [search, setSearch] = useState("");
+  const [departmentIds, setDepartmentIds] = useState<Set<string>>(new Set());
+  const debouncedSearch = useDebounce(search, 200);
+  const isFiltering = debouncedSearch.trim().length > 0 || departmentIds.size > 0;
+
+  // The chart keys departments by name; map the selected ids to names for employee matching.
+  const selectedDepartmentNames = useMemo(
+    () => new Set(departments.filter((d) => departmentIds.has(d.id)).map((d) => d.name)),
+    [departments, departmentIds],
+  );
+
+  // Whether an employee satisfies the active name + department filters.
+  const passesFilters = useCallback(
+    (employee: EmployeeListItem) => {
+      const query = debouncedSearch.trim().toLowerCase();
+      if (query && !employee.fullName.toLowerCase().includes(query)) return false;
+      if (
+        departmentIds.size > 0 &&
+        !(employee.department && selectedDepartmentNames.has(employee.department))
+      ) {
+        return false;
+      }
+      return true;
+    },
+    [debouncedSearch, departmentIds, selectedDepartmentNames],
+  );
+
+  // Direct-reports adjacency (supervisor id → their reports), used to pull a matched person's
+  // whole downward subtree into the results.
+  const reportsBySupervisor = useMemo(() => {
+    const map = new Map<string, EmployeeListItem[]>();
+    for (const employee of employees) {
+      const supervisorId = employee.supervisor?.id;
+      if (!supervisorId) continue;
+      const reports = map.get(supervisorId) ?? [];
+      reports.push(employee);
+      map.set(supervisorId, reports);
+    }
+    return map;
+  }, [employees]);
+
+  // Employees fed into the chart: everyone matching the filters PLUS everyone reporting (directly
+  // or indirectly) to a match — so searching a manager also surfaces the people under them. The
+  // org root (CEO) is always kept as the structural anchor even when it doesn't match itself.
+  const filteredEmployees = useMemo(() => {
+    const included = new Set(employees.filter(passesFilters).map((employee) => employee.id));
+
+    // Walk down from each match, collecting their reports transitively.
+    const queue = [...included];
+    while (queue.length > 0) {
+      const supervisorId = queue.shift() as string;
+      for (const report of reportsBySupervisor.get(supervisorId) ?? []) {
+        if (!included.has(report.id)) {
+          included.add(report.id);
+          queue.push(report.id);
+        }
+      }
+    }
+
+    return employees.filter(
+      (employee) => employee.supervisor === null || included.has(employee.id),
+    );
+  }, [employees, passesFilters, reportsBySupervisor]);
+
+  // How many people actually match (the root is excluded unless it genuinely matches) — drives
+  // the "no matches" empty state so a kept-anchor CEO doesn't mask an empty result.
+  const matchCount = useMemo(
+    () => employees.filter(passesFilters).length,
+    [employees, passesFilters],
+  );
+
+  // Which department nodes to render: the selected ones, or all when no department filter is set.
+  const visibleDepartmentNames = useMemo(
     () =>
-      buildDepartmentOrgChart(
-        employees,
-        departments.map((department) => department.name),
-      ),
-    [employees, departments],
+      departmentIds.size > 0
+        ? departments.filter((d) => departmentIds.has(d.id)).map((d) => d.name)
+        : departments.map((d) => d.name),
+    [departments, departmentIds],
+  );
+
+  // CEO at the top → matching departments beneath → each department's in-supervisor hierarchy.
+  const roots = useMemo(
+    () => buildDepartmentOrgChart(filteredEmployees, visibleDepartmentNames),
+    [filteredEmployees, visibleDepartmentNames],
   );
 
   // Ids of nodes that actually have children — the only ones that can be toggled / expanded.
@@ -305,6 +384,14 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
     return ids;
   }, [roots]);
 
+  // "Departments visible, everything below collapsed" — the initial view and the Collapse all
+  // target. Expanding only the top-level person (CEO) reveals the department nodes while keeping
+  // them closed.
+  const departmentsOnlyExpanded = useMemo(
+    () => new Set(roots.filter((node) => node.kind === "person").map((node) => node.id)),
+    [roots],
+  );
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
 
@@ -314,9 +401,9 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   // otherwise an early-resolving departments query could latch the default before the CEO exists.
   useEffect(() => {
     if (initialized.current || loading || departmentsLoading || roots.length === 0) return;
-    setExpanded(new Set(roots.filter((node) => node.kind === "person").map((node) => node.id)));
+    setExpanded(new Set(departmentsOnlyExpanded));
     initialized.current = true;
-  }, [roots, loading, departmentsLoading]);
+  }, [departmentsOnlyExpanded, loading, departmentsLoading, roots.length]);
 
   function toggle(employeeId: string) {
     setExpanded((prev) => {
@@ -326,6 +413,10 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
       return next;
     });
   }
+
+  // While filtering, reveal every match by expanding all parents; otherwise honor the user's
+  // manual expand/collapse state (which defaults to just the CEO).
+  const effectiveExpanded = isFiltering ? parentIds : expanded;
 
   if (loading || departmentsLoading) {
     return (
@@ -353,23 +444,55 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setExpanded(new Set(parentIds))}>
-          <ChevronsUpDown aria-hidden="true" />
-          Expand all
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setExpanded(new Set())}>
-          <ChevronsDownUp aria-hidden="true" />
-          Collapse all
-        </Button>
+        <Input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search by name…"
+          aria-label="Search org chart by name"
+          className="sm:max-w-[260px]"
+        />
+        <MultiSelectFilter
+          options={departments.map((department) => ({ id: department.id, name: department.name }))}
+          selected={departmentIds}
+          onChange={setDepartmentIds}
+          allLabel="All departments"
+          countNoun="departments"
+          searchPlaceholder="Search departments…"
+          emptyText="No departments found."
+          ariaLabel="Filter org chart by department"
+        />
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setExpanded(new Set(parentIds))}>
+            <ChevronsUpDown aria-hidden="true" />
+            Expand all
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setExpanded(new Set(departmentsOnlyExpanded))}
+          >
+            <ChevronsDownUp aria-hidden="true" />
+            Collapse all
+          </Button>
+        </div>
       </div>
 
       <div
         className="overflow-x-auto rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
         style={{ boxShadow: "var(--shadow-xs)" }}
       >
-        <div className="mx-auto w-max">
-          <OrgChartTree nodes={roots} expanded={expanded} onToggle={toggle} />
-        </div>
+        {isFiltering && matchCount === 0 ? (
+          <EmptyState
+            icon={Workflow}
+            title="No one matches that"
+            body="Try a different name or department."
+          />
+        ) : (
+          <div className="mx-auto w-max">
+            <OrgChartTree nodes={roots} expanded={effectiveExpanded} onToggle={toggle} />
+          </div>
+        )}
       </div>
     </div>
   );
