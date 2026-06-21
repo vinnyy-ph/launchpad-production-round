@@ -156,6 +156,31 @@ export interface AnsweredSurvey {
   completedAt: string;
 }
 
+/** One of the employee's own answers, paired with its question (PER-23). */
+export interface MyAnswer {
+  questionId: string;
+  questionText: string;
+  type: QuestionType;
+  options: string[] | null;
+  scaleMin: number | null;
+  scaleMax: number | null;
+  scaleMinLabel: string | null;
+  scaleMaxLabel: string | null;
+  answerText: string | null;
+  answerData: number | string | string[] | null;
+}
+
+/** The employee's own submitted answers for one completed occurrence.
+ *  `answers` is empty for anonymous surveys — content is unrecoverable by design. */
+export interface MyAnswers {
+  occurrenceId: string;
+  surveyId: string;
+  surveyName: string;
+  occurrenceNumber: number;
+  isAnonymous: boolean;
+  answers: MyAnswer[];
+}
+
 /** A single submitted answer. answerData carries the typed value:
  *  number (LINEAR_SCALE), string (MULTIPLE_CHOICE), string[] (CHECKBOX). */
 export interface AnswerInput {

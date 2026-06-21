@@ -21,11 +21,18 @@ function resolveRoute(n: Notification): string | null {
   switch (n.type) {
     case "NEW_PULSE":
     case "PULSE_REMINDER":
-      // The page keys pulses off the OCCURRENCE id, which the notification
-      // doesn't carry, so we can only land on the surveys tab (not auto-open).
-      return "/employee/surveys";
+      // The server stamps the OCCURRENCE id as the trailing segment of linkUrl;
+      // the surveys page auto-opens that exact pulse via `?pulse=<occurrenceId>`.
+      return id ? `/employee/surveys?tab=survey&pulse=${id}` : "/employee/surveys";
     case "NEW_EVALUATION":
     case "EVAL_ACK_REMINDER":
+      return id
+        ? `/employee/surveys?tab=acknowledgements&eval=${id}`
+        : "/employee/surveys?tab=acknowledgements";
+    case "EVAL_DEEMED_ACK":
+      // Sent to both parties under one type; the reviewer's copy carries a /supervisor
+      // linkUrl, the reviewee's an /evaluations/:id link — route off that prefix.
+      if (n.linkUrl?.startsWith("/supervisor")) return "/supervisor/evaluations";
       return id
         ? `/employee/surveys?tab=acknowledgements&eval=${id}`
         : "/employee/surveys?tab=acknowledgements";
@@ -38,9 +45,16 @@ function resolveRoute(n: Notification): string | null {
     case "ONBOARDING_INVITE":
       return "/employee/onboarding";
     case "ONBOARDING_COMPLETE":
-      return hrDirectoryHref("onboarding");
-    case "ONBOARDING_STATUS":
-      return n.linkUrl?.startsWith("/hr/onboarding") ? n.linkUrl : hrDirectoryHref("onboarding");
+      return "/hr/directory";
+    case "ONBOARDING_STATUS": {
+      const url = n.linkUrl;
+      if (url?.startsWith("/hr/directory/onboarding")) return url;
+      // Rewrite links saved before onboarding moved under the People directory.
+      if (url?.startsWith("/hr/onboarding")) {
+        return url.replace("/hr/onboarding", "/hr/directory/onboarding");
+      }
+      return "/hr/directory";
+    }
     default:
       return n.linkUrl?.startsWith("/") ? n.linkUrl : null;
   }

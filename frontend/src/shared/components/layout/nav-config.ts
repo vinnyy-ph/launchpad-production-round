@@ -61,6 +61,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutAlt01, href: "/" },
       { id: "performance", label: "Performance", icon: BarChartSquare02, href: "/employee/surveys" },
+      { id: "teams", label: "Teams", icon: Users01, href: "/employee/teams" },
     ],
   },
   {
@@ -93,6 +94,7 @@ export const NAV_SECTIONS: NavSection[] = [
 export const SCREEN_HEADERS: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "Dashboard", subtitle: "Your day at a glance across {workspaceName}." },
   performance: { title: "Performance", subtitle: "Your performance evaluations and pulse surveys." },
+  teams: { title: "Teams", subtitle: "Teams you belong to at {workspaceName}." },
   overview: { title: "Team overview", subtitle: "How your direct reports are tracking." },
   roster: { title: "Roster", subtitle: "Everyone who reports to you." },
   evaluations: { title: "Evaluations", subtitle: "Write and track reviews for the people you manage." },
@@ -113,10 +115,17 @@ const EXTRA_CRUMBS: Record<string, string[]> = {
   "/employee/onboarding": ["My onboarding"],
   "/employee/clearance": ["My clearances"],
   "/offboarding": ["My offboarding"],
-  "/hr/onboarding": ["Organization", "Onboarding"],
-  "/hr/offboarding": ["Organization", "Offboarding"],
   "/supervisor/status": ["My Team", "Hierarchy status"],
 };
+
+/**
+ * Deep-linkable sub-tabs of the People directory. They have no sidebar item of their own,
+ * so `findNav` resolves their routes to "People"; the breadcrumb appends them explicitly.
+ */
+const DIRECTORY_SUBTABS: { prefix: string; label: string; href: string }[] = [
+  { prefix: "/hr/directory/onboarding", label: "Onboarding", href: "/hr/directory/onboarding" },
+  { prefix: "/hr/directory/offboarding", label: "Offboarding", href: "/hr/directory/offboarding" },
+];
 
 /** Does this user hold the given role lane? `employee` is the base every authed user has. */
 export function hasNavRole(user: AppUser | null | undefined, role: NavRole): boolean {
@@ -156,20 +165,47 @@ export function findNav(pathname: string): { section: NavSection; item: NavItem 
   return best ? { section: best.section, item: best.item } : null;
 }
 
+/** A single breadcrumb segment. `href` is set only when the crumb maps to a real page. */
+export interface BreadcrumbCrumb {
+  label: string;
+  href?: string;
+}
+
+/** Wraps an EXTRA_CRUMBS label list, linking only the leaf to its route. */
+function extraCrumbsToTrail(labels: string[], href: string): BreadcrumbCrumb[] {
+  return labels.map((label, index) =>
+    index === labels.length - 1 ? { label, href } : { label },
+  );
+}
+
 /**
  * Breadcrumb trail for a pathname: `[item]` for the General section, `[section, item]`
  * for other sidebar sections, then the non-sidebar `EXTRA_CRUMBS`. Empty when nothing matches.
+ * Section-title crumbs are not navigable (no `href`); page crumbs carry their route.
  */
-export function breadcrumbForPath(pathname: string): string[] {
+export function breadcrumbForPath(pathname: string): BreadcrumbCrumb[] {
   const match = findNav(pathname);
   if (match) {
-    return match.section.title === "General"
-      ? [match.item.label]
-      : [match.section.title, match.item.label];
+    const item: BreadcrumbCrumb = { label: match.item.label, href: match.item.href };
+    const base: BreadcrumbCrumb[] =
+      match.section.title === "General" ? [item] : [{ label: match.section.title }, item];
+    // The People directory's Onboarding/Offboarding sub-tabs are routes without a nav item,
+    // so add their crumb here (clickable back to the tab) when on one of those paths.
+    if (match.item.href === "/hr/directory") {
+      const sub = DIRECTORY_SUBTABS.find((s) => pathname.startsWith(s.prefix));
+      if (sub) base.push({ label: sub.label, href: sub.href });
+    }
+    return base;
   }
-  if (EXTRA_CRUMBS[pathname]) return EXTRA_CRUMBS[pathname];
+  // The shared non-HR survey-results route (/surveys/:id/results) has no sidebar item,
+  // so give it a clickable Performance parent; the page appends the survey name via
+  // usePageBreadcrumb. (The HR route /hr/surveys/:id/results resolves through findNav above.)
+  if (/^\/surveys\/[^/]+\/results$/.test(pathname)) {
+    return [{ label: "Performance", href: "/employee/surveys" }];
+  }
+  if (EXTRA_CRUMBS[pathname]) return extraCrumbsToTrail(EXTRA_CRUMBS[pathname], pathname);
   const key = Object.keys(EXTRA_CRUMBS)
     .sort((a, b) => b.length - a.length)
     .find((k) => pathname.startsWith(k));
-  return key ? EXTRA_CRUMBS[key] : [];
+  return key ? extraCrumbsToTrail(EXTRA_CRUMBS[key], key) : [];
 }

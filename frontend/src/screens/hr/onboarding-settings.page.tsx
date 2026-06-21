@@ -274,7 +274,7 @@ export default function OnboardingSettingsPage() {
     <div className="space-y-6">
       <nav className="text-xs text-[color:var(--text-tertiary)]" aria-label="Breadcrumb">
         <button
-          onClick={() => router.push(hrDirectoryHref("onboarding"))}
+          onClick={() => router.push("/hr/directory/onboarding")}
           className="transition-colors hover:text-[color:var(--text-primary)]"
         >
           Onboarding
@@ -288,7 +288,7 @@ export default function OnboardingSettingsPage() {
         title="Onboarding settings"
         subtitle="Manage required documents and custom fields for new hires."
         action={
-          <Button variant="outline" onClick={() => router.push(hrDirectoryHref("onboarding"))}>
+          <Button variant="outline" onClick={() => router.push("/hr/directory/onboarding")}>
             <ArrowLeft aria-hidden="true" />
             Back to onboarding
           </Button>

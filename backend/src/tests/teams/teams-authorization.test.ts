@@ -1,7 +1,17 @@
 import type { User } from "@prisma/client";
 import request from "supertest";
 import { app } from "../../app";
-import { buildTeamRecord, buildViewer, resetTeamMocks, teamFindManyMock, teamCountMock } from "./teams-test.helpers";
+import {
+  buildTeamRecord,
+  buildViewer,
+  mockedPrisma,
+  resetTeamMocks,
+  teamFindManyMock,
+  teamCountMock,
+} from "./teams-test.helpers";
+
+// Non-privileged listing resolves the caller's employee id, then scopes the query to their teams.
+const employeeFindFirstMock = mockedPrisma.employee.findFirst as unknown as jest.Mock;
 
 // A mutable caller injected by the auth mock; set per scenario. Unset => unauthenticated (401).
 let mockCurrentUser: User | undefined;
@@ -31,6 +41,7 @@ jest.mock("../../core/database/prisma.service", () => ({
     },
     employee: {
       count: jest.fn(),
+      findFirst: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -44,6 +55,7 @@ const FORBIDDEN_BODY = {
 describe("Team management authorization", () => {
   beforeEach(() => {
     resetTeamMocks();
+    employeeFindFirstMock.mockReset();
     mockCurrentUser = undefined;
   });
 
@@ -51,12 +63,36 @@ describe("Team management authorization", () => {
     await request(app).get("/api/v1/teams").expect(401);
   });
 
-  it("allows any authenticated user (EMPLOYEE) to list teams", async () => {
-    mockCurrentUser = buildViewer({ role: "EMPLOYEE" }) as User;
+  it("returns all teams to an HR caller (no membership scoping)", async () => {
+    mockCurrentUser = buildViewer({ role: "HR" }) as User;
     teamFindManyMock.mockResolvedValue([buildTeamRecord({ id: "team-platform", name: "Platform" })]);
     teamCountMock.mockResolvedValue(1);
 
     await request(app).get("/api/v1/teams").expect(200);
+
+    expect(employeeFindFirstMock).not.toHaveBeenCalled();
+    expect(teamFindManyMock).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+  });
+
+  it("scopes the team list to the caller's own teams for a non-HR/Admin user", async () => {
+    mockCurrentUser = buildViewer({ role: "EMPLOYEE" }) as User;
+    employeeFindFirstMock.mockResolvedValue({ id: "employee-member-1" });
+    teamFindManyMock.mockResolvedValue([buildTeamRecord({ id: "team-platform", name: "Platform" })]);
+    teamCountMock.mockResolvedValue(1);
+
+    await request(app).get("/api/v1/teams").expect(200);
+
+    // The list query is filtered to teams the caller leads or belongs to.
+    expect(teamFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            { leaderId: "employee-member-1" },
+            { members: { some: { employeeId: "employee-member-1" } } },
+          ],
+        },
+      }),
+    );
   });
 
   it("returns 403 for a non-HR/Admin caller creating a team", async () => {

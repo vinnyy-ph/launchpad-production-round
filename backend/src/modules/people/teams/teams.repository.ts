@@ -40,20 +40,37 @@ export class TeamsRepository {
   /**
    * Lists a page of teams with leader and member summaries plus the total count.
    */
-  async findMany(filters: ListTeamsQueryDto) {
+  async findMany(filters: ListTeamsQueryDto, memberId?: string | null) {
     const skip = (filters.page - 1) * filters.limit;
+
+    // When a memberId is supplied (non-privileged callers), scope to teams that person belongs to
+    // — as the leader or a member. Privileged callers pass no memberId and see every team.
+    const where: Prisma.TeamWhereInput = memberId
+      ? { OR: [{ leaderId: memberId }, { members: { some: { employeeId: memberId } } }] }
+      : {};
 
     const [teams, total] = await Promise.all([
       prisma.team.findMany({
+        where,
         skip,
         take: filters.limit,
         orderBy: { name: "asc" },
         include: teamInclude,
       }),
-      prisma.team.count(),
+      prisma.team.count({ where }),
     ]);
 
     return { teams, total };
+  }
+
+  /** Resolves the caller's employee id from their user id, for membership-scoped listing. */
+  async findEmployeeIdByUserId(userId: string): Promise<string | null> {
+    const employee = await prisma.employee.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+
+    return employee?.id ?? null;
   }
 
   /**

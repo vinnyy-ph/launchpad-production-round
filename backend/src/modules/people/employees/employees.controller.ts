@@ -64,6 +64,13 @@ export class EmployeesController {
         return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json(response);
       }
 
+      if (error instanceof Error && error.message === "Forbidden reporting scope") {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: "You do not have permission to view these reports",
+        });
+      }
+
       return next(error);
     }
   };
@@ -107,6 +114,13 @@ export class EmployeesController {
         };
 
         return res.status(HTTP_STATUS_CODES.NOT_FOUND).json(response);
+      }
+
+      if (error instanceof Error && error.message === "Profile not accessible") {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: "You do not have permission to view this profile",
+        });
       }
 
       return next(error);
@@ -157,6 +171,7 @@ export class EmployeesController {
           "Supervisor not found",
           "Circular supervisory relationship detected",
           "Another employee is already the root node",
+          "Supervisor must belong to the same department",
           "Invalid employee birthday",
           "Invalid employee profile update",
           "Invalid employee status",
@@ -192,7 +207,8 @@ export class EmployeesController {
       message === "Employee cannot supervise themselves" ||
       message === "Supervisor not found" ||
       message === "Circular supervisory relationship detected" ||
-      message === "Another employee is already the root node"
+      message === "Another employee is already the root node" ||
+      message === "Supervisor must belong to the same department"
     ) {
       return EMPLOYEE_QUERY_FIELDS.SUPERVISOR_ID;
     }

@@ -32,7 +32,12 @@ export function canViewSurveyResults(
     case "SUPERVISOR_BASED":
       return supervisorAudienceOverlap;
     case "TEAM_BASED":
-      return ctx.caller.teamIds.some((id) => survey.audienceConfigTeamIds.includes(id));
+      // Spec: "Everyone in the team can see survey results of the teams they belong to."
+      // Visibility is decoupled from the audience — any team member may view; the results
+      // service then scopes the response to the caller's own teams. (Keying off the
+      // audience teams instead would wrongly deny everyone on an EVERYONE/supervisor-based
+      // audience, where there are no audience teams to match.)
+      return ctx.caller.teamIds.length > 0;
     case "SPECIFIC_TEAMS":
       return ctx.caller.teamIds.some((id) => survey.visibilityConfigTeamIds.includes(id));
     case "HR_ROOT_ONLY":

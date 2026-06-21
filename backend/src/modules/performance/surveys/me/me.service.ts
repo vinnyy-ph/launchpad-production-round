@@ -1,9 +1,8 @@
 import { MeRepository } from "./me.repository";
-import type { AnsweredSurveyItem, PendingSurveyItem } from "./me.types";
+import type { AnsweredSurveyItem, MyAnswerItem, MyAnswersDetail, PendingSurveyItem } from "./me.types";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { advanceDueOccurrences } from "../occurrences/occurrence-scheduler";
 import { sweepPulseReminders } from "../reminders/reminders.service";
-import { sweepEvalAckReminders } from "../../evaluations/ack-reminders";
 
 export class MeService {
   constructor(private readonly repository = new MeRepository()) {}
@@ -15,10 +14,9 @@ export class MeService {
     await advanceDueOccurrences().catch(() => undefined);
 
     // Lazy reminder fan-out (PER-07): this employee-surface tick reminds every pulse
-    // non-responder and every reviewee with a still-pending evaluation, across the whole
-    // org. Both guarded so a sweep hiccup never blocks the read.
+    // non-responder across the whole org. Guarded so a sweep hiccup never blocks the read.
+    // (Evaluation-ack reminders run on their own Railway cron — `cron:eval-ack-reminder`.)
     await sweepPulseReminders().catch(() => undefined);
-    await sweepEvalAckReminders().catch(() => undefined);
 
     const employeeId = await this.repository.findEmployeeIdByUserId(userId);
     if (!employeeId) {
@@ -35,5 +33,56 @@ export class MeService {
     }
 
     return this.repository.findAnsweredSurveys(employeeId);
+  }
+
+  /** The employee's own answers for one completed occurrence (PER-23). */
+  async getMyAnswers(userId: string, occurrenceId: string): Promise<MyAnswersDetail> {
+    const employeeId = await this.repository.findEmployeeIdByUserId(userId);
+    if (!employeeId) {
+      throw new Error(SURVEY_ERROR_MESSAGES.CREATOR_NOT_EMPLOYEE);
+    }
+
+    const occurrence = await this.repository.findOccurrenceForMyAnswers(occurrenceId);
+    if (!occurrence) {
+      throw new Error(SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND);
+    }
+
+    // Proof the caller actually answered this occurrence. Tracked separately from the
+    // (possibly anonymized) response, so it holds for anonymous surveys too. Doubles as the
+    // ownership gate — identity comes from the session, never the request.
+    const completed = await this.repository.hasCompleted(occurrenceId, employeeId);
+    if (!completed) {
+      throw new Error(SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND);
+    }
+
+    const base = {
+      occurrenceId,
+      surveyId: occurrence.surveyId,
+      surveyName: occurrence.surveyName,
+      occurrenceNumber: occurrence.occurrenceNumber,
+    };
+
+    // Anonymity firewall: an anonymous response has no employee link, so the content is
+    // unrecoverable by design. Return the flag with no answers — never re-identify.
+    if (occurrence.isAnonymous) {
+      return { ...base, isAnonymous: true, answers: [] };
+    }
+
+    const rows = await this.repository.findMyAnswers(occurrenceId, employeeId);
+    const byQuestion = new Map(rows.map((r) => [r.questionId, r]));
+    const answers: MyAnswerItem[] = occurrence.questions.map((q) => ({
+      questionId: q.id,
+      questionText: q.questionText,
+      type: q.type,
+      options: q.options,
+      scaleMin: q.scaleMin,
+      scaleMax: q.scaleMax,
+      scaleMinLabel: q.scaleMinLabel,
+      scaleMaxLabel: q.scaleMaxLabel,
+      answerText: byQuestion.get(q.id)?.answerText ?? null,
+      answerData: byQuestion.get(q.id)?.answerData ?? null,
+    }));
+
+    return { ...base, isAnonymous: false, answers };
   }
 }

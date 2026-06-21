@@ -67,11 +67,11 @@ function iconForPath(pathname: string): LucideIcon | NavIcon {
   if (navMatch) return navMatch.item.icon;
 
   if (pathname.startsWith("/employee/profile")) return User;
-  if (pathname.startsWith("/employee/onboarding") || pathname.startsWith("/hr/onboarding")) {
+  if (pathname.startsWith("/employee/onboarding") || pathname.startsWith("/hr/directory/onboarding")) {
     return ClipboardList;
   }
   if (pathname.startsWith("/employee/clearance")) return ClipboardCheck;
-  if (pathname.startsWith("/offboarding") || pathname.startsWith("/hr/offboarding")) return LogOut;
+  if (pathname.startsWith("/offboarding") || pathname.startsWith("/hr/directory/offboarding")) return LogOut;
   if (pathname.startsWith("/supervisor/status")) return Network;
 
   return BriefcaseBusiness;
@@ -134,7 +134,10 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
   const extraCrumbs = useExtraBreadcrumbs();
-  const breadcrumb = [...breadcrumbForPath(pathname), ...extraCrumbs];
+  const breadcrumb = [
+    ...breadcrumbForPath(pathname),
+    ...extraCrumbs.map((label) => ({ label, href: undefined })),
+  ];
   const clock = useClock();
   const TopbarIcon = iconForPath(pathname);
   const { canGoBack, canGoForward } = useTopbarHistory(pathname);
@@ -211,27 +214,37 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
         {breadcrumb.length > 0 && (
           <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2">
-            {breadcrumb.map((crumb, i) => (
-              <span key={`${crumb}-${i}`} className="flex min-w-0 items-center gap-2">
-                {i > 0 && (
-                  <ChevronRight
-                    size={15}
-                    strokeWidth={1.8}
-                    className="flex-shrink-0 text-[color:var(--text-tertiary)]"
-                    aria-hidden="true"
-                  />
-                )}
-                <span
-                  className={
-                    i === breadcrumb.length - 1
-                      ? "min-w-0 truncate rounded-lg bg-[color:var(--bg-secondary)] px-3 py-2 text-[13px] font-semibold text-[color:var(--text-primary)]"
-                      : "hidden text-[14px] font-semibold text-[color:var(--text-tertiary)] sm:inline"
-                  }
-                >
-                  {crumb}
+            {breadcrumb.map((crumb, i) => {
+              const isLast = i === breadcrumb.length - 1;
+              const className = isLast
+                ? "min-w-0 truncate rounded-lg bg-[color:var(--bg-secondary)] px-3 py-2 text-[13px] font-semibold text-[color:var(--text-primary)]"
+                : "hidden text-[14px] font-semibold text-[color:var(--text-tertiary)] sm:inline";
+
+              return (
+                <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-2">
+                  {i > 0 && (
+                    <ChevronRight
+                      size={15}
+                      strokeWidth={1.8}
+                      className="flex-shrink-0 text-[color:var(--text-tertiary)]"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {crumb.href ? (
+                    <button
+                      type="button"
+                      onClick={() => router.push(crumb.href!)}
+                      aria-current={isLast ? "page" : undefined}
+                      className={`${className} cursor-pointer rounded-lg transition-colors hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                    >
+                      {crumb.label}
+                    </button>
+                  ) : (
+                    <span className={className}>{crumb.label}</span>
+                  )}
                 </span>
-              </span>
-            ))}
+              );
+            })}
           </nav>
         )}
       </div>

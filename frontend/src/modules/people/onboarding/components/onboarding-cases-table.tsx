@@ -151,7 +151,7 @@ export function OnboardingCasesTable() {
           isLoading={loading}
           error={error}
           onRetry={reload}
-          onRowClick={(row) => router.push(`/hr/onboarding/${row.employeeId}`)}
+          onRowClick={(row) => router.push(`/hr/directory/onboarding/${row.employeeId}`)}
           getRowId={(row) => row.employeeId}
           emptyState={
             <EmptyState

@@ -4,6 +4,8 @@ import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
 import { EvaluationsRepository } from "./evaluations.repository";
 import { NotificationsService } from "../../notifications/notifications.service";
+import { EmailService } from "../../../core/email";
+import { buildEvaluationNotificationEmailHtml } from "../../../core/email/templates/evaluation-notification.template";
 import { downwardChain, upwardChain, ACTIVE_EMPLOYEE } from "../../shared";
 import type {
   CreateEvaluationInput,
@@ -24,6 +26,7 @@ export class EvaluationsService {
   constructor(
     private readonly evaluationsRepository = new EvaluationsRepository(),
     private readonly notificationsService = new NotificationsService(),
+    private readonly emailService = new EmailService(),
   ) {}
 
   async list(query: ListEvaluationsQuery, currentUser: User): Promise<ListEvaluationsResponseDto> {
@@ -147,6 +150,7 @@ export class EvaluationsService {
         evaluation.revieweeId,
         evaluation.id,
       );
+      await this.sendEvaluationEmail(evaluation.revieweeId);
     }
 
     return {
@@ -225,6 +229,7 @@ export class EvaluationsService {
         updated.revieweeId,
         evaluationId,
       );
+      await this.sendEvaluationEmail(updated.revieweeId);
     }
 
     return {
@@ -273,12 +278,54 @@ export class EvaluationsService {
       evaluation.revieweeId,
       evaluationId,
     );
+    await this.sendEvaluationEmail(evaluation.revieweeId);
 
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.EVALUATION_SENT,
       data: this.toResponse({ ...updated, acknowledgement }),
     };
+  }
+
+  /**
+   * Emails the reviewee that a new performance evaluation is waiting for them, with a
+   * link to their Performance page. Mirrors `notifyNewEvaluation`: fire-and-forget, so
+   * sending the evaluation is never blocked by an email delivery failure.
+   */
+  private async sendEvaluationEmail(revieweeId: string): Promise<void> {
+    try {
+      const reviewee = await prisma.employee.findUnique({
+        where: { id: revieweeId },
+        select: { companyEmail: true, firstName: true, lastName: true },
+      });
+
+      if (!reviewee) {
+        return;
+      }
+
+      // Evaluations open in a modal rather than a dedicated page, and share a tab with
+      // surveys, so link to the same employee surveys page.
+      const evaluationUrl = `${this.resolveAppUrl()}/employee/surveys`;
+
+      await this.emailService.sendEmail({
+        to: reviewee.companyEmail,
+        subject: "New performance evaluation – please review and acknowledge",
+        html: buildEvaluationNotificationEmailHtml({
+          firstName: reviewee.firstName,
+          lastName: reviewee.lastName,
+          evaluationUrl,
+        }),
+      });
+    } catch {
+      // Fire-and-forget: sending the evaluation must succeed even if email delivery fails.
+    }
+  }
+
+  /** Returns the frontend base URL used in evaluation links. */
+  private resolveAppUrl(): string {
+    return (
+      process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:3000"
+    );
   }
 
   async acknowledge(evaluationId: string, userId: string) {
@@ -320,6 +367,30 @@ export class EvaluationsService {
         jobTitle: report.jobTitle,
       })),
     };
+  }
+
+  /**
+   * Scheduled counterpart to the on-read deemed-ack settlement: flips every sent evaluation
+   * past its ackDeadline (still unacknowledged, not yet deemed) to deemed-acknowledged and
+   * notifies each reviewer. Driven by the hourly cron service so status settles even when
+   * nobody reads the evaluation. Returns the number flipped. Idempotent — already-settled
+   * rows are excluded by the query.
+   */
+  async settleAllDeemedAck(now: Date = new Date()): Promise<number> {
+    const due = await this.evaluationsRepository.findDueDeemedAck(now);
+    if (due.length === 0) return 0;
+
+    await this.evaluationsRepository.markManyDeemedAcknowledged(due.map((d) => d.evaluationId));
+
+    for (const d of due) {
+      await this.notificationsService.notifyEvalDeemedAck(
+        d.evaluation.reviewerId,
+        d.evaluation.revieweeId,
+        d.evaluationId,
+      );
+    }
+
+    return due.length;
   }
 
   /**
