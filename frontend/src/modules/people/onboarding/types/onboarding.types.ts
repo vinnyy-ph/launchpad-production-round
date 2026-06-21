@@ -166,6 +166,7 @@ export interface OnboardingProfile {
   firstName: string;
   lastName: string;
   middleName: string | null;
+  companyEmail?: string | null;
   personalEmail: string | null;
   birthday: string | null;
   address: OnboardingAddress | null;

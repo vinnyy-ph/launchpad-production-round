@@ -45,26 +45,70 @@ import { PhoneInput } from "@/shared/ui";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const STEP_LABELS = ["Your details", "Quick questions", "Documents", "Overview"] as const;
+const STEP_LABELS = ["Your details", "Quick questions", "Documents", "Review"] as const;
 const CARD_SHADOW = "inset 0 0 2px 0 rgba(0,16,53,.16), 0 1px 2px 0 rgba(14,16,27,.05)";
+const DISABLED_FIELD_INPUT =
+  "bg-[#FAFAFA] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
+const DISABLED_FIELD_ICON =
+  "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]";
 
 type MarkerState = "done" | "current" | "upcoming";
+
+type ProfileDraft = {
+  firstName: string;
+  lastName: string;
+  personalEmail: string;
+  birthday?: Date;
+  address: string;
+  city: string;
+  province: string;
+  country: string;
+  emergencyContactName: string;
+  emergencyContact: string;
+};
 
 // ─── pure helpers ─────────────────────────────────────────────────────────────
 
 function profileComplete(p: OnboardingProfile): boolean {
   return (
     Boolean(p.firstName?.trim()) &&
-    Boolean(p.lastName?.trim()) &&
     Boolean(p.personalEmail?.trim()) &&
+    EMAIL_RE.test(p.personalEmail?.trim() ?? "") &&
+    Boolean(p.lastName?.trim()) &&
     Boolean(p.birthday) &&
     Boolean(p.address?.address?.trim()) &&
+    Boolean(p.address?.city?.trim()) &&
+    Boolean(p.address?.province?.trim()) &&
+    Boolean(p.address?.country?.trim()) &&
+    Boolean(p.emergencyContact?.emergencyContactName?.trim()) &&
     Boolean(p.emergencyContact?.emergencyContactNumber?.trim())
   );
 }
 
 function fieldsComplete(fields: OnboardingCustomFieldStatus[]): boolean {
-  return fields.length === 0 || fields.every((f) => (f.value ?? "").trim() !== "");
+  return fields.length === 0 || fields.every((f) => !f.isRequired || (f.value ?? "").trim() !== "");
+}
+
+function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
+  const next: Record<string, string> = {};
+  if (!draft.firstName.trim()) next.firstName = "First name is required.";
+  if (!draft.lastName.trim()) next.lastName = "Last name is required.";
+  if (!EMAIL_RE.test(draft.personalEmail.trim())) next.personalEmail = "Enter a valid personal email.";
+  if (!draft.birthday) next.birthday = "Birthday is required.";
+  else {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(draft.birthday);
+    selected.setHours(0, 0, 0, 0);
+    if (selected > today) next.birthday = "Birthday cannot be in the future.";
+  }
+  if (!draft.address.trim()) next.address = "Street address is required.";
+  if (!draft.city.trim()) next.city = "City is required.";
+  if (!draft.province.trim()) next.province = "Province is required.";
+  if (!draft.country.trim()) next.country = "Country is required.";
+  if (!draft.emergencyContactName.trim()) next.emergencyContactName = "Contact name is required.";
+  if (!draft.emergencyContact.trim()) next.emergencyContact = "Contact number is required.";
+  return next;
 }
 
 function fileNameFromUrl(url?: string | null): string | null {
@@ -100,21 +144,28 @@ function StepMarker({ n, state }: { n: number; state: MarkerState }) {
 
 function Stepper({
   markerState,
+  canGo,
   onGo,
 }: {
   markerState: (n: number) => MarkerState;
+  canGo: (n: number) => boolean;
   onGo: (n: number) => void;
 }) {
   return (
     <div className="mx-auto mb-10 flex max-w-[640px] flex-wrap items-center justify-center gap-x-3 gap-y-2">
       {STEP_LABELS.map((label, i) => {
         const n = i + 1;
+        const disabled = !canGo(n);
         return (
           <Fragment key={label}>
             <button
               type="button"
+              disabled={disabled}
               onClick={() => onGo(n)}
-              className="flex items-center gap-2.5 rounded-lg px-0.5 py-1"
+              className={cn(
+                "flex items-center gap-2.5 rounded-lg px-0.5 py-1 transition-opacity",
+                disabled && "cursor-not-allowed opacity-45",
+              )}
             >
               <StepMarker n={n} state={markerState(n)} />
               <span className="hidden whitespace-nowrap text-sm font-medium text-[color:var(--text-secondary)] min-[560px]:inline">
@@ -246,6 +297,8 @@ export default function EmployeeOnboardingPage() {
   const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+  const [touchedProfileFields, setTouchedProfileFields] = useState<Record<string, boolean>>({});
+  const [touchedCustomFields, setTouchedCustomFields] = useState<Record<string, boolean>>({});
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
   const [finishing, setFinishing] = useState(false);
 
@@ -289,27 +342,38 @@ export default function EmployeeOnboardingPage() {
     }
   }, [status]);
 
+  const profileDraft: ProfileDraft = {
+    firstName,
+    lastName,
+    personalEmail,
+    birthday,
+    address,
+    city,
+    province,
+    country,
+    emergencyContactName,
+    emergencyContact,
+  };
+  const currentProfileErrors = profileDraftErrors(profileDraft);
+  const profileCanContinue = Object.keys(currentProfileErrors).length === 0;
+  const touchedProfileErrors = Object.fromEntries(
+    Object.entries(currentProfileErrors).filter(([field]) => touchedProfileFields[field] || profileErrors[field]),
+  );
+  const visibleProfileErrors = { ...profileErrors, ...touchedProfileErrors };
+
+  function touchProfileField(field: string): void {
+    setTouchedProfileFields((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
+    setProfileErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function handleSaveProfile(): Promise<void> {
-    const next: Record<string, string> = {};
-    if (!firstName.trim()) next.firstName = "First name is required.";
-    if (!lastName.trim()) next.lastName = "Last name is required.";
-    if (!EMAIL_RE.test(personalEmail.trim())) next.personalEmail = "Enter a valid personal email.";
-    if (!birthday) next.birthday = "Birthday is required.";
-    else {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selected = new Date(birthday);
-      selected.setHours(0, 0, 0, 0);
-      if (selected > today) next.birthday = "Birthday cannot be in the future.";
-    }
-    if (!address.trim()) next.address = "Street address is required.";
-    if (!city.trim()) next.city = "City is required.";
-    if (!province.trim()) next.province = "Province is required.";
-    if (!country.trim()) next.country = "Country is required.";
-    if (!emergencyContactName.trim()) next.emergencyContactName = "Contact name is required.";
-    if (!emergencyContact.trim()) {
-      next.emergencyContact = "Contact number is required.";
-    } else if (!(await isValidPhilippinePhone(emergencyContact))) {
+    const next = profileDraftErrors(profileDraft);
+    if (Object.keys(next).length === 0 && !(await isValidPhilippinePhone(emergencyContact))) {
       next.emergencyContact = "Enter a valid Philippine mobile number.";
     }
     setProfileErrors(next);
@@ -363,16 +427,16 @@ export default function EmployeeOnboardingPage() {
   }
 
   function handleContinueFromFields(): void {
+    if (!fieldsCanContinue) {
+      toast.error("Please answer the required question(s).");
+      return;
+    }
     if (fields.length === 0) {
       setStep(3);
       return;
     }
     const filled = fields.filter((f) => (f.value ?? "").trim() !== "");
     if (filled.length === 0) {
-      if (fields.some((f) => f.isRequired)) {
-        toast.error("Please answer the required question(s).");
-        return;
-      }
       setStep(3);
       return;
     }
@@ -402,12 +466,13 @@ export default function EmployeeOnboardingPage() {
 
   async function handleSubmitForReview(): Promise<void> {
     if (!status) return;
-    if (!profileComplete(status.profile)) {
+    if (!profileCanContinue) {
+      setProfileErrors(currentProfileErrors);
       toast.error("Save your personal details before submitting.");
       setStep(1);
       return;
     }
-    if (!fieldsComplete(status.customFields ?? [])) {
+    if (!fieldsCanContinue) {
       toast.error("Answer the quick questions before submitting.");
       setStep(2);
       return;
@@ -432,7 +497,7 @@ export default function EmployeeOnboardingPage() {
   // ── non-wizard states ──
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-[720px]">
+      <div className="mx-auto w-full max-w-[960px]">
         <OnboardingSkeleton />
       </div>
     );
@@ -440,7 +505,7 @@ export default function EmployeeOnboardingPage() {
 
   if (error) {
     return (
-      <div className="mx-auto w-full max-w-[720px]">
+      <div className="mx-auto w-full max-w-[960px]">
         <div
           className="rounded-2xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: CARD_SHADOW }}
@@ -458,7 +523,7 @@ export default function EmployeeOnboardingPage() {
 
   if (status === null || status.isComplete) {
     return (
-      <div className="mx-auto w-full max-w-[720px]">
+      <div className="mx-auto w-full max-w-[960px]">
         <div
           className="rounded-2xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: CARD_SHADOW }}
@@ -481,9 +546,9 @@ export default function EmployeeOnboardingPage() {
   const { profile } = status;
   const documents = status.documents ?? [];
 
-  const personalDetailsDone = profileComplete(profile);
-  const savedFieldsDone = fieldsComplete(status.customFields ?? []);
-  const profileDone = personalDetailsDone && savedFieldsDone;
+  const personalDetailsDone = profileCanContinue;
+  const fieldsCanContinue = fieldsComplete(fields);
+  const profileDone = personalDetailsDone && fieldsCanContinue;
 
   const docStatus = (docId: string) =>
     documents.find((d) => d.id === docId)?.latestSubmission?.status ?? null;
@@ -518,13 +583,22 @@ export default function EmployeeOnboardingPage() {
 
   const markerState = (n: number): MarkerState => {
     const done =
-      n === 1 ? personalDetailsDone : n === 2 ? savedFieldsDone : n === 3 ? docsDone : submitted;
+      n === 1 ? personalDetailsDone : n === 2 ? fieldsCanContinue : n === 3 ? docsDone : submitted;
     if (done && step !== n) return "done";
     if (step === n) return "current";
     return "upcoming";
   };
 
+  const canGoStep = (n: number): boolean => {
+    if (n <= step) return true;
+    if (n >= 2 && !personalDetailsDone) return false;
+    if (n >= 3 && !fieldsCanContinue) return false;
+    if (n >= 4 && !docsDone) return false;
+    return true;
+  };
+
   const filledFields = fields.filter((f) => (f.value ?? "").trim() !== "").length;
+  const companyEmail = profile.companyEmail ?? appUser?.email ?? "";
   const detailsValue = [`${firstName} ${lastName}`.trim(), profile.jobTitle]
     .filter(Boolean)
     .join(" · ");
@@ -536,11 +610,13 @@ export default function EmployeeOnboardingPage() {
         : `${filledFields} of ${fields.length} answered`;
   const docsValue = `${docsUploaded} of ${documents.length} uploaded`;
 
-  const goStep = (n: number) => setStep(n);
+  const goStep = (n: number) => {
+    if (canGoStep(n)) setStep(n);
+  };
   const back = () => setStep((s) => Math.max(1, s - 1));
 
   return (
-    <div className="mx-auto w-full max-w-[720px]">
+    <div className="mx-auto w-full max-w-[960px]">
       {/* Welcome */}
       <div className="mb-8 flex flex-col items-center gap-1 text-center">
         <h1 className="text-2xl font-medium leading-8 text-[color:var(--text-primary)] [text-wrap:pretty]">
@@ -551,54 +627,86 @@ export default function EmployeeOnboardingPage() {
         </p>
       </div>
 
-      <Stepper markerState={markerState} onGo={goStep} />
+      <Stepper markerState={markerState} canGo={canGoStep} onGo={goStep} />
 
       {/* ── Step 1 — Your details ── */}
       {step === 1 && (
         <StepCard
           title="Confirm your details"
-          subtitle="HR filled these in. Check them and fix anything that's off."
+          subtitle="HR started this for you. Check what's here, fix anything that's wrong, and add the rest."
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="First name" required htmlFor="ob-first" error={profileErrors.firstName}>
-              <Input
-                id="ob-first"
-                value={firstName}
-                error={Boolean(profileErrors.firstName)}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-            </FormField>
-            <FormField label="Middle name" htmlFor="ob-middle">
-              <Input id="ob-middle" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
-            </FormField>
-            <FormField label="Last name" required htmlFor="ob-last" error={profileErrors.lastName}>
-              <Input
-                id="ob-last"
-                value={lastName}
-                error={Boolean(profileErrors.lastName)}
-                onChange={(e) => setLastName(e.target.value)}
-              />
-            </FormField>
-            <FormField
-              label="Personal email"
-              required
-              htmlFor="ob-personal-email"
-              error={profileErrors.personalEmail}
-            >
-              <Input
-                id="ob-personal-email"
-                type="email"
-                value={personalEmail}
-                error={Boolean(profileErrors.personalEmail)}
-                onChange={(e) => setPersonalEmail(e.target.value)}
-              />
-            </FormField>
-            <FormField label="Birthday" required htmlFor="ob-birthday" error={profileErrors.birthday}>
-              <DatePicker disableFuture value={birthday} onChange={setBirthday} className="w-full" />
-            </FormField>
-            <div className="hidden sm:block" aria-hidden="true" />
+          <div className="flex flex-col gap-9">
+            <div>
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                Personal
+              </h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:col-span-2 lg:grid-cols-3">
+                  <FormField label="First name" required htmlFor="ob-first" error={visibleProfileErrors.firstName}>
+                    <Input
+                      id="ob-first"
+                      value={firstName}
+                      error={Boolean(visibleProfileErrors.firstName)}
+                      onChange={(e) => {
+                        touchProfileField("firstName");
+                        setFirstName(e.target.value);
+                      }}
+                    />
+                  </FormField>
+                  <FormField label="Middle name" htmlFor="ob-middle">
+                    <Input id="ob-middle" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
+                  </FormField>
+                  <FormField label="Last name" required htmlFor="ob-last" error={visibleProfileErrors.lastName}>
+                    <Input
+                      id="ob-last"
+                      value={lastName}
+                      error={Boolean(visibleProfileErrors.lastName)}
+                      onChange={(e) => {
+                        touchProfileField("lastName");
+                        setLastName(e.target.value);
+                      }}
+                    />
+                  </FormField>
+                </div>
+                <FormField
+                  label="Birthday"
+                  required
+                  htmlFor="ob-birthday"
+                  error={visibleProfileErrors.birthday}
+                  className="sm:col-span-2"
+                >
+                  <DatePicker
+                    disableFuture
+                    value={birthday}
+                    onChange={(next) => {
+                      touchProfileField("birthday");
+                      setBirthday(next);
+                    }}
+                    className="w-full"
+                  />
+                </FormField>
+                <FormField
+                  label="Personal email"
+                  required
+                  htmlFor="ob-personal-email"
+                  error={visibleProfileErrors.personalEmail}
+                  className="sm:col-span-2"
+                >
+                  <Input
+                    id="ob-personal-email"
+                    type="email"
+                    value={personalEmail}
+                    error={Boolean(visibleProfileErrors.personalEmail)}
+                    onChange={(e) => {
+                      touchProfileField("personalEmail");
+                      setPersonalEmail(e.target.value);
+                    }}
+                  />
+                </FormField>
+              </div>
+            </div>
 
-            <div className="border-t border-[color:var(--border-primary)] pt-4 sm:col-span-2">
+            <div>
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
                 Address
               </h3>
@@ -607,14 +715,17 @@ export default function EmployeeOnboardingPage() {
                   label="Street address"
                   required
                   htmlFor="ob-address"
-                  error={profileErrors.address}
+                  error={visibleProfileErrors.address}
                   className="sm:col-span-3"
                 >
                   <Input
                     id="ob-address"
                     value={address}
-                    error={Boolean(profileErrors.address)}
-                    onChange={(e) => setAddress(e.target.value)}
+                    error={Boolean(visibleProfileErrors.address)}
+                    onChange={(e) => {
+                      touchProfileField("address");
+                      setAddress(e.target.value);
+                    }}
                     placeholder="House/unit no., street, barangay"
                   />
                 </FormField>
@@ -622,50 +733,62 @@ export default function EmployeeOnboardingPage() {
                   label="Country"
                   required
                   htmlFor="ob-country"
-                  error={profileErrors.country}
+                  error={visibleProfileErrors.country}
                 >
                   <Input
                     id="ob-country"
                     value={country}
-                    error={Boolean(profileErrors.country)}
-                    onChange={(e) => setCountry(e.target.value)}
+                    error={Boolean(visibleProfileErrors.country)}
+                    onChange={(e) => {
+                      touchProfileField("country");
+                      setCountry(e.target.value);
+                    }}
                   />
                 </FormField>
-                <FormField label="Province" required htmlFor="ob-province" error={profileErrors.province}>
+                <FormField label="Province" required htmlFor="ob-province" error={visibleProfileErrors.province}>
                   <Input
                     id="ob-province"
                     value={province}
-                    error={Boolean(profileErrors.province)}
-                    onChange={(e) => setProvince(e.target.value)}
+                    error={Boolean(visibleProfileErrors.province)}
+                    onChange={(e) => {
+                      touchProfileField("province");
+                      setProvince(e.target.value);
+                    }}
                   />
                 </FormField>
-                <FormField label="City" required htmlFor="ob-city" error={profileErrors.city}>
+                <FormField label="City" required htmlFor="ob-city" error={visibleProfileErrors.city}>
                   <Input
                     id="ob-city"
                     value={city}
-                    error={Boolean(profileErrors.city)}
-                    onChange={(e) => setCity(e.target.value)}
+                    error={Boolean(visibleProfileErrors.city)}
+                    onChange={(e) => {
+                      touchProfileField("city");
+                      setCity(e.target.value);
+                    }}
                   />
                 </FormField>
               </div>
             </div>
 
-            <div className="border-t border-[color:var(--border-primary)] pt-4 sm:col-span-2">
+            <div>
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-                Emergency contact
+                Emergency Contact
               </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   label="Contact name"
                   required
                   htmlFor="ob-emergency-name"
-                  error={profileErrors.emergencyContactName}
+                  error={visibleProfileErrors.emergencyContactName}
                 >
                   <Input
                     id="ob-emergency-name"
                     value={emergencyContactName}
-                    error={Boolean(profileErrors.emergencyContactName)}
-                    onChange={(e) => setEmergencyContactName(e.target.value)}
+                    error={Boolean(visibleProfileErrors.emergencyContactName)}
+                    onChange={(e) => {
+                      touchProfileField("emergencyContactName");
+                      setEmergencyContactName(e.target.value);
+                    }}
                     placeholder="e.g. Juan Santos"
                   />
                 </FormField>
@@ -673,25 +796,78 @@ export default function EmployeeOnboardingPage() {
                   label="Contact number"
                   required
                   htmlFor="ob-emergency"
-                  error={profileErrors.emergencyContact}
+                  error={visibleProfileErrors.emergencyContact}
                 >
                   <PhoneInput
                     id="ob-emergency"
                     value={emergencyContact}
-                    onChange={setEmergencyContact}
-                    error={Boolean(profileErrors.emergencyContact)}
+                    onChange={(next) => {
+                      touchProfileField("emergencyContact");
+                      setEmergencyContact(next);
+                    }}
+                    error={Boolean(visibleProfileErrors.emergencyContact)}
                   />
                 </FormField>
               </div>
             </div>
 
-            <div className="border-t border-[color:var(--border-primary)] pt-4 sm:col-span-2">
+            <div>
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                Employment
+              </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  label="Company email"
+                  htmlFor="ob-company-email"
+                  className="sm:col-span-2"
+                >
+                  <div className="relative">
+                    <Mail
+                      className={DISABLED_FIELD_ICON}
+                      strokeWidth={1.8}
+                      aria-hidden="true"
+                    />
+                    <Input
+                      id="ob-company-email"
+                      type="email"
+                      value={companyEmail}
+                      readOnly
+                      disabled
+                      className={DISABLED_FIELD_INPUT}
+                    />
+                  </div>
+                </FormField>
                 <FormField label="Job title" htmlFor="ob-job">
-                  <Input id="ob-job" value={profile.jobTitle ?? ""} readOnly disabled />
+                  <div className="relative">
+                    <Lock
+                      className={DISABLED_FIELD_ICON}
+                      strokeWidth={1.8}
+                      aria-hidden="true"
+                    />
+                    <Input
+                      id="ob-job"
+                      value={profile.jobTitle ?? ""}
+                      readOnly
+                      disabled
+                      className={DISABLED_FIELD_INPUT}
+                    />
+                  </div>
                 </FormField>
                 <FormField label="Department" htmlFor="ob-dept">
-                  <Input id="ob-dept" value={profile.department ?? ""} readOnly disabled />
+                  <div className="relative">
+                    <Lock
+                      className={DISABLED_FIELD_ICON}
+                      strokeWidth={1.8}
+                      aria-hidden="true"
+                    />
+                    <Input
+                      id="ob-dept"
+                      value={profile.department ?? ""}
+                      readOnly
+                      disabled
+                      className={DISABLED_FIELD_INPUT}
+                    />
+                  </div>
                 </FormField>
               </div>
               <p className="mt-2 text-sm text-[color:var(--text-tertiary)]">
@@ -701,11 +877,11 @@ export default function EmployeeOnboardingPage() {
           </div>
 
           <PrivacyNote>
-            Your personal details are private. Only you, HR, and admins can see them.
+            Your birthday, address, and emergency contact are private. Only you and HR can see them.
           </PrivacyNote>
 
           <div className="mt-7 flex justify-end">
-            <Button onClick={handleSaveProfile} disabled={updateProfile.isPending}>
+            <Button onClick={handleSaveProfile} disabled={updateProfile.isPending || !profileCanContinue}>
               {updateProfile.isPending ? "Saving…" : "Continue"}
             </Button>
           </div>
@@ -728,17 +904,26 @@ export default function EmployeeOnboardingPage() {
             <div className={fields.length === 1 ? "max-w-[340px]" : "grid grid-cols-1 gap-4 sm:grid-cols-2"}>
               {fields.map((field, idx) => {
                 const fieldId = `custom-field-${field.id}`;
+                const fieldError =
+                  touchedCustomFields[field.id] && field.isRequired && !(field.value ?? "").trim()
+                    ? "This question is required."
+                    : undefined;
                 return (
                   <FormField
                     key={field.id}
                     label={field.fieldLabel}
                     required={field.isRequired}
                     htmlFor={fieldId}
+                    error={fieldError}
                   >
                     <Input
                       id={fieldId}
                       value={field.value ?? ""}
+                      error={Boolean(fieldError)}
                       onChange={(e) => {
+                        setTouchedCustomFields((prev) =>
+                          prev[field.id] ? prev : { ...prev, [field.id]: true },
+                        );
                         const nextFields = [...fields];
                         nextFields[idx] = { ...nextFields[idx], value: e.target.value };
                         setFields(nextFields);
@@ -754,7 +939,7 @@ export default function EmployeeOnboardingPage() {
             <Button variant="secondary" onClick={back}>
               Back
             </Button>
-            <Button onClick={handleContinueFromFields} disabled={submitFields.isPending}>
+            <Button onClick={handleContinueFromFields} disabled={submitFields.isPending || !fieldsCanContinue}>
               {submitFields.isPending ? "Saving…" : "Continue"}
             </Button>
           </div>
@@ -799,14 +984,16 @@ export default function EmployeeOnboardingPage() {
             <Button variant="secondary" onClick={back}>
               Back
             </Button>
-            <Button onClick={() => setStep(4)}>Continue</Button>
+            <Button onClick={() => goStep(4)} disabled={!docsDone}>
+              Continue
+            </Button>
           </div>
         </StepCard>
       )}
 
-      {/* ── Step 4 — Overview ── */}
+      {/* ── Step 4 — Review ── */}
       {step === 4 && (
-        <StepCard title="Overview" subtitle="Here's everything before HR takes over.">
+        <StepCard title="Review" subtitle="Here's everything before HR takes over.">
           <div className="overflow-hidden rounded-xl border border-[color:var(--border-primary)]">
             <RecapRow
               icon={User}
