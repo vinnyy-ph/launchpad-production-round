@@ -6,7 +6,23 @@ import { ClipboardList, Mail, CheckCircle2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
-import { Button, Separator, Skeleton, Input, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, FormField } from "@/shared/ui";
+import {
+  Button,
+  Separator,
+  Skeleton,
+  Input,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  FormField,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui";
 import { EmptyState, ErrorState, StatusBadge, ConfirmProvider, useConfirm } from "@/shared/ui/patterns";
 import { DocumentReviewCard } from "@/modules/people/onboarding/components/documents/document-review-card";
 import { ApproveDocumentDialog } from "@/modules/people/onboarding/components/documents/approve-document-dialog";
@@ -262,6 +278,15 @@ function OnboardingDetailInner() {
       .every((doc) => submissionsByDoc.get(doc.id)?.status === "approved");
   const canEditInviteEmail =
     !isComplete && latestInvitation != null && invitationStatus !== "accepted";
+  const resendBlockedByAcceptance = invitationStatus === "accepted";
+  const resendDisabled = invite.isPending || resend.isPending || resendBlockedByAcceptance;
+
+  const resendInviteButton = (
+    <Button variant="outline" onClick={handleResendInvite} disabled={resendDisabled}>
+      <Mail aria-hidden="true" />
+      {invite.isPending || resend.isPending ? "Sending…" : "Resend invite"}
+    </Button>
+  );
 
   return (
     <div className="space-y-6">
@@ -273,31 +298,24 @@ function OnboardingDetailInner() {
           </div>
         </div>
 
-        <div className="flex flex-shrink-0 flex-col items-stretch gap-1.5 sm:items-end">
-          <div className="flex flex-wrap items-center gap-2">
-            {!isComplete && recordId && (
-              <Button
-                variant="outline"
-                onClick={handleResendInvite}
-                disabled={invite.isPending || resend.isPending}
-              >
-                <Mail aria-hidden="true" />
-                {invite.isPending || resend.isPending ? "Sending…" : "Resend invite"}
-              </Button>
-            )}
-            {!isComplete && (
-              <Button onClick={handleComplete} disabled={complete.isPending || !allRequiredDocsApproved}>
-                <CheckCircle2 aria-hidden="true" />
-                {complete.isPending ? "Completing…" : "Mark complete"}
-              </Button>
+        {!isComplete && recordId && (
+          <div className="flex flex-shrink-0 flex-col items-stretch sm:items-end">
+            {resendBlockedByAcceptance ? (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">{resendInviteButton}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end" className="max-w-[260px] text-center">
+                    You can&apos;t resend invite because the employee already accepted the invitation.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              resendInviteButton
             )}
           </div>
-          {!isComplete && !allRequiredDocsApproved && documentConfigs.some((d) => d.isRequired) && (
-            <p className="text-[11px] text-[color:var(--text-tertiary)] sm:text-right">
-              Approve all required documents first.
-            </p>
-          )}
-        </div>
+        )}
       </div>
 
       <section
@@ -476,6 +494,20 @@ function OnboardingDetailInner() {
           )}
         </div>
       </section>
+
+      {!isComplete && (
+        <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
+          <Button onClick={handleComplete} disabled={complete.isPending || !allRequiredDocsApproved}>
+            <CheckCircle2 aria-hidden="true" />
+            {complete.isPending ? "Completing…" : "Mark complete"}
+          </Button>
+          {!allRequiredDocsApproved && documentConfigs.some((d) => d.isRequired) && (
+            <p className="text-[11px] text-[color:var(--text-tertiary)] sm:text-right">
+              Approve all required documents first.
+            </p>
+          )}
+        </div>
+      )}
 
       <ApproveDocumentDialog
         open={approveTarget !== null}

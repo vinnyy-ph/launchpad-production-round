@@ -3,7 +3,6 @@ import type { AnsweredSurveyItem, MyAnswerItem, MyAnswersDetail, PendingSurveyIt
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { advanceDueOccurrences } from "../occurrences/occurrence-scheduler";
 import { sweepPulseReminders } from "../reminders/reminders.service";
-import { sweepEvalAckReminders } from "../../evaluations/ack-reminders";
 
 export class MeService {
   constructor(private readonly repository = new MeRepository()) {}
@@ -15,10 +14,9 @@ export class MeService {
     await advanceDueOccurrences().catch(() => undefined);
 
     // Lazy reminder fan-out (PER-07): this employee-surface tick reminds every pulse
-    // non-responder and every reviewee with a still-pending evaluation, across the whole
-    // org. Both guarded so a sweep hiccup never blocks the read.
+    // non-responder across the whole org. Guarded so a sweep hiccup never blocks the read.
+    // (Evaluation-ack reminders run on their own Railway cron — `cron:eval-ack-reminder`.)
     await sweepPulseReminders().catch(() => undefined);
-    await sweepEvalAckReminders().catch(() => undefined);
 
     const employeeId = await this.repository.findEmployeeIdByUserId(userId);
     if (!employeeId) {

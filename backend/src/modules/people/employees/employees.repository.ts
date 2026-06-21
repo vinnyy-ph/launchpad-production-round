@@ -1,5 +1,6 @@
 import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
+import { downwardChain } from "../../shared/org";
 import type {
   ListEmployeesQueryDto,
   UpdateEmployeeAddressRequestDto,
@@ -133,6 +134,14 @@ export class EmployeesRepository {
    */
   async findMany(filters: ListEmployeesQueryDto) {
     const where = this.buildWhere(filters);
+
+    if (filters.reportingToId) {
+      // Scope to the supervisor's whole downward hierarchy (direct reports + everyone below).
+      // An empty result (no reports) yields `{ in: [] }`, which correctly matches nothing.
+      const descendantIds = await downwardChain(filters.reportingToId);
+      where.id = { in: descendantIds };
+    }
+
     const skip = (filters.page - 1) * filters.limit;
     const orderBy = this.buildOrderBy(filters);
 
@@ -205,6 +214,37 @@ export class EmployeesRepository {
       },
       include: employeeProfileInclude,
     });
+  }
+
+  /**
+   * Resolves the caller's own employee identity (id + direct supervisor) from their user id.
+   * Used by profile-visibility checks to compare the viewer against the requested profile.
+   */
+  async findIdentityByUserId(
+    userId: string,
+  ): Promise<{ id: string; supervisorId: string | null } | null> {
+    return prisma.employee.findFirst({
+      where: { userId },
+      select: { id: true, supervisorId: true },
+    });
+  }
+
+  /**
+   * Returns true when the two employees belong to at least one team together — as a leader or a
+   * member on either side. Used to authorize teammate profile access.
+   */
+  async shareTeam(employeeAId: string, employeeBId: string): Promise<boolean> {
+    const team = await prisma.team.findFirst({
+      where: {
+        AND: [
+          { OR: [{ leaderId: employeeAId }, { members: { some: { employeeId: employeeAId } } }] },
+          { OR: [{ leaderId: employeeBId }, { members: { some: { employeeId: employeeBId } } }] },
+        ],
+      },
+      select: { id: true },
+    });
+
+    return team !== null;
   }
 
   /**

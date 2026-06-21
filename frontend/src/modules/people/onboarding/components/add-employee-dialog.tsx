@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -15,13 +15,14 @@ import {
   DialogTitle,
   FormField,
   Input,
+  PhoneInput,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
 } from "@/shared/ui";
+import { isValidPhilippinePhone } from "@/shared/lib/phone";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useOnboardEmployee } from "../hooks/use-onboard-employee";
@@ -46,6 +47,45 @@ interface FieldErrors {
   supervisorId?: string;
   personalEmail?: string;
   birthday?: string;
+  emergencyContact?: string;
+}
+
+interface FormSnapshot {
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  companyEmail: string;
+  jobTitle: string;
+  department: string;
+  supervisorId: string;
+  personalEmail: string;
+  birthday: Date | undefined;
+  address: string;
+  city: string;
+  province: string;
+  country: string;
+  emergencyContactName: string;
+  emergencyContact: string;
+}
+
+function hasFormData(form: FormSnapshot): boolean {
+  return Boolean(
+    form.firstName.trim() ||
+      form.middleName.trim() ||
+      form.lastName.trim() ||
+      form.companyEmail.trim() ||
+      form.jobTitle.trim() ||
+      form.department ||
+      form.supervisorId ||
+      form.personalEmail.trim() ||
+      form.birthday ||
+      form.address.trim() ||
+      form.city.trim() ||
+      form.province.trim() ||
+      form.country.trim() ||
+      form.emergencyContactName.trim() ||
+      form.emergencyContact.trim(),
+  );
 }
 
 /**
@@ -69,9 +109,33 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   const [personalEmail, setPersonalEmail] = useState("");
   const [birthday, setBirthday] = useState<Date | undefined>();
   const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("");
+  const [country, setCountry] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSending, setIsSending] = useState(false);
+  const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
+  const unsavedToastIdRef = useRef<string | number | null>(null);
+
+  const hasUnsavedChanges = hasFormData({
+    firstName,
+    middleName,
+    lastName,
+    companyEmail,
+    jobTitle,
+    department,
+    supervisorId,
+    personalEmail,
+    birthday,
+    address,
+    city,
+    province,
+    country,
+    emergencyContactName,
+    emergencyContact,
+  });
 
   const supervisorOptions = activeEmployees.map((employee) => ({
     value: employee.id,
@@ -94,12 +158,46 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     setPersonalEmail("");
     setBirthday(undefined);
     setAddress("");
+    setCity("");
+    setProvince("");
+    setCountry("");
+    setEmergencyContactName("");
     setEmergencyContact("");
     setErrors({});
   }
 
+  function alertUnsavedChanges() {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(90);
+    }
+
+    if (unsavedToastIdRef.current) {
+      toast.dismiss(unsavedToastIdRef.current);
+    }
+
+    const toastId = `add-employee-unsaved-changes-${Date.now()}`;
+    unsavedToastIdRef.current = toastId;
+    window.requestAnimationFrame(() => {
+      toast.error("There are unsaved changes. Send the invite or discard them before closing.", {
+        id: toastId,
+        position: "top-center",
+        classNames: {
+          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
+          title: "!text-[#7A271A]",
+        },
+      });
+    });
+
+    setShakeUnsavedAlert(false);
+    window.requestAnimationFrame(() => setShakeUnsavedAlert(true));
+  }
+
   function handleOpenChange(next: boolean) {
     if (isSending) return;
+    if (!next && hasUnsavedChanges) {
+      alertUnsavedChanges();
+      return;
+    }
     if (!next) reset();
     onOpenChange(next);
   }
@@ -127,15 +225,24 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     return next;
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const next = validate();
+    const trimmedEmergencyPhone = emergencyContact.trim();
+    if (trimmedEmergencyPhone) {
+      if (!(await isValidPhilippinePhone(trimmedEmergencyPhone))) {
+        next.emergencyContact = "Enter a valid Philippine mobile number.";
+      }
+    }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
     const trimmedMiddle = middleName.trim();
     const trimmedPersonal = personalEmail.trim();
     const trimmedAddress = address.trim();
-    const trimmedEmergency = emergencyContact.trim();
+    const trimmedCity = city.trim();
+    const trimmedProvince = province.trim();
+    const trimmedCountry = country.trim();
+    const trimmedEmergencyName = emergencyContactName.trim();
 
     setIsSending(true);
     onboard.mutate(
@@ -150,7 +257,11 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
         ...(trimmedPersonal ? { personalEmail: trimmedPersonal } : {}),
         ...(birthday ? { birthday: birthday.toISOString().slice(0, 10) } : {}),
         ...(trimmedAddress ? { address: trimmedAddress } : {}),
-        ...(trimmedEmergency ? { emergencyContact: trimmedEmergency } : {}),
+        ...(trimmedCity ? { city: trimmedCity } : {}),
+        ...(trimmedProvince ? { province: trimmedProvince } : {}),
+        ...(trimmedCountry ? { country: trimmedCountry } : {}),
+        ...(trimmedEmergencyName ? { emergencyContactName: trimmedEmergencyName } : {}),
+        ...(trimmedEmergencyPhone ? { emergencyContact: trimmedEmergencyPhone } : {}),
       },
       {
         onSuccess: async (result) => {
@@ -178,7 +289,11 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent
+        className={`max-h-[90vh] overflow-y-auto sm:max-w-xl ${
+          shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
+        }`}
+      >
         <DialogHeader>
           <DialogTitle>Add employee</DialogTitle>
           <DialogDescription>
@@ -296,27 +411,75 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
             >
               <DatePicker value={birthday} onChange={setBirthday} disableFuture />
             </FormField>
-            <FormField label="Address" htmlFor="add-address">
-              <Textarea
-                id="add-address"
-                value={address}
-                onChange={(event) => setAddress(event.target.value)}
-                placeholder="Street, city, province"
-                rows={2}
-              />
-            </FormField>
-            <FormField
-              label="Emergency contact"
-              htmlFor="add-emergency"
-              hint="e.g. Maria Santos · 0917 123 4567"
-            >
-              <Input
-                id="add-emergency"
-                value={emergencyContact}
-                onChange={(event) => setEmergencyContact(event.target.value)}
-                placeholder="Name · 09XXXXXXXXX"
-              />
-            </FormField>
+
+            <div className="space-y-4 border-t border-[color:var(--border-primary)] pt-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                Address
+              </h4>
+              <FormField label="Street address" htmlFor="add-address">
+                <Input
+                  id="add-address"
+                  value={address}
+                  onChange={(event) => setAddress(event.target.value)}
+                  placeholder="House/unit no., street, barangay"
+                />
+              </FormField>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <FormField label="Country" htmlFor="add-country">
+                  <Input
+                    id="add-country"
+                    value={country}
+                    onChange={(event) => setCountry(event.target.value)}
+                    placeholder="e.g. Philippines"
+                  />
+                </FormField>
+                <FormField label="Province" htmlFor="add-province">
+                  <Input
+                    id="add-province"
+                    value={province}
+                    onChange={(event) => setProvince(event.target.value)}
+                    placeholder="e.g. Metro Manila"
+                  />
+                </FormField>
+                <FormField label="City" htmlFor="add-city">
+                  <Input
+                    id="add-city"
+                    value={city}
+                    onChange={(event) => setCity(event.target.value)}
+                    placeholder="e.g. Quezon City"
+                  />
+                </FormField>
+              </div>
+            </div>
+
+            <div className="space-y-4 border-t border-[color:var(--border-primary)] pt-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+                Emergency contact
+              </h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField label="Contact name" htmlFor="add-emergency-name">
+                  <Input
+                    id="add-emergency-name"
+                    value={emergencyContactName}
+                    onChange={(event) => setEmergencyContactName(event.target.value)}
+                    placeholder="e.g. Juan Santos"
+                  />
+                </FormField>
+                <FormField
+                  label="Contact number"
+                  htmlFor="add-emergency"
+                  error={errors.emergencyContact}
+                >
+                  <PhoneInput
+                    id="add-emergency"
+                    value={emergencyContact}
+                    onChange={setEmergencyContact}
+                    error={Boolean(errors.emergencyContact)}
+                    placeholder="Enter phone number"
+                  />
+                </FormField>
+              </div>
+            </div>
           </section>
 
           <p className="rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3 py-2 text-xs text-[color:var(--text-secondary)]">
@@ -326,9 +489,15 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
+          {hasUnsavedChanges ? (
+            <Button type="button" variant="secondary" disabled={isSending} onClick={reset}>
+              Discard
+            </Button>
+          ) : (
+            <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)}>
+              Cancel
+            </Button>
+          )}
           <Button onClick={handleSubmit} disabled={isSending}>
             <Send aria-hidden="true" />
             {isSending ? "Sending…" : "Send invite"}

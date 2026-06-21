@@ -1,6 +1,8 @@
 import type { Notification, User } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../core/globals";
 import { InAppChannel } from "./channels/in-app.channel";
+import { EmailService } from "../../core/email/email.service";
+import { buildEvaluationReminderEmailHtml } from "../../core/email/templates/evaluation-reminder.template";
 import type {
   ListNotificationsQueryDto,
   ListNotificationsResponseDto,
@@ -18,7 +20,15 @@ export class NotificationsService {
   constructor(
     private readonly notificationsRepository = new NotificationsRepository(),
     private readonly inAppChannel = new InAppChannel(),
+    private readonly emailService = new EmailService(),
   ) {}
+
+  /** First configured app origin, used to build deep links in emails. */
+  private resolveAppUrl(): string {
+    return (
+      process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:3000"
+    );
+  }
 
   /**
    * Notifies all HR users when an employee submits onboarding for document review.
@@ -392,6 +402,62 @@ export class NotificationsService {
   }
 
   /**
+   * Notifies both parties that an evaluation was auto-acknowledged because its
+   * acknowledgement deadline passed without the reviewee acting (deemed-ack): the reviewee
+   * (who missed the deadline) and the reviewer (FYI on the exception). In-app and
+   * fire-and-forget per recipient, so the settlement sweep is never blocked by a delivery
+   * failure. The two recipients land on different pages, disambiguated by linkUrl prefix
+   * (the type is shared), so the reviewer link points at the supervisor list.
+   */
+  async notifyEvalDeemedAck(
+    reviewerId: string,
+    revieweeId: string,
+    evaluationId: string,
+  ): Promise<void> {
+    await this.deliverDeemedAck(reviewerId, evaluationId, {
+      body: "An evaluation you sent was automatically marked acknowledged after its deadline passed.",
+      linkUrl: "/supervisor/evaluations",
+    });
+    await this.deliverDeemedAck(revieweeId, evaluationId, {
+      body: "Your performance evaluation was automatically acknowledged because the deadline passed without your acknowledgement.",
+      linkUrl: `/evaluations/${evaluationId}`,
+    });
+  }
+
+  /** Delivers one in-app deemed-ack notification; swallows failures (fire-and-forget). */
+  private async deliverDeemedAck(
+    recipientId: string,
+    evaluationId: string,
+    copy: { body: string; linkUrl: string },
+  ): Promise<void> {
+    try {
+      const recipient =
+        await this.notificationsRepository.findEmployeeWithUserById(recipientId);
+
+      if (!recipient) {
+        return;
+      }
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: recipient.id,
+        type: "EVAL_DEEMED_ACK",
+        subject: "Evaluation auto-acknowledged",
+        body: copy.body,
+        linkUrl: copy.linkUrl,
+        sourceType: "PerformanceEvaluation",
+        sourceId: evaluationId,
+      });
+
+      this.inAppChannel.deliver(
+        recipient.userId,
+        this.toNotificationDto(notification),
+      );
+    } catch {
+      // Fire-and-forget: the deemed-ack settlement must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
    * Notifies every resolved audience member that a new pulse survey is open.
    * Deep-links to the survey.
    * Failures are swallowed so activating the survey is never blocked.
@@ -533,6 +599,18 @@ export class NotificationsService {
         recipient.userId,
         this.toNotificationDto(notification),
       );
+
+      // Email travels on the same throttle as the in-app reminder: only sent when one is
+      // actually created above. Fire-and-forget — delivery failure must not break the sweep.
+      await this.emailService.sendEmail({
+        to: recipient.companyEmail,
+        subject: "Reminder: acknowledge your evaluation",
+        html: buildEvaluationReminderEmailHtml({
+          firstName: recipient.firstName,
+          lastName: recipient.lastName,
+          evaluationUrl: `${this.resolveAppUrl()}/employee/surveys`,
+        }),
+      });
     } catch {
       // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
     }

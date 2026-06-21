@@ -64,6 +64,13 @@ export class EmployeesController {
         return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json(response);
       }
 
+      if (error instanceof Error && error.message === "Forbidden reporting scope") {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: "You do not have permission to view these reports",
+        });
+      }
+
       return next(error);
     }
   };
@@ -107,6 +114,13 @@ export class EmployeesController {
         };
 
         return res.status(HTTP_STATUS_CODES.NOT_FOUND).json(response);
+      }
+
+      if (error instanceof Error && error.message === "Profile not accessible") {
+        return res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: "You do not have permission to view this profile",
+        });
       }
 
       return next(error);

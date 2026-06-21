@@ -27,6 +27,12 @@ export interface ListEmployeesQueryDto {
   departmentIds?: string[];
   /** One or more supervisor ids; results match any of them. Parsed from a comma-separated param. */
   supervisorIds?: string[];
+  /**
+   * Scopes results to this supervisor's entire downward hierarchy — their direct reports and
+   * everyone below them, transitively. Unlike `supervisorIds` (a direct-report match), this
+   * walks the supervisor tree.
+   */
+  reportingToId?: string;
   sortBy?: EmployeeSortBy;
   sortDirection?: SortDirection;
   page: number;

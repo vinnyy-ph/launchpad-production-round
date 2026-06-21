@@ -1,22 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Users, Filter, ArrowUpDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Users, Filter, ArrowUpDown, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import type {
   EmployeeListItem,
   EmployeeStatus,
 } from "@/modules/people/employees/types/employees.types";
+import {
+  buildReportingChart,
+  allReportingIds,
+  type OrgChartItem,
+} from "@/modules/people/employees/components/org-chart/org-chart";
+import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import {
   DataTable,
   type Column,
   type DataTableSort,
   EmptyState,
+  ErrorState,
+  PageTabs,
   StatusBadge,
   FilterBar,
-  TablePagination,
 } from "@/shared/ui/patterns";
 import {
   Button,
@@ -31,6 +38,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
+  Skeleton,
 } from "@/shared/ui";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -62,19 +70,77 @@ export default function RosterPage() {
   const employeeId = appUser?.employeeId || undefined;
 
   // Supervisors are EMPLOYEE-role callers, so the API returns the REDACTED list (no PII).
-  // The server-side `supervisorId` filter scopes it to this supervisor's direct reports.
+  // The server-side `reportingToId` filter scopes it to this supervisor's whole downward
+  // hierarchy: direct reports AND everyone below them.
   const { employees, loading, error, reload } = useEmployees({
-    supervisorIds: employeeId ? [employeeId] : undefined,
+    reportingToId: employeeId,
     page: 1,
     limit: 100,
   });
   const reports = useMemo(() => (employeeId ? employees : []), [employeeId, employees]);
 
+  const [activeTab, setActiveTab] = useState("list");
   const [selected, setSelected] = useState<EmployeeListItem | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | "ALL">("ALL");
   const [sort, setSort] = useState<DataTableSort>({ key: "name", direction: "asc" });
   const [page, setPage] = useState(1);
+
+  // The logged-in supervisor sits at the top of their own chart. Their card is assembled from
+  // the auth session plus the supervisor reference carried on any direct report (for name/title),
+  // avoiding an extra request for the viewer's own record.
+  const selfEmployee = useMemo<EmployeeListItem | null>(() => {
+    if (!employeeId) return null;
+    const ref = reports.find((r) => r.supervisor?.id === employeeId)?.supervisor ?? null;
+    return {
+      id: employeeId,
+      userId: appUser?.userId ?? "",
+      firstName: ref?.firstName ?? "",
+      middleName: null,
+      lastName: ref?.lastName ?? "",
+      fullName: ref?.fullName || appUser?.displayName || appUser?.email || "You",
+      companyEmail: ref?.companyEmail ?? appUser?.email ?? "",
+      jobTitle: ref?.jobTitle ?? null,
+      department: null,
+      address: null,
+      emergencyContact: null,
+      teams: [],
+      supervisor: null,
+      status: (appUser?.employeeStatus?.toLowerCase() as EmployeeStatus) ?? "active",
+    };
+  }, [employeeId, reports, appUser]);
+
+  // Top-down org chart rooted at the supervisor, with their direct reports and everyone below
+  // nested beneath them.
+  const orgChartNodes = useMemo<OrgChartItem[]>(() => {
+    const reportNodes = buildReportingChart(reports);
+    if (!selfEmployee) return reportNodes;
+    return [{ kind: "person", id: selfEmployee.id, employee: selfEmployee, children: reportNodes }];
+  }, [reports, selfEmployee]);
+
+  // Org chart expand/collapse state — defaults to fully expanded once the reports load so the
+  // whole hierarchy is visible. The supervisor's own node is included so it starts open.
+  const orgChartIds = useMemo(
+    () => (employeeId ? [employeeId, ...allReportingIds(reports)] : allReportingIds(reports)),
+    [employeeId, reports],
+  );
+  const [orgExpanded, setOrgExpanded] = useState<Set<string>>(new Set());
+  const orgInitialized = useRef(false);
+  useEffect(() => {
+    if (!orgInitialized.current && orgChartIds.length > 0) {
+      setOrgExpanded(new Set(orgChartIds));
+      orgInitialized.current = true;
+    }
+  }, [orgChartIds]);
+
+  function toggleOrgNode(id: string) {
+    setOrgExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   // Status filter + search, then sort — all client-side over the direct-report list.
   const filtered = useMemo(() => {
@@ -172,7 +238,19 @@ export default function RosterPage() {
     <div className="min-w-0">
       <ScreenHeader id="roster" level="page" />
 
-      <FilterBar aria-label="Filter roster" className="gap-3">
+      <PageTabs
+        ariaLabel="Roster views"
+        value={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { value: "list", label: "List" },
+          { value: "org-chart", label: "Org Chart" },
+        ]}
+      />
+
+      {activeTab === "list" ? (
+        <>
+          <FilterBar aria-label="Filter roster" className="gap-3">
         <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Input
             type="text"
@@ -250,6 +328,7 @@ export default function RosterPage() {
           onRowClick={(row) => setSelected(row)}
           sort={sort}
           onSortChange={setSort}
+          pagination={{ page, totalPages, onPageChange: setPage }}
           emptyState={
             <EmptyState
               icon={Users}
@@ -262,10 +341,63 @@ export default function RosterPage() {
             />
           }
         />
-        {totalPages > 1 && (
-          <TablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
-        )}
-      </div>
+          </div>
+        </>
+      ) : (
+        <div
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4 sm:p-6"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          {loading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-16 rounded-xl" />
+              <Skeleton className="ml-6 h-16 rounded-xl" />
+              <Skeleton className="ml-6 h-16 rounded-xl" />
+            </div>
+          ) : error ? (
+            <ErrorState message={error} onRetry={() => void reload()} />
+          ) : reports.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No direct reports"
+              body="Employees assigned to you will appear here"
+            />
+          ) : (
+            <>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOrgExpanded(new Set(orgChartIds))}
+                >
+                  <ChevronsUpDown aria-hidden="true" />
+                  Expand all
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setOrgExpanded(new Set())}>
+                  <ChevronsDownUp aria-hidden="true" />
+                  Collapse all
+                </Button>
+              </div>
+              <div className="overflow-x-auto">
+                <div className="mx-auto w-max">
+                  <OrgChartTree
+                    nodes={orgChartNodes}
+                    expanded={orgExpanded}
+                    onToggle={toggleOrgNode}
+                    onOpenProfile={(id) => {
+                      const employee =
+                        id === selfEmployee?.id
+                          ? selfEmployee
+                          : reports.find((r) => r.id === id);
+                      if (employee) setSelected(employee);
+                    }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Employee detail sheet (redacted-safe fields only) */}
       <Sheet open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>

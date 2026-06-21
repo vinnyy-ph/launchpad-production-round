@@ -308,3 +308,15 @@
   15%, 45%, 75% { transform: translateX(-6px); }
   30%, 60%, 90% { transform: translateX(6px); }
 }
+
+/* Phone input — country trigger + number field share one control surface */
+@layer components {
+  .phone-input {
+    width: 100%;
+  }
+
+  .phone-input .PhoneInputInput {
+    flex: 1;
+    min-width: 0;
+  }
+}

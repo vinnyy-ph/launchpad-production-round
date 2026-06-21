@@ -99,6 +99,7 @@ enum NotificationType {
   PULSE_REMINDER
   NEW_EVALUATION
   EVAL_ACK_REMINDER
+  EVAL_DEEMED_ACK
 }
 
 // Delivery channel — how it is sent. Was previously (incorrectly) the NotificationType.
