@@ -46,6 +46,10 @@ async function main() {
     if (u.employee.departmentId !== exec?.id) errors.push(`${email} not in Executive Leadership`)
   }
 
+  const sentCount = await prisma.performanceEvaluation.count({ where: { isSent: true } })
+  const ackCount = await prisma.evaluationAcknowledgement.count()
+  if (ackCount !== sentCount) errors.push(`sent evaluations without acknowledgement: ${sentCount - ackCount}`)
+
   if (errors.length) { console.error('SEED CHECK FAILED:\n' + errors.join('\n')); process.exit(1) }
   console.log('SEED CHECK PASSED ✔')
 }

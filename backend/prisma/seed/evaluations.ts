@@ -29,11 +29,12 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
       },
     })
     if (state === 'pending') {
+      await prisma.evaluationAcknowledgement.create({ data: { evaluationId: evalRow.id, employeeId: reviewee.id, isDeemedAck: false, acknowledgedAt: null } })
       pendingAck.push({ evaluationId: evalRow.id, revieweeId: reviewee.id })
     } else if (state === 'acknowledged') {
       await prisma.evaluationAcknowledgement.create({ data: { evaluationId: evalRow.id, employeeId: reviewee.id, isDeemedAck: false, acknowledgedAt: new Date(sentAt.getTime() + 2 * 86400000) } })
     } else if (state === 'deemed') {
-      await prisma.evaluationAcknowledgement.create({ data: { evaluationId: evalRow.id, employeeId: reviewee.id, isDeemedAck: true, acknowledgedAt: ackDeadlineFrom(sentAt) } })
+      await prisma.evaluationAcknowledgement.create({ data: { evaluationId: evalRow.id, employeeId: reviewee.id, isDeemedAck: true, acknowledgedAt: null } })
     }
   }
 
@@ -57,7 +58,9 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
   const owners: Array<[Employee, string, State]> = [
     [users.cto, 'Frontend', 'pending'],
     [users.cpo, 'Product Management', 'acknowledged'],
+    [users.cpo, 'UX Design', 'acknowledged'],
     [users.coo, 'Technical Support', 'draft'],
+    [users.coo, 'Business Operations', 'acknowledged'],
     [users.chro, 'Recruitment', 'acknowledged'],
     [users.cfo, 'Accounting', 'deemed'],
     [users.cgo, 'Sales', 'pending'],
@@ -76,7 +79,7 @@ export async function seedEvaluations(prisma: PrismaClient, users: SeededUsers):
   // Light scatter
   for (const dept of ['Backend', 'Technical Support', 'Marketing']) {
     const lead = users.deptLead[dept]
-    const ic = users.byDept[dept]?.[1]
+    const ic = (users.byDept[dept] ?? []).slice(1).find((e) => e.status === 'ACTIVE')
     if (lead && ic) {
       await evaluate(lead, ic, 'acknowledged', 3, new Date('2026-06-03'), {
         highlights: ['Met sprint commitments', 'Reliable contributor'],
