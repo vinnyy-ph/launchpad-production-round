@@ -40,7 +40,7 @@ export function DraftSaveStatus({ status, lastSavedAt, canPersist, onRetry }: Dr
     return () => clearInterval(t);
   }, [status, lastSavedAt]);
 
-  const base = "flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--text-tertiary)]";
+  const base = "flex items-center gap-1.5 text-sm font-medium text-[color:var(--text-tertiary)]";
 
   if (status === "saving") {
     return (

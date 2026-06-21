@@ -57,6 +57,8 @@ export interface AutosaveApi {
   discardRecovery: () => void;
   /** Cancel a pending debounced save (manual action is taking over). */
   cancel: () => void;
+  /** Persist now, skipping the debounce (e.g. the dialog is closing). No-op if clean. */
+  flush: () => void;
   /** Remove the localStorage buffer (e.g. after a manual save persisted the work). */
   clearBuffer: () => void;
   /** Retry after an error. */
@@ -218,6 +220,11 @@ export function useAutosave(params: UseAutosaveParams): AutosaveApi {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const flush = useCallback(() => {
+    cancel();
+    void doSave();
+  }, [cancel, doSave]);
+
   const acceptRecovery = useCallback(() => setRecoverable(null), []);
   const discardRecovery = useCallback(() => {
     removeBuffer(storageKeyRef.current);
@@ -236,6 +243,7 @@ export function useAutosave(params: UseAutosaveParams): AutosaveApi {
     acceptRecovery,
     discardRecovery,
     cancel,
+    flush,
     clearBuffer,
     retry,
   };

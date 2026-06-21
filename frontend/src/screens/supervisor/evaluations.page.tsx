@@ -52,6 +52,12 @@ import {
   type Column,
   type DataTableSort,
 } from "@/shared/ui/patterns";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui/primitives/tooltip";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import {
   useEvaluations,
@@ -622,8 +628,15 @@ function EvaluationEditorDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         className="dialog-pop flex max-h-[90vh] flex-col gap-0 sm:max-w-2xl"
+        // Block Radix's own outside-dismiss so portaled Selects / date pickers / dropdowns
+        // (incl. clicking a trigger again to close it) can never close the modal. A real
+        // backdrop click closes it explicitly via onOverlayClick, flushing the draft.
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onOverlayClick={() => {
+          if (!isViewOnly) autosave.flush();
+          onClose();
+        }}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -672,9 +685,11 @@ function EvaluationEditorDialog({
               >
                 <div>
                   <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                    For {previewName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
                     {previewPeriod} · Performance evaluation
                   </p>
-                  <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">For {previewName}</p>
                 </div>
 
                 {grade && (
@@ -1009,9 +1024,23 @@ function EvaluationEditorDialog({
                   <Button variant="secondary" type="button" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button type="submit">
-                    <Eye size={14} className="mr-1" /> Preview
-                  </Button>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {/* Wrap so the tooltip still fires while the button is disabled. */}
+                        <span tabIndex={!canPersist ? 0 : undefined}>
+                          <Button type="submit" disabled={!canPersist}>
+                            <Eye size={14} className="mr-1" /> Preview
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {!canPersist ? (
+                        <TooltipContent side="top">
+                          Add the reviewee, evaluation period, and rating to preview.
+                        </TooltipContent>
+                      ) : null}
+                    </Tooltip>
+                  </TooltipProvider>
                 </>
               ) : (
                 <>
