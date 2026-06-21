@@ -43,5 +43,6 @@ export * from "./patterns";
 export * from "./primitives/date-picker";
 export * from "./primitives/date-range-picker";
 export * from "./primitives/time-picker";
+export { PhoneInput } from "./primitives/phone-input-lazy";
 
 export * from "./charts";
