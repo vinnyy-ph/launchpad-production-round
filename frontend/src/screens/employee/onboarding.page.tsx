@@ -152,7 +152,7 @@ function Stepper({
   onGo: (n: number) => void;
 }) {
   return (
-    <div className="mx-auto mb-10 flex max-w-[640px] flex-wrap items-center justify-center gap-x-3 gap-y-2">
+    <div className="mx-auto flex max-w-[640px] flex-wrap items-center justify-center gap-x-3 gap-y-2">
       {STEP_LABELS.map((label, i) => {
         const n = i + 1;
         const disabled = !canGo(n);
@@ -196,8 +196,10 @@ function StepCard({
       className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-8"
       style={{ boxShadow: CARD_SHADOW }}
     >
-      <h2 className="text-xl font-bold tracking-[-0.01em] text-[color:var(--text-primary)]">{title}</h2>
-      <p className="mt-1.5 text-sm text-[color:var(--text-tertiary)]">{subtitle}</p>
+      <div className="py-4">
+        <h2 className="text-xl font-bold tracking-[-0.01em] text-[color:var(--text-primary)]">{title}</h2>
+        <p className="mt-1.5 text-sm text-[color:var(--text-tertiary)]">{subtitle}</p>
+      </div>
       <div className="mt-7">{children}</div>
     </section>
   );
@@ -627,14 +629,15 @@ export default function EmployeeOnboardingPage() {
         </p>
       </div>
 
-      <Stepper markerState={markerState} canGo={canGoStep} onGo={goStep} />
+      <div className="flex flex-col gap-4">
+        <Stepper markerState={markerState} canGo={canGoStep} onGo={goStep} />
 
-      {/* ── Step 1 — Your details ── */}
-      {step === 1 && (
-        <StepCard
-          title="Confirm your details"
-          subtitle="HR started this for you. Check what's here, fix anything that's wrong, and add the rest."
-        >
+        {/* ── Step 1 — Your details ── */}
+        {step === 1 && (
+          <StepCard
+            title="Confirm your details"
+            subtitle="HR started this for you. Check what's here, fix anything that's wrong, and add the rest."
+          >
           <div className="flex flex-col gap-9">
             <div>
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
@@ -885,15 +888,15 @@ export default function EmployeeOnboardingPage() {
               {updateProfile.isPending ? "Saving…" : "Continue"}
             </Button>
           </div>
-        </StepCard>
-      )}
+          </StepCard>
+        )}
 
-      {/* ── Step 2 — Quick questions ── */}
-      {step === 2 && (
-        <StepCard
-          title="A few quick questions"
-          subtitle="A couple of extra things HR needs from you."
-        >
+        {/* ── Step 2 — Quick questions ── */}
+        {step === 2 && (
+          <StepCard
+            title="A few quick questions"
+            subtitle="A couple of extra things HR needs from you."
+          >
           {fields.length === 0 ? (
             <EmptyState
               icon={PartyPopper}
@@ -901,7 +904,7 @@ export default function EmployeeOnboardingPage() {
               body="Your HR team hasn't added any extra questions."
             />
           ) : (
-            <div className={fields.length === 1 ? "max-w-[340px]" : "grid grid-cols-1 gap-4 sm:grid-cols-2"}>
+            <div className="grid grid-cols-1 gap-4">
               {fields.map((field, idx) => {
                 const fieldId = `custom-field-${field.id}`;
                 const fieldError =
@@ -943,15 +946,15 @@ export default function EmployeeOnboardingPage() {
               {submitFields.isPending ? "Saving…" : "Continue"}
             </Button>
           </div>
-        </StepCard>
-      )}
+          </StepCard>
+        )}
 
-      {/* ── Step 3 — Documents ── */}
-      {step === 3 && (
-        <StepCard
-          title="Upload your documents"
-          subtitle="HR reviews each one. You can upload them whenever you have them ready."
-        >
+        {/* ── Step 3 — Documents ── */}
+        {step === 3 && (
+          <StepCard
+            title="Upload your documents"
+            subtitle="HR reviews each one. You can upload them whenever you have them ready."
+          >
           {documents.length === 0 ? (
             <EmptyState
               icon={FileText}
@@ -978,7 +981,7 @@ export default function EmployeeOnboardingPage() {
             </div>
           )}
 
-          <PrivacyNote>Your documents are private and only shared with HR for review.</PrivacyNote>
+          <PrivacyNote>Your documents are private. Only HR sees them for review.</PrivacyNote>
 
           <div className="mt-7 flex items-center justify-between">
             <Button variant="secondary" onClick={back}>
@@ -988,12 +991,12 @@ export default function EmployeeOnboardingPage() {
               Continue
             </Button>
           </div>
-        </StepCard>
-      )}
+          </StepCard>
+        )}
 
-      {/* ── Step 4 — Review ── */}
-      {step === 4 && (
-        <StepCard title="Review" subtitle="Here's everything before HR takes over.">
+        {/* ── Step 4 — Review ── */}
+        {step === 4 && (
+          <StepCard title="Review" subtitle="Here's everything before HR takes over.">
           <div className="overflow-hidden rounded-xl border border-[color:var(--border-primary)]">
             <RecapRow
               icon={User}
@@ -1065,8 +1068,9 @@ export default function EmployeeOnboardingPage() {
               </Button>
             )}
           </div>
-        </StepCard>
-      )}
+          </StepCard>
+        )}
+      </div>
     </div>
   );
 }
