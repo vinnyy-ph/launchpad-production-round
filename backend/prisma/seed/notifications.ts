@@ -9,11 +9,9 @@ export async function seedNotifications(
   surveys: SeededSurveys,
   evaluations: SeededEvaluations,
 ): Promise<void> {
-  const { kurt, loreto, vn, theaV, darben, theaS, asha, ximen, staff } = users
-
   // Everyone active is in the "Weekly Pulse" (EVERYONE) audience and gets a NEW_PULSE
   // notification that deep-links straight to the survey (click-to-land).
-  const activeAudience = [kurt, loreto, vn, theaV, darben, theaS, asha, ximen, ...staff].filter((e) => e.status === 'ACTIVE')
+  const activeAudience = users.all.filter((e) => e.status === 'ACTIVE')
   for (const emp of activeAudience) {
     await prisma.notification.create({
       data: {
