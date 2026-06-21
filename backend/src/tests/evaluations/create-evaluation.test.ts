@@ -35,6 +35,12 @@ jest.mock("../../core/database/prisma.service", () => ({
   },
 }));
 
+jest.mock("../../core/cloudinary/cloudinary.service", () => ({
+  CloudinaryService: jest.fn().mockImplementation(() => ({
+    uploadSupportingDocument: jest.fn().mockResolvedValue("https://res.cloudinary.com/test/supporting_docs/doc.pdf"),
+  })),
+}));
+
 const VALID_BODY = {
   revieweeId: "emp-reviewee-id",
   periodStart: "2026-01-01",
@@ -234,6 +240,56 @@ describe("POST /api/v1/evaluations", () => {
     expect(createCall[0].data).toMatchObject({ isSent: true });
     expect(createCall[0].data.sentAt).toBeDefined();
     expect(createCall[0].data.ackDeadline).toBeDefined();
+  });
+
+  it("uploads up to 5 PDF files and returns their URLs in supportingDocUrls", async () => {
+    const reviewer = buildReviewerEmployee();
+    const reviewee = buildRevieweeEmployee(reviewer.id);
+    const evaluation = buildEvaluationRecord({ reviewerId: reviewer.id, revieweeId: reviewee.id });
+
+    employeeFindUniqueMock
+      .mockResolvedValueOnce(reviewer)
+      .mockResolvedValueOnce(reviewee);
+    evalCreateMock.mockResolvedValue({ ...evaluation, supportingDocUrls: [
+      "https://res.cloudinary.com/test/supporting_docs/doc1.pdf",
+      "https://res.cloudinary.com/test/supporting_docs/doc2.pdf",
+      "https://res.cloudinary.com/test/supporting_docs/doc3.pdf",
+      "https://res.cloudinary.com/test/supporting_docs/doc4.pdf",
+      "https://res.cloudinary.com/test/supporting_docs/doc5.pdf",
+    ]});
+
+    const response = await request(app)
+      .post("/api/v1/evaluations")
+      .field("revieweeId", "emp-reviewee-id")
+      .field("periodStart", "2026-01-01")
+      .field("periodEnd", "2026-03-31")
+      .field("grade", "4")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc1.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc2.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc3.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc4.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc5.pdf")
+      .expect(201);
+
+    expect(response.body.data.supportingDocUrls).toHaveLength(5);
+  });
+
+  it("returns 400 when more than 5 files are attached", async () => {
+    const response = await request(app)
+      .post("/api/v1/evaluations")
+      .field("revieweeId", "emp-reviewee-id")
+      .field("periodStart", "2026-01-01")
+      .field("periodEnd", "2026-03-31")
+      .field("grade", "4")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc1.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc2.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc3.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc4.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc5.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc6.pdf")
+      .expect(400);
+
+    expect(response.body).toMatchObject({ success: false, errorCode: "VALIDATION_FAILED" });
   });
 
   it("persists optional fields when provided", async () => {

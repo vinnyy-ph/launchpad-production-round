@@ -62,4 +62,33 @@ export class ResultsRepository {
   async countResponses(where: Prisma.SurveyResponseWhereInput) {
     return prisma.surveyResponse.count({ where });
   }
+
+  /** All activated (occurrence-bearing), non-deleted surveys with the config needed to gate viewing. */
+  async findActivatedSurveysWithConfigs() {
+    return prisma.pulseSurvey.findMany({
+      where: { deletedAt: null, occurrences: { some: {} } },
+      include: {
+        audienceConfigs: true,
+        visibilityConfigs: true,
+        _count: { select: { occurrences: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /** Distinct survey ids (from the given set) that have an audience member among the given employees. */
+  async findSurveyIdsWithAudienceMembers(
+    surveyIds: string[],
+    employeeIds: string[],
+  ): Promise<string[]> {
+    if (surveyIds.length === 0 || employeeIds.length === 0) return [];
+    const rows = await prisma.surveyAudienceMember.findMany({
+      where: {
+        employeeId: { in: employeeIds },
+        occurrence: { surveyId: { in: surveyIds } },
+      },
+      select: { occurrence: { select: { surveyId: true } } },
+    });
+    return [...new Set(rows.map((r) => r.occurrence.surveyId))];
+  }
 }

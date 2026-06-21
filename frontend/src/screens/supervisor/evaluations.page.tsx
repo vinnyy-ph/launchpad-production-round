@@ -11,6 +11,8 @@ import {
   Eye,
   ChevronLeft,
   ArrowUpDown,
+  FileText,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
@@ -50,6 +52,12 @@ import {
   type Column,
   type DataTableSort,
 } from "@/shared/ui/patterns";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui/primitives/tooltip";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import {
   useEvaluations,
@@ -58,11 +66,14 @@ import {
   useUpdateEvaluation,
   useDeleteEvaluation,
   useSendEvaluation,
+  downloadSupportingDoc,
   GRADE_LABELS,
   type Evaluation,
   type EvaluationInput,
   type Reviewee,
 } from "@/modules/performance/evaluations";
+import { useAutosave } from "@/modules/performance/shared/use-autosave";
+import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,13 +106,26 @@ function formatRelativeDate(iso: string): string {
   return format(target, sameYear ? "LLL d" : "LLL d, yyyy");
 }
 
-function isValidUrl(value: string): boolean {
+function extractFilename(value: string): string {
+  const last = value.split("/").pop() ?? value;
   try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return decodeURIComponent(last);
   } catch {
-    return false;
+    return last;
   }
+}
+
+async function handleDownload(evaluationId: string, docIndex: number): Promise<void> {
+  try {
+    await downloadSupportingDoc(evaluationId, docIndex);
+  } catch {
+    toast.error("Couldn't download the document. Please try again.");
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 type AckTone = "warning" | "success" | "info" | "error";
@@ -223,12 +247,129 @@ function DynamicList({ label, htmlFor, items, onChange, placeholder, hint, optio
   );
 }
 
+// ─── PDF file picker ──────────────────────────────────────────────────────────
+
+interface PdfFilePickerProps {
+  files: File[];
+  existingUrls: string[];
+  onChange: (files: File[]) => void;
+  error?: string;
+}
+
+function PdfFilePicker({ files, existingUrls, onChange, error }: PdfFilePickerProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    // Reset so the same file can be re-selected after removal.
+    e.target.value = "";
+
+    const validFiles: File[] = [];
+    for (const file of selected) {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        toast.error(`"${file.name}" is not a PDF.`);
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds the 10 MB limit.`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    const combined = [...files, ...validFiles];
+    const totalExisting = existingUrls.length;
+    const newCount = files.length + validFiles.length;
+    if (totalExisting + newCount > 5 || combined.length > 5) {
+      toast.error("You can attach up to 5 files total.");
+      // Take only as many as fit.
+      const slotsLeft = Math.max(0, 5 - files.length - existingUrls.length);
+      onChange([...files, ...validFiles.slice(0, slotsLeft)]);
+      return;
+    }
+    onChange(combined);
+  };
+
+  const remove = (idx: number) => onChange(files.filter((_, i) => i !== idx));
+
+  const showExisting = existingUrls.length > 0 && files.length === 0;
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept=".pdf"
+        className="sr-only"
+        onChange={handleSelect}
+        aria-label="Upload PDF files"
+      />
+
+      {showExisting && (
+        <div className="space-y-1.5 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
+          {existingUrls.map((url) => (
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-[color:hsl(var(--primary))] underline"
+            >
+              <FileText size={14} className="flex-none" />
+              {extractFilename(url)}
+            </a>
+          ))}
+          <p className="text-xs text-[color:var(--text-tertiary)]">Upload new files to replace these.</p>
+        </div>
+      )}
+
+      {files.length > 0 && (
+        <div className="space-y-1.5 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
+          {files.map((file, idx) => (
+            <div key={file.name} className="flex items-center gap-2">
+              <FileText size={14} className="flex-none text-[color:var(--text-tertiary)]" />
+              <span className="min-w-0 flex-1 truncate text-sm text-[color:var(--text-primary)]">
+                {file.name}
+              </span>
+              <span className="shrink-0 text-xs text-[color:var(--text-tertiary)]">
+                {formatFileSize(file.size)}
+              </span>
+              <button
+                type="button"
+                onClick={() => remove(idx)}
+                className="rounded p-0.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Remove ${file.name}`}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => inputRef.current?.click()}
+      >
+        <Plus size={12} /> Add PDFs
+      </Button>
+
+      {error && <p className="text-xs text-[color:var(--color-error-600)]">{error}</p>}
+    </div>
+  );
+}
+
 // ─── Evaluation editor dialog ─────────────────────────────────────────────────
 
 interface SendPayload {
   existing: Evaluation | null;
   input: EvaluationInput;
   name: string;
+  files: File[];
 }
 
 interface EditorProps {
@@ -237,8 +378,22 @@ interface EditorProps {
   initial: Evaluation | null;
   reviewees: Reviewee[];
   saving: boolean;
-  onSubmit: (input: EvaluationInput) => void;
+  onSubmit: (input: EvaluationInput, files: File[]) => void;
   onRequestSend: (payload: SendPayload) => void;
+  /** Silent autosave persist. Creates when no id, updates otherwise; returns the draft id. */
+  onAutosave?: (input: EvaluationInput, draftId: string | null) => Promise<string>;
+}
+
+/** Serializable field snapshot for autosave change-detection + localStorage buffer. */
+interface EvalSnapshot {
+  revieweeId: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  grade: number | null;
+  highlights: string[];
+  lowlights: string[];
+  evaluation: string;
+  recommendation: string;
 }
 
 function EvaluationEditorDialog({
@@ -249,6 +404,7 @@ function EvaluationEditorDialog({
   saving,
   onSubmit,
   onRequestSend,
+  onAutosave,
 }: EditorProps) {
   const [revieweeId, setRevieweeId] = useState("");
   const [period, setPeriod] = useState<DateRange | undefined>();
@@ -257,7 +413,8 @@ function EvaluationEditorDialog({
   const [lowlights, setLowlights] = useState<string[]>([]);
   const [evaluationText, setEvaluationText] = useState("");
   const [recommendationText, setRecommendationText] = useState("");
-  const [supportingDocUrl, setSupportingDocUrl] = useState("");
+  const [localFiles, setLocalFiles] = useState<File[]>([]);
+  const [existingDocUrls, setExistingDocUrls] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // Two-step flow: fill the form → review the preview → save or send.
   const [step, setStep] = useState<"form" | "preview">("form");
@@ -275,42 +432,122 @@ function EvaluationEditorDialog({
       return next;
     });
 
+  // ── Autosave (drafts only; a sent evaluation is read-only) ──
+  // Files are deliberately excluded — uploads happen only on explicit Save/Send, so autosave
+  // never re-uploads or wipes attached documents.
+  const draftId = initial?.id ?? null;
+  const snapshot = useMemo<EvalSnapshot>(
+    () => ({
+      revieweeId,
+      periodStart: period?.from ? period.from.toISOString() : null,
+      periodEnd: period?.to ? period.to.toISOString() : null,
+      grade,
+      highlights,
+      lowlights,
+      evaluation: evaluationText,
+      recommendation: recommendationText,
+    }),
+    [revieweeId, period, grade, highlights, lowlights, evaluationText, recommendationText],
+  );
+  const canPersist = !!revieweeId && !!period?.from && !!period?.to && !!grade;
+  const saveRef = useRef<(id: string | null) => Promise<string>>(async (id) => id ?? "");
+  const autosave = useAutosave({
+    open,
+    enabled: !isViewOnly && !!onAutosave,
+    draftId,
+    snapshot,
+    canPersist,
+    storageKey: `autosave:eval:${draftId ?? "new"}`,
+    onSave: (id) => saveRef.current(id),
+  });
+
+  // Hydrate once per open. Guarded so autosave creating the draft — which flips `initial`
+  // from null to the saved evaluation — does not re-hydrate over the in-progress edits.
+  const hydratedRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hydratedRef.current = false;
+      return;
+    }
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
     setStep("form");
+    let baseline: EvalSnapshot;
     if (initial) {
+      const start = new Date(initial.periodStart);
+      const end = new Date(initial.periodEnd);
       setRevieweeId(initial.revieweeId);
-      setPeriod({ from: new Date(initial.periodStart), to: new Date(initial.periodEnd) });
+      setPeriod({ from: start, to: end });
       setGrade(initial.grade ?? null);
       setHighlights(initial.highlights ?? []);
       setLowlights(initial.lowlights ?? []);
       setEvaluationText(initial.evaluation ?? "");
       setRecommendationText(initial.recommendation ?? "");
-      setSupportingDocUrl(initial.supportingDocUrl ?? "");
+      setExistingDocUrls(initial.supportingDocUrls ?? []);
+      setLocalFiles([]);
+      baseline = {
+        revieweeId: initial.revieweeId,
+        periodStart: start.toISOString(),
+        periodEnd: end.toISOString(),
+        grade: initial.grade ?? null,
+        highlights: initial.highlights ?? [],
+        lowlights: initial.lowlights ?? [],
+        evaluation: initial.evaluation ?? "",
+        recommendation: initial.recommendation ?? "",
+      };
     } else {
       // Reviewee starts empty (placeholder "Select employee").
       setRevieweeId("");
       // Smart default: prefill the current month as the evaluation period.
       const now = new Date();
-      setPeriod({ from: startOfMonth(now), to: endOfMonth(now) });
+      const from = startOfMonth(now);
+      const to = endOfMonth(now);
+      setPeriod({ from, to });
       setGrade(null);
       setHighlights([]);
       setLowlights([]);
       setEvaluationText("");
       setRecommendationText("");
-      setSupportingDocUrl("");
+      setExistingDocUrls([]);
+      setLocalFiles([]);
+      baseline = {
+        revieweeId: "",
+        periodStart: from.toISOString(),
+        periodEnd: to.toISOString(),
+        grade: null,
+        highlights: [],
+        lowlights: [],
+        evaluation: "",
+        recommendation: "",
+      };
     }
     setErrors({});
-  }, [open, initial, reviewees]);
+    autosave.setBaseline(baseline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial]);
 
-  /** Required to create/save a draft: reviewee, period, rating, and a valid link if present. */
+  /** Apply a recovered localStorage buffer to the form, then dismiss the prompt. */
+  const restoreFromBuffer = (b: EvalSnapshot) => {
+    setRevieweeId(b.revieweeId);
+    setPeriod(
+      b.periodStart && b.periodEnd
+        ? { from: new Date(b.periodStart), to: new Date(b.periodEnd) }
+        : undefined,
+    );
+    setGrade(b.grade);
+    setHighlights(b.highlights);
+    setLowlights(b.lowlights);
+    setEvaluationText(b.evaluation);
+    setRecommendationText(b.recommendation);
+    autosave.acceptRecovery();
+  };
+
+  /** Required to create/save a draft: reviewee, period, and rating. */
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!revieweeId) errs.reviewee = "Select an employee.";
     if (!period?.from || !period?.to) errs.period = "Select an evaluation period.";
     if (!grade) errs.grade = "Pick an overall rating.";
-    if (supportingDocUrl.trim() && !isValidUrl(supportingDocUrl.trim()))
-      errs.doc = "Enter a valid URL starting with https://.";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -327,8 +564,15 @@ function EvaluationEditorDialog({
       lowlights: lowlights.map((l) => l.trim()).filter(Boolean),
       evaluation: evaluationText.trim() || undefined,
       recommendation: recommendationText.trim() || undefined,
-      supportingDocUrl: supportingDocUrl.trim() || undefined,
     };
+  };
+
+  // Keep the autosave save closure pointed at the current buildInput / onAutosave.
+  saveRef.current = async (id) => {
+    if (!onAutosave) return id ?? "";
+    const input = buildInput();
+    if (!input) return id ?? "";
+    return onAutosave(input, id);
   };
 
   const handleSubmit = () => {
@@ -338,7 +582,10 @@ function EvaluationEditorDialog({
       setStep("form");
       return;
     }
-    onSubmit(input);
+    // Manual save takes over: cancel any pending autosave and drop the local buffer.
+    autosave.cancel();
+    autosave.clearBuffer();
+    onSubmit(input, localFiles);
   };
 
   /** Sending is irreversible — require reviewee, period, rating, and an overall summary, pointing at
@@ -357,11 +604,12 @@ function EvaluationEditorDialog({
       toast.error("Fill in the required fields before sending.");
       return;
     }
-    onRequestSend({ existing: initial, input, name: previewName });
+    autosave.cancel();
+    autosave.clearBuffer();
+    onRequestSend({ existing: initial, input, name: previewName, files: localFiles });
   };
 
   const revieweeName = (id: string) => reviewees.find((r) => r.id === id)?.fullName ?? id;
-  const draftDocValid = !!supportingDocUrl.trim() && isValidUrl(supportingDocUrl.trim());
 
   const previewName = initial?.reviewee?.fullName ?? (revieweeId ? revieweeName(revieweeId) : "the employee");
   const previewPeriod =
@@ -380,13 +628,42 @@ function EvaluationEditorDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         className="dialog-pop flex max-h-[90vh] flex-col gap-0 sm:max-w-2xl"
+        // Block Radix's own outside-dismiss so portaled Selects / date pickers / dropdowns
+        // (incl. clicking a trigger again to close it) can never close the modal. A real
+        // backdrop click closes it explicitly via onOverlayClick, flushing the draft.
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onOverlayClick={() => {
+          if (!isViewOnly) autosave.flush();
+          onClose();
+        }}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+
+        {!isViewOnly && autosave.recoverable != null && (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3.5 py-2.5 text-[13px] text-[color:var(--text-secondary)]">
+            <span>You have unsaved changes from a previous session.</span>
+            <span className="flex flex-none gap-2">
+              <button
+                type="button"
+                onClick={() => restoreFromBuffer(autosave.recoverable as EvalSnapshot)}
+                className="font-semibold text-[color:var(--text-primary)] underline underline-offset-2"
+              >
+                Restore
+              </button>
+              <button
+                type="button"
+                onClick={autosave.discardRecovery}
+                className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
+              >
+                Discard
+              </button>
+            </span>
+          </div>
+        )}
 
         <form
           onSubmit={(e) => {
@@ -408,9 +685,11 @@ function EvaluationEditorDialog({
               >
                 <div>
                   <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                    For {previewName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
                     {previewPeriod} · Performance evaluation
                   </p>
-                  <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">For {previewName}</p>
                 </div>
 
                 {grade && (
@@ -479,19 +758,27 @@ function EvaluationEditorDialog({
                   </div>
                 )}
 
-                {supportingDocUrl.trim() && (
+                {(localFiles.length > 0 || existingDocUrls.length > 0) && (
                   <div>
                     <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                      Supporting links
+                      Supporting documents
                     </p>
-                    <a
-                      href={supportingDocUrl.trim()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="break-all text-sm text-[color:hsl(var(--primary))] underline"
-                    >
-                      {supportingDocUrl}
-                    </a>
+                    {localFiles.length > 0 ? (
+                      localFiles.map((f) => (
+                        <p key={f.name} className="flex items-center gap-1.5 text-sm text-[color:var(--text-primary)]">
+                          <FileText size={13} className="flex-none text-[color:var(--text-tertiary)]" />
+                          {f.name}
+                        </p>
+                      ))
+                    ) : (
+                      existingDocUrls.map((publicId, index) => (
+                        <button key={publicId} type="button" onClick={() => initial && handleDownload(initial.id, index)}
+                          className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left">
+                          <FileText size={13} className="flex-none" />
+                          {extractFilename(publicId)}
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
 
@@ -693,54 +980,20 @@ function EvaluationEditorDialog({
                   />
                 </FormField>
 
-                {/* Supporting links (formerly Supporting documents) — split add-on with a static prefix */}
+                {/* Supporting documents — PDF file picker */}
                 <FormField
-                  label="Supporting links"
-                  htmlFor="ev-doc"
-                  error={errors.doc}
-                  hint="Paste a link to anything that backs this up (docs, dashboards, 1:1 notes)."
+                  label="Supporting documents"
+                  htmlFor="ev-docs"
+                  hint="PDF files only · up to 5 files · 10 MB each"
                   optional
                   hintAbove
                 >
-                  <div className="space-y-1.5">
-                    <div
-                      className={[
-                        "flex h-10 w-full items-stretch overflow-hidden rounded-md border bg-white shadow-xs transition-colors focus-within:border-transparent focus-within:[background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(45deg,#fccec0,#ebacc9_33%,#ceb6da_66%,#9fcaed)_border-box]",
-                        errors.doc
-                          ? "border-[#D92D20] focus-within:shadow-[0_0_0_3px_rgba(217,45,32,0.15)]"
-                          : "border-input focus-within:shadow-[0_0_0_3px_rgba(24,29,39,0.06)]",
-                      ].join(" ")}
-                    >
-                      <span className="flex select-none items-center pl-3.5 pr-2.5 text-sm font-medium text-[color:var(--text-tertiary)]">
-                        https://
-                      </span>
-                      <span className="my-2 w-px bg-[color:var(--border-primary)]" aria-hidden="true" />
-                      <input
-                        id="ev-doc"
-                        type="text"
-                        inputMode="url"
-                        value={supportingDocUrl.replace(/^\s*https?:\/\//i, "")}
-                        onChange={(e) => {
-                          const rest = e.target.value.replace(/^\s*https?:\/\//i, "");
-                          setSupportingDocUrl(rest ? `https://${rest}` : "");
-                          clearError("doc");
-                        }}
-                        placeholder="docs.example.com/report"
-                        aria-invalid={!!errors.doc}
-                        className="min-w-0 flex-1 bg-transparent px-3 text-sm font-medium text-[color:var(--text-primary)] placeholder:text-[#a4a7ae] focus:outline-none"
-                      />
-                    </div>
-                    {draftDocValid && (
-                      <a
-                        href={supportingDocUrl.trim()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block text-xs text-[color:hsl(var(--primary))] underline"
-                      >
-                        Open link
-                      </a>
-                    )}
-                  </div>
+                  <PdfFilePicker
+                    files={localFiles}
+                    existingUrls={existingDocUrls}
+                    onChange={setLocalFiles}
+                    error={errors.doc}
+                  />
                 </FormField>
               </>
             )}
@@ -748,6 +1001,14 @@ function EvaluationEditorDialog({
 
           {/* Bottom bar — divider sits flush with the scroll edge (no gap above the line) */}
           <div className="flex items-center gap-2 border-t border-[color:var(--border-primary)] pt-4">
+            {!isViewOnly && (
+              <DraftSaveStatus
+                status={autosave.status}
+                lastSavedAt={autosave.lastSavedAt}
+                canPersist={autosave.canPersist}
+                onRetry={autosave.retry}
+              />
+            )}
             {!isViewOnly && step === "preview" && (
               <Button variant="ghost" type="button" onClick={() => setStep("form")}>
                 <ChevronLeft size={14} className="mr-1" /> Back
@@ -763,9 +1024,23 @@ function EvaluationEditorDialog({
                   <Button variant="secondary" type="button" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button type="submit">
-                    <Eye size={14} className="mr-1" /> Preview
-                  </Button>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {/* Wrap so the tooltip still fires while the button is disabled. */}
+                        <span tabIndex={!canPersist ? 0 : undefined}>
+                          <Button type="submit" disabled={!canPersist}>
+                            <Eye size={14} className="mr-1" /> Preview
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {!canPersist ? (
+                        <TooltipContent side="top">
+                          Add the reviewee, evaluation period, and rating to preview.
+                        </TooltipContent>
+                      ) : null}
+                    </Tooltip>
+                  </TooltipProvider>
                 </>
               ) : (
                 <>
@@ -820,6 +1095,7 @@ export default function EvaluationsPage() {
     existing: Evaluation | null;
     input?: EvaluationInput;
     name: string;
+    files?: File[];
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -898,10 +1174,10 @@ export default function EvaluationsPage() {
     setEditorOpen(true);
   };
 
-  const handleSubmit = (input: EvaluationInput) => {
+  const handleSubmit = (input: EvaluationInput, files: File[]) => {
     if (editing) {
       updateMutation.mutate(
-        { id: editing.id, input },
+        { id: editing.id, input, files },
         {
           onSuccess: () => {
             toast.success("Draft saved.");
@@ -911,19 +1187,38 @@ export default function EvaluationsPage() {
         },
       );
     } else {
-      createMutation.mutate(input, {
-        onSuccess: () => {
-          toast.success("Draft evaluation created.");
-          setEditorOpen(false);
+      createMutation.mutate(
+        { input, files },
+        {
+          onSuccess: () => {
+            toast.success("Draft evaluation created.");
+            setEditorOpen(false);
+          },
+          onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create draft."),
         },
-        onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create draft."),
-      });
+      );
     }
+  };
+
+  // Silent autosave persist: create the draft on first valid save (capturing it so the editor
+  // switches to incremental updates), update it thereafter. Files are never sent here — uploads
+  // happen only on an explicit Save/Send — so existing documents are preserved.
+  const handleAutosave = async (
+    input: EvaluationInput,
+    id: string | null,
+  ): Promise<string> => {
+    if (id) {
+      await updateMutation.mutateAsync({ id, input, files: [] });
+      return id;
+    }
+    const created = await createMutation.mutateAsync({ input, files: [] });
+    setEditing(created);
+    return created.id;
   };
 
   const handleSend = () => {
     if (!pendingSend) return;
-    const { existing, input } = pendingSend;
+    const { existing, input, files = [] } = pendingSend;
 
     const fail = (e: unknown) => {
       toast.error(e instanceof Error ? e.message : "Could not send evaluation.");
@@ -942,7 +1237,7 @@ export default function EvaluationsPage() {
     if (existing && input) {
       // Persist the latest edits, then send.
       updateMutation.mutate(
-        { id: existing.id, input },
+        { id: existing.id, input, files },
         { onSuccess: () => sendById(existing.id), onError: fail },
       );
     } else if (existing) {
@@ -950,10 +1245,13 @@ export default function EvaluationsPage() {
       sendById(existing.id);
     } else if (input) {
       // Brand-new evaluation: create the draft, then send it.
-      createMutation.mutate(input, {
-        onSuccess: (created) => sendById(created.id),
-        onError: fail,
-      });
+      createMutation.mutate(
+        { input, files },
+        {
+          onSuccess: (created) => sendById(created.id),
+          onError: fail,
+        },
+      );
     }
   };
 
@@ -1263,6 +1561,7 @@ export default function EvaluationsPage() {
         saving={createMutation.isPending || updateMutation.isPending}
         onSubmit={handleSubmit}
         onRequestSend={(payload) => setPendingSend(payload)}
+        onAutosave={handleAutosave}
       />
 
       {/* Send confirm */}

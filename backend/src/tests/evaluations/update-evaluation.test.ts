@@ -36,6 +36,12 @@ jest.mock("../../core/database/prisma.service", () => ({
   },
 }));
 
+jest.mock("../../core/cloudinary/cloudinary.service", () => ({
+  CloudinaryService: jest.fn().mockImplementation(() => ({
+    uploadSupportingDocument: jest.fn().mockResolvedValue("https://res.cloudinary.com/test/supporting_docs/doc.pdf"),
+  })),
+}));
+
 const EVAL_ID = "eval-001";
 
 describe("PATCH /api/v1/evaluations/:evaluationId", () => {
@@ -201,6 +207,24 @@ describe("PATCH /api/v1/evaluations/:evaluationId", () => {
       .expect(403);
 
     expect(response.body).toMatchObject({ success: false, errorCode: "NOT_SUPERVISOR" });
+  });
+
+  it("uploads files during update and includes URLs in supportingDocUrls", async () => {
+    const reviewer = buildReviewerEmployee();
+    const existing = buildEvaluationRecord({ reviewerId: reviewer.id });
+    const updated = { ...existing, supportingDocUrls: ["https://res.cloudinary.com/test/supporting_docs/doc.pdf"] };
+
+    evalFindFirstMock.mockResolvedValue(existing);
+    employeeFindUniqueMock.mockResolvedValue(reviewer);
+    evalUpdateMock.mockResolvedValue(updated);
+
+    const response = await request(app)
+      .patch(`/api/v1/evaluations/${EVAL_ID}`)
+      .field("grade", "5")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc.pdf")
+      .expect(200);
+
+    expect(response.body.data.supportingDocUrls).toHaveLength(1);
   });
 
   it("marks evaluation as sent when send=true and sets sentAt and ackDeadline", async () => {

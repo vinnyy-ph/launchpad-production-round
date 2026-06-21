@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Badge, BadgeDot, Button } from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
+import { ApiError } from "@/shared/lib/api-client";
 import { useSurvey } from "../hooks/use-survey";
 import { useSurveyResults } from "../hooks/use-survey-results";
 import type {
@@ -41,6 +42,12 @@ function fmtDay(iso?: string): string {
 
 function pct(count: number, total: number): number {
   return total > 0 ? Math.round((count / total) * 100) : 0;
+}
+
+// The team-supervisor block for small anonymous teams comes back as a dedicated 403 code
+// (not a `suppressed` payload), so it's rendered as an informational notice, not an error.
+function isSmallTeamSupervisorBlock(err: unknown): boolean {
+  return err instanceof ApiError && err.errorCode === "RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR";
 }
 
 const QTYPE_LABEL: Record<QuestionResult["type"], string> = {
@@ -279,24 +286,38 @@ function OpenTextBody({
 
 // ─── container ──────────────────────────────────────────────────────────────────
 
-/** HR results dashboard for one survey: header, summary stats, scope filters, per-question charts. */
-export function SurveyResults({ surveyId }: { surveyId: string }) {
+/** Results dashboard for one survey: header, summary stats, scope filters, per-question charts.
+ *  canFilter (default true) controls whether HR-only features (getSurvey, ResultsFilters) are active. */
+export function SurveyResults({
+  surveyId,
+  canFilter = true,
+}: {
+  surveyId: string;
+  canFilter?: boolean;
+}) {
   const [filter, setFilter] = useState<ResultsFilter>({});
-  const { data: survey } = useSurvey(surveyId);
+  // HR fetches full detail for the rich header + subtitle; non-HR derive the header
+  // from the results DTO so they never hit the HR-only getSurvey endpoint.
+  const { data: survey } = useSurvey(canFilter ? surveyId : null);
   const query = useSurveyResults(surveyId, filter);
   const results = query.data;
 
-  const status = survey ? deriveStatus(survey) : null;
+  const status = survey
+    ? deriveStatus(survey)
+    : results
+      ? deriveStatus({ isActive: results.isActive, occurrenceCount: results.occurrenceCount })
+      : null;
   const STATUS_VARIANT = { active: "success", draft: "neutral", closed: "warning" } as const;
 
   const filterActive = !!(filter.teamId || filter.supervisorId);
   const canExport = !!results && !results.suppressed && results.respondedCount > 0;
 
-  const daysLeft = survey?.deadline
-    ? Math.ceil((new Date(survey.deadline).getTime() - Date.now()) / 86_400_000)
+  const deadlineIso = survey?.deadline ?? results?.deadline;
+  const daysLeft = deadlineIso
+    ? Math.ceil((new Date(deadlineIso).getTime() - Date.now()) / 86_400_000)
     : null;
   const untilCloses =
-    !survey || status !== "active"
+    status !== "active"
       ? "Closed"
       : daysLeft === null
         ? "—"
@@ -326,7 +347,7 @@ export function SurveyResults({ surveyId }: { surveyId: string }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-[28px] font-bold tracking-tight text-[color:var(--text-primary)]">
-              {survey?.name ?? "Survey results"}
+              {survey?.name ?? results?.surveyName ?? "Survey results"}
             </h1>
             {status && (
               <Badge variant={STATUS_VARIANT[status]} pill>
@@ -334,7 +355,7 @@ export function SurveyResults({ surveyId }: { surveyId: string }) {
                 {STATUS_LABEL[status]}
               </Badge>
             )}
-            {survey?.isAnonymous && (
+            {(survey?.isAnonymous ?? results?.isAnonymous) && (
               <Badge variant="brand" pill>
                 Anonymous
               </Badge>
@@ -355,20 +376,32 @@ export function SurveyResults({ surveyId }: { surveyId: string }) {
 
       {query.isLoading && <ResultsSkeleton />}
 
-      {query.isError && (
-        <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
-          <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-          <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
-            {query.error.message}
-          </span>
-          <button
-            onClick={() => void query.refetch()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-          >
-            <RefreshCw size={12} /> Retry
-          </button>
-        </div>
-      )}
+      {query.isError &&
+        (isSmallTeamSupervisorBlock(query.error) ? (
+          <div className="flex gap-3 rounded-2xl border border-[#FEDF89] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
+            <Lock size={18} className="mt-0.5 flex-none" />
+            <div>
+              <p className="text-sm font-bold">Results hidden for this team&apos;s supervisor.</p>
+              <p className="mt-1 text-[13px] font-medium">
+                This team has fewer than 3 members, so its anonymous results aren&apos;t shown to the
+                team&apos;s supervisor. HR and managers above the supervisor can view them.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
+            <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
+            <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
+              {query.error.message}
+            </span>
+            <button
+              onClick={() => void query.refetch()}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
+            >
+              <RefreshCw size={12} /> Retry
+            </button>
+          </div>
+        ))}
 
       {results && (
         <>
@@ -386,7 +419,7 @@ export function SurveyResults({ surveyId }: { surveyId: string }) {
           </div>
 
           {/* Filters + showing line */}
-          <ResultsFilters filter={filter} onChange={setFilter} />
+          {canFilter && <ResultsFilters filter={filter} onChange={setFilter} />}
           <p className="mb-4 mt-2 text-[13px] text-[color:var(--text-tertiary)]">{showingText}</p>
 
           {results.suppressed ? (

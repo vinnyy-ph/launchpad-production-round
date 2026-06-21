@@ -23,10 +23,25 @@ export async function fetchReviewees(): Promise<Reviewee[]> {
   return res.data;
 }
 
-export async function createEvaluation(input: EvaluationInput): Promise<Evaluation> {
+function buildEvaluationFormData(input: Partial<EvaluationInput> & { send?: boolean }, files: File[]): FormData {
+  const fd = new FormData();
+  if (input.revieweeId !== undefined) fd.append("revieweeId", input.revieweeId);
+  if (input.periodStart !== undefined) fd.append("periodStart", input.periodStart);
+  if (input.periodEnd !== undefined) fd.append("periodEnd", input.periodEnd);
+  if (input.grade !== undefined) fd.append("grade", String(input.grade));
+  (input.highlights ?? []).forEach((h) => fd.append("highlights", h));
+  (input.lowlights ?? []).forEach((l) => fd.append("lowlights", l));
+  if (input.evaluation) fd.append("evaluation", input.evaluation);
+  if (input.recommendation) fd.append("recommendation", input.recommendation);
+  if (input.send !== undefined) fd.append("send", String(input.send));
+  files.forEach((f) => fd.append("files", f));
+  return fd;
+}
+
+export async function createEvaluation(input: EvaluationInput, files: File[] = []): Promise<Evaluation> {
   const res = await apiFetch<MutationResponse>(BASE, {
     method: "POST",
-    body: JSON.stringify(input),
+    body: buildEvaluationFormData(input, files),
   });
   return res.data;
 }
@@ -34,10 +49,11 @@ export async function createEvaluation(input: EvaluationInput): Promise<Evaluati
 export async function updateEvaluation(
   id: string,
   input: Partial<EvaluationInput>,
+  files: File[] = [],
 ): Promise<Evaluation> {
   const res = await apiFetch<MutationResponse>(`${BASE}/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(input),
+    body: buildEvaluationFormData(input, files),
   });
   return res.data;
 }
@@ -55,4 +71,20 @@ export async function sendEvaluation(id: string): Promise<Evaluation> {
 export async function acknowledgeEvaluation(id: string): Promise<Evaluation> {
   const res = await apiFetch<MutationResponse>(`${BASE}/${id}/acknowledge`, { method: "PATCH" });
   return res.data;
+}
+
+/**
+ * Downloads a supporting document. The backend authorizes the request and returns a
+ * short-lived signed Cloudinary URL (the docs aren't publicly accessible), which we then
+ * navigate to so the browser downloads the file.
+ */
+export async function downloadSupportingDoc(evaluationId: string, docIndex: number): Promise<void> {
+  const { url } = await apiFetch<{ url: string }>(`${BASE}/${evaluationId}/documents/${docIndex}/download`);
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }

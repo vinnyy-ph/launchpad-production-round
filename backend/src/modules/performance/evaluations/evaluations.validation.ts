@@ -46,11 +46,12 @@ export class EvaluationsValidation {
       throw new Error("periodEnd must be on or after periodStart");
     }
 
+    const grade = typeof b.grade === "string" ? Number(b.grade) : b.grade;
     if (
-      typeof b.grade !== "number" ||
-      !Number.isInteger(b.grade) ||
-      b.grade < 1 ||
-      b.grade > 5
+      typeof grade !== "number" ||
+      !Number.isInteger(grade) ||
+      grade < 1 ||
+      grade > 5
     ) {
       throw new Error("grade must be an integer between 1 and 5");
     }
@@ -62,12 +63,11 @@ export class EvaluationsValidation {
       revieweeId: b.revieweeId,
       periodStart,
       periodEnd,
-      grade: b.grade,
+      grade: grade as number,
       ...(b.highlights !== undefined && { highlights: this.parseItemArray(b.highlights, "highlights") }),
       ...(b.lowlights !== undefined && { lowlights: this.parseItemArray(b.lowlights, "lowlights") }),
       ...(typeof b.evaluation === "string" && { evaluation: b.evaluation }),
       ...(typeof b.recommendation === "string" && { recommendation: b.recommendation }),
-      ...(typeof b.supportingDocUrl === "string" && { supportingDocUrl: b.supportingDocUrl }),
       ...(typeof b.send === "boolean" && { send: b.send }),
     };
   }
@@ -99,9 +99,10 @@ export class EvaluationsValidation {
       throw new Error("periodEnd must be on or after periodStart");
     }
     if (b.grade !== undefined) {
-      if (typeof b.grade !== "number" || !Number.isInteger(b.grade) || b.grade < 1 || b.grade > 5)
+      const grade = typeof b.grade === "string" ? Number(b.grade) : b.grade;
+      if (typeof grade !== "number" || !Number.isInteger(grade) || grade < 1 || grade > 5)
         throw new Error("grade must be an integer between 1 and 5");
-      result.grade = b.grade;
+      result.grade = grade;
     }
     if (b.send !== undefined) {
       if (typeof b.send !== "boolean") throw new Error("send must be a boolean");
@@ -114,7 +115,7 @@ export class EvaluationsValidation {
       result.lowlights = this.parseItemArray(b.lowlights, "lowlights");
     }
 
-    for (const field of ["evaluation", "recommendation", "supportingDocUrl"] as const) {
+    for (const field of ["evaluation", "recommendation"] as const) {
       if (b[field] !== undefined) {
         if (typeof b[field] !== "string") throw new Error(`${field} must be a string`);
         result[field] = b[field] as string;
@@ -145,9 +146,10 @@ export class EvaluationsValidation {
 
   /** Itemized text → trimmed, non-empty string list. */
   private parseItemArray(value: unknown, field: string): string[] {
-    if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+    const arr = Array.isArray(value) ? value : (typeof value === "string" ? [value] : value);
+    if (!Array.isArray(arr) || !arr.every((item) => typeof item === "string")) {
       throw new Error(`${field} must be an array of strings`);
     }
-    return (value as string[]).map((item) => item.trim()).filter((item) => item.length > 0);
+    return (arr as string[]).map((item) => item.trim()).filter((item) => item.length > 0);
   }
 }
