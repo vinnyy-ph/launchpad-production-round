@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Plus, Settings2, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
@@ -34,6 +34,7 @@ import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import { AddEmployeeDialog, OnboardingCasesTable } from "@/modules/people/onboarding";
+import { InitiateOffboardingDialog, OffboardingCasesTable } from "@/modules/people/offboarding";
 import type {
   EmployeeListItem,
   EmployeeSortBy,
@@ -133,34 +134,50 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
 
 export default function DirectoryPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  // Onboarding and Offboarding are deep-linkable routes nested under the People directory.
+  const isOnboardingRoute = pathname === "/hr/directory/onboarding";
+  const isOffboardingRoute = pathname === "/hr/directory/offboarding";
+  const tab: DirectoryTab = isOnboardingRoute
+    ? "onboarding"
+    : isOffboardingRoute
+      ? "offboarding"
+      : "all";
   const [search, setSearch] = useState("");
   const [teamId, setTeamId] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | EmployeeStatus>("");
   const [supervisorIds, setSupervisorIds] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<DirectoryTab>("all");
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
+  const [initiateOpen, setInitiateOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [sort, setSort] = useState<DataTableSort>({
     key: "employeeName",
     direction: "asc",
   });
   const debouncedSearch = useDebounce(search, 300);
+
+  // Each tab is its own route, so switching tabs is a navigation.
+  const handleTabChange = (nextTab: DirectoryTab) => {
+    const href =
+      nextTab === "onboarding"
+        ? "/hr/directory/onboarding"
+        : nextTab === "offboarding"
+          ? "/hr/directory/offboarding"
+          : "/hr/directory";
+    router.push(href);
+  };
+
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
   const counts = useEmployeeStatusCounts();
   // Supervisor filter options — any employee can be a supervisor.
   const { employees: supervisorOptions } = useEmployees({ limit: 100 });
 
-  // The All tab uses the status dropdown; the Offboarding tab is locked to offboarding.
-  const directoryStatus: "" | EmployeeStatus = tab === "offboarding" ? "offboarding" : statusFilter;
-  // The supervisor filter is an All-tab-only control.
-  const directorySupervisorIds = tab === "all" ? Array.from(supervisorIds) : [];
-
   const { employees, meta, loading, error, reload } = useEmployees({
     search: debouncedSearch || undefined,
     teamId: teamId || undefined,
-    status: directoryStatus || undefined,
-    supervisorIds: directorySupervisorIds.length > 0 ? directorySupervisorIds : undefined,
+    status: statusFilter || undefined,
+    supervisorIds: supervisorIds.size > 0 ? Array.from(supervisorIds) : undefined,
     sortBy: sort.key as EmployeeSortBy,
     sortDirection: sort.direction as SortDirection,
     page,
@@ -255,14 +272,20 @@ export default function DirectoryPage() {
               <Button
                 variant="outline"
                 className="w-full sm:w-auto"
-                onClick={() => router.push("/hr/onboarding/settings")}
+                onClick={() => router.push("/hr/directory/onboarding/settings")}
               >
                 <Settings2 aria-hidden="true" /> Onboarding setup
               </Button>
             ) : null}
-            <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
-              <Plus /> Add employee
-            </Button>
+            {tab === "offboarding" ? (
+              <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
+                <Plus /> Initiate offboarding
+              </Button>
+            ) : (
+              <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
+                <Plus /> Add employee
+              </Button>
+            )}
           </div>
         }
       />
@@ -270,10 +293,7 @@ export default function DirectoryPage() {
       <PageTabs
         ariaLabel="Employee segments"
         value={tab}
-        onChange={(nextTab) => {
-          setTab(nextTab as DirectoryTab);
-          setPage(1);
-        }}
+        onChange={(nextTab) => handleTabChange(nextTab as DirectoryTab)}
         items={[
           { value: "all", label: "All", count: counts.all },
           { value: "onboarding", label: "Onboarding", count: counts.onboarding },
@@ -283,6 +303,8 @@ export default function DirectoryPage() {
 
       {tab === "onboarding" ? (
         <OnboardingCasesTable />
+      ) : tab === "offboarding" ? (
+        <OffboardingCasesTable />
       ) : (
         <>
           <FilterBar aria-label="Filter employees">
@@ -402,8 +424,16 @@ export default function DirectoryPage() {
       <AddEmployeeDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onStarted={(employeeId) => router.push(`/hr/onboarding/${employeeId}`)}
+        onStarted={(employeeId) => router.push(`/hr/directory/onboarding/${employeeId}`)}
       />
+
+      {tab === "offboarding" ? (
+        <InitiateOffboardingDialog
+          open={initiateOpen}
+          onOpenChange={setInitiateOpen}
+          onInitiated={(caseId) => router.push(`/hr/directory/offboarding/${caseId}`)}
+        />
+      ) : null}
 
       <EmployeeDetailsModal
         employeeId={selectedEmployee?.id ?? null}

@@ -521,7 +521,7 @@ export function EmployeeDetailsModal({
         onInteractOutside={(event) => event.preventDefault()}
       >
         <DialogTitle className="sr-only">
-          {profile ? `${fullName(profile)} employee details` : "Employee details"}
+          Employee details
         </DialogTitle>
         <DialogDescription className="sr-only">
           Employee personal information, employment details, documents, and activity.
@@ -593,7 +593,7 @@ export function EmployeeDetailsModal({
             <form onSubmit={(event) => void handleSubmit(event)}>
             <header className="sticky top-0 z-10 flex min-h-[64px] items-center justify-between border-b border-[color:var(--border-primary)] bg-white px-8 pr-16">
               <h2 className="truncate text-lg font-bold text-[color:var(--text-primary)]">
-                {profile ? `${fullName(profile)} File` : "Employee File"}
+                Employee details
               </h2>
             </header>
 
@@ -791,12 +791,17 @@ export function EmployeeDetailsModal({
                         <div className="space-y-5">
                           <div>
                             <p className="mb-2 text-xs font-medium text-[color:var(--text-tertiary)]">
-                              Team/s
+                              Is a member of
                             </p>
                             {profile.teams.length > 0 ? (
                               <div className="flex flex-wrap gap-2">
                                 {profile.teams.map((team) => (
-                                  <Badge key={team.id} variant="brand">
+                                  <Badge
+                                    key={team.id}
+                                    variant="outline"
+                                    pill
+                                    className="max-w-[110px] truncate rounded-full border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]"
+                                  >
                                     {team.name}
                                   </Badge>
                                 ))}
@@ -810,12 +815,17 @@ export function EmployeeDetailsModal({
 
                           <div>
                             <p className="mb-2 text-xs font-medium text-[color:var(--text-tertiary)]">
-                              Led Teams
+                              Leads
                             </p>
                             {profileDetails?.ledTeams?.length ? (
                               <div className="flex flex-wrap gap-2">
                                 {profileDetails.ledTeams.map((team) => (
-                                  <Badge key={team.id} variant="success">
+                                  <Badge
+                                    key={team.id}
+                                    variant="outline"
+                                    pill
+                                    className="max-w-[110px] truncate rounded-full border-[#ABEFC6] bg-[#ECFDF3] font-semibold text-[#067647]"
+                                  >
                                     {team.name}
                                   </Badge>
                                 ))}

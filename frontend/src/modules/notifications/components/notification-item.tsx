@@ -38,8 +38,15 @@ function resolveRoute(n: Notification): string | null {
       return "/employee/onboarding";
     case "ONBOARDING_COMPLETE":
       return "/hr/directory";
-    case "ONBOARDING_STATUS":
-      return n.linkUrl?.startsWith("/hr/onboarding") ? n.linkUrl : "/hr/directory";
+    case "ONBOARDING_STATUS": {
+      const url = n.linkUrl;
+      if (url?.startsWith("/hr/directory/onboarding")) return url;
+      // Rewrite links saved before onboarding moved under the People directory.
+      if (url?.startsWith("/hr/onboarding")) {
+        return url.replace("/hr/onboarding", "/hr/directory/onboarding");
+      }
+      return "/hr/directory";
+    }
     default:
       return n.linkUrl?.startsWith("/") ? n.linkUrl : null;
   }
