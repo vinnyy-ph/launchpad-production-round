@@ -32,6 +32,7 @@ import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
+import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import { AddEmployeeDialog, OnboardingCasesTable } from "@/modules/people/onboarding";
 import { InitiateOffboardingDialog, OffboardingCasesTable } from "@/modules/people/offboarding";
@@ -146,6 +147,7 @@ export default function DirectoryPage() {
   const [search, setSearch] = useState("");
   const [teamId, setTeamId] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | EmployeeStatus>("");
+  const [departmentIds, setDepartmentIds] = useState<Set<string>>(new Set());
   const [supervisorIds, setSupervisorIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
@@ -169,6 +171,7 @@ export default function DirectoryPage() {
   };
 
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
+  const { departments, loading: departmentsLoading } = useDepartments();
   const counts = useEmployeeStatusCounts();
   // Supervisor filter options — any employee can be a supervisor.
   const { employees: supervisorOptions } = useEmployees({ limit: 100 });
@@ -177,6 +180,7 @@ export default function DirectoryPage() {
     search: debouncedSearch || undefined,
     teamId: teamId || undefined,
     status: statusFilter || undefined,
+    departmentIds: departmentIds.size > 0 ? Array.from(departmentIds) : undefined,
     supervisorIds: supervisorIds.size > 0 ? Array.from(supervisorIds) : undefined,
     sortBy: sort.key as EmployeeSortBy,
     sortDirection: sort.direction as SortDirection,
@@ -184,7 +188,8 @@ export default function DirectoryPage() {
     limit: PAGE_SIZE,
   });
 
-  const hasFilters = Boolean(search || teamId || statusFilter) || supervisorIds.size > 0;
+  const hasFilters =
+    Boolean(search || teamId || statusFilter) || departmentIds.size > 0 || supervisorIds.size > 0;
 
   const columns: Column<EmployeeListItem>[] = [
     {
@@ -339,6 +344,22 @@ export default function DirectoryPage() {
                 ))}
               </SelectContent>
             </Select>
+            <MultiSelectFilter
+              options={departments.map((department) => ({
+                id: department.id,
+                name: department.name,
+              }))}
+              selected={departmentIds}
+              onChange={(next) => {
+                setDepartmentIds(next);
+                setPage(1);
+              }}
+              allLabel="All departments"
+              countNoun="departments"
+              searchPlaceholder="Search departments…"
+              emptyText={departmentsLoading ? "Loading departments…" : "No departments found."}
+              ariaLabel="Filter by department"
+            />
             {tab === "all" ? (
               <Select
                 value={statusFilter || ALL}
@@ -411,7 +432,7 @@ export default function DirectoryPage() {
                   title={hasFilters ? "No one matches that" : "No employees yet"}
                   body={
                     hasFilters
-                      ? "Try a different name, team, status, or supervisor."
+                      ? "Try a different name, team, department, status, or supervisor."
                       : "Add your first employee to get started."
                   }
                 />

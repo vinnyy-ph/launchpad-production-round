@@ -19,11 +19,12 @@ import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import { CreateTeamDialog } from "@/modules/people/teams/components/create-team-dialog";
 import { TeamDetailsModal } from "@/modules/people/teams/components/team-details-modal";
 import {
-  buildReportingTree,
-  type OrgReportingNode,
+  buildDepartmentOrgChart,
+  type OrgChartItem,
 } from "@/modules/people/employees/components/org-chart/org-chart";
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
 import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
@@ -277,15 +278,25 @@ interface OrgChartPanelProps {
  * collapsible top-down tree. Defaults to fully expanded so the whole chart is visible.
  */
 function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProps) {
-  const roots = useMemo(() => buildReportingTree(employees), [employees]);
+  const { departments, loading: departmentsLoading } = useDepartments();
 
-  // Ids of nodes that actually have reports — the only ones that can be toggled / expanded.
+  // CEO at the top → every department beneath → each department's in-supervisor hierarchy.
+  const roots = useMemo(
+    () =>
+      buildDepartmentOrgChart(
+        employees,
+        departments.map((department) => department.name),
+      ),
+    [employees, departments],
+  );
+
+  // Ids of nodes that actually have children — the only ones that can be toggled / expanded.
   const parentIds = useMemo(() => {
     const ids = new Set<string>();
-    const walk = (nodes: OrgReportingNode[]) => {
+    const walk = (nodes: OrgChartItem[]) => {
       for (const node of nodes) {
         if (node.children.length > 0) {
-          ids.add(node.employee.id);
+          ids.add(node.id);
           walk(node.children);
         }
       }
@@ -297,13 +308,15 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
 
-  // Expand the whole chart by default the first time data arrives.
+  // Initial view: expand only the org root (CEO) so the departments show, but keep the
+  // departments themselves collapsed (employees hidden) until the user drills in. Wait for
+  // both queries to settle so `roots` already holds the CEO with its department children —
+  // otherwise an early-resolving departments query could latch the default before the CEO exists.
   useEffect(() => {
-    if (!initialized.current && parentIds.size > 0) {
-      setExpanded(new Set(parentIds));
-      initialized.current = true;
-    }
-  }, [parentIds]);
+    if (initialized.current || loading || departmentsLoading || roots.length === 0) return;
+    setExpanded(new Set(roots.filter((node) => node.kind === "person").map((node) => node.id)));
+    initialized.current = true;
+  }, [roots, loading, departmentsLoading]);
 
   function toggle(employeeId: string) {
     setExpanded((prev) => {
@@ -314,7 +327,7 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
     });
   }
 
-  if (loading) {
+  if (loading || departmentsLoading) {
     return (
       <div className="space-y-3">
         <Skeleton className="mx-auto h-28 w-52 rounded-xl" />

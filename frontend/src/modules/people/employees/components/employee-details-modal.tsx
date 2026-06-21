@@ -108,6 +108,8 @@ const SAVE_ERROR_MESSAGES: Record<string, string> = {
   "Another employee is already the root node":
     "Every employee needs a supervisor except the top of the organization, and that spot is already taken. Assign a supervisor instead of leaving this field empty.",
   "Employee cannot supervise themselves": "An employee can't be set as their own supervisor.",
+  "Supervisor must belong to the same department":
+    "A supervisor must be in the same department as the employee, or be the organization root (e.g. the CEO). Choose a valid supervisor.",
   "Supervisor not found":
     "The selected supervisor is no longer available. Please refresh the page and choose another.",
   "Invalid employee birthday": "Please enter a valid birthday.",
@@ -403,12 +405,18 @@ export function EmployeeDetailsModal({
     return departments;
   }, [departments, draft.department]);
 
+  // Supervisorship is confined to a single department, so only offer employees in the
+  // same department as the one currently selected in the draft. An empty draft department
+  // ("") matches employees with no department. The organization root (an employee with no
+  // supervisor, e.g. the CEO) is always offered so a department head can report upward
+  // across departments.
   const supervisorOptions = useMemo(
     () =>
       allEmployees
         .filter((emp) => emp.id !== employeeId)
+        .filter((emp) => (emp.department ?? "") === draft.department || emp.supervisor === null)
         .map((emp) => ({ value: emp.id, label: emp.fullName })),
-    [allEmployees, employeeId],
+    [allEmployees, employeeId, draft.department],
   );
 
   // Resolved from the fetched list first, then falls back to the saved profile supervisor
@@ -727,9 +735,17 @@ export function EmployeeDetailsModal({
                             <EditableSelect
                               label="Department"
                               value={draft.department || NO_DEPARTMENT}
-                              onChange={(value) =>
-                                updateDraft("department", value === NO_DEPARTMENT ? "" : value)
-                              }
+                              onChange={(value) => {
+                                const nextDepartment = value === NO_DEPARTMENT ? "" : value;
+                                // Reset the supervisor on department change so a now-invalid
+                                // cross-department selection can't linger; the user re-picks from
+                                // the new department's list (the org root stays selectable there).
+                                setDraft((current) => ({
+                                  ...current,
+                                  department: nextDepartment,
+                                  supervisorId: "",
+                                }));
+                              }}
                               placeholder={departmentsLoading ? "Loading departments..." : "Select department"}
                             >
                               <SelectItem value={NO_DEPARTMENT}>No department</SelectItem>

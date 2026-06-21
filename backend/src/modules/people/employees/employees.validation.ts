@@ -39,6 +39,7 @@ export class EmployeesValidation {
       status,
       teamId: this.parseOptionalString(query.teamId),
       team: this.parseOptionalString(query.team),
+      departmentIds: this.parseIdList(query.departmentId),
       supervisorIds: this.parseIdList(query.supervisorId),
       sortBy: this.parseSortBy(query.sortBy),
       sortDirection: this.parseSortDirection(query.sortDirection),
