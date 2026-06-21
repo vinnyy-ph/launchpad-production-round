@@ -80,6 +80,28 @@ export interface OnboardEmployeeInput {
   emergencyContact?: string;
 }
 
+export type BulkOnboardingRowInput = OnboardEmployeeInput & {
+  rowNumber: number;
+};
+
+export interface BulkOnboardingRowError {
+  rowNumber: number;
+  field: string;
+  message: string;
+}
+
+export interface BulkOnboardingPreviewResult {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  errors: BulkOnboardingRowError[];
+}
+
+export interface BulkOnboardingCommitResult {
+  created: OnboardEmployeeResult[];
+  inviteFailures: BulkOnboardingRowError[];
+}
+
 export interface OnboardedEmployee {
   id: string;
   companyEmail: string;
