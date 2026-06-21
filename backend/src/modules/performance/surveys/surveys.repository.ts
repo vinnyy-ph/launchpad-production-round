@@ -285,8 +285,8 @@ export class SurveysRepository {
     id: string,
     occurrenceData: { releaseDate: Date; deadline: Date },
     audienceIds: string[],
-  ): Promise<SurveyDetailRow> {
-    await prisma.$transaction(async (tx) => {
+  ): Promise<{ survey: SurveyDetailRow; occurrenceId: string }> {
+    const occurrenceId = await prisma.$transaction(async (tx) => {
       const occurrence = await tx.surveyOccurrence.create({
         data: {
           surveyId: id,
@@ -310,13 +310,15 @@ export class SurveysRepository {
         where: { id },
         data: { isActive: true },
       });
+
+      return occurrence.id;
     });
 
     const updated = await this.findById(id);
     if (!updated) {
       throw new Error("Survey not found after activation");
     }
-    return updated;
+    return { survey: updated, occurrenceId };
   }
 
   async deactivate(id: string, openOccurrenceId: string): Promise<SurveyDetailRow> {

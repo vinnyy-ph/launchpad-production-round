@@ -45,6 +45,7 @@ export async function sweepPulseReminders(now: Date = new Date()): Promise<void>
       occurrences: {
         where: { isClosed: false, releaseDate: { lte: now }, deadline: { gt: now } },
         select: {
+          id: true,
           releaseDate: true,
           audienceMembers: { select: { employeeId: true } },
           completions: { select: { employeeId: true } },
@@ -82,6 +83,7 @@ export async function sweepPulseReminders(now: Date = new Date()): Promise<void>
           survey.id,
           survey.name,
           now,
+          occurrence.id,
         );
       }
     }
