@@ -48,6 +48,26 @@ export type OrgChartItem =
 
 const NO_DEPARTMENT_LABEL = "No department";
 
+/** Maps a reporting-tree node into a person chart item, recursively converting its reports. */
+function toPersonItem(node: OrgReportingNode): OrgChartItem {
+  return {
+    kind: "person",
+    id: node.employee.id,
+    employee: node.employee,
+    children: node.children.map(toPersonItem),
+  };
+}
+
+/**
+ * Builds a plain top-down reporting chart (no department grouping) from an employee list —
+ * e.g. a supervisor's own reporting hierarchy. Anyone whose supervisor is absent from the list
+ * becomes a top-level node, so passing a supervisor's subtree yields their direct reports as
+ * roots with everyone below them nested beneath.
+ */
+export function buildReportingChart(employees: EmployeeListItem[]): OrgChartItem[] {
+  return buildReportingTree(employees).map(toPersonItem);
+}
+
 /**
  * Builds the department-grouped org chart: the organization root (e.g. the CEO) at the top,
  * every department beneath it, and each department's employees arranged by their in-department
@@ -65,13 +85,6 @@ export function buildDepartmentOrgChart(
 
   // A department's hierarchy is just the reporting tree of its own members: a member whose
   // supervisor sits outside the department (e.g. the CEO) naturally becomes a top-level node.
-  const toPersonItem = (node: OrgReportingNode): OrgChartItem => ({
-    kind: "person",
-    id: node.employee.id,
-    employee: node.employee,
-    children: node.children.map(toPersonItem),
-  });
-
   const departmentItem = (label: string, members: EmployeeListItem[]): OrgChartItem => ({
     kind: "department",
     id: `dept:${label}`,
