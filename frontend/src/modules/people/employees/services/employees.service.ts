@@ -24,8 +24,14 @@ export async function getEmployees(filters: EmployeeFilters = {}): Promise<Emplo
   const params = new URLSearchParams();
   if (filters.search) params.set("search", filters.search);
   if (filters.status) params.set("status", filters.status);
+  // Statuses are sent as a single comma-separated value the API parses into a list.
+  if (filters.statuses?.length) params.set("statuses", filters.statuses.join(","));
   if (filters.teamId) params.set("teamId", filters.teamId);
   if (filters.team) params.set("team", filters.team);
+  // Team ids are sent as a single comma-separated value the API parses into a list.
+  if (filters.teamIds?.length) params.set("teamIds", filters.teamIds.join(","));
+  // Department ids are sent as a single comma-separated value the API parses into a list.
+  if (filters.departmentIds?.length) params.set("departmentId", filters.departmentIds.join(","));
   // Supervisor ids are sent as a single comma-separated value the API parses into a list.
   if (filters.supervisorIds?.length) params.set("supervisorId", filters.supervisorIds.join(","));
   if (filters.sortBy) params.set("sortBy", filters.sortBy);

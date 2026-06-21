@@ -35,6 +35,72 @@ export function allReportingIds(employees: EmployeeListItem[]): string[] {
   return employees.map((e) => e.id);
 }
 
+// ─── department-grouped chart (CEO → departments → in-department hierarchy) ─────
+
+/**
+ * A node in the department-grouped org chart. Either a person (an employee with their
+ * in-department reports nested beneath) or a department grouping (its members' hierarchy
+ * nested beneath). `id` is unique across the whole tree and used as the expand/collapse key.
+ */
+export type OrgChartItem =
+  | { kind: "person"; id: string; employee: EmployeeListItem; children: OrgChartItem[] }
+  | { kind: "department"; id: string; label: string; count: number; children: OrgChartItem[] };
+
+const NO_DEPARTMENT_LABEL = "No department";
+
+/**
+ * Builds the department-grouped org chart: the organization root (e.g. the CEO) at the top,
+ * every department beneath it, and each department's employees arranged by their in-department
+ * supervisor hierarchy. Every known department is included — even empty ones — so the full
+ * structure is visible. Employees with no department are collected under a "No department"
+ * group. When no root exists yet, the departments become the top level so the chart still renders.
+ */
+export function buildDepartmentOrgChart(
+  employees: EmployeeListItem[],
+  departmentNames: string[],
+): OrgChartItem[] {
+  // The org root is the single supervisor-less employee (e.g. the CEO).
+  const ceo = employees.find((employee) => employee.supervisor === null) ?? null;
+  const others = ceo ? employees.filter((employee) => employee.id !== ceo.id) : employees;
+
+  // A department's hierarchy is just the reporting tree of its own members: a member whose
+  // supervisor sits outside the department (e.g. the CEO) naturally becomes a top-level node.
+  const toPersonItem = (node: OrgReportingNode): OrgChartItem => ({
+    kind: "person",
+    id: node.employee.id,
+    employee: node.employee,
+    children: node.children.map(toPersonItem),
+  });
+
+  const departmentItem = (label: string, members: EmployeeListItem[]): OrgChartItem => ({
+    kind: "department",
+    id: `dept:${label}`,
+    label,
+    count: members.length,
+    children: buildReportingTree(members).map(toPersonItem),
+  });
+
+  const sortedNames = [...departmentNames].sort((a, b) => a.localeCompare(b));
+  const departmentItems = sortedNames.map((name) =>
+    departmentItem(
+      name,
+      others.filter((employee) => employee.department === name),
+    ),
+  );
+
+  // Keep anyone (besides the CEO) without a department visible under a dedicated group.
+  const undepartmented = others.filter((employee) => !employee.department);
+  if (undepartmented.length > 0) {
+    departmentItems.push(departmentItem(NO_DEPARTMENT_LABEL, undepartmented));
+  }
+
+  if (!ceo) {
+    return departmentItems;
+  }
+
+  return [{ kind: "person", id: ceo.id, employee: ceo, children: departmentItems }];
+}
+
 interface ReportingTreeProps {
   employees: EmployeeListItem[];
   /** When set, render only the subtree rooted at this employee (e.g. a supervisor's own reports). */

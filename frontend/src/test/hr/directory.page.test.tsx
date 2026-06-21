@@ -253,8 +253,8 @@ describe("DirectoryPage", () => {
 
     expect(mockUseEmployees).toHaveBeenCalledWith({
       search: "ada",
-      teamId: "team-1",
-      status: "active",
+      teamIds: ["team-1"],
+      statuses: ["active"],
       sortBy: "employeeName",
       sortDirection: "asc",
       page: 1,

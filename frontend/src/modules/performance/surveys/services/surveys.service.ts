@@ -14,6 +14,7 @@ import type {
   SurveyResults,
   ResultsFilter,
   VisibleResultSurvey,
+  MyAnswers,
 } from "../types/surveys.types";
 import { normalizeQuestionOptions } from "../types/surveys.types";
 
@@ -118,6 +119,21 @@ export async function fetchMySurveys(): Promise<PendingSurvey[]> {
 export async function fetchAnsweredSurveys(): Promise<AnsweredSurvey[]> {
   const res = await apiFetch<{ data: AnsweredSurvey[] }>(`${PULSE}/me/surveys/answered`);
   return res.data;
+}
+
+/** The signed-in employee's own answers for one completed occurrence (PER-23).
+ *  Anonymous surveys return no answers — content is unrecoverable by design. */
+export async function fetchMyAnswers(occurrenceId: string): Promise<MyAnswers> {
+  const res = await apiFetch<{ data: MyAnswers }>(
+    `${PULSE}/me/surveys/answered/${occurrenceId}`,
+  );
+  return {
+    ...res.data,
+    answers: res.data.answers.map((a) => ({
+      ...a,
+      options: a.options == null ? null : normalizeQuestionOptions(a.options),
+    })),
+  };
 }
 
 /** Submit answers to a pulse occurrence. Anonymity + validation enforced server-side. */

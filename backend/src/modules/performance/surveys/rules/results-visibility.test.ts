@@ -29,9 +29,15 @@ describe("canViewSurveyResults", () => {
     expect(canViewSurveyResults(caller(), survey({ visibility: "SUPERVISOR_BASED" }), true)).toBe(true);
     expect(canViewSurveyResults(caller(), survey({ visibility: "SUPERVISOR_BASED" }), false)).toBe(false);
   });
-  it("TEAM_BASED needs a caller team in the audience config", () => {
-    expect(canViewSurveyResults(caller(), survey({ visibility: "TEAM_BASED", audienceConfigTeamIds: ["t1"] }), false)).toBe(true);
-    expect(canViewSurveyResults(caller(), survey({ visibility: "TEAM_BASED", audienceConfigTeamIds: ["t9"] }), false)).toBe(false);
+  it("TEAM_BASED allows any caller who belongs to a team, regardless of audience config", () => {
+    // Spec: "Everyone in the team can see survey results of the teams they belong to."
+    // Visibility is NOT coupled to the audience; the data layer scopes the response to the
+    // caller's own teams. So a team member can view even when the survey's audience is
+    // EVERYONE / supervisor-based (audienceConfigTeamIds empty).
+    expect(canViewSurveyResults(caller({ teamIds: ["t1"] }), survey({ visibility: "TEAM_BASED", audienceConfigTeamIds: [] }), false)).toBe(true);
+    expect(canViewSurveyResults(caller({ teamIds: ["t1"] }), survey({ visibility: "TEAM_BASED", audienceConfigTeamIds: ["t9"] }), false)).toBe(true);
+    // A caller with no team membership cannot.
+    expect(canViewSurveyResults(caller({ teamIds: [] }), survey({ visibility: "TEAM_BASED" }), false)).toBe(false);
   });
   it("SPECIFIC_TEAMS needs a caller team in the visibility config", () => {
     expect(canViewSurveyResults(caller(), survey({ visibility: "SPECIFIC_TEAMS", visibilityConfigTeamIds: ["t1"] }), false)).toBe(true);

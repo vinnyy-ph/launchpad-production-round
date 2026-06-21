@@ -121,8 +121,14 @@ export interface EmployeeUpdateInput {
 export interface EmployeeFilters {
   search?: string;
   status?: EmployeeStatus;
+  /** Filter to employees in any of these statuses. */
+  statuses?: EmployeeStatus[];
   teamId?: string;
   team?: string;
+  /** Filter to employees in any of these teams. */
+  teamIds?: string[];
+  /** Filter to employees in any of these departments. */
+  departmentIds?: string[];
   /** Filter to employees reporting to any of these supervisors. */
   supervisorIds?: string[];
   sortBy?: EmployeeSortBy;
