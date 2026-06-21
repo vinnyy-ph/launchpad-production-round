@@ -20,66 +20,79 @@ function countOpenSurveys(employeeId: string) {
   });
 }
 
-// GET /api/dashboard — role-aware "at a glance" counts for the home screen.
-// Right-sized: returns the reliable employee-status counts; richer per-domain
-// metrics (clearances, evaluations, surveys) belong to the owning modules and
-// are omitted here (the UI renders "—" for absent fields).
+// GET /api/dashboard — additive "at a glance" counts for the home screen. Returns
+// every lane the caller holds (Employee → Supervisor → HR/Admin), merged into one
+// object, so the sectioned dashboard can show all of a user's hats at once. Every
+// authenticated user holds the Employee lane (the subclass rule), so a supervisor or
+// HR user gets their own pulses/acknowledgements alongside their team/org counts.
 dashboardRoutes.get("/", authenticate, async (req, res, next) => {
   try {
     const session = await resolveSession(req.user!);
+    const stats: Record<string, number> = {};
+    const me = session.employeeId;
 
-    if (session.role === "ADMIN" || session.role === "HR") {
-      const [activeEmployees, pendingOnboarding, pendingOffboarding, pendingClearances] =
+    // Employee lane — the caller's own to-dos: pulses to answer, evaluations to
+    // acknowledge, plus onboarding figures (meaningful while ONBOARDING).
+    if (me) {
+      const [pendingDocuments, totalDocuments, approvedDocuments, unreadSurveys, pendingAcknowledgements] =
         await Promise.all([
-          prisma.employee.count({ where: { status: "ACTIVE" } }),
-          prisma.employee.count({ where: { status: "ONBOARDING" } }),
-          prisma.employee.count({ where: { status: "OFFBOARDING" } }),
-          // Org-wide clearance sign-offs still awaiting a signatory.
-          prisma.clearanceSignatureRequest.count({ where: { status: "PENDING" } }),
-        ]);
-      return res.json({ activeEmployees, pendingOnboarding, pendingOffboarding, pendingClearances });
-    }
-
-    if (session.isSupervisor && session.employeeId) {
-      const me = session.employeeId;
-      const [directReports, pendingEvaluations, totalEvaluations, completedEvaluations, unreadSurveys] =
-        await Promise.all([
-          prisma.employee.count({ where: { supervisorId: me } }),
-          prisma.performanceEvaluation.count({ where: { reviewerId: me, isSent: false, deletedAt: null } }),
-          prisma.performanceEvaluation.count({ where: { reviewerId: me, isSent: true, deletedAt: null } }),
+          prisma.onboardingDocumentSubmission.count({ where: { status: "PENDING", record: { employeeId: me } } }),
+          prisma.onboardingDocumentSubmission.count({ where: { record: { employeeId: me } } }),
+          prisma.onboardingDocumentSubmission.count({ where: { status: "APPROVED", record: { employeeId: me } } }),
+          countOpenSurveys(me),
+          // Evaluations issued to me that I haven't acknowledged and weren't deemed-acked.
           prisma.performanceEvaluation.count({
             where: {
-              reviewerId: me,
+              revieweeId: me,
               isSent: true,
               deletedAt: null,
-              acknowledgement: { OR: [{ acknowledgedAt: { not: null } }, { isDeemedAck: true }] },
+              NOT: { acknowledgement: { OR: [{ acknowledgedAt: { not: null } }, { isDeemedAck: true }] } },
             },
           }),
-          countOpenSurveys(me),
         ]);
-      return res.json({
-        directReports,
-        pendingEvaluations,
-        totalEvaluations,
-        completedEvaluations,
-        unreadSurveys,
-      });
+      stats.pendingDocuments = pendingDocuments;
+      stats.onboardingProgress = totalDocuments > 0 ? Math.round((approvedDocuments / totalDocuments) * 100) : 0;
+      stats.unreadSurveys = unreadSurveys;
+      stats.pendingAcknowledgements = pendingAcknowledgements;
     }
 
-    if (session.employeeId) {
-      const me = session.employeeId;
-      const [pendingDocuments, totalDocuments, approvedDocuments, unreadSurveys] = await Promise.all([
-        prisma.onboardingDocumentSubmission.count({ where: { status: "PENDING", record: { employeeId: me } } }),
-        prisma.onboardingDocumentSubmission.count({ where: { record: { employeeId: me } } }),
-        prisma.onboardingDocumentSubmission.count({ where: { status: "APPROVED", record: { employeeId: me } } }),
-        countOpenSurveys(me),
+    // Supervisor lane — the team they manage. (Surveys live in the employee lane above.)
+    if (session.isSupervisor && me) {
+      const [directReports, pendingEvaluations, totalEvaluations, completedEvaluations] = await Promise.all([
+        prisma.employee.count({ where: { supervisorId: me } }),
+        prisma.performanceEvaluation.count({ where: { reviewerId: me, isSent: false, deletedAt: null } }),
+        prisma.performanceEvaluation.count({ where: { reviewerId: me, isSent: true, deletedAt: null } }),
+        prisma.performanceEvaluation.count({
+          where: {
+            reviewerId: me,
+            isSent: true,
+            deletedAt: null,
+            acknowledgement: { OR: [{ acknowledgedAt: { not: null } }, { isDeemedAck: true }] },
+          },
+        }),
       ]);
-      const onboardingProgress =
-        totalDocuments > 0 ? Math.round((approvedDocuments / totalDocuments) * 100) : 0;
-      return res.json({ pendingDocuments, onboardingProgress, unreadSurveys });
+      stats.directReports = directReports;
+      stats.pendingEvaluations = pendingEvaluations;
+      stats.totalEvaluations = totalEvaluations;
+      stats.completedEvaluations = completedEvaluations;
     }
 
-    return res.json({});
+    // HR / Admin lane — org-wide lifecycle counts.
+    if (session.role === "ADMIN" || session.role === "HR") {
+      const [activeEmployees, pendingOnboarding, pendingOffboarding, pendingClearances] = await Promise.all([
+        prisma.employee.count({ where: { status: "ACTIVE" } }),
+        prisma.employee.count({ where: { status: "ONBOARDING" } }),
+        prisma.employee.count({ where: { status: "OFFBOARDING" } }),
+        // Org-wide clearance sign-offs still awaiting a signatory.
+        prisma.clearanceSignatureRequest.count({ where: { status: "PENDING" } }),
+      ]);
+      stats.activeEmployees = activeEmployees;
+      stats.pendingOnboarding = pendingOnboarding;
+      stats.pendingOffboarding = pendingOffboarding;
+      stats.pendingClearances = pendingClearances;
+    }
+
+    return res.json(stats);
   } catch (err) {
     return next(err);
   }

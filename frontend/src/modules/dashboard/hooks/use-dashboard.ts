@@ -19,6 +19,7 @@ export interface DashboardStats {
   // EMPLOYEE
   pendingDocuments?: number;
   onboardingProgress?: number;
+  pendingAcknowledgements?: number;
   clearanceStatus?: string | null;
 }
 
