@@ -1,5 +1,6 @@
 import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
+import { downwardChain } from "../../shared/org";
 import type {
   ListEmployeesQueryDto,
   UpdateEmployeeAddressRequestDto,
@@ -133,6 +134,14 @@ export class EmployeesRepository {
    */
   async findMany(filters: ListEmployeesQueryDto) {
     const where = this.buildWhere(filters);
+
+    if (filters.reportingToId) {
+      // Scope to the supervisor's whole downward hierarchy (direct reports + everyone below).
+      // An empty result (no reports) yields `{ in: [] }`, which correctly matches nothing.
+      const descendantIds = await downwardChain(filters.reportingToId);
+      where.id = { in: descendantIds };
+    }
+
     const skip = (filters.page - 1) * filters.limit;
     const orderBy = this.buildOrderBy(filters);
 
