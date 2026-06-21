@@ -53,7 +53,10 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
       status: "ACTIVE",
     };
 
-    findFirstMock.mockResolvedValue(existingProfile);
+    // The first findFirst is the pre-update read used for diffing; later calls — the editor
+    // lookup and the post-commit profile refresh — see the updated record.
+    findFirstMock.mockResolvedValueOnce(existingProfile);
+    findFirstMock.mockResolvedValue(updatedProfile);
     updateMock.mockResolvedValue(updatedProfile);
 
     const response = await request(app)

@@ -404,7 +404,10 @@ export class EmployeesRepository {
       },
     };
 
-    if (filters.status) {
+    if (filters.statuses?.length) {
+      // Single status stays a plain match; multiple statuses match any of them.
+      where.status = filters.statuses.length === 1 ? filters.statuses[0] : { in: filters.statuses };
+    } else if (filters.status) {
       where.status = filters.status;
     }
 
@@ -437,15 +440,21 @@ export class EmployeesRepository {
       ];
     }
 
-    if (filters.teamId || filters.team) {
-      where.teamMemberships = {
-        some: {
-          team: {
-            ...(filters.teamId ? { id: filters.teamId } : {}),
-            ...(filters.team ? { name: { contains: filters.team, mode: "insensitive" } } : {}),
-          },
-        },
-      };
+    if (filters.teamIds?.length || filters.teamId || filters.team) {
+      const teamWhere: Prisma.TeamWhereInput = {};
+
+      if (filters.teamIds?.length) {
+        // Single id stays a plain match; multiple ids match any of them.
+        teamWhere.id = filters.teamIds.length === 1 ? filters.teamIds[0] : { in: filters.teamIds };
+      } else if (filters.teamId) {
+        teamWhere.id = filters.teamId;
+      }
+
+      if (filters.team) {
+        teamWhere.name = { contains: filters.team, mode: "insensitive" };
+      }
+
+      where.teamMemberships = { some: { team: teamWhere } };
     }
 
     return where;

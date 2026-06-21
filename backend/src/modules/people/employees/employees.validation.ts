@@ -37,8 +37,10 @@ export class EmployeesValidation {
       limit,
       search: this.parseOptionalString(query.search),
       status,
+      statuses: this.parseStatusList(query.statuses),
       teamId: this.parseOptionalString(query.teamId),
       team: this.parseOptionalString(query.team),
+      teamIds: this.parseIdList(query.teamIds),
       departmentIds: this.parseIdList(query.departmentId),
       supervisorIds: this.parseIdList(query.supervisorId),
       sortBy: this.parseSortBy(query.sortBy),
@@ -156,6 +158,37 @@ export class EmployeesValidation {
     }
 
     return status as EmployeeStatus;
+  }
+
+  /**
+   * Parses a comma-separated status list (e.g. "active,onboarding") into a deduped array of
+   * Prisma enum values. Returns undefined when none are present and throws on any invalid value.
+   */
+  private parseStatusList(value: unknown): EmployeeStatus[] | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const statuses = Array.from(
+      new Set(
+        value
+          .split(",")
+          .map((status) => status.trim().toUpperCase())
+          .filter((status) => status.length > 0),
+      ),
+    );
+
+    if (statuses.length === 0) {
+      return undefined;
+    }
+
+    for (const status of statuses) {
+      if (!Object.values(EmployeeStatus).includes(status as EmployeeStatus)) {
+        throw new Error("Invalid employee status");
+      }
+    }
+
+    return statuses as EmployeeStatus[];
   }
 
   /** Accepts known employee directory sort keys and ignores unsupported values. */
