@@ -85,6 +85,9 @@ export const queryKeys = {
     mine: ["surveys", "mine"] as const,
     // The signed-in employee's already-answered pulses (history).
     mineAnswered: ["surveys", "mine", "answered"] as const,
+    // The signed-in employee's own answers for one completed occurrence.
+    mineAnswers: (occurrenceId: string) =>
+      ["surveys", "mine", "answered", occurrenceId] as const,
     // Surveys whose results the signed-in user may view.
     viewableResults: ["surveys", "viewable-results"] as const,
   },

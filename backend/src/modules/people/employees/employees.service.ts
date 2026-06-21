@@ -121,6 +121,32 @@ export class EmployeesService {
         if (hasCycle) {
           throw new Error("Circular supervisory relationship detected");
         }
+
+        // Enforce same-department supervisorship: a supervisor must belong to the same
+        // department as the employee. The employee's department may be changing in this
+        // same request, so prefer the incoming department name and fall back to the
+        // employee's currently stored department.
+        const employee = await this.employeesRepository.findById(params.employeeId);
+
+        if (!employee) {
+          throw new Error("Employee not found");
+        }
+
+        const employeeDepartment =
+          update.department !== undefined
+            ? update.department
+            : (employee.department?.name ?? null);
+        const supervisorDepartment = supervisor.department?.name ?? null;
+
+        // Cross-department assignment is allowed only when the chosen supervisor is the
+        // organization root (e.g. the CEO, who has no supervisor). This lets a department
+        // head report upward across departments while keeping every other assignment
+        // confined to a single department.
+        const supervisorIsRoot = supervisor.supervisorId === null;
+
+        if (employeeDepartment !== supervisorDepartment && !supervisorIsRoot) {
+          throw new Error("Supervisor must belong to the same department");
+        }
       } else {
         // Clearing the supervisor — enforce the single root node constraint.
         const existingRootCount = await this.employeesRepository.countRootEmployees(

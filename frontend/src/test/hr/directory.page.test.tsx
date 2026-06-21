@@ -199,7 +199,7 @@ describe("DirectoryPage", () => {
     expect(screen.getByRole("button", { name: "Documents" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Activity History" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Process offboarding" })).toBeInTheDocument();
-    expect(screen.getByText("Ada Byron Lovelace File")).toBeInTheDocument();
+    expect(screen.getAllByText("Employee details").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /save changes/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /discard/i })).not.toBeInTheDocument();
     expect(screen.getAllByText("Personal Information").length).toBeGreaterThan(0);
@@ -253,8 +253,8 @@ describe("DirectoryPage", () => {
 
     expect(mockUseEmployees).toHaveBeenCalledWith({
       search: "ada",
-      teamId: "team-1",
-      status: "active",
+      teamIds: ["team-1"],
+      statuses: ["active"],
       sortBy: "employeeName",
       sortDirection: "asc",
       page: 1,

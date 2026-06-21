@@ -108,6 +108,8 @@ const SAVE_ERROR_MESSAGES: Record<string, string> = {
   "Another employee is already the root node":
     "Every employee needs a supervisor except the top of the organization, and that spot is already taken. Assign a supervisor instead of leaving this field empty.",
   "Employee cannot supervise themselves": "An employee can't be set as their own supervisor.",
+  "Supervisor must belong to the same department":
+    "A supervisor must be in the same department as the employee, or be the organization root (e.g. the CEO). Choose a valid supervisor.",
   "Supervisor not found":
     "The selected supervisor is no longer available. Please refresh the page and choose another.",
   "Invalid employee birthday": "Please enter a valid birthday.",
@@ -260,7 +262,7 @@ function isImageUrl(url: string): boolean {
 
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
   return (
-    <section className="border-b border-[color:var(--border-primary)] pb-9">
+    <section className="pb-9">
       <div className="mb-6 flex items-center gap-2">
         <Icon className="h-4 w-4 text-[color:var(--text-secondary)]" aria-hidden="true" />
         <h3 className="text-sm font-bold text-[color:var(--text-primary)]">{title}</h3>
@@ -403,12 +405,18 @@ export function EmployeeDetailsModal({
     return departments;
   }, [departments, draft.department]);
 
+  // Supervisorship is confined to a single department, so only offer employees in the
+  // same department as the one currently selected in the draft. An empty draft department
+  // ("") matches employees with no department. The organization root (an employee with no
+  // supervisor, e.g. the CEO) is always offered so a department head can report upward
+  // across departments.
   const supervisorOptions = useMemo(
     () =>
       allEmployees
         .filter((emp) => emp.id !== employeeId)
+        .filter((emp) => (emp.department ?? "") === draft.department || emp.supervisor === null)
         .map((emp) => ({ value: emp.id, label: emp.fullName })),
-    [allEmployees, employeeId],
+    [allEmployees, employeeId, draft.department],
   );
 
   // Resolved from the fetched list first, then falls back to the saved profile supervisor
@@ -521,7 +529,7 @@ export function EmployeeDetailsModal({
         onInteractOutside={(event) => event.preventDefault()}
       >
         <DialogTitle className="sr-only">
-          {profile ? `${fullName(profile)} employee details` : "Employee details"}
+          Employee details
         </DialogTitle>
         <DialogDescription className="sr-only">
           Employee personal information, employment details, documents, and activity.
@@ -593,7 +601,7 @@ export function EmployeeDetailsModal({
             <form onSubmit={(event) => void handleSubmit(event)}>
             <header className="sticky top-0 z-10 flex min-h-[64px] items-center justify-between border-b border-[color:var(--border-primary)] bg-white px-8 pr-16">
               <h2 className="truncate text-lg font-bold text-[color:var(--text-primary)]">
-                {profile ? `${fullName(profile)} File` : "Employee File"}
+                Employee details
               </h2>
             </header>
 
@@ -727,9 +735,17 @@ export function EmployeeDetailsModal({
                             <EditableSelect
                               label="Department"
                               value={draft.department || NO_DEPARTMENT}
-                              onChange={(value) =>
-                                updateDraft("department", value === NO_DEPARTMENT ? "" : value)
-                              }
+                              onChange={(value) => {
+                                const nextDepartment = value === NO_DEPARTMENT ? "" : value;
+                                // Reset the supervisor on department change so a now-invalid
+                                // cross-department selection can't linger; the user re-picks from
+                                // the new department's list (the org root stays selectable there).
+                                setDraft((current) => ({
+                                  ...current,
+                                  department: nextDepartment,
+                                  supervisorId: "",
+                                }));
+                              }}
                               placeholder={departmentsLoading ? "Loading departments..." : "Select department"}
                             >
                               <SelectItem value={NO_DEPARTMENT}>No department</SelectItem>
@@ -791,12 +807,17 @@ export function EmployeeDetailsModal({
                         <div className="space-y-5">
                           <div>
                             <p className="mb-2 text-xs font-medium text-[color:var(--text-tertiary)]">
-                              Team/s
+                              Is a member of
                             </p>
                             {profile.teams.length > 0 ? (
                               <div className="flex flex-wrap gap-2">
                                 {profile.teams.map((team) => (
-                                  <Badge key={team.id} variant="brand">
+                                  <Badge
+                                    key={team.id}
+                                    variant="outline"
+                                    pill
+                                    className="max-w-[110px] truncate rounded-full border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]"
+                                  >
                                     {team.name}
                                   </Badge>
                                 ))}
@@ -810,12 +831,17 @@ export function EmployeeDetailsModal({
 
                           <div>
                             <p className="mb-2 text-xs font-medium text-[color:var(--text-tertiary)]">
-                              Led Teams
+                              Leads
                             </p>
                             {profileDetails?.ledTeams?.length ? (
                               <div className="flex flex-wrap gap-2">
                                 {profileDetails.ledTeams.map((team) => (
-                                  <Badge key={team.id} variant="success">
+                                  <Badge
+                                    key={team.id}
+                                    variant="outline"
+                                    pill
+                                    className="max-w-[110px] truncate rounded-full border-[#ABEFC6] bg-[#ECFDF3] font-semibold text-[#067647]"
+                                  >
                                     {team.name}
                                   </Badge>
                                 ))}

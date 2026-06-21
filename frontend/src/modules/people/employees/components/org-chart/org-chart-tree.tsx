@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/shared/ui";
-import type { OrgReportingNode } from "./org-chart";
+import type { OrgChartItem } from "./org-chart";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -23,17 +23,17 @@ function Avatar({ name }: { name: string }) {
 }
 
 interface OrgChartTreeProps {
-  /** Root nodes of the reporting forest (built from supervisor → direct reports). */
-  nodes: OrgReportingNode[];
-  /** Ids whose direct reports are currently shown. */
+  /** Top-level nodes of the chart: the org root (CEO) → departments → in-department hierarchy. */
+  nodes: OrgChartItem[];
+  /** Node ids whose children are currently shown. */
   expanded: Set<string>;
-  onToggle: (employeeId: string) => void;
+  onToggle: (nodeId: string) => void;
 }
 
 /**
- * Top-down, collapsible organization chart. Renders the supervisor hierarchy as a tree of
- * person cards connected with lines (CEO at the root). Wrap in a horizontally scrollable
- * container — wide orgs naturally exceed the viewport.
+ * Top-down, collapsible organization chart. Renders the org root (CEO) at the top, every
+ * department beneath it, and each department's employees as a supervisor hierarchy, connected
+ * with lines. Wrap in a horizontally scrollable container — wide orgs exceed the viewport.
  */
 export function OrgChartTree({ nodes, expanded, onToggle }: OrgChartTreeProps) {
   if (nodes.length === 0) return null;
@@ -41,73 +41,84 @@ export function OrgChartTree({ nodes, expanded, onToggle }: OrgChartTreeProps) {
   return (
     <ul className="org-tree">
       {nodes.map((node) => (
-        <OrgChartNode key={node.employee.id} node={node} expanded={expanded} onToggle={onToggle} />
+        <OrgChartNode key={node.id} node={node} expanded={expanded} onToggle={onToggle} />
       ))}
     </ul>
   );
 }
 
 interface OrgChartNodeProps {
-  node: OrgReportingNode;
+  node: OrgChartItem;
   expanded: Set<string>;
-  onToggle: (employeeId: string) => void;
+  onToggle: (nodeId: string) => void;
 }
 
-/** One person card plus their direct reports beneath it when expanded. */
+/** One card (person or department) plus its children beneath it when expanded. */
 function OrgChartNode({ node, expanded, onToggle }: OrgChartNodeProps) {
-  const { employee } = node;
-  const hasReports = node.children.length > 0;
-  const isOpen = expanded.has(employee.id);
+  const hasChildren = node.children.length > 0;
+  const isOpen = expanded.has(node.id);
+
+  const toggle = hasChildren ? (
+    <button
+      type="button"
+      onClick={() => onToggle(node.id)}
+      aria-expanded={isOpen}
+      aria-label={
+        isOpen
+          ? `Collapse ${node.kind === "department" ? node.label : node.employee.fullName}`
+          : `Expand ${node.kind === "department" ? node.label : node.employee.fullName}`
+      }
+      className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--border-primary)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+      {node.children.length}
+    </button>
+  ) : null;
 
   return (
     <li>
-      <div
-        className="w-[200px] rounded-xl border border-[color:var(--border-primary)] bg-white p-3 text-center"
-        style={{ boxShadow: "var(--shadow-xs)" }}
-      >
-        <Avatar name={employee.fullName} />
-        <p className="mt-2 truncate text-sm font-bold text-[color:var(--text-primary)]">
-          {employee.fullName}
-        </p>
-        <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-          {employee.jobTitle ?? "—"}
-        </p>
-        {employee.department && (
-          <p className="truncate text-[11px] text-[color:var(--text-tertiary)]">
-            {employee.department}
-          </p>
-        )}
-        <div className="mt-2 flex justify-center">
-          <StatusBadge status={employee.status} dot />
-        </div>
-
-        {hasReports && (
-          <button
-            type="button"
-            onClick={() => onToggle(employee.id)}
-            aria-expanded={isOpen}
-            aria-label={
-              isOpen
-                ? `Collapse reports of ${employee.fullName}`
-                : `Expand reports of ${employee.fullName}`
-            }
-            className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--border-primary)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      {node.kind === "department" ? (
+        <div
+          className="w-[200px] rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3 text-center"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <span
+            className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white text-[color:var(--text-secondary)]"
+            aria-hidden="true"
           >
-            {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            {node.children.length}
-          </button>
-        )}
-      </div>
+            <Building2 className="h-5 w-5" />
+          </span>
+          <p className="mt-2 truncate text-sm font-bold text-[color:var(--text-primary)]">
+            {node.label}
+          </p>
+          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+            {node.count} {node.count === 1 ? "member" : "members"}
+          </p>
+          {toggle}
+        </div>
+      ) : (
+        <div
+          className="w-[200px] rounded-xl border border-[color:var(--border-primary)] bg-white p-3 text-center"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <Avatar name={node.employee.fullName} />
+          <p className="mt-2 truncate text-sm font-bold text-[color:var(--text-primary)]">
+            {node.employee.fullName}
+          </p>
+          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+            {node.employee.jobTitle ?? "—"}
+          </p>
+          <div className="mt-2 flex justify-center">
+            <StatusBadge status={node.employee.status} dot />
+          </div>
+          {toggle}
+        </div>
+      )}
 
-      {hasReports && isOpen && (
+      {hasChildren && isOpen && (
         <ul>
           {node.children.map((child) => (
-            <OrgChartNode
-              key={child.employee.id}
-              node={child}
-              expanded={expanded}
-              onToggle={onToggle}
-            />
+            <OrgChartNode key={child.id} node={child} expanded={expanded} onToggle={onToggle} />
           ))}
         </ul>
       )}

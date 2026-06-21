@@ -1,4 +1,7 @@
 // frontend/src/screens/home.page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   RefreshCw,
@@ -11,6 +14,7 @@ import {
   MessageSquare,
   CheckCircle2,
   FileText,
+  FileCheck2,
   TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -19,7 +23,7 @@ import { useNotifications } from "@/modules/notifications/hooks/use-notification
 import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { KpiCard, type KpiCardProps } from "@/shared/ui/patterns";
-import { ScreenHeader } from "@/shared/components/layout/screen-header";
+import type { AppUser, EmployeeStatus } from "@/modules/auth/types/auth.types";
 
 export default function HomePage() {
   const { appUser } = useAuth();
@@ -28,37 +32,61 @@ export default function HomePage() {
   const { notifications, loading: notifLoading, error: notifError, reload: reloadNotifs } = useNotifications(5);
   const { markRead } = useMarkRead(() => void reloadNotifs());
 
-  const cards = buildCards(appUser?.role, appUser?.isSupervisor, stats);
+  // Time-aware greeting is set after mount so the server-prerendered HTML and the
+  // client hydration agree (the clock only exists on the client). First paint shows
+  // the neutral fallback, then the greeting resolves to morning/afternoon/evening.
+  const [greeting, setGreeting] = useState("Welcome back");
+  useEffect(() => {
+    const h = new Date().getHours();
+    setGreeting(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
+  }, []);
+
+  const firstName = getFirstName(appUser);
+  const summary = buildSummary(appUser?.role, appUser?.isSupervisor, stats);
+  const sections = buildSections(appUser?.role, appUser?.isSupervisor, appUser?.employeeStatus, stats);
 
   return (
-    <div className="min-w-0 space-y-6">
-      <ScreenHeader id="dashboard" level="page" />
+    <div className="min-w-0 space-y-7">
+      {/* Greeting hero — personal landing, with the one Jia gradient accent. */}
+      <header>
+        <span
+          className="block h-1 w-10 rounded-full"
+          style={{ background: "var(--gradient-jia)" }}
+          aria-hidden="true"
+        />
+        <h1 className="mt-3 text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
+          {greeting}
+          {firstName ? `, ${firstName}` : ""}
+        </h1>
+        <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">{summary}</p>
+      </header>
 
-      {/* KPI cards — hidden for now. Restore by flipping `false` to `true` on the line below. */}
-      {false && (
-      <section>
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          At a glance
-        </h2>
-        {statsError ? (
-          <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
-            <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-            <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{statsError}</span>
-            <button
-              onClick={() => void loadStats()}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
-            >
-              <RefreshCw size={12} /> Retry
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {cards.map((card) => (
-              <KpiCard key={card.label} {...card} loading={statsLoading} />
-            ))}
-          </div>
-        )}
-      </section>
+      {/* At a glance — one section per hat the user holds (Your work → Your team →
+          Organization). Each card links to where the metric is acted on. */}
+      {statsError ? (
+        <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
+          <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
+          <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{statsError}</span>
+          <button
+            onClick={() => void loadStats()}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
+          >
+            <RefreshCw size={12} /> Retry
+          </button>
+        </div>
+      ) : (
+        sections.map((section) => (
+          <section key={section.key}>
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+              {section.title}
+            </h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {section.cards.map((card) => (
+                <KpiCard key={card.label} {...card} loading={statsLoading} />
+              ))}
+            </div>
+          </section>
+        ))
       )}
 
       {/* Recent notifications */}
@@ -113,59 +141,128 @@ export default function HomePage() {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const PERIOD = "Right now";
+interface DashSection {
+  key: string;
+  title: string;
+  cards: KpiCardProps[];
+}
 
-function buildCards(
+/** First name for the greeting: first token of the display name, else the email local part. */
+function getFirstName(user: AppUser | null | undefined): string {
+  const fromName = user?.displayName?.trim().split(/\s+/)[0];
+  if (fromName) return fromName;
+  const local = user?.email?.split("@")[0];
+  return local ?? "";
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+/** Join clauses naturally: "a", "a and b", "a, b and c". */
+function joinClauses(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+/**
+ * A plain-language line of what's waiting, aggregated across every hat the user holds
+ * (personal → team → org). Capped at three clauses so it never becomes a run-on.
+ */
+function buildSummary(
   role: string | undefined,
   isSupervisor: boolean | undefined,
   stats: DashboardStats | null,
-): KpiCardProps[] {
+): string {
+  if (!stats) return "Here's your day at a glance.";
+
+  const clauses: string[] = [];
+  // Personal (the Employee lane everyone holds).
+  if (stats.unreadSurveys) clauses.push(`${plural(stats.unreadSurveys, "survey")} to answer`);
+  if (stats.pendingAcknowledgements) clauses.push(`${plural(stats.pendingAcknowledgements, "evaluation")} to acknowledge`);
+  // Team (Supervisor lane).
+  if (isSupervisor && stats.pendingEvaluations) clauses.push(`${plural(stats.pendingEvaluations, "evaluation")} to finish`);
+  // Organization (HR / Admin lane).
+  if (role === "HR" || role === "ADMIN") {
+    if (stats.pendingOnboarding) clauses.push(`${stats.pendingOnboarding} ${stats.pendingOnboarding === 1 ? "person" : "people"} onboarding`);
+    if (stats.pendingOffboarding) clauses.push(`${stats.pendingOffboarding} ${stats.pendingOffboarding === 1 ? "person" : "people"} offboarding`);
+    if (stats.pendingClearances) clauses.push(`${plural(stats.pendingClearances, "clearance")} to sign`);
+  }
+
+  if (clauses.length === 0) return "You're all caught up — nice work.";
+  if (clauses.length <= 3) return `You have ${joinClauses(clauses)}.`;
+  return `You have ${joinClauses(clauses.slice(0, 2))}, and ${clauses.length - 2} more things to review.`;
+}
+
+/**
+ * The KPI sections to show, one per hat the user holds, in fixed order:
+ * Your work (every employee) → Your team (supervisors) → Organization (HR/Admin).
+ * Mirrors the additive sidebar so the dashboard never hides a lane the user has.
+ */
+function buildSections(
+  role: string | undefined,
+  isSupervisor: boolean | undefined,
+  employeeStatus: EmployeeStatus | undefined,
+  stats: DashboardStats | null,
+): DashSection[] {
   // While stats are loading the value is ignored (the card shows a skeleton);
   // once loaded, an absent metric falls back to "—".
   const num = (n: number | undefined): string | number => (stats ? (n ?? "—") : 0);
+  const sections: DashSection[] = [];
 
-  if (role === "ADMIN" || role === "HR") {
-    return [
-      { icon: UserPlus, label: "Pending onboarding", period: PERIOD, value: num(stats?.pendingOnboarding) },
-      { icon: UserMinus, label: "Pending offboarding", period: PERIOD, value: num(stats?.pendingOffboarding) },
-      { icon: Users, label: "Active employees", period: PERIOD, value: num(stats?.activeEmployees) },
-      { icon: ShieldCheck, label: "Clearance awaiting", period: PERIOD, value: num(stats?.pendingClearances) },
-    ];
-  }
-
-  if (isSupervisor) {
-    return [
-      { icon: ClipboardCheck, label: "Pending evaluations", period: PERIOD, value: num(stats?.pendingEvaluations) },
-      { icon: Users, label: "Direct reports", period: PERIOD, value: num(stats?.directReports) },
-      { icon: MessageSquare, label: "Unanswered surveys", period: PERIOD, value: num(stats?.unreadSurveys) },
-      {
-        icon: CheckCircle2,
-        label: "Evals complete",
-        period: PERIOD,
-        value: stats
-          ? stats.totalEvaluations
-            ? `${stats.completedEvaluations ?? 0}/${stats.totalEvaluations}`
-            : "—"
-          : 0,
-      },
-    ];
-  }
-
-  // EMPLOYEE
-  return [
-    { icon: FileText, label: "Documents pending", period: PERIOD, value: num(stats?.pendingDocuments) },
-    {
-      icon: TrendingUp,
-      label: "Onboarding progress",
-      period: PERIOD,
-      value: stats ? (stats.onboardingProgress != null ? `${stats.onboardingProgress}%` : "—") : 0,
-    },
-    { icon: MessageSquare, label: "Unanswered surveys", period: PERIOD, value: num(stats?.unreadSurveys) },
-    {
-      icon: ShieldCheck,
-      label: "Clearance status",
-      period: PERIOD,
-      value: stats ? (stats.clearanceStatus ?? "—") : 0,
-    },
+  // Your work — the caller's own to-dos. Onboarding figures only matter while onboarding.
+  const work: KpiCardProps[] = [
+    { icon: MessageSquare, label: "Unanswered surveys", value: num(stats?.unreadSurveys), href: "/employee/surveys" },
+    { icon: FileCheck2, label: "Evals to acknowledge", value: num(stats?.pendingAcknowledgements), href: "/employee/surveys" },
   ];
+  if (employeeStatus === "ONBOARDING") {
+    work.push(
+      { icon: FileText, label: "Documents pending", value: num(stats?.pendingDocuments), href: "/employee/onboarding" },
+      {
+        icon: TrendingUp,
+        label: "Onboarding progress",
+        value: stats ? (stats.onboardingProgress != null ? `${stats.onboardingProgress}%` : "—") : 0,
+        href: "/employee/onboarding",
+      },
+    );
+  }
+  sections.push({ key: "work", title: "Your work", cards: work });
+
+  // Your team — supervisors only.
+  if (isSupervisor) {
+    sections.push({
+      key: "team",
+      title: "Your team",
+      cards: [
+        { icon: ClipboardCheck, label: "Pending evaluations", value: num(stats?.pendingEvaluations), href: "/supervisor/evaluations" },
+        { icon: Users, label: "Direct reports", value: num(stats?.directReports), href: "/supervisor/roster" },
+        {
+          icon: CheckCircle2,
+          label: "Evals complete",
+          value: stats
+            ? stats.totalEvaluations
+              ? `${stats.completedEvaluations ?? 0}/${stats.totalEvaluations}`
+              : "—"
+            : 0,
+          href: "/supervisor/evaluations",
+        },
+      ],
+    });
+  }
+
+  // Organization — HR / Admin only.
+  if (role === "HR" || role === "ADMIN") {
+    sections.push({
+      key: "org",
+      title: "Organization",
+      cards: [
+        { icon: UserPlus, label: "Pending onboarding", value: num(stats?.pendingOnboarding), href: "/hr/directory/onboarding" },
+        { icon: UserMinus, label: "Pending offboarding", value: num(stats?.pendingOffboarding), href: "/hr/directory/offboarding" },
+        { icon: Users, label: "Active employees", value: num(stats?.activeEmployees), href: "/hr/directory" },
+        { icon: ShieldCheck, label: "Clearance awaiting", value: num(stats?.pendingClearances), href: "/hr/directory/offboarding" },
+      ],
+    });
+  }
+
+  return sections;
 }
