@@ -1,38 +1,38 @@
-import { PrismaClient } from '@prisma/client'
+// backend/prisma/seed/teams.ts
+import { PrismaClient, Employee } from '@prisma/client'
 import { SeededUsers } from './users'
+import { TEAMS } from './org-structure'
 
 export async function seedTeams(prisma: PrismaClient, users: SeededUsers): Promise<void> {
-  const alpha = await prisma.team.create({
-    data: { name: 'Team Alpha', leaderId: users.vn.id },
-  })
-  const beta = await prisma.team.create({
-    data: { name: 'Team Beta', leaderId: users.theaV.id },
-  })
-
-  // Team Alpha members: Asha, Alex, Sam, Jordan, Casey, Ria
-  const alphaMembers = [
-    users.asha,
-    users.staff[0], // Alex
-    users.staff[1], // Sam
-    users.staff[2], // Jordan
-    users.staff[3], // Casey
-    users.staff[11], // Ria
-  ]
-
-  // Team Beta members: Ximen, Riley, Taylor, Drew, Cameron
-  const betaMembers = [
-    users.ximen,
-    users.staff[4], // Riley
-    users.staff[5], // Taylor
-    users.staff[6], // Drew
-    users.staff[7], // Cameron
-  ]
-
-  for (const emp of alphaMembers) {
-    await prisma.teamMember.create({ data: { teamId: alpha.id, employeeId: emp.id } })
+  // per-department cursor; wraps so memberships exceeding a dept's size overlap across teams
+  const cursor: Record<string, number> = {}
+  const takeFrom = (dept: string, n: number): Employee[] => {
+    const list = users.byDept[dept] ?? []
+    if (list.length === 0) return []
+    const out: Employee[] = []
+    let c = cursor[dept] ?? 0
+    for (let i = 0; i < n; i++) { out.push(list[c % list.length]); c++ }
+    cursor[dept] = c
+    return out
   }
 
-  for (const emp of betaMembers) {
-    await prisma.teamMember.create({ data: { teamId: beta.id, employeeId: emp.id } })
+  for (const spec of TEAMS) {
+    let leader: Employee | null = null
+    const members: Employee[] = []
+    for (const m of spec.mix) {
+      const picked = takeFrom(m.dept, m.count)
+      if (leader === null && m.dept === spec.leaderDept && picked.length > 0) leader = picked[0]
+      members.push(...picked)
+    }
+    if (!leader) throw new Error(`team ${spec.name}: could not resolve a leader from ${spec.leaderDept}`)
+
+    const team = await prisma.team.create({ data: { name: spec.name, leaderId: leader.id } })
+
+    const seen = new Set<string>()
+    for (const emp of members) {
+      if (seen.has(emp.id)) continue
+      seen.add(emp.id)
+      await prisma.teamMember.create({ data: { teamId: team.id, employeeId: emp.id } })
+    }
   }
 }
