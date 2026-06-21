@@ -14,6 +14,7 @@ import { Badge, BadgeDot, Button } from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
 import { ApiError } from "@/shared/lib/api-client";
+import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
 import { useSurvey } from "../hooks/use-survey";
 import { useSurveyResults } from "../hooks/use-survey-results";
 import type {
@@ -302,6 +303,12 @@ export function SurveyResults({
   const query = useSurveyResults(surveyId, filter);
   const results = query.data;
 
+  // Surface the survey name as the trailing breadcrumb crumb — works on both the HR
+  // results route (Organization › Surveys › {name}) and the shared non-HR route
+  // (Performance › {name}). Empty while the name is still loading.
+  const headerName = survey?.name ?? results?.surveyName ?? "";
+  usePageBreadcrumb(headerName ? [headerName] : []);
+
   const status = survey
     ? deriveStatus(survey)
     : results
@@ -347,7 +354,7 @@ export function SurveyResults({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-[28px] font-bold tracking-tight text-[color:var(--text-primary)]">
-              {survey?.name ?? results?.surveyName ?? "Survey results"}
+              {headerName || "Survey results"}
             </h1>
             {status && (
               <Badge variant={STATUS_VARIANT[status]} pill>
