@@ -6,13 +6,6 @@ import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
 import { Input } from "@/shared/ui/primitives/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/primitives/select";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -32,6 +25,7 @@ import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
+import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import { AddEmployeeDialog, OnboardingCasesTable } from "@/modules/people/onboarding";
 import { InitiateOffboardingDialog, OffboardingCasesTable } from "@/modules/people/offboarding";
@@ -42,8 +36,6 @@ import type {
   SortDirection,
 } from "@/modules/people/employees/types/employees.types";
 
-const ALL = "ALL";
-const ALL_TEAMS = "ALL_TEAMS";
 const PAGE_SIZE = 10;
 const MAX_VISIBLE_TEAMS = 2;
 
@@ -51,12 +43,11 @@ const MAX_VISIBLE_TEAMS = 2;
 type DirectoryTab = "all" | "onboarding" | "offboarding";
 
 /** Status options for the All-tab status filter dropdown. */
-const STATUS_OPTIONS: { value: typeof ALL | EmployeeStatus; label: string }[] = [
-  { value: ALL, label: "All statuses" },
-  { value: "onboarding", label: "Onboarding" },
-  { value: "active", label: "Active" },
-  { value: "offboarding", label: "Offboarding" },
-  { value: "inactive", label: "Inactive" },
+const STATUS_FILTER_OPTIONS: { id: EmployeeStatus; name: string }[] = [
+  { id: "onboarding", name: "Onboarding" },
+  { id: "active", name: "Active" },
+  { id: "offboarding", name: "Offboarding" },
+  { id: "inactive", name: "Inactive" },
 ];
 
 function fullName(employee: EmployeeListItem): string {
@@ -144,8 +135,9 @@ export default function DirectoryPage() {
       ? "offboarding"
       : "all";
   const [search, setSearch] = useState("");
-  const [teamId, setTeamId] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"" | EmployeeStatus>("");
+  const [teamIds, setTeamIds] = useState<Set<string>>(new Set());
+  const [statuses, setStatuses] = useState<Set<string>>(new Set());
+  const [departmentIds, setDepartmentIds] = useState<Set<string>>(new Set());
   const [supervisorIds, setSupervisorIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
@@ -169,14 +161,16 @@ export default function DirectoryPage() {
   };
 
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
+  const { departments, loading: departmentsLoading } = useDepartments();
   const counts = useEmployeeStatusCounts();
   // Supervisor filter options — any employee can be a supervisor.
   const { employees: supervisorOptions } = useEmployees({ limit: 100 });
 
   const { employees, meta, loading, error, reload } = useEmployees({
     search: debouncedSearch || undefined,
-    teamId: teamId || undefined,
-    status: statusFilter || undefined,
+    teamIds: teamIds.size > 0 ? Array.from(teamIds) : undefined,
+    statuses: statuses.size > 0 ? (Array.from(statuses) as EmployeeStatus[]) : undefined,
+    departmentIds: departmentIds.size > 0 ? Array.from(departmentIds) : undefined,
     supervisorIds: supervisorIds.size > 0 ? Array.from(supervisorIds) : undefined,
     sortBy: sort.key as EmployeeSortBy,
     sortDirection: sort.direction as SortDirection,
@@ -184,7 +178,12 @@ export default function DirectoryPage() {
     limit: PAGE_SIZE,
   });
 
-  const hasFilters = Boolean(search || teamId || statusFilter) || supervisorIds.size > 0;
+  const hasFilters =
+    Boolean(search) ||
+    teamIds.size > 0 ||
+    statuses.size > 0 ||
+    departmentIds.size > 0 ||
+    supervisorIds.size > 0;
 
   const columns: Column<EmployeeListItem>[] = [
     {
@@ -319,45 +318,49 @@ export default function DirectoryPage() {
               aria-label="Search employees"
               className="sm:max-w-[320px]"
             />
-            <Select
-              value={teamId || ALL_TEAMS}
-              onValueChange={(value) => {
-                setTeamId(value === ALL_TEAMS ? "" : value);
+            <MultiSelectFilter
+              options={teams.map((team) => ({ id: team.id, name: team.name }))}
+              selected={teamIds}
+              onChange={(next) => {
+                setTeamIds(next);
                 setPage(1);
               }}
-              disabled={teamsLoading}
-            >
-              <SelectTrigger className="sm:w-[220px]" aria-label="Filter by team">
-                <SelectValue placeholder="All teams" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_TEAMS}>All teams</SelectItem>
-                {teams.map((team) => (
-                  <SelectItem key={team.id} value={team.id}>
-                    {team.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              allLabel="All teams"
+              countNoun="teams"
+              searchPlaceholder="Search teams…"
+              emptyText={teamsLoading ? "Loading teams…" : "No teams found."}
+              ariaLabel="Filter by team"
+            />
+            <MultiSelectFilter
+              options={departments.map((department) => ({
+                id: department.id,
+                name: department.name,
+              }))}
+              selected={departmentIds}
+              onChange={(next) => {
+                setDepartmentIds(next);
+                setPage(1);
+              }}
+              allLabel="All departments"
+              countNoun="departments"
+              searchPlaceholder="Search departments…"
+              emptyText={departmentsLoading ? "Loading departments…" : "No departments found."}
+              ariaLabel="Filter by department"
+            />
             {tab === "all" ? (
-              <Select
-                value={statusFilter || ALL}
-                onValueChange={(value) => {
-                  setStatusFilter(value === ALL ? "" : (value as EmployeeStatus));
+              <MultiSelectFilter
+                options={STATUS_FILTER_OPTIONS}
+                selected={statuses}
+                onChange={(next) => {
+                  setStatuses(next);
                   setPage(1);
                 }}
-              >
-                <SelectTrigger className="sm:w-[200px]" aria-label="Filter by status">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                allLabel="All statuses"
+                countNoun="statuses"
+                searchPlaceholder="Search statuses…"
+                emptyText="No statuses found."
+                ariaLabel="Filter by status"
+              />
             ) : null}
             {tab === "all" ? (
               <MultiSelectFilter
@@ -411,7 +414,7 @@ export default function DirectoryPage() {
                   title={hasFilters ? "No one matches that" : "No employees yet"}
                   body={
                     hasFilters
-                      ? "Try a different name, team, status, or supervisor."
+                      ? "Try a different name, team, department, status, or supervisor."
                       : "Add your first employee to get started."
                   }
                 />
