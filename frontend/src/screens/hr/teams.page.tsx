@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronsDownUp, ChevronsUpDown, Network, Plus, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Input, Skeleton } from "@/shared/ui";
@@ -17,7 +18,6 @@ import {
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import { CreateTeamDialog } from "@/modules/people/teams/components/create-team-dialog";
-import { TeamDetailsModal } from "@/modules/people/teams/components/team-details-modal";
 import {
   buildDepartmentOrgChart,
   type OrgChartItem,
@@ -49,6 +49,8 @@ function Avatar({ name, size = 7 }: { name: string; size?: 7 | 9 }) {
 }
 
 export default function TeamsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { appUser } = useAuth();
   const canManage = appUser?.role === "ADMIN" || appUser?.role === "HR";
 
@@ -63,19 +65,16 @@ export default function TeamsPage() {
   } = useEmployees({ limit: 100 });
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("org-chart");
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  // Open on the Teams tab when navigated back to with ?tab=teams (e.g. from a team detail page).
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get("tab") === "teams" ? "teams" : "org-chart",
+  );
   const [sort, setSort] = useState<DataTableSort>({ key: "name", direction: "asc" });
   const [search, setSearch] = useState("");
   const [leaderIds, setLeaderIds] = useState<Set<string>>(new Set());
   const debouncedSearch = useDebounce(search, 300);
 
   const existingNames = useMemo(() => teams.map((team) => team.name), [teams]);
-  // Read the selected team from the live list so the modal reflects member changes.
-  const selectedTeam = useMemo(
-    () => teams.find((team) => team.id === selectedTeamId) ?? null,
-    [teams, selectedTeamId],
-  );
 
   // Distinct team leaders, for the leader filter dropdown.
   const leaderOptions = useMemo(() => {
@@ -216,7 +215,7 @@ export default function TeamsPage() {
               isLoading={loading}
               error={error}
               onRetry={() => void reload()}
-              onRowClick={(team) => setSelectedTeamId(team.id)}
+              onRowClick={(team) => router.push(`/hr/teams/${team.id}`)}
               getRowId={(team) => team.id}
               sort={sort}
               onSortChange={setSort}
@@ -250,16 +249,6 @@ export default function TeamsPage() {
         employees={employees}
         existingNames={existingNames}
         onCreated={() => void reload()}
-      />
-
-      <TeamDetailsModal
-        team={selectedTeam}
-        open={selectedTeamId !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTeamId(null);
-        }}
-        canManage={canManage}
-        employees={employees}
       />
     </div>
   );
