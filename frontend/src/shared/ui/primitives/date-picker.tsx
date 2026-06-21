@@ -16,6 +16,8 @@ export interface DatePickerProps {
   disabled?: boolean;
   /** When true, uses a typeable date field with year/month pickers (birthdates). */
   disableFuture?: boolean;
+  /** When true, the calendar popover matches the trigger button's width. */
+  matchTriggerWidth?: boolean;
   className?: string;
 }
 
@@ -97,6 +99,7 @@ export function DatePicker({
   placeholder = "Pick a date",
   disabled,
   disableFuture,
+  matchTriggerWidth,
   className,
 }: DatePickerProps) {
   if (disableFuture) {
@@ -122,7 +125,13 @@ export function DatePicker({
           {value ? format(value, "PPP") : placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent
+        className={cn(
+          matchTriggerWidth ? "w-[var(--radix-popover-trigger-width)]" : "w-auto",
+          "p-0",
+        )}
+        align="start"
+      >
         <Calendar mode="single" selected={value} onSelect={onChange} />
       </PopoverContent>
     </Popover>

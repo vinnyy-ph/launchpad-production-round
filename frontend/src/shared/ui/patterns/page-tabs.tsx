@@ -15,15 +15,15 @@ interface PageTabsProps {
 }
 
 /**
- * Underlined page-level tabs with an optional count badge and a gradient-pink active indicator.
- * Shared across list-master screens (People directory, Structure) so segmentation looks consistent.
+ * Underlined page-level tabs with an optional count badge and a --gradient-jia active indicator.
+ * Matches the evaluations status tabs; shared across list-master screens so segmentation is consistent.
  */
 export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="mb-5 flex items-center gap-6 border-b border-[color:var(--border-primary)]"
+      className="mb-5 flex items-center gap-6 overflow-x-auto border-b border-[color:var(--border-primary)]"
     >
       {items.map((item) => {
         const isActive = item.value === value;
@@ -35,7 +35,7 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
             aria-selected={isActive}
             onClick={() => onChange(item.value)}
             className={cn(
-              "relative inline-flex items-center gap-2 px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "relative flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               isActive
                 ? "text-[color:var(--text-primary)]"
                 : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
@@ -45,10 +45,10 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
             {item.count !== undefined && (
               <span
                 className={cn(
-                  "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold",
+                  "inline-flex min-w-[20px] items-center justify-center rounded-full border bg-[color:var(--bg-tertiary)] px-1.5 py-0.5 text-xs font-semibold tabular-nums",
                   isActive
-                    ? "bg-[color:var(--text-primary)] text-white"
-                    : "bg-[color:var(--bg-secondary)] text-[color:var(--text-tertiary)]",
+                    ? "border-[color:var(--border-primary)] text-[color:var(--text-secondary)]"
+                    : "border-transparent text-[color:var(--text-tertiary)]",
                 )}
               >
                 {item.count}
@@ -58,9 +58,7 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
               <span
                 aria-hidden="true"
                 className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
-                style={{
-                  background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
-                }}
+                style={{ background: "var(--gradient-jia)" }}
               />
             )}
           </button>
