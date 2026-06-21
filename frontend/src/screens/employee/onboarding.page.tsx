@@ -33,6 +33,7 @@ import { DocumentUploadRow } from "@/modules/people/onboarding/components/docume
 
 import { queryKeys } from "@/shared/lib/query-keys";
 import { cn } from "@/shared/lib/utils";
+import { isValidPhilippinePhone, toE164 } from "@/shared/lib/phone";
 
 import { EmptyState } from "@/shared/ui/patterns/empty-state";
 import { FormField } from "@/shared/ui/patterns/form-field";
@@ -40,6 +41,7 @@ import { Button } from "@/shared/ui/primitives/button";
 import { Input } from "@/shared/ui/primitives/input";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import { DatePicker } from "@/shared/ui/primitives/date-picker";
+import { PhoneInput } from "@/shared/ui";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -263,7 +265,7 @@ export default function EmployeeOnboardingPage() {
     setProvince(profile.address?.province ?? "");
     setCountry(profile.address?.country ?? "");
     setEmergencyContactName(profile.emergencyContact?.emergencyContactName ?? "");
-    setEmergencyContact(profile.emergencyContact?.emergencyContactNumber ?? "");
+    void toE164(profile.emergencyContact?.emergencyContactNumber ?? "").then(setEmergencyContact);
     setBirthday(profile.birthday ? new Date(`${profile.birthday}T00:00:00`) : undefined);
 
     // Resume the wizard at the first incomplete step — only on first load.
@@ -287,7 +289,7 @@ export default function EmployeeOnboardingPage() {
     }
   }, [status]);
 
-  function handleSaveProfile(): void {
+  async function handleSaveProfile(): Promise<void> {
     const next: Record<string, string> = {};
     if (!firstName.trim()) next.firstName = "First name is required.";
     if (!lastName.trim()) next.lastName = "Last name is required.";
@@ -305,13 +307,18 @@ export default function EmployeeOnboardingPage() {
     if (!province.trim()) next.province = "Province is required.";
     if (!country.trim()) next.country = "Country is required.";
     if (!emergencyContactName.trim()) next.emergencyContactName = "Contact name is required.";
-    if (!emergencyContact.trim()) next.emergencyContact = "Contact number is required.";
+    if (!emergencyContact.trim()) {
+      next.emergencyContact = "Contact number is required.";
+    } else if (!(await isValidPhilippinePhone(emergencyContact))) {
+      next.emergencyContact = "Enter a valid Philippine mobile number.";
+    }
     setProfileErrors(next);
     if (Object.keys(next).length > 0) return;
 
     // Nothing edited — HR's pre-filled details are already valid and saved, so
     // skip the network round-trip and just move on.
     const p = status?.profile;
+    const storedPhone = p ? await toE164(p.emergencyContact?.emergencyContactNumber ?? "") : "";
     const unchanged =
       p != null &&
       firstName.trim() === (p.firstName ?? "").trim() &&
@@ -324,7 +331,7 @@ export default function EmployeeOnboardingPage() {
       province.trim() === (p.address?.province ?? "").trim() &&
       country.trim() === (p.address?.country ?? "").trim() &&
       emergencyContactName.trim() === (p.emergencyContact?.emergencyContactName ?? "").trim() &&
-      emergencyContact.trim() === (p.emergencyContact?.emergencyContactNumber ?? "").trim();
+      emergencyContact.trim() === storedPhone.trim();
     if (unchanged) {
       setStep(2);
       return;
@@ -668,12 +675,11 @@ export default function EmployeeOnboardingPage() {
                   htmlFor="ob-emergency"
                   error={profileErrors.emergencyContact}
                 >
-                  <Input
+                  <PhoneInput
                     id="ob-emergency"
                     value={emergencyContact}
+                    onChange={setEmergencyContact}
                     error={Boolean(profileErrors.emergencyContact)}
-                    onChange={(e) => setEmergencyContact(e.target.value)}
-                    placeholder="09XXXXXXXXX"
                   />
                 </FormField>
               </div>
