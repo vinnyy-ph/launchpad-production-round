@@ -323,6 +323,30 @@ export class EvaluationsService {
   }
 
   /**
+   * Scheduled counterpart to the on-read deemed-ack settlement: flips every sent evaluation
+   * past its ackDeadline (still unacknowledged, not yet deemed) to deemed-acknowledged and
+   * notifies each reviewer. Driven by the hourly cron service so status settles even when
+   * nobody reads the evaluation. Returns the number flipped. Idempotent — already-settled
+   * rows are excluded by the query.
+   */
+  async settleAllDeemedAck(now: Date = new Date()): Promise<number> {
+    const due = await this.evaluationsRepository.findDueDeemedAck(now);
+    if (due.length === 0) return 0;
+
+    await this.evaluationsRepository.markManyDeemedAcknowledged(due.map((d) => d.evaluationId));
+
+    for (const d of due) {
+      await this.notificationsService.notifyEvalDeemedAck(
+        d.evaluation.reviewerId,
+        d.evaluation.revieweeId,
+        d.evaluationId,
+      );
+    }
+
+    return due.length;
+  }
+
+  /**
    * Deemed-acknowledgement, settled lazily on read: a sent evaluation that the reviewee
    * has neither acknowledged nor been deemed-acknowledged for, and whose ackDeadline
    * (sentAt + EVAL_ACK_DEADLINE_DAYS) has passed, is flipped to deemed-acknowledged.

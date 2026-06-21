@@ -159,4 +159,23 @@ export class EvaluationsRepository {
       data: { isDeemedAck: true },
     });
   }
+
+  /**
+   * Acknowledgements that should auto-settle to deemed-acknowledged: a sent, non-deleted
+   * evaluation past its ackDeadline that the reviewee has neither acknowledged nor been
+   * deemed-acknowledged for. Returns the reviewer id so the settlement can notify them.
+   */
+  async findDueDeemedAck(now: Date) {
+    return prisma.evaluationAcknowledgement.findMany({
+      where: {
+        acknowledgedAt: null,
+        isDeemedAck: false,
+        evaluation: { is: { isSent: true, deletedAt: null, ackDeadline: { lt: now } } },
+      },
+      select: {
+        evaluationId: true,
+        evaluation: { select: { reviewerId: true, revieweeId: true } },
+      },
+    });
+  }
 }

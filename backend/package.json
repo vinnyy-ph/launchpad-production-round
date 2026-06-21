@@ -11,6 +11,7 @@
     "build": "prisma generate && tsc && node -e \"require('fs').cpSync('src/core/email/assets','dist/core/email/assets',{recursive:true})\"",
     "test": "jest",
     "start": "node dist/server.js",
+    "cron:deemed-ack": "node dist/jobs/deemed-ack.job.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
