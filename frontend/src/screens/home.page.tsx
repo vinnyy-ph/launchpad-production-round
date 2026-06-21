@@ -256,10 +256,10 @@ function buildSections(
       key: "org",
       title: "Organization",
       cards: [
-        { icon: UserPlus, label: "Pending onboarding", value: num(stats?.pendingOnboarding), href: "/hr/onboarding" },
-        { icon: UserMinus, label: "Pending offboarding", value: num(stats?.pendingOffboarding), href: "/hr/offboarding" },
+        { icon: UserPlus, label: "Pending onboarding", value: num(stats?.pendingOnboarding), href: "/hr/directory/onboarding" },
+        { icon: UserMinus, label: "Pending offboarding", value: num(stats?.pendingOffboarding), href: "/hr/directory/offboarding" },
         { icon: Users, label: "Active employees", value: num(stats?.activeEmployees), href: "/hr/directory" },
-        { icon: ShieldCheck, label: "Clearance awaiting", value: num(stats?.pendingClearances), href: "/hr/offboarding" },
+        { icon: ShieldCheck, label: "Clearance awaiting", value: num(stats?.pendingClearances), href: "/hr/directory/offboarding" },
       ],
     });
   }

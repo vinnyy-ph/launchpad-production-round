@@ -195,6 +195,12 @@ export function breadcrumbForPath(pathname: string): BreadcrumbCrumb[] {
     }
     return base;
   }
+  // The shared non-HR survey-results route (/surveys/:id/results) has no sidebar item,
+  // so give it a clickable Performance parent; the page appends the survey name via
+  // usePageBreadcrumb. (The HR route /hr/surveys/:id/results resolves through findNav above.)
+  if (/^\/surveys\/[^/]+\/results$/.test(pathname)) {
+    return [{ label: "Performance", href: "/employee/surveys" }];
+  }
   if (EXTRA_CRUMBS[pathname]) return extraCrumbsToTrail(EXTRA_CRUMBS[pathname], pathname);
   const key = Object.keys(EXTRA_CRUMBS)
     .sort((a, b) => b.length - a.length)
