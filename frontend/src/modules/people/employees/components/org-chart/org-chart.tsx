@@ -85,6 +85,13 @@ export function buildDepartmentOrgChart(
 
   // A department's hierarchy is just the reporting tree of its own members: a member whose
   // supervisor sits outside the department (e.g. the CEO) naturally becomes a top-level node.
+  const toPersonItem = (node: OrgReportingNode): OrgChartItem => ({
+    kind: "person",
+    id: node.employee.id,
+    employee: node.employee,
+    children: node.children.map(toPersonItem),
+  });
+
   const departmentItem = (label: string, members: EmployeeListItem[]): OrgChartItem => ({
     kind: "department",
     id: `dept:${label}`,
