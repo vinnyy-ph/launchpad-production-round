@@ -1428,7 +1428,7 @@ export default function EvaluationsPage() {
       <div
         role="tablist"
         aria-label="Filter by status"
-        className="mb-5 flex items-center gap-6 overflow-x-auto border-b border-[color:var(--border-primary)]"
+        className="mb-5 flex items-center gap-6 overflow-x-auto overflow-y-hidden scrollbar-none border-b border-[color:var(--border-primary)]"
       >
         {(
           [

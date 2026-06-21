@@ -99,6 +99,10 @@
     border: 1px solid transparent; background-clip: content-box;
   }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+  /* Hide the scrollbar but keep scrollability — for horizontally-scrollable tab strips. */
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
 }
 
 @layer components {
