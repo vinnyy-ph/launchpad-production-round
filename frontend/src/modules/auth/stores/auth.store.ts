@@ -4,11 +4,13 @@ import type { AppUser } from "../types/auth.types";
 interface AuthStore {
   appUser: AppUser | null;
   loading: boolean;
+  authError: string | null;
 }
 
 export const useAuthStore = create<AuthStore>(() => ({
   appUser: null,
   loading: true,
+  authError: null,
 }));
 
 // Shape returned by POST /api/auth/session (backend resolveSession).
@@ -40,6 +42,20 @@ function toAppUser(session: SessionResponse): AppUser {
 
 let listenerStarted = false;
 
+async function readSessionError(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: unknown; message?: unknown };
+    const message = typeof body.error === "string" ? body.error : body.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  } catch {
+    // Fall through to the friendly default below.
+  }
+
+  return "We couldn't complete your sign-in. Please try again or contact your admin.";
+}
+
 /** Subscribe to Firebase auth state (called once by AuthProvider). On sign-in, exchange
  * the Firebase ID token for the real backend session; on sign-out, clear. */
 export function initAuthListener(): void {
@@ -66,13 +82,20 @@ export function initAuthListener(): void {
           });
           if (!res.ok) {
             // Not invited / deactivated / token rejected — treat as signed-out.
-            useAuthStore.setState({ appUser: null, loading: false });
+            const authError = await readSessionError(res);
+            const { signOut } = await import("firebase/auth");
+            await signOut(getFirebaseAuth()).catch(() => undefined);
+            useAuthStore.setState({ appUser: null, loading: false, authError });
             return;
           }
           const session = (await res.json()) as SessionResponse;
-          useAuthStore.setState({ appUser: toAppUser(session), loading: false });
+          useAuthStore.setState({ appUser: toAppUser(session), loading: false, authError: null });
         } catch {
-          useAuthStore.setState({ appUser: null, loading: false });
+          useAuthStore.setState({
+            appUser: null,
+            loading: false,
+            authError: "We couldn't complete your sign-in. Please try again.",
+          });
         }
       });
     } catch {
@@ -91,4 +114,8 @@ export function markEmployeeActive(): void {
 
 export function clearSession(): void {
   useAuthStore.setState({ appUser: null, loading: false });
+}
+
+export function clearAuthError(): void {
+  useAuthStore.setState({ authError: null });
 }

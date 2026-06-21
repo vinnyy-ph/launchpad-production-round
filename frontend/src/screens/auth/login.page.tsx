@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { GoogleSignInButton } from "@/modules/auth/components/google-sign-in-button";
 import { signInWithGoogle } from "@/modules/auth/services/auth.service";
-import { mapSignInError } from "@/modules/auth/services/auth-errors";
+import { getSignInErrorMessage } from "@/modules/auth/services/auth-errors";
+import { useAuth } from "@/modules/auth/hooks/use-auth";
+import { clearAuthError } from "@/modules/auth/stores/auth.store";
 import {
   Dialog,
   DialogContent,
@@ -188,17 +190,28 @@ function LegalDialog({
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [legal, setLegal] = useState<LegalDoc | null>(null);
+  const { authError } = useAuth();
   const loading = status === "loading";
 
+  useEffect(() => {
+    if (authError) {
+      setStatus("idle");
+      toast.error(authError, { id: "login-error" });
+    }
+  }, [authError]);
+
   async function handleSignIn() {
+    clearAuthError();
+    toast.dismiss("login-error");
     setStatus("loading");
     try {
       await signInWithGoogle();
       // success: useAuth observes the user; the /login guard redirects to "/".
     } catch (err) {
-      setStatus(mapSignInError(err));
+      setStatus("idle");
+      toast.error(getSignInErrorMessage(err), { id: "login-error" });
     }
   }
 
@@ -219,13 +232,6 @@ export default function LoginPage() {
           <p className="mt-2 text-[15px] font-medium text-[color:var(--text-secondary)]">
             Sign in to continue to your workspace.
           </p>
-
-          {status === "error" && (
-            <div className="sw-alert mt-8" role="alert">
-              <AlertCircle size={16} aria-hidden="true" />
-              <span>Manage Jia couldn't sign you in. Try again.</span>
-            </div>
-          )}
 
           <GoogleSignInButton className="mt-8" onClick={handleSignIn} loading={loading} />
 
