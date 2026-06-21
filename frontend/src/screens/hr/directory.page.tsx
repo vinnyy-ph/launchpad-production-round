@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Settings2, Users } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Filter, Plus, Settings2, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -33,6 +33,11 @@ import { EmployeeDetailsModal } from "@/modules/people/employees/components/empl
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
+import {
+  hrDirectoryHref,
+  parseDirectoryTab,
+  type DirectoryTab,
+} from "@/modules/people/employees/directory-routes";
 import { AddEmployeeDialog, OnboardingCasesTable } from "@/modules/people/onboarding";
 import type {
   EmployeeListItem,
@@ -45,9 +50,6 @@ const ALL = "ALL";
 const ALL_TEAMS = "ALL_TEAMS";
 const PAGE_SIZE = 10;
 const MAX_VISIBLE_TEAMS = 2;
-
-/** Directory segments shown as tabs. */
-type DirectoryTab = "all" | "onboarding" | "offboarding";
 
 /** Status options for the All-tab status filter dropdown. */
 const STATUS_OPTIONS: { value: typeof ALL | EmployeeStatus; label: string }[] = [
@@ -133,11 +135,12 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
 
 export default function DirectoryPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = parseDirectoryTab(searchParams.get("tab"));
   const [search, setSearch] = useState("");
   const [teamId, setTeamId] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | EmployeeStatus>("");
   const [supervisorIds, setSupervisorIds] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<DirectoryTab>("all");
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
@@ -271,7 +274,7 @@ export default function DirectoryPage() {
         ariaLabel="Employee segments"
         value={tab}
         onChange={(nextTab) => {
-          setTab(nextTab as DirectoryTab);
+          router.replace(hrDirectoryHref(nextTab as DirectoryTab));
           setPage(1);
         }}
         items={[
@@ -305,7 +308,11 @@ export default function DirectoryPage() {
               }}
               disabled={teamsLoading}
             >
-              <SelectTrigger className="sm:w-[220px]" aria-label="Filter by team">
+              <SelectTrigger className="relative sm:w-[220px] pl-9" aria-label="Filter by team">
+                <Filter
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
+                  aria-hidden="true"
+                />
                 <SelectValue placeholder="All teams" />
               </SelectTrigger>
               <SelectContent>
@@ -325,7 +332,11 @@ export default function DirectoryPage() {
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="sm:w-[200px]" aria-label="Filter by status">
+                <SelectTrigger className="relative sm:w-[200px] pl-9" aria-label="Filter by status">
+                  <Filter
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
+                    aria-hidden="true"
+                  />
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
@@ -350,6 +361,7 @@ export default function DirectoryPage() {
                 }}
                 allLabel="All supervisors"
                 countNoun="supervisors"
+                showFilterIcon
                 searchPlaceholder="Search supervisors…"
                 emptyText="No employees found."
                 ariaLabel="Filter by supervisor"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, Filter } from "lucide-react";
 import {
   Button,
   Checkbox,
@@ -35,6 +35,8 @@ interface MultiSelectFilterProps {
   emptyText?: string;
   ariaLabel?: string;
   className?: string;
+  /** When true, shows a filter icon on the left of the trigger (matches Select filter styling). */
+  showFilterIcon?: boolean;
 }
 
 /**
@@ -51,6 +53,7 @@ export function MultiSelectFilter({
   emptyText = "No results.",
   ariaLabel,
   className,
+  showFilterIcon = false,
 }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
 
@@ -78,11 +81,18 @@ export function MultiSelectFilter({
           aria-expanded={open}
           aria-label={ariaLabel}
           className={cn(
-            "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white px-3.5 text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none sm:w-[220px]",
+            "relative flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none sm:w-[220px]",
+            showFilterIcon ? "pl-9 pr-3.5" : "px-3.5",
             count === 0 && "text-[#a4a7ae]",
             className,
           )}
         >
+          {showFilterIcon ? (
+            <Filter
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
+              aria-hidden="true"
+            />
+          ) : null}
           <span className="truncate">{label}</span>
           <ChevronsUpDown
             className="h-4 w-4 shrink-0 text-[color:var(--text-tertiary)]"
