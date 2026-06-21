@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { SeededUsers } from './users'
 
 export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers): Promise<void> {
-  const blake = users.staff[8] // OFFBOARDING status
+  const blake = users.offboardingSample // OFFBOARDING status
 
   const template = await prisma.clearanceTemplate.create({
     data: { name: 'Standard Clearance', isDefault: true },
@@ -11,7 +11,7 @@ export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers):
   const kurtSig = await prisma.clearanceSignatory.create({
     data: {
       templateId: template.id,
-      employeeId: users.kurt.id,
+      employeeId: users.ceo.id,
       order: 1,
       purpose: 'Executive sign-off',
       requirements: 'Confirm no outstanding company assets, equipment, or system access remain assigned.',
@@ -20,7 +20,7 @@ export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers):
   const theaVSig = await prisma.clearanceSignatory.create({
     data: {
       templateId: template.id,
-      employeeId: users.theaV.id,
+      employeeId: users.coo.id,
       order: 2,
       purpose: 'Supervisor clearance',
       requirements: 'Confirm handover of all in-progress work and team responsibilities.',
@@ -32,7 +32,7 @@ export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers):
     data: {
       employeeId: blake.id,
       clearanceTemplateId: template.id,
-      initiatedById: users.darben.id,
+      initiatedById: users.chro.id,
       tenderDate: new Date('2026-06-01'),
       effectiveDate: new Date('2026-06-30'),
       status: 'IN_PROGRESS',
@@ -44,7 +44,7 @@ export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers):
   await prisma.clearanceSignatureRequest.create({
     data: {
       offboardingId: offboarding.id,
-      signatoryId: users.kurt.id,
+      signatoryId: users.ceo.id,
       purpose: kurtSig.purpose,
       requirements: kurtSig.requirements,
       status: 'SIGNED',
@@ -55,7 +55,7 @@ export async function seedOffboarding(prisma: PrismaClient, users: SeededUsers):
   await prisma.clearanceSignatureRequest.create({
     data: {
       offboardingId: offboarding.id,
-      signatoryId: users.theaV.id,
+      signatoryId: users.coo.id,
       purpose: theaVSig.purpose,
       requirements: theaVSig.requirements,
       status: 'PENDING',

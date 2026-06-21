@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { SeededUsers } from './users'
 
 export async function seedOnboarding(prisma: PrismaClient, users: SeededUsers): Promise<void> {
-  const casey = users.staff[3] // ONBOARDING status
+  const casey = users.onboardingSample // ONBOARDING status
 
   const template = await prisma.onboardingTemplate.create({
     data: { name: 'Standard Onboarding', isDefault: true },
@@ -62,7 +62,7 @@ export async function seedOnboarding(prisma: PrismaClient, users: SeededUsers): 
       documentId: contractDoc.id,
       fileUrl: 'https://storage.example.com/onboarding/casey-contract-v1.pdf',
       status: 'REJECTED',
-      reviewerId: users.darben.id,
+      reviewerId: users.chro.id,
       rejectionNote: 'Contract is missing your signature on page 3. Please re-sign and re-upload.',
       reviewedAt: new Date('2026-06-12'),
     },
