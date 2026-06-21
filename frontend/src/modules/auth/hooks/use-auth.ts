@@ -6,6 +6,7 @@ export function useAuth() {
     useShallow((state) => ({
       appUser: state.appUser,
       loading: state.loading,
+      authError: state.authError,
     })),
   );
 }
