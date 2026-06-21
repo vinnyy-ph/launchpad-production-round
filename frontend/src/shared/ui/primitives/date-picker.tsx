@@ -75,21 +75,27 @@ function BirthdatePicker({
   }, [value]);
 
   return (
-    <Input
-      type="date"
-      disabled={disabled}
-      min={toDateInputValue(BIRTHDATE_START)}
-      max={todayInputMax()}
-      value={draft}
-      className={cn("min-w-0", className)}
-      onChange={(e) => {
-        const raw = e.target.value;
-        setDraft(raw);
-        const next = parseDateInputValue(raw);
-        if (next) onChange?.(next);
-        else if (!raw.trim()) onChange?.(undefined);
-      }}
-    />
+    <div className={cn("relative", className)}>
+      <CalendarIcon
+        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
+        aria-hidden="true"
+      />
+      <Input
+        type="date"
+        disabled={disabled}
+        min={toDateInputValue(BIRTHDATE_START)}
+        max={todayInputMax()}
+        value={draft}
+        className="min-w-0 pl-9"
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          const next = parseDateInputValue(raw);
+          if (next) onChange?.(next);
+          else if (!raw.trim()) onChange?.(undefined);
+        }}
+      />
+    </div>
   );
 }
 
