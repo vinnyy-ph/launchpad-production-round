@@ -41,7 +41,7 @@ import { Button } from "@/shared/ui/primitives/button";
 import { Input } from "@/shared/ui/primitives/input";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import { DatePicker } from "@/shared/ui/primitives/date-picker";
-import { PhoneInput } from "@/shared/ui/primitives/phone-input-lazy";
+import { PhoneInput } from "@/shared/ui";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -318,6 +318,7 @@ export default function EmployeeOnboardingPage() {
     // Nothing edited — HR's pre-filled details are already valid and saved, so
     // skip the network round-trip and just move on.
     const p = status?.profile;
+    const storedPhone = p ? await toE164(p.emergencyContact?.emergencyContactNumber ?? "") : "";
     const unchanged =
       p != null &&
       firstName.trim() === (p.firstName ?? "").trim() &&
@@ -330,7 +331,7 @@ export default function EmployeeOnboardingPage() {
       province.trim() === (p.address?.province ?? "").trim() &&
       country.trim() === (p.address?.country ?? "").trim() &&
       emergencyContactName.trim() === (p.emergencyContact?.emergencyContactName ?? "").trim() &&
-      emergencyContact.trim() === (p.emergencyContact?.emergencyContactNumber ?? "").trim();
+      emergencyContact.trim() === storedPhone.trim();
     if (unchanged) {
       setStep(2);
       return;
@@ -679,7 +680,6 @@ export default function EmployeeOnboardingPage() {
                     value={emergencyContact}
                     onChange={setEmergencyContact}
                     error={Boolean(profileErrors.emergencyContact)}
-                    placeholder="Enter phone number"
                   />
                 </FormField>
               </div>
