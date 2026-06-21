@@ -953,7 +953,7 @@ export default function EmployeeOnboardingPage() {
         {step === 3 && (
           <StepCard
             title="Upload your documents"
-            subtitle="HR reviews each one. You can upload them whenever you have them ready."
+            subtitle="These documents are required to complete your onboarding."
           >
           {documents.length === 0 ? (
             <EmptyState
