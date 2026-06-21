@@ -24,7 +24,6 @@ import {
   PageTabs,
   StatusBadge,
   FilterBar,
-  TablePagination,
 } from "@/shared/ui/patterns";
 import {
   Button,
@@ -329,6 +328,7 @@ export default function RosterPage() {
           onRowClick={(row) => setSelected(row)}
           sort={sort}
           onSortChange={setSort}
+          pagination={{ page, totalPages, onPageChange: setPage }}
           emptyState={
             <EmptyState
               icon={Users}
@@ -341,9 +341,6 @@ export default function RosterPage() {
             />
           }
         />
-        {totalPages > 1 && (
-          <TablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
-        )}
           </div>
         </>
       ) : (

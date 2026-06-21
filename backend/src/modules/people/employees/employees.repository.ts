@@ -217,6 +217,37 @@ export class EmployeesRepository {
   }
 
   /**
+   * Resolves the caller's own employee identity (id + direct supervisor) from their user id.
+   * Used by profile-visibility checks to compare the viewer against the requested profile.
+   */
+  async findIdentityByUserId(
+    userId: string,
+  ): Promise<{ id: string; supervisorId: string | null } | null> {
+    return prisma.employee.findFirst({
+      where: { userId },
+      select: { id: true, supervisorId: true },
+    });
+  }
+
+  /**
+   * Returns true when the two employees belong to at least one team together — as a leader or a
+   * member on either side. Used to authorize teammate profile access.
+   */
+  async shareTeam(employeeAId: string, employeeBId: string): Promise<boolean> {
+    const team = await prisma.team.findFirst({
+      where: {
+        AND: [
+          { OR: [{ leaderId: employeeAId }, { members: { some: { employeeId: employeeAId } } }] },
+          { OR: [{ leaderId: employeeBId }, { members: { some: { employeeId: employeeBId } } }] },
+        ],
+      },
+      select: { id: true },
+    });
+
+    return team !== null;
+  }
+
+  /**
    * Updates HR-editable employee profile fields and returns the refreshed unredacted profile.
    * Also creates ActivityLog entries for each field that changed.
    */
