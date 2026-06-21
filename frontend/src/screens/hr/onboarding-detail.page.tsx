@@ -15,6 +15,7 @@ import { InviteStatusBadge } from "@/modules/people/onboarding/components/invite
 import { useOnboardingRecord } from "@/modules/people/onboarding/hooks/use-onboarding-record";
 import { useApproveDocument, useRejectDocument } from "@/modules/people/onboarding/hooks/use-review-document";
 import { useCompleteOnboarding } from "@/modules/people/onboarding/hooks/use-complete-onboarding";
+import { hrDirectoryHref } from "@/modules/people/employees/directory-routes";
 import { useInvitationStatus, useResendInvite, useSendInvite, useUpdateInvitationEmail } from "@/modules/people/onboarding/hooks/use-invitation";
 import type { DocumentReview } from "@/modules/people/onboarding/types/onboarding.types";
 
@@ -247,7 +248,7 @@ function OnboardingDetailInner() {
           icon={ClipboardList}
           title="Employee not found"
           body="This onboarding case does not exist or has been removed."
-          action={{ label: "Back to Onboarding", onClick: () => router.push("/hr/onboarding") }}
+          action={{ label: "Back to Onboarding", onClick: () => router.push(hrDirectoryHref("onboarding")) }}
         />
       </div>
     );

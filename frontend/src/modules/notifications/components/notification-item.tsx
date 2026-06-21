@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
+import { hrDirectoryHref } from "@/modules/people/employees/directory-routes";
 import type { Notification } from "../types/notifications.types";
 
 interface Props {
@@ -37,9 +38,9 @@ function resolveRoute(n: Notification): string | null {
     case "ONBOARDING_INVITE":
       return "/employee/onboarding";
     case "ONBOARDING_COMPLETE":
-      return "/hr/directory";
+      return hrDirectoryHref("onboarding");
     case "ONBOARDING_STATUS":
-      return n.linkUrl?.startsWith("/hr/onboarding") ? n.linkUrl : "/hr/directory";
+      return n.linkUrl?.startsWith("/hr/onboarding") ? n.linkUrl : hrDirectoryHref("onboarding");
     default:
       return n.linkUrl?.startsWith("/") ? n.linkUrl : null;
   }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Settings2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
+import { hrDirectoryHref } from "@/modules/people/employees/directory-routes";
 import {
   Button,
   Checkbox,
@@ -273,7 +274,7 @@ export default function OnboardingSettingsPage() {
     <div className="space-y-6">
       <nav className="text-xs text-[color:var(--text-tertiary)]" aria-label="Breadcrumb">
         <button
-          onClick={() => router.push("/hr/onboarding")}
+          onClick={() => router.push(hrDirectoryHref("onboarding"))}
           className="transition-colors hover:text-[color:var(--text-primary)]"
         >
           Onboarding
@@ -287,7 +288,7 @@ export default function OnboardingSettingsPage() {
         title="Onboarding settings"
         subtitle="Manage required documents and custom fields for new hires."
         action={
-          <Button variant="outline" onClick={() => router.push("/hr/onboarding")}>
+          <Button variant="outline" onClick={() => router.push(hrDirectoryHref("onboarding"))}>
             <ArrowLeft aria-hidden="true" />
             Back to onboarding
           </Button>
