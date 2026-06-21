@@ -1,6 +1,8 @@
 import type { Notification, User } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../core/globals";
 import { InAppChannel } from "./channels/in-app.channel";
+import { EmailService } from "../../core/email/email.service";
+import { buildEvaluationReminderEmailHtml } from "../../core/email/templates/evaluation-reminder.template";
 import type {
   ListNotificationsQueryDto,
   ListNotificationsResponseDto,
@@ -18,7 +20,15 @@ export class NotificationsService {
   constructor(
     private readonly notificationsRepository = new NotificationsRepository(),
     private readonly inAppChannel = new InAppChannel(),
+    private readonly emailService = new EmailService(),
   ) {}
+
+  /** First configured app origin, used to build deep links in emails. */
+  private resolveAppUrl(): string {
+    return (
+      process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:3000"
+    );
+  }
 
   /**
    * Notifies all HR users when an employee submits onboarding for document review.
@@ -589,6 +599,18 @@ export class NotificationsService {
         recipient.userId,
         this.toNotificationDto(notification),
       );
+
+      // Email travels on the same throttle as the in-app reminder: only sent when one is
+      // actually created above. Fire-and-forget — delivery failure must not break the sweep.
+      await this.emailService.sendEmail({
+        to: recipient.companyEmail,
+        subject: "Reminder: acknowledge your evaluation",
+        html: buildEvaluationReminderEmailHtml({
+          firstName: recipient.firstName,
+          lastName: recipient.lastName,
+          evaluationUrl: `${this.resolveAppUrl()}/employee/surveys`,
+        }),
+      });
     } catch {
       // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
     }
