@@ -1,4 +1,5 @@
 
+import type { Role } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { TeamsRepository } from "./teams.repository";
 import type {
@@ -18,6 +19,15 @@ import type {
 
 type RepositoryTeam = Awaited<ReturnType<TeamsRepository["findMany"]>>["teams"][number];
 
+/** The authenticated caller, used to decide whether team listing is scoped to their membership. */
+export interface TeamViewerContext {
+  userId: string;
+  role: Role;
+}
+
+/** Roles that may browse the entire team directory; everyone else sees only their own teams. */
+const TEAM_PRIVILEGED_ROLES: Role[] = ["ADMIN", "HR"];
+
 /**
  * Coordinates team business rules and maps database records into DTOs.
  */
@@ -25,10 +35,30 @@ export class TeamsService {
   constructor(private readonly teamsRepository = new TeamsRepository()) {}
 
   /**
-   * Returns one page of teams with leader and member summaries.
+   * Returns one page of teams with leader and member summaries. HR/Admin see every team; any other
+   * caller is scoped to the teams they belong to (as leader or member).
    */
-  async listTeams(filters: ListTeamsQueryDto): Promise<ListTeamsResponseDto> {
-    const { teams, total } = await this.teamsRepository.findMany(filters);
+  async listTeams(
+    filters: ListTeamsQueryDto,
+    viewer: TeamViewerContext,
+  ): Promise<ListTeamsResponseDto> {
+    let memberId: string | null = null;
+
+    if (!TEAM_PRIVILEGED_ROLES.includes(viewer.role)) {
+      memberId = await this.teamsRepository.findEmployeeIdByUserId(viewer.userId);
+
+      // A caller with no employee record belongs to no teams.
+      if (!memberId) {
+        return {
+          success: true,
+          message: API_SUCCESS_MESSAGES.REQUEST_SUCCESSFUL,
+          data: [],
+          meta: { page: filters.page, limit: filters.limit, total: 0, totalPages: 0 },
+        };
+      }
+    }
+
+    const { teams, total } = await this.teamsRepository.findMany(filters, memberId);
 
     return {
       success: true,

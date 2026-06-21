@@ -8,8 +8,12 @@ import {
   countMock,
   findFirstMock,
   findManyMock,
+  mockedPrisma,
   resetEmployeeMocks,
 } from "./employees-test.helpers";
+
+// Object-level profile access runs a "do these two share a team?" query; mocked per scenario.
+const teamFindFirstMock = mockedPrisma.team.findFirst as unknown as jest.Mock;
 
 // A mutable caller the auth mock injects. Tests set it per scenario to act as HR, self, a peer,
 // or (when unset) an unauthenticated request. Must be `mock`-prefixed to satisfy jest hoisting.
@@ -34,6 +38,9 @@ jest.mock("../../core/database/prisma.service", () => ({
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    team: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -50,6 +57,7 @@ const SENSITIVE_PROFILE_FIELDS = [
 describe("GET /api/v1/employees/:employeeId - profile redaction by caller", () => {
   beforeEach(() => {
     resetEmployeeMocks();
+    teamFindFirstMock.mockReset();
     mockCurrentUser = undefined;
   });
 
@@ -82,13 +90,18 @@ describe("GET /api/v1/employees/:employeeId - profile redaction by caller", () =
     expect(response.body.data.emergencyContact).toBeDefined();
   });
 
-  it("returns a REDACTED profile to a non-HR peer (sensitive fields absent from the payload)", async () => {
-    mockCurrentUser = buildViewer({ id: "peer-user-id", role: "EMPLOYEE" }) as User;
-    findFirstMock.mockResolvedValue(buildEmployeeProfileRecord());
+  it("returns a REDACTED profile to a teammate (shared team), sensitive fields absent", async () => {
+    mockCurrentUser = buildViewer({ id: "teammate-user-id", role: "EMPLOYEE" }) as User;
+    // 1st findFirst resolves the target profile; 2nd resolves the viewer's own identity for the
+    // relationship check. The shared-team lookup then authorizes the (redacted) read.
+    findFirstMock
+      .mockResolvedValueOnce(buildEmployeeProfileRecord())
+      .mockResolvedValueOnce({ id: "teammate-employee-id", supervisorId: null });
+    teamFindFirstMock.mockResolvedValue({ id: "team-engineering" });
 
     const response = await request(app).get("/api/v1/employees/employee-active").expect(200);
 
-    // Safe identity/work data is still present so the directory profile remains useful.
+    // Safe identity/work data is still present so the teammate profile remains useful.
     expect(response.body.data.fullName).toBe("Marcus Reed");
     expect(response.body.data.jobTitle).toBeDefined();
     expect(response.body.data.supervisor).not.toBeNull();
@@ -97,6 +110,16 @@ describe("GET /api/v1/employees/:employeeId - profile redaction by caller", () =
     for (const field of SENSITIVE_PROFILE_FIELDS) {
       expect(response.body.data).not.toHaveProperty(field);
     }
+  });
+
+  it("forbids a non-HR caller who is not self, supervisor, report, or teammate (403)", async () => {
+    mockCurrentUser = buildViewer({ id: "stranger-user-id", role: "EMPLOYEE" }) as User;
+    findFirstMock
+      .mockResolvedValueOnce(buildEmployeeProfileRecord())
+      .mockResolvedValueOnce({ id: "stranger-employee-id", supervisorId: null });
+    teamFindFirstMock.mockResolvedValue(null); // no shared team
+
+    await request(app).get("/api/v1/employees/employee-active").expect(403);
   });
 });
 
