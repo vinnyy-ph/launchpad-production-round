@@ -215,9 +215,13 @@ export class SurveysService {
       releaseDate: survey.releaseDate,
       deadline: survey.deadline,
     };
-    const updated = await this.surveysRepository.activate(id, occurrenceData, audienceIds);
+    const { survey: updated, occurrenceId } = await this.surveysRepository.activate(
+      id,
+      occurrenceData,
+      audienceIds,
+    );
 
-    await this.notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name);
+    await this.notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name, occurrenceId);
 
     return {
       success: true,
