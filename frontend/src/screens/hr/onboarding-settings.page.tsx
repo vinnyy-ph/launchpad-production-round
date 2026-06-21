@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Settings2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { hrDirectoryHref } from "@/modules/people/employees/directory-routes";
 import {
   Button,
   Checkbox,

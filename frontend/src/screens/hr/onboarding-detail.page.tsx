@@ -31,7 +31,6 @@ import { InviteStatusBadge } from "@/modules/people/onboarding/components/invite
 import { useOnboardingRecord } from "@/modules/people/onboarding/hooks/use-onboarding-record";
 import { useApproveDocument, useRejectDocument } from "@/modules/people/onboarding/hooks/use-review-document";
 import { useCompleteOnboarding } from "@/modules/people/onboarding/hooks/use-complete-onboarding";
-import { hrDirectoryHref } from "@/modules/people/employees/directory-routes";
 import { useInvitationStatus, useResendInvite, useSendInvite, useUpdateInvitationEmail } from "@/modules/people/onboarding/hooks/use-invitation";
 import type { DocumentReview } from "@/modules/people/onboarding/types/onboarding.types";
 

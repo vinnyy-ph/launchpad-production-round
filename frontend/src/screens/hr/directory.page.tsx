@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Settings2, Users, Filter } from "lucide-react";
+import { Plus, Settings2, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";

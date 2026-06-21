@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { hrDirectoryHref } from "@/modules/people/employees/directory-routes";
 import type { Notification } from "../types/notifications.types";
 
 interface Props {
