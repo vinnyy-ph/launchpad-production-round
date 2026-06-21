@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -50,6 +50,44 @@ interface FieldErrors {
   emergencyContact?: string;
 }
 
+interface FormSnapshot {
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  companyEmail: string;
+  jobTitle: string;
+  department: string;
+  supervisorId: string;
+  personalEmail: string;
+  birthday: Date | undefined;
+  address: string;
+  city: string;
+  province: string;
+  country: string;
+  emergencyContactName: string;
+  emergencyContact: string;
+}
+
+function hasFormData(form: FormSnapshot): boolean {
+  return Boolean(
+    form.firstName.trim() ||
+      form.middleName.trim() ||
+      form.lastName.trim() ||
+      form.companyEmail.trim() ||
+      form.jobTitle.trim() ||
+      form.department ||
+      form.supervisorId ||
+      form.personalEmail.trim() ||
+      form.birthday ||
+      form.address.trim() ||
+      form.city.trim() ||
+      form.province.trim() ||
+      form.country.trim() ||
+      form.emergencyContactName.trim() ||
+      form.emergencyContact.trim(),
+  );
+}
+
 /**
  * Adds an employee and emails them an onboarding invite to finish the rest themselves.
  * Identity + role fields are required; the pre-fill group is optional and simply saves
@@ -78,6 +116,26 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   const [emergencyContact, setEmergencyContact] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSending, setIsSending] = useState(false);
+  const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
+  const unsavedToastIdRef = useRef<string | number | null>(null);
+
+  const hasUnsavedChanges = hasFormData({
+    firstName,
+    middleName,
+    lastName,
+    companyEmail,
+    jobTitle,
+    department,
+    supervisorId,
+    personalEmail,
+    birthday,
+    address,
+    city,
+    province,
+    country,
+    emergencyContactName,
+    emergencyContact,
+  });
 
   const supervisorOptions = activeEmployees.map((employee) => ({
     value: employee.id,
@@ -108,8 +166,38 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     setErrors({});
   }
 
+  function alertUnsavedChanges() {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(90);
+    }
+
+    if (unsavedToastIdRef.current) {
+      toast.dismiss(unsavedToastIdRef.current);
+    }
+
+    const toastId = `add-employee-unsaved-changes-${Date.now()}`;
+    unsavedToastIdRef.current = toastId;
+    window.requestAnimationFrame(() => {
+      toast.error("There are unsaved changes. Send the invite or discard them before closing.", {
+        id: toastId,
+        position: "top-center",
+        classNames: {
+          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
+          title: "!text-[#7A271A]",
+        },
+      });
+    });
+
+    setShakeUnsavedAlert(false);
+    window.requestAnimationFrame(() => setShakeUnsavedAlert(true));
+  }
+
   function handleOpenChange(next: boolean) {
     if (isSending) return;
+    if (!next && hasUnsavedChanges) {
+      alertUnsavedChanges();
+      return;
+    }
     if (!next) reset();
     onOpenChange(next);
   }
@@ -201,7 +289,11 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent
+        className={`max-h-[90vh] overflow-y-auto sm:max-w-xl ${
+          shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
+        }`}
+      >
         <DialogHeader>
           <DialogTitle>Add employee</DialogTitle>
           <DialogDescription>
@@ -397,9 +489,15 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
+          {hasUnsavedChanges ? (
+            <Button type="button" variant="secondary" disabled={isSending} onClick={reset}>
+              Discard
+            </Button>
+          ) : (
+            <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)}>
+              Cancel
+            </Button>
+          )}
           <Button onClick={handleSubmit} disabled={isSending}>
             <Send aria-hidden="true" />
             {isSending ? "Sending…" : "Send invite"}
