@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { prisma } from "../core/database/prisma.service";
+import { advanceDueOccurrences } from "../modules/performance/surveys/occurrences/occurrence-scheduler";
 import { runDeemedAckSweep } from "./deemed-ack.job";
 import { runEvalAckReminderSweep } from "./eval-ack-reminder.job";
 import { runSurveyReminderSweep } from "./survey-reminder.job";
@@ -8,6 +9,9 @@ import { runSurveyReminderSweep } from "./survey-reminder.job";
 const DAILY_JOBS: ReadonlyArray<{ name: string; run: () => Promise<unknown> }> = [
   { name: "deemed-ack", run: () => runDeemedAckSweep() },
   { name: "eval-ack-reminder", run: () => runEvalAckReminderSweep() },
+  // Materialize due recurring occurrences before reminders, so the sweep acts on the
+  // current occurrence even when no one has loaded the surveys page (the on-read path).
+  { name: "advance-occurrences", run: () => advanceDueOccurrences() },
   { name: "survey-reminder", run: () => runSurveyReminderSweep() },
 ];
 
