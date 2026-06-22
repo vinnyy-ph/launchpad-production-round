@@ -80,6 +80,16 @@ export class ResultsService {
       }
     }
 
+    // 3b. Resolve the occurrence whose data this view reports on. An unscoped request defaults
+    //     to the LATEST occurrence — never an all-rounds aggregate. Summing audience/responses
+    //     across a recurring survey's rounds double-counts the same audience (e.g. 297 recipients
+    //     × 3 rounds = 891), making the response rate meaningless. Per-round is the only coherent
+    //     unit. The picker overrides this with an explicit occurrenceId to inspect a past round.
+    //     Access control (step 5) deliberately stays survey-wide, so a viewer entitled to any
+    //     round keeps access; only the data + headline counts are scoped to the round shown.
+    const effectiveOccurrenceId =
+      occurrenceId ?? (await this.repo.findLatestOccurrenceId(survey.id));
+
     // 4. Fetch caller employee record
     const caller = await prisma.employee.findUnique({
       where: { userId },
@@ -174,8 +184,8 @@ export class ResultsService {
 
     // 7. Build the response filter.
     const where: Prisma.SurveyResponseWhereInput = {};
-    if (occurrenceId) {
-      where.occurrenceId = occurrenceId;
+    if (effectiveOccurrenceId) {
+      where.occurrenceId = effectiveOccurrenceId;
     } else {
       where.occurrence = { surveyId: survey.id };
     }
@@ -331,11 +341,11 @@ export class ResultsService {
     // the caller's entitled scope (their slice) via callerScope below; for HR / unfiltered views no
     // scope is applied, so recipientCount reflects the whole audience — which the small-survey HR
     // override below depends on. Computed before suppression.
-    const audienceCountWhere: Prisma.SurveyAudienceMemberWhereInput = occurrenceId
-      ? { occurrenceId }
+    const audienceCountWhere: Prisma.SurveyAudienceMemberWhereInput = effectiveOccurrenceId
+      ? { occurrenceId: effectiveOccurrenceId }
       : { occurrence: { surveyId: survey.id } };
-    const responseCountWhere: Prisma.SurveyResponseWhereInput = occurrenceId
-      ? { occurrenceId }
+    const responseCountWhere: Prisma.SurveyResponseWhereInput = effectiveOccurrenceId
+      ? { occurrenceId: effectiveOccurrenceId }
       : { occurrence: { surveyId: survey.id } };
 
     if (callerScope?.kind === "supervisor") {
@@ -370,7 +380,7 @@ export class ResultsService {
       success: true,
       data: {
         surveyId: survey.id,
-        ...(occurrenceId && { occurrenceId }),
+        ...(effectiveOccurrenceId && { occurrenceId: effectiveOccurrenceId }),
         isAnonymous: survey.isAnonymous,
         surveyName: survey.name,
         deadline: survey.deadline instanceof Date ? survey.deadline.toISOString() : survey.deadline,

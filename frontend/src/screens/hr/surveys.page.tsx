@@ -7,8 +7,8 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Play,
-  Pause,
+  Power,
+  PowerOff,
   Filter,
   Search,
 } from "lucide-react";
@@ -39,7 +39,6 @@ import {
   type Column,
   type DataTableSort,
   FilterBar,
-  TablePagination,
 } from "@/shared/ui/patterns";
 import { SurveyBuilderDialog } from "@/modules/performance/surveys/components/survey-builder";
 import { SurveyDetailDrawer } from "@/modules/performance/surveys/components/survey-detail-drawer";
@@ -290,7 +289,7 @@ export default function HRSurveysPage() {
       header: "Name",
       sortable: true,
       sortKey: "name",
-      className: "w-[34%]",
+      className: "min-w-[240px]",
       cell: (s) => (
         <div className="min-w-0 py-1">
           <p className="truncate text-[15px] font-semibold text-[color:var(--text-primary)]">
@@ -305,89 +304,86 @@ export default function HRSurveysPage() {
     {
       header: "Type",
       mobileLabel: "Type",
-      className: "w-[14%] whitespace-nowrap",
+      className: "min-w-[130px] text-center whitespace-nowrap",
       cell: (s) => <AnonymityChip anonymous={s.isAnonymous} />,
     },
     {
       header: "Responses",
       mobileLabel: "Responses",
-      className: "w-[24%] whitespace-nowrap",
+      className: "min-w-[150px] text-center whitespace-nowrap",
       cell: (s) => <ResponsesCell s={s} />,
     },
     {
       header: "Status",
       mobileLabel: "Status",
-      className: "w-[14%] whitespace-nowrap",
+      className: "min-w-[120px] text-center whitespace-nowrap",
       cell: (s) => <StatusChip status={deriveStatus(s)} />,
     },
     {
       header: "Actions",
       mobileFooter: true,
-      className: "w-[150px] whitespace-nowrap",
+      className: "min-w-[190px] text-right whitespace-nowrap",
       cell: (s) => {
         const status = deriveStatus(s);
         return (
-          <div className="flex w-full justify-start">
-            <div className="inline-flex items-center gap-1">
-              {status === "active" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeactivatingId(s.id);
-                  }}
-                  aria-label="Deactivate survey"
-                  title="Deactivate survey"
-                >
-                  <Pause className="h-4 w-4" />
-                </Button>
-              )}
-              {status === "draft" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-[color:hsl(var(--primary))] hover:bg-gray-50 hover:text-[color:hsl(var(--primary))]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActivatingId(s.id);
-                  }}
-                  aria-label="Activate survey"
-                  title="Activate survey"
-                >
-                  <Play className="h-4 w-4" />
-                </Button>
-              )}
+          <div className="inline-flex items-center justify-end gap-1.5">
+            {/* Lifecycle toggle — labeled so "live vs stopped" reads at a glance, instead of an
+                ambiguous play/pause glyph. Closed is terminal (a survey with occurrences can't
+                be reactivated), so it gets no toggle. */}
+            {status === "draft" && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActivatingId(s.id);
+                }}
+              >
+                <Power className="h-3.5 w-3.5" />
+                Activate
+              </Button>
+            )}
+            {status === "active" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeactivatingId(s.id);
+                }}
+              >
+                <PowerOff className="h-3.5 w-3.5" />
+                Deactivate
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEdit(s);
+              }}
+              aria-label={status === "draft" ? "Continue editing" : "Edit survey"}
+              title={status === "draft" ? "Continue editing" : "Edit survey"}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            {status === "draft" && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
+                className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
                 onClick={(e) => {
                   e.stopPropagation();
-                  openEdit(s);
+                  setDeletingId(s.id);
                 }}
-                aria-label={status === "draft" ? "Continue editing" : "Edit survey"}
-                title={status === "draft" ? "Continue editing" : "Edit survey"}
+                aria-label="Delete draft"
+                title="Delete draft"
               >
-                <Pencil className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
               </Button>
-              {status === "draft" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingId(s.id);
-                  }}
-                  aria-label="Delete draft"
-                  title="Delete draft"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         );
       },
@@ -445,8 +441,8 @@ export default function HRSurveysPage() {
       </FilterBar>
 
       <div
-        className="overflow-hidden rounded-2xl border border-[color:var(--border-primary)] bg-white"
-        style={{ boxShadow: "var(--shadow-sm)" }}
+        className="rounded-xl border border-[color:var(--border-primary)] bg-white"
+        style={{ boxShadow: "var(--shadow-xs)" }}
       >
         <DataTable
           columns={columns}
@@ -458,6 +454,7 @@ export default function HRSurveysPage() {
           onRowClick={openRow}
           sort={sort}
           onSortChange={setSort}
+          pagination={{ page, totalPages, onPageChange: setPage }}
           emptyState={
             <EmptyState
               icon={ClipboardList}
@@ -471,9 +468,6 @@ export default function HRSurveysPage() {
             />
           }
         />
-        {totalPages > 1 && (
-          <TablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
-        )}
       </div>
 
       {/* Builder dialog */}
@@ -532,8 +526,9 @@ export default function HRSurveysPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Deactivate this survey?</AlertDialogTitle>
             <AlertDialogDescription>
-              This closes the current round and stops all future ones. Responses already collected
-              stay, and you can reopen it later.
+              This immediately closes the current round — even if its deadline hasn&apos;t passed —
+              and stops all future rounds. Responses already collected are kept and stay viewable in
+              the results. This can&apos;t be undone: a deactivated survey can&apos;t be reactivated.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -13,7 +13,7 @@ describe("buildOnboardingInvitationEmailHtml", () => {
     expect(html).toContain("Manage Jia");
     expect(html).toContain("Set up account");
     expect(html).toContain("maria.santos@launchpad.ph");
-    expect(html).toContain("data:image/png;base64,");
+    expect(html).toContain('src="cid:jia-logo@managejia"');
     expect(html).not.toContain('src="http://localhost:3000/brand/jia-logo.png"');
     expect(html).toContain('href="http://localhost:3000"');
   });
