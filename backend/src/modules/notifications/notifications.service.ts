@@ -3,6 +3,7 @@ import { API_SUCCESS_MESSAGES } from "../../core/globals";
 import { InAppChannel } from "./channels/in-app.channel";
 import { EmailService } from "../../core/email/email.service";
 import { buildEvaluationReminderEmailHtml } from "../../core/email/templates/evaluation-reminder.template";
+import { buildPulseSurveyReminderEmailHtml } from "../../core/email/templates/pulse-survey-reminder.template";
 import type {
   ListNotificationsQueryDto,
   ListNotificationsResponseDto,
@@ -551,6 +552,19 @@ export class NotificationsService {
         recipient.userId,
         this.toNotificationDto(notification),
       );
+
+      // Email travels on the same throttle as the in-app reminder: only sent when one is
+      // actually created above. Fire-and-forget — delivery failure must not break the sweep.
+      await this.emailService.sendEmail({
+        to: recipient.companyEmail,
+        subject: "Reminder: complete your pulse survey",
+        html: buildPulseSurveyReminderEmailHtml({
+          firstName: recipient.firstName,
+          lastName: recipient.lastName,
+          surveyName,
+          surveyUrl: `${this.resolveAppUrl()}/employee/surveys`,
+        }),
+      });
     } catch {
       // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
     }
