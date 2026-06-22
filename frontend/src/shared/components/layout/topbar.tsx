@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BriefcaseBusiness,
   ChevronLeft,
@@ -133,9 +133,12 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { appUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname() ?? "/";
+  const searchParams = useSearchParams();
   const extraCrumbs = useExtraBreadcrumbs();
+  // The directory's Onboarding/Offboarding tabs live in the `?tab=` query, so pass it through
+  // for the breadcrumb to resolve the active sub-tab on the list view.
   const breadcrumb = [
-    ...breadcrumbForPath(pathname),
+    ...breadcrumbForPath(pathname, searchParams.get("tab")),
     ...extraCrumbs.map((label) => ({ label, href: undefined })),
   ];
   const clock = useClock();

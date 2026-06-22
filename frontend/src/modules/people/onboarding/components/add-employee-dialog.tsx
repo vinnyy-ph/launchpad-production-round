@@ -15,6 +15,7 @@ import {
   DialogTitle,
   FormField,
   Input,
+  PhAddressFields,
   PhoneInput,
   Select,
   SelectContent,
@@ -82,7 +83,7 @@ function hasFormData(form: FormSnapshot): boolean {
       form.address.trim() ||
       form.city.trim() ||
       form.province.trim() ||
-      form.country.trim() ||
+      // country is auto-defaulted to Philippines, so it doesn't count as user-entered data.
       form.emergencyContactName.trim() ||
       form.emergencyContact.trim(),
   );
@@ -111,7 +112,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
-  const [country, setCountry] = useState("");
+  // PH-only deployment: the address picker fixes the country to Philippines.
+  const [country, setCountry] = useState("Philippines");
   const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -160,7 +162,7 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     setAddress("");
     setCity("");
     setProvince("");
-    setCountry("");
+    setCountry("Philippines");
     setEmergencyContactName("");
     setEmergencyContact("");
     setErrors({});
@@ -290,21 +292,22 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={`max-h-[90vh] overflow-y-auto sm:max-w-xl ${
+        className={`flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl [&>button]:z-20 ${
           shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
         }`}
       >
-        <DialogHeader>
+        {/* Pinned header so it stays visible while the form body scrolls. */}
+        <DialogHeader className="border-b border-[color:var(--border-primary)] px-6 pb-4 pt-6">
           <DialogTitle>Add employee</DialogTitle>
           <DialogDescription>
             Pre-fill what you know, and we&apos;ll email them an invite to finish onboarding.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
+        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
           <section className="space-y-4">
             <h3 className="text-sm font-bold text-[color:var(--text-primary)]">Who they are</h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
               <FormField label="First name" htmlFor="add-first" required error={errors.firstName}>
                 <Input
                   id="add-first"
@@ -357,7 +360,7 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                 placeholder="e.g. Nurse"
               />
             </FormField>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
               <FormField label="Department" required error={errors.department}>
                 <Select value={department} onValueChange={setDepartment}>
                   <SelectTrigger aria-label="Select department">
@@ -395,68 +398,46 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                 they accept the invite.
               </p>
             </div>
-            <FormField label="Personal email" htmlFor="add-personal" error={errors.personalEmail}>
-              <Input
-                id="add-personal"
-                type="email"
-                value={personalEmail}
-                onChange={(event) => setPersonalEmail(event.target.value)}
-                placeholder="name.personal@gmail.com"
-              />
-            </FormField>
-            <FormField
-              label="Birthday"
-              error={errors.birthday}
-              hint="Use the year and month dropdowns in the calendar to jump back quickly."
-            >
-              <DatePicker value={birthday} onChange={setBirthday} disableFuture />
-            </FormField>
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+              <FormField label="Personal email" htmlFor="add-personal" error={errors.personalEmail}>
+                <Input
+                  id="add-personal"
+                  type="email"
+                  value={personalEmail}
+                  onChange={(event) => setPersonalEmail(event.target.value)}
+                  placeholder="name.personal@gmail.com"
+                />
+              </FormField>
+              <FormField
+                label="Birthday"
+                error={errors.birthday}
+                hint="Use the year and month dropdowns in the calendar to jump back quickly."
+              >
+                <DatePicker value={birthday} onChange={setBirthday} disableFuture />
+              </FormField>
+            </div>
 
             <div className="space-y-4 border-t border-[color:var(--border-primary)] pt-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
                 Address
               </h4>
-              <FormField label="Street address" htmlFor="add-address">
-                <Input
-                  id="add-address"
-                  value={address}
-                  onChange={(event) => setAddress(event.target.value)}
-                  placeholder="House/unit no., street, barangay"
-                />
-              </FormField>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <FormField label="Country" htmlFor="add-country">
-                  <Input
-                    id="add-country"
-                    value={country}
-                    onChange={(event) => setCountry(event.target.value)}
-                    placeholder="e.g. Philippines"
-                  />
-                </FormField>
-                <FormField label="Province" htmlFor="add-province">
-                  <Input
-                    id="add-province"
-                    value={province}
-                    onChange={(event) => setProvince(event.target.value)}
-                    placeholder="e.g. Metro Manila"
-                  />
-                </FormField>
-                <FormField label="City" htmlFor="add-city">
-                  <Input
-                    id="add-city"
-                    value={city}
-                    onChange={(event) => setCity(event.target.value)}
-                    placeholder="e.g. Quezon City"
-                  />
-                </FormField>
-              </div>
+              <PhAddressFields
+                idPrefix="add"
+                value={{ country, province, city, address }}
+                onChange={(patch) => {
+                  if (patch.address !== undefined) setAddress(patch.address);
+                  if (patch.country !== undefined) setCountry(patch.country);
+                  if (patch.province !== undefined) setProvince(patch.province);
+                  if (patch.city !== undefined) setCity(patch.city);
+                }}
+              />
             </div>
 
             <div className="space-y-4 border-t border-[color:var(--border-primary)] pt-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
                 Emergency contact
               </h4>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
                 <FormField label="Contact name" htmlFor="add-emergency-name">
                   <Input
                     id="add-emergency-name"
@@ -488,7 +469,7 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
           </p>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-[color:var(--border-primary)] px-6 pb-6 pt-4">
           {hasUnsavedChanges ? (
             <Button type="button" variant="secondary" disabled={isSending} onClick={reset}>
               Discard

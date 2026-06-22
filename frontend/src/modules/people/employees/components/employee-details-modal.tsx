@@ -36,6 +36,7 @@ import { StatusBadge } from "@/shared/ui/patterns";
 import { ApiError } from "@/shared/lib/api-client";
 import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
 import type { EmployeeDocument, EmployeeDocumentStatus } from "../services/employees.service";
+import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
 import { useEmployeeDocuments } from "../hooks/use-employee-documents";
@@ -83,6 +84,9 @@ type EditDraft = {
 };
 
 const NO_DEPARTMENT = "__none__";
+
+/** PH-only deployment: the address country is fixed to the Philippines. */
+const PH_COUNTRY = "Philippines";
 
 const DETAIL_SECTIONS: { value: EmployeeDetailsSection; label: string; icon: LucideIcon }[] = [
   { value: "personal", label: "Personal Information", icon: UserRound },
@@ -202,7 +206,8 @@ function draftFromProfile(profile: EmployeeProfile | EmployeeListItem): EditDraf
     birthday: profileDetails.birthday ? profileDetails.birthday.slice(0, 10) : "",
     personalEmail: profileDetails.personalEmail ?? "",
     companyEmail: profile.companyEmail ?? "",
-    country: profile.address?.country ?? "",
+    // PH-only deployment: default an empty country to Philippines so the address dropdowns resolve.
+    country: profile.address?.country?.trim() || PH_COUNTRY,
     province: profile.address?.province ?? "",
     city: profile.address?.city ?? "",
     address: profile.address?.address ?? "",
@@ -710,28 +715,18 @@ export function EmployeeDetailsModal({
                             <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
                               Address
                             </p>
-                            <div className="grid gap-4">
-                              <div className="grid gap-4 lg:grid-cols-3">
-                                <EditableField
-                                  label="Country"
-                                  value={draft.country}
-                                  onChange={(value) => updateDraft("country", value)}
-                                />
-                                <EditableField
-                                  label="Province"
-                                  value={draft.province}
-                                  onChange={(value) => updateDraft("province", value)}
-                                />
-                                <EditableField
-                                  label="City"
-                                  value={draft.city}
-                                  onChange={(value) => updateDraft("city", value)}
-                                />
-                              </div>
-                              <EditableField
-                                label="Address"
-                                value={draft.address}
-                                onChange={(value) => updateDraft("address", value)}
+                            <div className="flex flex-col gap-4">
+                              <PhAddressFields
+                                idPrefix="emp-details"
+                                value={{
+                                  country: draft.country,
+                                  province: draft.province,
+                                  city: draft.city,
+                                  address: draft.address,
+                                }}
+                                onChange={(patch) =>
+                                  setDraft((current) => ({ ...current, ...patch }))
+                                }
                               />
                             </div>
                           </div>
