@@ -94,7 +94,7 @@ export class BulkOnboardingValidation {
       }
     }
 
-    return index + 2;
+    return index + 1;
   }
 
   private resolveErrorField(error: unknown): string {

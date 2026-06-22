@@ -14,6 +14,9 @@ export const SURVEY_ERROR_MESSAGES = {
     "audienceConfigs must include at least one supervisorId when audienceType is SUPERVISOR_BASED",
   AUDIENCE_CONFIG_REQUIRED_TEAM:
     "audienceConfigs must include at least one teamId when audienceType is SPECIFIC_TEAMS",
+  INVALID_VISIBILITY_CONFIG: "Each visibilityConfig must provide a teamId",
+  VISIBILITY_CONFIG_REQUIRED_TEAM:
+    "visibilityConfigs must include at least one teamId when visibility is SPECIFIC_TEAMS",
   INVALID_STATUS: "status must be 'draft', 'active', or 'inactive'",
   SURVEY_ALREADY_ACTIVATED: "Cannot update questions, audienceType, audienceConfigs, isAnonymous, or recurringType after it has been activated",
   SURVEY_ALREADY_ACTIVE: "Survey is already active",

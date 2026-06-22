@@ -12,8 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui";
+import {
+  downloadBulkOnboardingTemplate,
+  OPTIONAL_COLUMNS,
+  REQUIRED_COLUMNS,
+  TEMPLATE_SAMPLE_ROWS,
+} from "./bulk-onboarding-template";
 import { BulkJobStatus } from "./bulk-job-status";
 import { useBulkOnboardingCommit, useBulkOnboardingPreview } from "../../hooks/use-bulk-upload";
+
+export { OPTIONAL_COLUMNS, REQUIRED_COLUMNS, TEMPLATE_COLUMNS } from "./bulk-onboarding-template";
 import type {
   BulkOnboardingCommitResult,
   BulkOnboardingPreviewResult,
@@ -27,57 +35,6 @@ interface BulkUploadDropzoneProps {
 }
 
 type RawSpreadsheetRow = Record<string, unknown>;
-
-export const REQUIRED_COLUMNS = [
-  "companyEmail",
-  "firstName",
-  "lastName",
-  "jobTitle",
-  "department",
-  "supervisorEmail",
-];
-const OPTIONAL_COLUMNS = [
-  "middleName",
-  "personalEmail",
-  "birthday",
-  "address",
-  "city",
-  "province",
-  "country",
-  "emergencyContactName",
-  "emergencyContact",
-];
-
-export const TEMPLATE_COLUMNS = [...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS];
-
-const TEMPLATE_SAMPLE_ROW: Record<string, string> = {
-  companyEmail: "maria.santos@company.com",
-  firstName: "Maria",
-  lastName: "Santos",
-  jobTitle: "Nurse",
-  department: "Operations",
-  supervisorEmail: "allenkurtds.dev@gmail.com",
-  middleName: "Reyes",
-  personalEmail: "maria.personal@example.com",
-  birthday: "1995-06-15",
-  address: "123 Sample Street",
-  city: "Quezon City",
-  province: "Metro Manila",
-  country: "Philippines",
-  emergencyContactName: "Juan Santos",
-  emergencyContact: "09171234567",
-};
-
-function autosizeTemplateColumns(rows: Record<string, string>[]) {
-  return TEMPLATE_COLUMNS.map((column) => {
-    const longestValue = rows.reduce(
-      (longest, row) => Math.max(longest, String(row[column] ?? "").length),
-      column.length,
-    );
-
-    return { wch: Math.min(Math.max(longestValue + 2, 12), 42) };
-  });
-}
 
 const COLUMN_ALIASES: Record<string, keyof BulkOnboardingRowInput> = {
   companyemail: "companyEmail",
@@ -214,15 +171,7 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
   }
 
   async function downloadTemplate() {
-    const XLSX = await import("xlsx");
-    const templateRows = [TEMPLATE_SAMPLE_ROW];
-    const worksheet = XLSX.utils.json_to_sheet(templateRows, {
-      header: TEMPLATE_COLUMNS,
-    });
-    worksheet["!cols"] = autosizeTemplateColumns(templateRows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Bulk onboarding");
-    XLSX.writeFile(workbook, "bulk-onboarding-template.xlsx");
+    await downloadBulkOnboardingTemplate();
   }
 
   async function parseFile(file: File) {
@@ -258,7 +207,7 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
       });
 
       const nextRows = parsed
-        .map((row, index) => normalizeSpreadsheetRow(row, index + 2))
+        .map((row, index) => normalizeSpreadsheetRow(row, index + 1))
         .filter((row) =>
           Object.entries(row).some(([key, value]) => key !== "rowNumber" && Boolean(value)),
         );
@@ -339,7 +288,7 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                 Start with the template
               </p>
               <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-                It includes the required columns and one sample row.
+                It includes the required columns and {TEMPLATE_SAMPLE_ROWS.length} sample rows.
               </p>
             </div>
             <Button

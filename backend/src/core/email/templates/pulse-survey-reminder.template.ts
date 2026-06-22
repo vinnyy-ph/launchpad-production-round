@@ -1,5 +1,5 @@
 /** Manage Jia brand tokens used in transactional email (inline-safe hex values). */
-import { getJiaLogoDataUri } from "../jia-logo";
+import { getJiaLogoSrc } from "../jia-logo";
 const BRAND = {
   appName: "Manage Jia",
   bgPage: "#f9f9fb",
@@ -45,7 +45,7 @@ export function buildPulseSurveyReminderEmailHtml(
   const name = escapeHtml(displayName(params.firstName, params.lastName));
   const surveyName = escapeHtml(params.surveyName);
   const surveyUrl = escapeHtml(params.surveyUrl);
-  const logoSrc = getJiaLogoDataUri();
+  const logoSrc = getJiaLogoSrc();
   const year = new Date().getFullYear();
 
   return `<!DOCTYPE html>

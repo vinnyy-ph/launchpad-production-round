@@ -4,10 +4,13 @@ import { app } from "../../app";
 import {
   buildTeamRecord,
   buildViewer,
+  employeeCountMock,
   mockedPrisma,
   resetTeamMocks,
   teamFindManyMock,
   teamCountMock,
+  teamFindUniqueMock,
+  teamMemberCreateManyMock,
 } from "./teams-test.helpers";
 
 // Non-privileged listing resolves the caller's employee id, then scopes the query to their teams.
@@ -119,6 +122,43 @@ describe("Team management authorization", () => {
 
   it("returns 403 for a non-HR/Admin caller removing a team member", async () => {
     mockCurrentUser = buildViewer({ role: "EMPLOYEE" }) as User;
+
+    const response = await request(app)
+      .delete("/api/v1/teams/team-platform/members/employee-member-1")
+      .expect(403);
+
+    expect(response.body).toEqual(FORBIDDEN_BODY);
+  });
+
+  it("lets a team's own leader add members even without an HR/Admin role", async () => {
+    // A team leader's extra ability is managing their team's membership, so the request succeeds.
+    mockCurrentUser = buildViewer({ role: "EMPLOYEE" }) as User;
+    employeeFindFirstMock.mockResolvedValue({ id: "employee-leader" });
+    teamFindUniqueMock
+      // First lookup authorizes the caller as the team leader (middleware).
+      .mockResolvedValueOnce(buildTeamRecord({ leaderId: "employee-leader" }))
+      // Subsequent lookups serve the add-members service flow.
+      .mockResolvedValueOnce(buildTeamRecord({ leaderId: "employee-leader" }))
+      .mockResolvedValueOnce(
+        buildTeamRecord({
+          leaderId: "employee-leader",
+          memberIds: ["employee-leader", "employee-member-1", "employee-member-2"],
+        }),
+      );
+    employeeCountMock.mockResolvedValue(1);
+    teamMemberCreateManyMock.mockResolvedValue({ count: 1 });
+
+    await request(app)
+      .post("/api/v1/teams/team-platform/members")
+      .send({ memberIds: ["employee-member-2"] })
+      .expect(200);
+  });
+
+  it("rejects a team leader managing a team they do not lead", async () => {
+    // Leadership is per-team: leading one team grants no rights over another.
+    mockCurrentUser = buildViewer({ role: "EMPLOYEE" }) as User;
+    employeeFindFirstMock.mockResolvedValue({ id: "employee-other-leader" });
+    teamFindUniqueMock.mockResolvedValue(buildTeamRecord({ leaderId: "employee-leader" }));
 
     const response = await request(app)
       .delete("/api/v1/teams/team-platform/members/employee-member-1")

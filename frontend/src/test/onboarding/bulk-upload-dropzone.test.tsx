@@ -87,10 +87,10 @@ describe("BulkUploadDropzone supervisor email flow", () => {
           "Manager Email": "jane.manager@example.com",
           Email: "new.hire@example.com",
         },
-        2,
+        1,
       ),
     ).toMatchObject({
-      rowNumber: 2,
+      rowNumber: 1,
       companyEmail: "new.hire@example.com",
       supervisorEmail: "jane.manager@example.com",
     });
@@ -100,10 +100,10 @@ describe("BulkUploadDropzone supervisor email flow", () => {
         {
           Supervisor: "jane.manager@example.com",
         },
-        3,
+        2,
       ),
     ).toMatchObject({
-      rowNumber: 3,
+      rowNumber: 2,
       supervisorEmail: "jane.manager@example.com",
     });
   });
@@ -121,7 +121,7 @@ describe("BulkUploadDropzone supervisor email flow", () => {
       errors: [],
       rows: [
         {
-          rowNumber: 2,
+          rowNumber: 1,
           employeeName: "New Hire",
           companyEmail: "new.hire@example.com",
           jobTitle: "Engineer",
@@ -146,14 +146,14 @@ describe("BulkUploadDropzone supervisor email flow", () => {
       invalidRows: 1,
       errors: [
         {
-          rowNumber: 2,
+          rowNumber: 1,
           field: "supervisorEmail",
           message: "Supervisor not found.",
         },
       ],
       rows: [
         {
-          rowNumber: 2,
+          rowNumber: 1,
           employeeName: "New Hire",
           companyEmail: "new.hire@example.com",
           jobTitle: "Engineer",

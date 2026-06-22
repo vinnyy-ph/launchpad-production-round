@@ -80,7 +80,15 @@ export function Combobox({
       <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
+          {/*
+           * Stop wheel/touch from bubbling to the dialog's scroll lock (react-remove-scroll),
+           * which otherwise swallows these events on the portaled popover and blocks scrolling
+           * the list without dragging the scrollbar.
+           */}
+          <CommandList
+            onWheel={(event) => event.stopPropagation()}
+            onTouchMove={(event) => event.stopPropagation()}
+          >
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((o) => (

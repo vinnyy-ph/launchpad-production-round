@@ -6,6 +6,7 @@ import type {
 import type {
   CreateSurveyQuestionInput,
   CreateAudienceConfigInput,
+  CreateVisibilityConfigInput,
   CreateReminderConfigInput,
 } from "./create-survey-input.dto";
 
@@ -20,5 +21,6 @@ export interface UpdateSurveyInput {
   deadline?: Date;
   questions?: CreateSurveyQuestionInput[];
   audienceConfigs?: CreateAudienceConfigInput[];
+  visibilityConfigs?: CreateVisibilityConfigInput[];
   reminderConfig?: CreateReminderConfigInput | null;
 }

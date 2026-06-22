@@ -13,6 +13,7 @@ import type { ListSurveysQuery, UpdateSurveyInput } from "./dto";
 export type SurveyWithRelations = PulseSurvey & {
   questions: SurveyQuestion[];
   audienceConfigs: SurveyAudienceConfig[];
+  visibilityConfigs: SurveyVisibilityConfig[];
   reminderConfig: SurveyReminderConfig | null;
 };
 
@@ -79,7 +80,17 @@ export class SurveysRepository {
         });
       }
 
-      // 4. Create reminder config (optional)
+      // 4. Create visibility configs (only when provided — SPECIFIC_TEAMS visibility)
+      if (data.visibilityConfigs.length > 0) {
+        await tx.surveyVisibilityConfig.createMany({
+          data: data.visibilityConfigs.map((cfg) => ({
+            surveyId: survey.id,
+            teamId: cfg.teamId,
+          })),
+        });
+      }
+
+      // 5. Create reminder config (optional)
       if (data.reminderConfig) {
         await tx.surveyReminderConfig.create({
           data: {
@@ -90,12 +101,13 @@ export class SurveysRepository {
         });
       }
 
-      // 5. Fetch and return the full survey with relations
+      // 6. Fetch and return the full survey with relations
       return tx.pulseSurvey.findUniqueOrThrow({
         where: { id: survey.id },
         include: {
           questions: { orderBy: { orderIndex: "asc" } },
           audienceConfigs: true,
+          visibilityConfigs: true,
           reminderConfig: true,
         },
       });
@@ -228,6 +240,19 @@ export class SurveysRepository {
               surveyId: id,
               supervisorId: cfg.supervisorId ?? null,
               teamId: cfg.teamId ?? null,
+            })),
+          });
+        }
+      }
+
+      // 3b. Update visibilityConfigs (delete and replace)
+      if (data.visibilityConfigs !== undefined) {
+        await tx.surveyVisibilityConfig.deleteMany({ where: { surveyId: id } });
+        if (data.visibilityConfigs.length > 0) {
+          await tx.surveyVisibilityConfig.createMany({
+            data: data.visibilityConfigs.map((cfg) => ({
+              surveyId: id,
+              teamId: cfg.teamId,
             })),
           });
         }

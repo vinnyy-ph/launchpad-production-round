@@ -423,6 +423,7 @@ export class SurveysController {
       msg.includes("MULTIPLE_CHOICE") ||
       msg.includes("CHECKBOX") ||
       msg.includes("audienceConfigs") ||
+      msg.includes("visibilityConfig") ||
       msg.includes("reminderConfig") ||
       msg.includes("isAnonymous") ||
       msg.includes("isActive") ||

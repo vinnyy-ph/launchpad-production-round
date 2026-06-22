@@ -251,6 +251,17 @@ export interface ResultsFilter {
   supervisorId?: string;
 }
 
+/** One round of a recurring survey, for the results-page round picker. */
+export interface SurveyOccurrenceSummary {
+  id: string;
+  occurrenceNumber: number;
+  releaseDate: string;
+  deadline: string;
+  isClosed: boolean;
+  audienceSize: number;
+  completionCount: number;
+}
+
 // ─── AI Insights (PER-12) ──────────────────────────────────────────────────────
 
 export type InsightSentiment = "positive" | "neutral" | "negative" | "mixed";
@@ -293,6 +304,11 @@ export interface AudienceConfigInput {
   teamId?: string;
 }
 
+// A single results-visibility config entry — teamId for SPECIFIC_TEAMS visibility.
+export interface VisibilityConfigInput {
+  teamId: string;
+}
+
 export interface ReminderConfigInput {
   frequency?: ReminderFrequency;
   everyXDays?: number;
@@ -309,6 +325,7 @@ export interface CreateSurveyInput {
   visibility?: Visibility;
   questions: QuestionInput[];
   audienceConfigs?: AudienceConfigInput[];
+  visibilityConfigs?: VisibilityConfigInput[];
   reminderConfig?: ReminderConfigInput;
 }
 

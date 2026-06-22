@@ -43,7 +43,7 @@ export async function updateTeamName(teamId: string, name: string): Promise<Team
   });
 }
 
-/** Adds members to a team without removing existing ones (HR/Admin only). */
+/** Adds members to a team without removing existing ones (HR/Admin or the team's leader). */
 export async function addTeamMembers(teamId: string, memberIds: string[]): Promise<TeamResponse> {
   return apiFetch<TeamResponse>(`${BASE}/${teamId}/members`, {
     method: "POST",
@@ -51,7 +51,7 @@ export async function addTeamMembers(teamId: string, memberIds: string[]): Promi
   });
 }
 
-/** Removes one member from a team (HR/Admin only). The leader cannot be removed. */
+/** Removes one member from a team (HR/Admin or the team's leader). The leader cannot be removed. */
 export async function removeTeamMember(teamId: string, employeeId: string): Promise<TeamResponse> {
   return apiFetch<TeamResponse>(`${BASE}/${teamId}/members/${employeeId}`, {
     method: "DELETE",

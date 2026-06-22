@@ -13,6 +13,7 @@ import type {
   AnswerInput,
   SurveyResults,
   ResultsFilter,
+  SurveyOccurrenceSummary,
   VisibleResultSurvey,
   MyAnswers,
   SurveyInsight,
@@ -150,17 +151,35 @@ export async function submitResponse(
 
 // ─── Results (PER-08 / PER-11) ─────────────────────────────────────────────────
 
-/** Aggregated results for a survey, optionally scoped by one team or supervisor filter. */
+/**
+ * Aggregated results for a survey, optionally scoped by one team/supervisor filter and/or a
+ * specific occurrence (round). With no occurrenceId the server defaults to the latest round.
+ */
 export async function fetchSurveyResults(
   surveyId: string,
   filter?: ResultsFilter,
+  occurrenceId?: string,
 ): Promise<SurveyResults> {
   const qs = new URLSearchParams();
   if (filter?.teamId) qs.set("teamId", filter.teamId);
   if (filter?.supervisorId) qs.set("supervisorId", filter.supervisorId);
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
-  const res = await apiFetch<{ data: SurveyResults }>(`${BASE}/${surveyId}/results${suffix}`);
+  // A chosen round hits the per-occurrence route; the default (latest) uses the survey route.
+  const path = occurrenceId
+    ? `${BASE}/occurrences/${occurrenceId}/results${suffix}`
+    : `${BASE}/${surveyId}/results${suffix}`;
+  const res = await apiFetch<{ data: SurveyResults }>(path);
   return res.data;
+}
+
+/** All rounds of a recurring survey (HR only), newest first, for the results-page round picker. */
+export async function fetchSurveyOccurrences(
+  surveyId: string,
+): Promise<SurveyOccurrenceSummary[]> {
+  const res = await apiFetch<{ data: SurveyOccurrenceSummary[] }>(
+    `${BASE}/${surveyId}/occurrences?limit=100`,
+  );
+  return [...res.data].sort((a, b) => b.occurrenceNumber - a.occurrenceNumber);
 }
 
 /** Surveys whose results the signed-in user may view (supervisor/employee discovery). */
