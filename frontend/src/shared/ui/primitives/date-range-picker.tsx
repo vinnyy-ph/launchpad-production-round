@@ -44,14 +44,19 @@ export function DateRangePicker({ value, onChange, disabled, className }: DateRa
           {label}
         </button>
       </PopoverTrigger>
-      {/* Popup matches the trigger width; the calendar fills it. */}
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        {/* Single month, no adjacent-month days — avoids the "two end dates" confusion. */}
+      {/* Popup is the trigger's width, so it lines up with the field (wide modal triggers fit two
+          months side by side). It only grows past that when a narrow trigger can't hold both
+          months — never clips. Below md the two months stack. */}
+      <PopoverContent
+        className="w-max min-w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0"
+        align="start"
+      >
+        {/* No adjacent-month days — avoids the "two end dates" confusion. */}
         <Calendar
           mode="range"
           selected={value}
           onSelect={onChange}
-          numberOfMonths={1}
+          numberOfMonths={2}
           showOutsideDays={false}
           className="!w-full"
         />
