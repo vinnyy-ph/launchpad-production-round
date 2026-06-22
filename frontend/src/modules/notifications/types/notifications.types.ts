@@ -9,7 +9,8 @@ export type NotificationType =
   | "NEW_PULSE"
   | "PULSE_REMINDER"
   | "NEW_EVALUATION"
-  | "EVAL_ACK_REMINDER";
+  | "EVAL_ACK_REMINDER"
+  | "EVAL_DEEMED_ACK";
 
 export interface Notification {
   id: string;

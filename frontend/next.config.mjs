@@ -6,6 +6,16 @@ const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:3001"
 
 const nextConfig = {
   reactStrictMode: true,
+  transpilePackages: ["react-phone-number-input", "libphonenumber-js"],
+  async redirects() {
+    return [
+      {
+        source: "/hr/onboarding",
+        destination: "/hr/directory?tab=onboarding",
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       { source: "/api/:path*", destination: `${API_PROXY_TARGET}/api/:path*` },

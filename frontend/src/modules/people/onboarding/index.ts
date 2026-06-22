@@ -5,6 +5,7 @@ export * from "./services/onboarding.service";
 export { InviteStatusBadge, inviteStatusLabel } from "./components/invite-status-badge";
 export { OnboardingCasesTable } from "./components/onboarding-cases-table";
 export { AddEmployeeDialog } from "./components/add-employee-dialog";
+export { BulkUploadDropzone } from "./components/bulk/bulk-upload-dropzone";
 export { DocumentReviewCard } from "./components/documents/document-review-card";
 export { RejectDocumentDialog } from "./components/documents/reject-document-dialog";
 export { DocumentUploadRow } from "./components/documents/document-upload";
@@ -22,6 +23,7 @@ export {
   useUpdateInvitationEmail,
 } from "./hooks/use-invitation";
 export { useOnboardEmployee } from "./hooks/use-onboard-employee";
+export { useBulkOnboardingCommit, useBulkOnboardingPreview } from "./hooks/use-bulk-upload";
 export { useCompleteOnboarding } from "./hooks/use-complete-onboarding";
 export {
   useDocumentConfigs,

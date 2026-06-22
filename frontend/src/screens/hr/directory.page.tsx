@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { Plus, Settings2, Users } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FileSpreadsheet, Plus, Settings2, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -27,7 +28,15 @@ import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
-import { AddEmployeeDialog, OnboardingCasesTable } from "@/modules/people/onboarding";
+import {
+  hrDirectoryHref,
+  parseDirectoryTab,
+  type DirectoryTab,
+} from "@/modules/people/employees/directory-routes";
+import {
+  AddEmployeeDialog,
+  OnboardingCasesTable,
+} from "@/modules/people/onboarding";
 import { InitiateOffboardingDialog, OffboardingCasesTable } from "@/modules/people/offboarding";
 import type {
   EmployeeListItem,
@@ -39,8 +48,13 @@ import type {
 const PAGE_SIZE = 10;
 const MAX_VISIBLE_TEAMS = 2;
 
-/** Directory segments shown as tabs. */
-type DirectoryTab = "all" | "onboarding" | "offboarding";
+const BulkUploadDropzone = dynamic(
+  () =>
+    import("@/modules/people/onboarding/components/bulk/bulk-upload-dropzone").then(
+      (module) => module.BulkUploadDropzone,
+    ),
+  { ssr: false },
+);
 
 /** Status options for the All-tab status filter dropdown. */
 const STATUS_FILTER_OPTIONS: { id: EmployeeStatus; name: string }[] = [
@@ -125,15 +139,10 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
 
 export default function DirectoryPage() {
   const router = useRouter();
-  const pathname = usePathname();
-  // Onboarding and Offboarding are deep-linkable routes nested under the People directory.
-  const isOnboardingRoute = pathname === "/hr/directory/onboarding";
-  const isOffboardingRoute = pathname === "/hr/directory/offboarding";
-  const tab: DirectoryTab = isOnboardingRoute
-    ? "onboarding"
-    : isOffboardingRoute
-      ? "offboarding"
-      : "all";
+  const searchParams = useSearchParams();
+  // The selected tab lives in the `?tab=` query param so it stays in sync with how tab clicks
+  // navigate (see PageTabs onChange below). Missing/invalid values fall back to All.
+  const tab: DirectoryTab = parseDirectoryTab(searchParams.get("tab"));
   const [search, setSearch] = useState("");
   const [teamIds, setTeamIds] = useState<Set<string>>(new Set());
   const [statuses, setStatuses] = useState<Set<string>>(new Set());
@@ -141,6 +150,7 @@ export default function DirectoryPage() {
   const [supervisorIds, setSupervisorIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [initiateOpen, setInitiateOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [sort, setSort] = useState<DataTableSort>({
@@ -148,17 +158,6 @@ export default function DirectoryPage() {
     direction: "asc",
   });
   const debouncedSearch = useDebounce(search, 300);
-
-  // Each tab is its own route, so switching tabs is a navigation.
-  const handleTabChange = (nextTab: DirectoryTab) => {
-    const href =
-      nextTab === "onboarding"
-        ? "/hr/directory/onboarding"
-        : nextTab === "offboarding"
-          ? "/hr/directory/offboarding"
-          : "/hr/directory";
-    router.push(href);
-  };
 
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
   const { departments, loading: departmentsLoading } = useDepartments();
@@ -268,13 +267,22 @@ export default function DirectoryPage() {
         action={
           <div className="flex flex-col gap-2 sm:flex-row">
             {tab === "onboarding" ? (
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => router.push("/hr/directory/onboarding/settings")}
-              >
-                <Settings2 aria-hidden="true" /> Onboarding setup
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => router.push("/hr/directory/onboarding/settings")}
+                >
+                  <Settings2 aria-hidden="true" /> Onboarding setup
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => setBulkOpen(true)}
+                >
+                  <FileSpreadsheet aria-hidden="true" /> Bulk upload
+                </Button>
+              </>
             ) : null}
             {tab === "offboarding" ? (
               <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
@@ -292,7 +300,10 @@ export default function DirectoryPage() {
       <PageTabs
         ariaLabel="Employee segments"
         value={tab}
-        onChange={(nextTab) => handleTabChange(nextTab as DirectoryTab)}
+        onChange={(nextTab) => {
+          router.replace(hrDirectoryHref(nextTab as DirectoryTab));
+          setPage(1);
+        }}
         items={[
           { value: "all", label: "All", count: counts.all },
           { value: "onboarding", label: "Onboarding", count: counts.onboarding },
@@ -375,6 +386,7 @@ export default function DirectoryPage() {
                 }}
                 allLabel="All supervisors"
                 countNoun="supervisors"
+                showFilterIcon
                 searchPlaceholder="Search supervisors…"
                 emptyText="No employees found."
                 ariaLabel="Filter by supervisor"
@@ -429,6 +441,8 @@ export default function DirectoryPage() {
         onOpenChange={setAddOpen}
         onStarted={(employeeId) => router.push(`/hr/directory/onboarding/${employeeId}`)}
       />
+
+      {bulkOpen ? <BulkUploadDropzone open={bulkOpen} onOpenChange={setBulkOpen} /> : null}
 
       {tab === "offboarding" ? (
         <InitiateOffboardingDialog
