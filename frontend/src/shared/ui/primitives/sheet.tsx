@@ -49,13 +49,20 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  /**
+   * Portal target for the sheet. Defaults to `document.body`. Pass an element to render the sheet
+   * inside it instead — needed when an ancestor is in the Fullscreen API top layer, since a
+   * body-level portal would fall outside the fullscreen element and stay hidden.
+   */
+  container?: HTMLElement | null
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
+>(({ side = "right", className, children, container, ...props }, ref) => (
+  <SheetPortal container={container ?? undefined}>
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}

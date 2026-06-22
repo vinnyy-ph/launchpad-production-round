@@ -77,11 +77,14 @@ export const queryKeys = {
       status ? (["surveys", "list", status] as const) : (["surveys", "list"] as const),
     detail: (id: string) => ["surveys", "detail", id] as const,
     audienceOptions: ["surveys", "audience-options"] as const,
-    // Aggregated results for a survey, optionally scoped by a team/supervisor filter.
-    results: (id: string, filter?: Record<string, unknown>) =>
+    // Aggregated results for a survey round, optionally scoped by a team/supervisor filter.
+    // occurrenceId distinguishes the chosen round; "latest" is the default (server picks it).
+    results: (id: string, filter?: Record<string, unknown>, occurrenceId?: string) =>
       filter
-        ? (["surveys", "results", id, filter] as const)
-        : (["surveys", "results", id] as const),
+        ? (["surveys", "results", id, occurrenceId ?? "latest", filter] as const)
+        : (["surveys", "results", id, occurrenceId ?? "latest"] as const),
+    // All rounds of a recurring survey (round picker on the results page).
+    occurrences: (id: string) => ["surveys", "occurrences", id] as const,
     // The signed-in employee's open pulses to answer.
     mine: ["surveys", "mine"] as const,
     // The signed-in employee's already-answered pulses (history).

@@ -14,6 +14,7 @@ import {
   type OrgChartItem,
 } from "@/modules/people/employees/components/org-chart/org-chart";
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
+import { EmployeeProfileSheet } from "@/modules/people/employees/components/employee-profile-sheet";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import {
   DataTable,
@@ -33,11 +34,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
   Skeleton,
 } from "@/shared/ui";
 
@@ -399,82 +395,13 @@ export default function RosterPage() {
         </div>
       )}
 
-      {/* Employee detail sheet (redacted-safe fields only) */}
-      <Sheet open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          {selected && (
-            <>
-              <SheetHeader className="mb-6">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                    style={{
-                      background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
-                    }}
-                    aria-hidden="true"
-                  >
-                    {initials(selected.fullName)}
-                  </span>
-                  <div>
-                    <SheetTitle className="text-left text-base font-bold leading-tight text-[color:var(--text-primary)]">
-                      {selected.fullName}
-                    </SheetTitle>
-                    <SheetDescription className="text-left text-sm text-[color:var(--text-secondary)]">
-                      {selected.jobTitle ?? "—"}
-                    </SheetDescription>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              <div className="space-y-4">
-                <div
-                  className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
-                  style={{ boxShadow: "var(--shadow-xs)" }}
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
-                      Department
-                    </span>
-                    <span className="text-sm text-[color:var(--text-primary)]">
-                      {selected.department ?? "—"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
-                      Status
-                    </span>
-                    <StatusBadge status={selected.status} dot />
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
-                      Supervisor
-                    </span>
-                    <span className="text-sm text-[color:var(--text-primary)]">
-                      {selected.supervisor?.fullName ?? "—"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
-                      Team/s
-                    </span>
-                    <span className="text-sm text-[color:var(--text-primary)]">
-                      {selected.teams.length ? selected.teams.map((t) => t.name).join(", ") : "—"}
-                    </span>
-                  </div>
-                  <div className="col-span-2 flex flex-col gap-0.5">
-                    <span className="text-xs font-medium text-[color:var(--text-tertiary)]">
-                      Company email
-                    </span>
-                    <span className="text-sm text-[color:var(--text-primary)]">
-                      {selected.companyEmail}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Detail drawer. Fetches the role-aware profile, so an HR viewer sees the full record while a
+          plain supervisor still gets the redacted set. */}
+      <EmployeeProfileSheet
+        employeeId={selected?.id ?? null}
+        fallbackEmployee={selected}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }

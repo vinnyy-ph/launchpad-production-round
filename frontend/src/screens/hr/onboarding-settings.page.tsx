@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Settings2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
+import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
 import {
   Button,
   Checkbox,
@@ -50,6 +51,9 @@ import {
 export default function OnboardingSettingsPage() {
   const router = useRouter();
   const confirm = useConfirm();
+  // Surface this page in the topbar breadcrumb (Organization › People › Onboarding › Settings)
+  // instead of rendering an in-page breadcrumb.
+  usePageBreadcrumb(["Settings"]);
 
   const { documents, loading: docsLoading, error: docsError, reload: reloadDocs } =
     useDocumentConfigs();

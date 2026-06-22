@@ -219,10 +219,11 @@ describe("DirectoryPage", () => {
     expect(screen.getByLabelText("Last name")).toHaveValue("Lovelace");
     expect(screen.getByLabelText("Personal email")).toHaveValue("ada.lovelace@example.test");
     expect(screen.getByLabelText("Company email")).toHaveValue("ada@acme.test");
-    expect(screen.getByLabelText("Country")).toHaveValue("United Kingdom");
-    expect(screen.getByLabelText("Province")).toHaveValue("Greater London");
-    expect(screen.getByLabelText("City")).toHaveValue("London");
-    expect(screen.getByLabelText("Address")).toHaveValue("12 Analytical Engine Lane");
+    // Country/Province/City are now dropdowns; stored values render as the selected label.
+    expect(screen.getAllByText("United Kingdom").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Greater London").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("London").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Street address")).toHaveValue("12 Analytical Engine Lane");
     expect(screen.getByLabelText("Contact Name")).toHaveValue("Charles Babbage");
     expect(screen.getByLabelText("Contact Number")).toHaveValue("+44 20 5555 0100");
     expect(screen.queryByText("System Role")).not.toBeInTheDocument();
