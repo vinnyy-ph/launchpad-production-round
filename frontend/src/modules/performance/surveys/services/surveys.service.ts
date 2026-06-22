@@ -15,6 +15,7 @@ import type {
   ResultsFilter,
   VisibleResultSurvey,
   MyAnswers,
+  SurveyInsight,
 } from "../types/surveys.types";
 import { normalizeQuestionOptions } from "../types/surveys.types";
 
@@ -165,5 +166,15 @@ export async function fetchSurveyResults(
 /** Surveys whose results the signed-in user may view (supervisor/employee discovery). */
 export async function fetchVisibleResultSurveys(): Promise<VisibleResultSurvey[]> {
   const res = await apiFetch<{ data: VisibleResultSurvey[] }>(`${PULSE}/me/result-surveys`);
+  return res.data;
+}
+
+/** AI summary of a survey's open-text responses. Visibility/anonymity enforced server-side. */
+export async function fetchSurveyInsights(
+  surveyId: string,
+  opts?: { refresh?: boolean },
+): Promise<SurveyInsight> {
+  const suffix = opts?.refresh ? "?refresh=true" : "";
+  const res = await apiFetch<{ data: SurveyInsight }>(`${BASE}/${surveyId}/insights${suffix}`);
   return res.data;
 }
