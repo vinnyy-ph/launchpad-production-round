@@ -69,7 +69,7 @@ class FakeRepo implements InsightsRepositoryPort {
       ? { ...this.opts.cached, generatedAt: new Date() }
       : null;
   }
-  async upsertCachedInsight(args: { responseCount: number; payload: RawInsight }) {
+  async upsertCachedInsight(args: Parameters<InsightsRepositoryPort["upsertCachedInsight"]>[0]) {
     this.upserts.push({ responseCount: args.responseCount, payload: args.payload });
   }
 }
@@ -166,6 +166,19 @@ describe("InsightsService.generateInsights", () => {
     const out = await new InsightsService(repo, gen).generateInsights(HR);
     expect(out.cached).toBe(true);
     expect(gen.calls).toBe(0);
+  });
+
+  it("strips quotes from a cache hit on an anonymous survey", async () => {
+    const repo = new FakeRepo({
+      survey: survey({ isAnonymous: true }),
+      responses: [resp("a"), resp("b"), resp("c")],
+      cached: { payload: SAMPLE, responseCount: 3, model: "gpt-4o-mini" }, // SAMPLE has a quote
+    });
+    const gen = new FakeGenerator();
+    const out = await new InsightsService(repo, gen).generateInsights(HR);
+    expect(out.cached).toBe(true);
+    expect(gen.calls).toBe(0);
+    expect(out.insight?.quotes).toEqual([]);
   });
 
   it("regenerates (ignores cache) when refresh is true", async () => {
