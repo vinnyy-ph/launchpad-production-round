@@ -36,6 +36,12 @@ jest.mock("../../core/database/prisma.service", () => ({
   },
 }));
 
+jest.mock("../../core/email", () => ({
+  EmailService: jest.fn().mockImplementation(() => ({
+    sendEmail: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 jest.mock("../../core/cloudinary/cloudinary.service", () => ({
   CloudinaryService: jest.fn().mockImplementation(() => ({
     uploadSupportingDocument: jest.fn().mockResolvedValue("https://res.cloudinary.com/test/supporting_docs/doc.pdf"),

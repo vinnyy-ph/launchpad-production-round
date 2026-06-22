@@ -13,7 +13,7 @@ describe("buildPulseSurveyReminderEmailHtml", () => {
     expect(html).toContain("Manage Jia");
     expect(html).toContain("Team Pulse Survey");
     expect(html).toContain("Answer survey");
-    expect(html).toContain("data:image/png;base64,");
+    expect(html).toContain('src="cid:jia-logo@managejia"');
     expect(html).toContain('href="http://localhost:3000/employee/surveys"');
   });
 

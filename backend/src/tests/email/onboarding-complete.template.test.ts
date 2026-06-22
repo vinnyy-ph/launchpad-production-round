@@ -12,7 +12,7 @@ describe("buildOnboardingCompleteEmailHtml", () => {
     expect(html).toContain("Manage Jia");
     expect(html).toContain("Your account is active — onboarding complete.");
     expect(html).toContain("Go to Manage Jia");
-    expect(html).toContain("data:image/png;base64,");
+    expect(html).toContain('src="cid:jia-logo@managejia"');
     expect(html).toContain('href="http://localhost:3000"');
   });
 
