@@ -2,7 +2,6 @@ import { MeRepository } from "./me.repository";
 import type { AnsweredSurveyItem, MyAnswerItem, MyAnswersDetail, PendingSurveyItem } from "./me.types";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { advanceDueOccurrences } from "../occurrences/occurrence-scheduler";
-import { sweepPulseReminders } from "../reminders/reminders.service";
 
 export class MeService {
   constructor(private readonly repository = new MeRepository()) {}
@@ -13,10 +12,9 @@ export class MeService {
     // Never block the read on a scheduler hiccup.
     await advanceDueOccurrences().catch(() => undefined);
 
-    // Lazy reminder fan-out (PER-07): this employee-surface tick reminds every pulse
-    // non-responder across the whole org. Guarded so a sweep hiccup never blocks the read.
-    // (Evaluation-ack reminders run on their own Railway cron — `cron:eval-ack-reminder`.)
-    await sweepPulseReminders().catch(() => undefined);
+    // Pulse reminders run on their own Railway daily cron (`cron:survey-reminder`), not on
+    // this read path — so non-responders are reminded on cadence without depending on anyone
+    // loading their surveys page.
 
     const employeeId = await this.repository.findEmployeeIdByUserId(userId);
     if (!employeeId) {
