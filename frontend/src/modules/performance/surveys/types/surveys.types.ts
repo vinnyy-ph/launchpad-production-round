@@ -293,6 +293,11 @@ export interface AudienceConfigInput {
   teamId?: string;
 }
 
+// A single results-visibility config entry — teamId for SPECIFIC_TEAMS visibility.
+export interface VisibilityConfigInput {
+  teamId: string;
+}
+
 export interface ReminderConfigInput {
   frequency?: ReminderFrequency;
   everyXDays?: number;
@@ -309,6 +314,7 @@ export interface CreateSurveyInput {
   visibility?: Visibility;
   questions: QuestionInput[];
   audienceConfigs?: AudienceConfigInput[];
+  visibilityConfigs?: VisibilityConfigInput[];
   reminderConfig?: ReminderConfigInput;
 }
 
