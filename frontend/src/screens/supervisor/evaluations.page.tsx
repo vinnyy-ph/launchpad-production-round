@@ -355,7 +355,6 @@ interface EditorProps {
   onClose: () => void;
   initial: Evaluation | null;
   reviewees: Reviewee[];
-  saving: boolean;
   onSubmit: (input: EvaluationInput, files: File[]) => void;
   onRequestSend: (payload: SendPayload) => void;
   /** Request deletion of the current draft (opens the parent's confirm). Drafts only. */
@@ -381,7 +380,6 @@ function EvaluationEditorDialog({
   onClose,
   initial,
   reviewees,
-  saving,
   onSubmit,
   onRequestSend,
   onRequestDelete,
@@ -445,6 +443,9 @@ function EvaluationEditorDialog({
   // Hydrate once per open. Guarded so autosave creating the draft — which flips `initial`
   // from null to the saved evaluation — does not re-hydrate over the in-progress edits.
   const hydratedRef = useRef(false);
+  // Guards the save-on-close (files path) against re-entry while its upload is in flight, so a
+  // double Cancel/Esc/backdrop can't create two drafts. Reset on each open.
+  const closeSavingRef = useRef(false);
   useEffect(() => {
     if (!open) {
       hydratedRef.current = false;
@@ -452,6 +453,7 @@ function EvaluationEditorDialog({
     }
     if (hydratedRef.current) return;
     hydratedRef.current = true;
+    closeSavingRef.current = false;
     setStep("form");
     let baseline: EvalSnapshot;
     if (initial) {
@@ -590,6 +592,27 @@ function EvaluationEditorDialog({
     onRequestSend({ existing: initial, input, name: previewName, files: localFiles });
   };
 
+  /** Leave the editor, keeping the work. Autosave persists the text fields but never uploads
+   *  files — so when attachments are pending on a persistable draft, do a real save (which
+   *  uploads them) and let the page close on success; otherwise just flush the text autosave. */
+  const handleClose = () => {
+    if (isViewOnly) {
+      onClose();
+      return;
+    }
+    autosave.cancel();
+    const input = buildInput();
+    if (localFiles.length > 0 && canPersist && input) {
+      if (closeSavingRef.current) return; // an upload-on-close is already running
+      closeSavingRef.current = true;
+      autosave.clearBuffer();
+      onSubmit(input, localFiles); // the page closes the editor on success
+      return;
+    }
+    autosave.flush();
+    onClose();
+  };
+
   const revieweeName = (id: string) => reviewees.find((r) => r.id === id)?.fullName ?? id;
 
   const previewName = initial?.reviewee?.fullName ?? (revieweeId ? revieweeName(revieweeId) : "the employee");
@@ -606,18 +629,15 @@ function EvaluationEditorDialog({
       : "Evaluate one of your direct reports for a set period. It saves as a draft you can edit until you send.";
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent
         className="dialog-pop flex max-h-[90vh] flex-col gap-0 sm:max-w-2xl"
         // Block Radix's own outside-dismiss so portaled Selects / date pickers / dropdowns
         // (incl. clicking a trigger again to close it) can never close the modal. A real
-        // backdrop click closes it explicitly via onOverlayClick, flushing the draft.
+        // backdrop click closes it explicitly via onOverlayClick, keeping the draft.
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        onOverlayClick={() => {
-          if (!isViewOnly) autosave.flush();
-          onClose();
-        }}
+        onOverlayClick={handleClose}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -649,7 +669,8 @@ function EvaluationEditorDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            // Form step → advance to the preview; preview step → save as a draft.
+            // Form step → advance to the preview. (The preview step has no submit button; the
+            // draft autosaves and persists on close.)
             if (!isViewOnly && step === "form") setStep("preview");
             else handleSubmit();
           }}
@@ -657,7 +678,7 @@ function EvaluationEditorDialog({
         >
           {/* Scroll region — full-bleed so the thin scrollbar sits at the modal edge,
               while content stays padded in line with the header. */}
-          <div className="-mx-6 mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-1 scrollbar-thin">
+          <div className="-mx-6 mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-5 scrollbar-thin">
             {showPreview ? (
               // ── Employee-facing preview ──────────────────────────────────────
               <div
@@ -865,7 +886,7 @@ function EvaluationEditorDialog({
                   htmlFor="ev-summary"
                   error={errors.summary}
                   hint="A short narrative tying the period together."
-                  optional
+                  required
                   hintAbove
                 >
                   <Textarea
@@ -980,7 +1001,7 @@ function EvaluationEditorDialog({
             )}
           </div>
 
-          {/* Bottom bar — divider sits flush with the scroll edge (no gap above the line) */}
+          {/* Bottom bar — the scroll region's pb keeps content off the divider above it */}
           <div className="flex items-center gap-2 border-t border-[color:var(--border-primary)] pt-4">
             {!isViewOnly && (
               <DraftSaveStatus
@@ -989,11 +1010,6 @@ function EvaluationEditorDialog({
                 canPersist={autosave.canPersist}
                 onRetry={autosave.retry}
               />
-            )}
-            {!isViewOnly && step === "preview" && (
-              <Button variant="ghost" type="button" onClick={() => setStep("form")}>
-                <ChevronLeft size={14} className="mr-1" /> Back
-              </Button>
             )}
             {isDraft && onRequestDelete && (
               <Button
@@ -1012,7 +1028,7 @@ function EvaluationEditorDialog({
                 </Button>
               ) : step === "form" ? (
                 <>
-                  <Button variant="secondary" type="button" onClick={onClose}>
+                  <Button variant="secondary" type="button" onClick={handleClose}>
                     Cancel
                   </Button>
                   <TooltipProvider delayDuration={0}>
@@ -1034,12 +1050,14 @@ function EvaluationEditorDialog({
                   </TooltipProvider>
                 </>
               ) : (
+                // Preview step. No explicit "Save as draft" — the draft autosaves; Back, Cancel
+                // and Send sit together as one action group.
                 <>
-                  <Button variant="secondary" type="button" onClick={onClose}>
-                    Cancel
+                  <Button variant="ghost" type="button" onClick={() => setStep("form")}>
+                    <ChevronLeft size={14} className="mr-1" /> Back
                   </Button>
-                  <Button type="submit" variant="secondary" disabled={saving}>
-                    {saving ? "Saving…" : "Save as draft"}
+                  <Button variant="secondary" type="button" onClick={handleClose}>
+                    Cancel
                   </Button>
                   <Button type="button" onClick={handleSend}>
                     <Send size={14} className="mr-1" /> Send
@@ -1483,7 +1501,6 @@ export default function EvaluationsPage() {
         onClose={() => setEditorOpen(false)}
         initial={editing}
         reviewees={revieweeList}
-        saving={createMutation.isPending || updateMutation.isPending}
         onSubmit={handleSubmit}
         onRequestSend={(payload) => setPendingSend(payload)}
         onRequestDelete={() => editing && setDeletingId(editing.id)}
