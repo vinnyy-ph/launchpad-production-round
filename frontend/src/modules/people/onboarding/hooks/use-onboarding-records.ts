@@ -2,7 +2,10 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { getEmployees } from "@/modules/people/employees/services/employees.service";
 import type { EmployeeFilters } from "@/modules/people/employees/types/employees.types";
-import type { OnboardingInvitationStatus } from "../types/onboarding.types";
+import type {
+  EmployeeOnboardingStatus,
+  OnboardingInvitationStatus,
+} from "../types/onboarding.types";
 import {
   getDocumentReviews,
   getOnboardingStatusForEmployee,
@@ -36,11 +39,16 @@ export function useOnboardingRecords(filters: EmployeeFilters = {}) {
   });
 
   const invitationStatusByEmployeeId = new Map<string, OnboardingInvitationStatus | null>();
+  const statusByEmployeeId = new Map<string, EmployeeOnboardingStatus>();
   employeeIds.forEach((employeeId, index) => {
+    const status = statusQueries[index]?.data;
     invitationStatusByEmployeeId.set(
       employeeId,
-      statusQueries[index]?.data?.invitationStatus ?? null,
+      status?.invitationStatus ?? null,
     );
+    if (status) {
+      statusByEmployeeId.set(employeeId, status);
+    }
   });
 
   const statusesLoading =
@@ -50,6 +58,7 @@ export function useOnboardingRecords(filters: EmployeeFilters = {}) {
     employees: employeesQuery.data?.data ?? [],
     reviews: reviewsQuery.data ?? [],
     invitationStatusByEmployeeId,
+    statusByEmployeeId,
     loading: employeesQuery.isLoading || statusesLoading,
     error: employeesQuery.error instanceof Error ? employeesQuery.error.message : null,
     reload: () => {

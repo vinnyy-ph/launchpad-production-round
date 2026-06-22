@@ -42,6 +42,12 @@ jest.mock("../../core/database/prisma.service", () => ({
   },
 }));
 
+jest.mock("../../core/email", () => ({
+  EmailService: jest.fn().mockImplementation(() => ({
+    sendEmail: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 const employeeFindManyMock = prisma.employee.findMany as jest.Mock;
 const teamMemberFindManyMock = prisma.teamMember.findMany as jest.Mock;
 const occurrenceCreateMock = prisma.surveyOccurrence.create as jest.Mock;

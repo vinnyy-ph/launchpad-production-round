@@ -5,6 +5,7 @@ import {
   API_ERROR_MESSAGES,
   HTTP_STATUS_CODES,
 } from "../../../core/globals";
+import { CloudinaryService } from "../../../core/cloudinary/cloudinary.service";
 import type {
   MyOffboardingResponseDto,
   OffboardingDetailResponseDto,
@@ -22,6 +23,7 @@ export class OffboardingController {
   constructor(
     private readonly offboardingService = new OffboardingService(),
     private readonly offboardingValidation = new OffboardingValidation(),
+    private readonly cloudinaryService = new CloudinaryService(),
   ) {}
 
   /** Handles POST /api/v1/offboarding — initiate offboarding. ADMIN/HR. */
@@ -32,6 +34,14 @@ export class OffboardingController {
   ) => {
     try {
       const body = this.offboardingValidation.parseInitiateBody(req.body);
+      if (req.file) {
+        body.attachmentUrl =
+          await this.cloudinaryService.uploadOnboardingDocument(
+            req.file.buffer,
+            req.file.originalname,
+            req.file.mimetype,
+          );
+      }
       const result = await this.offboardingService.initiateOffboarding(
         req.user!,
         body,
@@ -104,6 +114,7 @@ export class OffboardingController {
       const result = await this.offboardingService.reassignReports(
         id,
         body.newSupervisorId,
+        body.newTeamLeaderId,
       );
 
       return res.json(result);

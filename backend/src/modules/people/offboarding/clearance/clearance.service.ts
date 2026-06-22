@@ -7,6 +7,7 @@ import type {
   AssignedClearancesResponseDto,
   ClearanceActionDataDto,
   ClearanceActionResponseDto,
+  ClearanceTemplatesResponseDto,
 } from "./dto";
 
 /**
@@ -19,6 +20,22 @@ export class ClearanceService {
     private readonly clearanceRepository = new ClearanceRepository(),
     private readonly notificationsService = new NotificationsService(),
   ) {}
+
+  /** Returns clearance templates HR can choose when initiating offboarding. */
+  async listTemplates(): Promise<ClearanceTemplatesResponseDto> {
+    const templates = await this.clearanceRepository.listTemplates();
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.CLEARANCE_TEMPLATES_RETRIEVED,
+      data: templates.map((template) => ({
+        id: template.id,
+        name: template.name,
+        isDefault: template.isDefault,
+        signatoryCount: template._count.signatories,
+      })),
+    };
+  }
 
   /**
    * Returns the signature requests assigned to the caller (signatoryId === caller),
@@ -119,6 +136,7 @@ export class ClearanceService {
     await this.notificationsService.notifyHrClearanceRejected(
       employeeName,
       updated.id,
+      updated.offboarding.id,
       note,
     );
 

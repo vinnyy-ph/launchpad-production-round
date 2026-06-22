@@ -2,6 +2,7 @@ import { apiFetch } from "@/shared/lib/api-client";
 import type {
   AssignedClearance,
   ClearanceAction,
+  ClearanceTemplateOption,
   InitiateOffboardingInput,
   OffboardingDetail,
   OffboardingListItem,
@@ -42,10 +43,38 @@ export async function getOffboarding(id: string): Promise<OffboardingDetail> {
 export async function initiateOffboarding(
   input: InitiateOffboardingInput,
 ): Promise<OffboardingDetail> {
+  const { attachment, ...jsonInput } = input;
+  const body = attachment ? buildOffboardingFormData(input) : JSON.stringify(jsonInput);
   const res = await apiFetch<Envelope<OffboardingDetail>>(OFFBOARDING_BASE, {
     method: "POST",
-    body: JSON.stringify(input),
+    body,
   });
+  return res.data;
+}
+
+function buildOffboardingFormData(input: InitiateOffboardingInput): FormData {
+  const formData = new FormData();
+  formData.append("employeeId", input.employeeId);
+  formData.append("tenderDate", input.tenderDate);
+  formData.append("effectiveDate", input.effectiveDate);
+  if (input.clearanceTemplateId) {
+    formData.append("clearanceTemplateId", input.clearanceTemplateId);
+  }
+  if (input.newSupervisorId) {
+    formData.append("newSupervisorId", input.newSupervisorId);
+  }
+  if (input.newTeamLeaderId) {
+    formData.append("newTeamLeaderId", input.newTeamLeaderId);
+  }
+  if (input.attachment) {
+    formData.append("attachment", input.attachment);
+  }
+  return formData;
+}
+
+/** Clearance templates HR can choose while initiating an offboarding. */
+export async function getClearanceTemplates(): Promise<ClearanceTemplateOption[]> {
+  const res = await apiFetch<Envelope<ClearanceTemplateOption[]>>(`${CLEARANCE_BASE}/templates`);
   return res.data;
 }
 
@@ -53,10 +82,11 @@ export async function initiateOffboarding(
 export async function reassignOffboarding(
   id: string,
   newSupervisorId: string,
+  newTeamLeaderId?: string,
 ): Promise<ReassignResult> {
   const res = await apiFetch<Envelope<ReassignResult>>(`${OFFBOARDING_BASE}/${id}/reassign`, {
     method: "POST",
-    body: JSON.stringify({ newSupervisorId }),
+    body: JSON.stringify({ newSupervisorId, ...(newTeamLeaderId ? { newTeamLeaderId } : {}) }),
   });
   return res.data;
 }

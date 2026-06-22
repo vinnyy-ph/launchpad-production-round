@@ -4,6 +4,7 @@ import {
   buildHrUser,
   buildSignatoryUser,
   buildSignatureRequest,
+  OFFBOARDING_ID,
   REQUEST_ID,
   SIGNATORY_EMPLOYEE_ID,
 } from "./clearance-test.helpers";
@@ -20,7 +21,7 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 
 jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
-    employee: { findUnique: jest.fn() },
+    employee: { findMany: jest.fn(), findUnique: jest.fn() },
     clearanceSignatureRequest: { findUnique: jest.fn(), update: jest.fn() },
     notification: { create: jest.fn() },
   },
@@ -32,6 +33,7 @@ const { prisma } = require("../../core/database/prisma.service");
 describe("clearance reject / reset", () => {
   beforeEach(() => {
     asHr = false;
+    prisma.employee.findMany.mockReset();
     prisma.employee.findUnique.mockReset();
     prisma.clearanceSignatureRequest.findUnique.mockReset();
     prisma.clearanceSignatureRequest.update.mockReset();
@@ -41,9 +43,25 @@ describe("clearance reject / reset", () => {
   it("rejects with a required note and stores the note", async () => {
     prisma.clearanceSignatureRequest.findUnique.mockResolvedValue(buildSignatureRequest());
     prisma.employee.findUnique.mockResolvedValue({ id: SIGNATORY_EMPLOYEE_ID });
+    prisma.employee.findMany.mockResolvedValue([{ id: "hr-employee-id", userId: "hr-user-id" }]);
     prisma.clearanceSignatureRequest.update.mockResolvedValue(
       buildSignatureRequest({ status: "REJECTED", note: "Missing handover doc", actionAt: new Date() }),
     );
+    prisma.notification.create.mockResolvedValue({
+      id: "notification-id",
+      recipientId: "hr-employee-id",
+      type: "CLEARANCE_REJECTED",
+      channel: "IN_APP",
+      subject: "Clearance rejected",
+      body: "A signatory rejected Blake Rivera's offboarding clearance: \"Missing handover doc\"",
+      linkUrl: `/hr/directory/offboarding/${OFFBOARDING_ID}`,
+      sourceType: "ClearanceSignatureRequest",
+      sourceId: REQUEST_ID,
+      isRead: false,
+      readAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     const response = await request(app)
       .post(`/api/v1/clearance/${REQUEST_ID}/reject`)
@@ -58,6 +76,17 @@ describe("clearance reject / reset", () => {
       expect.objectContaining({
         where: { id: REQUEST_ID },
         data: expect.objectContaining({ status: "REJECTED", note: "Missing handover doc" }),
+      }),
+    );
+    expect(prisma.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          recipientId: "hr-employee-id",
+          type: "CLEARANCE_REJECTED",
+          linkUrl: `/hr/directory/offboarding/${OFFBOARDING_ID}`,
+          sourceType: "ClearanceSignatureRequest",
+          sourceId: REQUEST_ID,
+        }),
       }),
     );
   });

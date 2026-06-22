@@ -275,7 +275,7 @@ export class NotificationsService {
         type: "OFFBOARDING_STARTED",
         subject: "Your offboarding has started",
         body: "Your offboarding process has been initiated. You can track your clearance status here.",
-        linkUrl: `/offboarding/me`,
+        linkUrl: "/offboarding",
         sourceType: "OffboardingRecord",
         sourceId: offboardingId,
       });
@@ -284,6 +284,46 @@ export class NotificationsService {
         employee.userId,
         this.toNotificationDto(notification),
       );
+    } catch {
+      // Fire-and-forget: offboarding must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Notifies supervisors in the offboardee's upward reporting chain.
+   * Failures are swallowed so offboarding initiation is never blocked.
+   */
+  async notifySupervisorOffboardingStarted(
+    supervisorIds: string[],
+    employeeName: string,
+    offboardingId: string,
+  ): Promise<void> {
+    try {
+      const supervisors =
+        await this.notificationsRepository.findEmployeesWithUserByIds(
+          supervisorIds,
+        );
+
+      if (supervisors.length === 0) {
+        return;
+      }
+
+      for (const supervisor of supervisors) {
+        const notification = await this.notificationsRepository.create({
+          recipientId: supervisor.id,
+          type: "OFFBOARDING_STATUS",
+          subject: "Employee in your hierarchy is offboarding",
+          body: `${employeeName} has started offboarding. You can track their clearance progress from your hierarchy status.`,
+          linkUrl: "/supervisor/status",
+          sourceType: "OffboardingRecord",
+          sourceId: offboardingId,
+        });
+
+        this.inAppChannel.deliver(
+          supervisor.userId,
+          this.toNotificationDto(notification),
+        );
+      }
     } catch {
       // Fire-and-forget: offboarding must succeed even if notification delivery fails.
     }
@@ -332,6 +372,7 @@ export class NotificationsService {
   async notifyHrClearanceRejected(
     employeeName: string,
     requestId: string,
+    offboardingId: string,
     note: string,
   ): Promise<void> {
     try {
@@ -343,7 +384,7 @@ export class NotificationsService {
 
       const subject = "Clearance rejected";
       const body = `A signatory rejected ${employeeName}'s offboarding clearance: "${note}"`;
-      const linkUrl = `/clearance`;
+      const linkUrl = `/hr/directory/offboarding/${offboardingId}`;
 
       for (const hrEmployee of hrEmployees) {
         const notification = await this.notificationsRepository.create({

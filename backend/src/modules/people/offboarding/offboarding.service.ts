@@ -1,6 +1,6 @@
 import type { User } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
-import { downwardChain } from "../../shared/org";
+import { downwardChain, upwardChain } from "../../shared/org";
 import { NotificationsService } from "../../notifications/notifications.service";
 import type {
   InitiateOffboardingRequestDto,
@@ -36,6 +36,7 @@ export function toOffboardingDetailDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
+    attachmentUrl: record.attachmentUrl ?? null,
     createdAt: record.createdAt.toISOString(),
     completedAt: record.completedAt?.toISOString() ?? null,
     signatureRequests: record.signatureRequests.map((request) => ({
@@ -75,6 +76,7 @@ function toOffboardingListItemDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
+    attachmentUrl: record.attachmentUrl ?? null,
     signedCount,
     totalCount,
     createdAt: record.createdAt.toISOString(),
@@ -141,7 +143,19 @@ export class OffboardingService {
       throw new Error("Clearance template has no signatories");
     }
 
-    // Optional reassignment up-front so a supervisor isn't left with orphaned reports.
+    const responsibilities =
+      await this.offboardingRepository.countTransitionResponsibilities(
+        dto.employeeId,
+      );
+
+    if (responsibilities.directReports > 0 && !dto.newSupervisorId) {
+      throw new Error("newSupervisorId is required");
+    }
+
+    if (responsibilities.ledTeams > 0 && !dto.newTeamLeaderId) {
+      throw new Error("newTeamLeaderId is required");
+    }
+
     if (dto.newSupervisorId) {
       const target = await this.offboardingRepository.findEmployeeById(
         dto.newSupervisorId,
@@ -150,10 +164,23 @@ export class OffboardingService {
       if (!target) {
         throw new Error("Reassignment target not found");
       }
+    }
 
+    if (dto.newTeamLeaderId) {
+      const target = await this.offboardingRepository.findEmployeeById(
+        dto.newTeamLeaderId,
+      );
+
+      if (!target) {
+        throw new Error("Reassignment target not found");
+      }
+    }
+
+    if (dto.newSupervisorId || dto.newTeamLeaderId) {
       await this.offboardingRepository.reassignReportsAndTeams(
         dto.employeeId,
         dto.newSupervisorId,
+        dto.newTeamLeaderId,
       );
     }
 
@@ -168,9 +195,15 @@ export class OffboardingService {
     const detail = toOffboardingDetailDto(record!);
 
     const employeeName = `${employee.firstName} ${employee.lastName}`;
+    const supervisorIds = await upwardChain(dto.employeeId);
 
     await this.notificationsService.notifyOffboardingStarted(
       dto.employeeId,
+      created.id,
+    );
+    await this.notificationsService.notifySupervisorOffboardingStarted(
+      supervisorIds,
+      employeeName,
       created.id,
     );
 
@@ -285,6 +318,7 @@ export class OffboardingService {
   async reassignReports(
     id: string,
     newSupervisorId: string,
+    newTeamLeaderId?: string,
   ): Promise<ReassignResponseDto> {
     const record = await this.offboardingRepository.findRecordById(id);
 
@@ -300,9 +334,20 @@ export class OffboardingService {
       throw new Error("Reassignment target not found");
     }
 
+    const teamLeaderId = newTeamLeaderId ?? newSupervisorId;
+    const teamLeader =
+      teamLeaderId === newSupervisorId
+        ? target
+        : await this.offboardingRepository.findEmployeeById(teamLeaderId);
+
+    if (!teamLeader) {
+      throw new Error("Reassignment target not found");
+    }
+
     const result = await this.offboardingRepository.reassignReportsAndTeams(
       record.employee.id,
       newSupervisorId,
+      teamLeaderId,
     );
 
     return {
@@ -313,6 +358,7 @@ export class OffboardingService {
         reassignedReports: result.reassignedReports,
         reassignedTeams: result.reassignedTeams,
         newSupervisorId,
+        newTeamLeaderId: teamLeaderId,
       },
     };
   }

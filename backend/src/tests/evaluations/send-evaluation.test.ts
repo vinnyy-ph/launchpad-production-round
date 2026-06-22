@@ -35,6 +35,12 @@ jest.mock("../../core/database/prisma.service", () => ({
   },
 }));
 
+jest.mock("../../core/email", () => ({
+  EmailService: jest.fn().mockImplementation(() => ({
+    sendEmail: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 const EVAL_ID = "eval-001";
 
 describe("PATCH /api/v1/evaluations/:evaluationId/send", () => {

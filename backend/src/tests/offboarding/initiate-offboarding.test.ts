@@ -18,31 +18,38 @@ jest.mock("../../core/middleware/auth.middleware", () => ({
 
 jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
-    employee: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
+    employee: { count: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
     clearanceTemplate: { findFirst: jest.fn(), findUnique: jest.fn() },
     clearanceSignatory: { findMany: jest.fn() },
     offboardingRecord: { findUnique: jest.fn(), findMany: jest.fn() },
     clearanceSignatureRequest: { create: jest.fn() },
     notification: { create: jest.fn() },
+    team: { count: jest.fn(), updateMany: jest.fn() },
     $transaction: jest.fn(),
   },
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { prisma } = require("../../core/database/prisma.service");
+const employeeCountMock = prisma.employee.count as jest.Mock;
 const employeeFindUniqueMock = prisma.employee.findUnique as jest.Mock;
 const clearanceTemplateFindFirstMock = prisma.clearanceTemplate.findFirst as jest.Mock;
 const clearanceSignatoryFindManyMock = prisma.clearanceSignatory.findMany as jest.Mock;
 const offboardingRecordFindUniqueMock = prisma.offboardingRecord.findUnique as jest.Mock;
+const teamCountMock = prisma.team.count as jest.Mock;
 const transactionMock = prisma.$transaction as jest.Mock;
 
 describe("POST /api/v1/offboarding - initiate", () => {
   beforeEach(() => {
+    employeeCountMock.mockReset();
     employeeFindUniqueMock.mockReset();
     clearanceTemplateFindFirstMock.mockReset();
     clearanceSignatoryFindManyMock.mockReset();
     offboardingRecordFindUniqueMock.mockReset();
+    teamCountMock.mockReset();
     transactionMock.mockReset();
+    employeeCountMock.mockResolvedValue(0);
+    teamCountMock.mockResolvedValue(0);
   });
 
   it("creates the record, snapshots signature requests, and sets the employee to OFFBOARDING", async () => {
@@ -136,5 +143,45 @@ describe("POST /api/v1/offboarding - initiate", () => {
       .expect(400);
 
     expect(response.body).toMatchObject({ errorCode: "INVALID_EFFECTIVE_DATE" });
+  });
+
+  it("requires a new supervisor when the employee has direct reports", async () => {
+    employeeFindUniqueMock.mockImplementation(({ where }: { where: { userId?: string } }) =>
+      where.userId
+        ? Promise.resolve({ id: HR_EMPLOYEE_ID })
+        : Promise.resolve({ id: OFFBOARDEE_ID, firstName: "Blake", lastName: "Rivera", status: "ACTIVE" }),
+    );
+    offboardingRecordFindUniqueMock.mockResolvedValue(null);
+    clearanceTemplateFindFirstMock.mockResolvedValue({ id: TEMPLATE_ID });
+    clearanceSignatoryFindManyMock.mockResolvedValue(buildTemplateSignatories());
+    employeeCountMock.mockResolvedValue(2);
+
+    const response = await request(app)
+      .post("/api/v1/offboarding")
+      .send({ employeeId: OFFBOARDEE_ID, tenderDate: "2026-06-01", effectiveDate: "2026-06-30" })
+      .expect(400);
+
+    expect(response.body).toMatchObject({ errorCode: "VALIDATION_FAILED" });
+    expect(response.body.errors[0]).toMatchObject({ field: "newSupervisorId" });
+  });
+
+  it("requires a new team leader when the employee leads teams", async () => {
+    employeeFindUniqueMock.mockImplementation(({ where }: { where: { userId?: string } }) =>
+      where.userId
+        ? Promise.resolve({ id: HR_EMPLOYEE_ID })
+        : Promise.resolve({ id: OFFBOARDEE_ID, firstName: "Blake", lastName: "Rivera", status: "ACTIVE" }),
+    );
+    offboardingRecordFindUniqueMock.mockResolvedValue(null);
+    clearanceTemplateFindFirstMock.mockResolvedValue({ id: TEMPLATE_ID });
+    clearanceSignatoryFindManyMock.mockResolvedValue(buildTemplateSignatories());
+    teamCountMock.mockResolvedValue(1);
+
+    const response = await request(app)
+      .post("/api/v1/offboarding")
+      .send({ employeeId: OFFBOARDEE_ID, tenderDate: "2026-06-01", effectiveDate: "2026-06-30" })
+      .expect(400);
+
+    expect(response.body).toMatchObject({ errorCode: "VALIDATION_FAILED" });
+    expect(response.body.errors[0]).toMatchObject({ field: "newTeamLeaderId" });
   });
 });
