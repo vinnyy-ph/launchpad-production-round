@@ -48,7 +48,6 @@ import {
   FormField,
   StatusBadge,
   FilterBar,
-  TablePagination,
   type Column,
   type DataTableSort,
 } from "@/shared/ui/patterns";
@@ -116,6 +115,14 @@ async function handleDownload(evaluationId: string, docIndex: number): Promise<v
 function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** First + last initial of a name, for the reviewee avatar (mirrors the directory table). */
+function revieweeInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  const letters = (parts[0][0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1][0] ?? "") : "");
+  return letters.toUpperCase() || "—";
 }
 
 type AckTone = "warning" | "success" | "info";
@@ -1279,18 +1286,26 @@ export default function EvaluationsPage() {
   const columns: Column<Evaluation>[] = [
     {
       header: "Reviewee",
-      className: "w-full",
+      className: "min-w-[220px]",
       sortable: true,
       sortKey: "reviewee",
       cell: (ev) => (
-        <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-          {nameOf(ev)}
-        </p>
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-[color:var(--text-primary)]"
+            style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+          >
+            {revieweeInitials(nameOf(ev))}
+          </span>
+          <p className="min-w-0 truncate text-sm font-medium text-[color:var(--text-primary)]">
+            {nameOf(ev)}
+          </p>
+        </div>
       ),
     },
     {
       header: "Period",
-      className: "text-right whitespace-nowrap",
+      className: "min-w-[150px] text-center whitespace-nowrap",
       sortable: true,
       sortKey: "period",
       cell: (ev) => (
@@ -1301,7 +1316,7 @@ export default function EvaluationsPage() {
     },
     {
       header: "Grade",
-      className: "text-right whitespace-nowrap",
+      className: "min-w-[140px] text-center whitespace-nowrap",
       sortable: true,
       sortKey: "grade",
       cell: (ev) => (
@@ -1317,7 +1332,7 @@ export default function EvaluationsPage() {
     {
       header: "Status",
       mobileLabel: "Status",
-      className: "text-right",
+      className: "min-w-[110px] text-center",
       sortable: true,
       sortKey: "status",
       cell: (ev) => <StatusBadge status={ev.isSent ? "SENT" : "DRAFT"} dot />,
@@ -1325,7 +1340,7 @@ export default function EvaluationsPage() {
     {
       header: "Acknowledgement",
       mobileLabel: "Acknowledgement",
-      className: "text-right",
+      className: "min-w-[150px] text-center",
       cell: (ev) => {
         const ack = ackInfo(ev);
         if (!ack) return <span className="text-xs text-[color:var(--text-quaternary)]">—</span>;
@@ -1335,7 +1350,7 @@ export default function EvaluationsPage() {
     {
       header: "Acknowledgement due",
       mobileLabel: "Acknowledgement due",
-      className: "text-right whitespace-nowrap",
+      className: "min-w-[160px] text-center whitespace-nowrap",
       sortable: true,
       sortKey: "due",
       cell: (ev) => {
@@ -1468,7 +1483,7 @@ export default function EvaluationsPage() {
 
       {/* Table */}
       <div
-        className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
+        className="rounded-xl border border-[color:var(--border-primary)] bg-white"
         style={{ boxShadow: "var(--shadow-xs)" }}
       >
         <DataTable
@@ -1481,6 +1496,7 @@ export default function EvaluationsPage() {
           onRowClick={(ev) => openRow(ev)}
           sort={sort}
           onSortChange={setSort}
+          pagination={{ page, totalPages, onPageChange: setPage }}
           emptyState={
             <EmptyState
               icon={ClipboardCheck}
@@ -1490,9 +1506,6 @@ export default function EvaluationsPage() {
             />
           }
         />
-        {totalPages > 1 && (
-          <TablePagination page={page} totalPages={totalPages} onPageChange={setPage} />
-        )}
       </div>
 
       {/* Editor dialog */}
