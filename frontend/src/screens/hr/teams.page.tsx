@@ -1,10 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronsDownUp, ChevronsUpDown, Network, Plus, Workflow } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { Network, Plus, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { Button, Input, Skeleton } from "@/shared/ui";
+import {
+  Button,
+  Input,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  Skeleton,
+} from "@/shared/ui";
 import {
   DataTable,
   EmptyState,
@@ -12,6 +22,7 @@ import {
   FilterBar,
   MultiSelectFilter,
   PageTabs,
+  StatusBadge,
   type Column,
   type DataTableSort,
 } from "@/shared/ui/patterns";
@@ -23,11 +34,16 @@ import {
   type OrgChartItem,
 } from "@/modules/people/employees/components/org-chart/org-chart";
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
+import { OrgChartCanvas } from "@/modules/people/employees/components/org-chart/org-chart-canvas";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
-import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
+import type {
+  EmployeeListItem,
+  EmployeeProfile,
+} from "@/modules/people/employees/types/employees.types";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -384,6 +400,16 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
 
+  // Employee whose detail drawer is open (clicked from a person card). Null = closed.
+  const [selected, setSelected] = useState<EmployeeListItem | null>(null);
+  // The canvas container element + whether it's full screen. In full screen the drawer must portal
+  // INTO this element, since a body-level portal would fall outside the fullscreen top layer.
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  // Bumped by expand-all / collapse-all so the canvas re-centers on those (but not on single-node
+  // toggles). Combined with the active filters into `recenterKey` below.
+  const [recenterEpoch, setRecenterEpoch] = useState(0);
+
   // Initial view: expand only the org root (CEO) so the departments show, but keep the
   // departments themselves collapsed (employees hidden) until the user drills in. Wait for
   // both queries to settle so `roots` already holds the CEO with its department children —
@@ -406,6 +432,11 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   // While filtering, reveal every match by expanding all parents; otherwise honor the user's
   // manual expand/collapse state (which defaults to just the CEO).
   const effectiveExpanded = isFiltering ? parentIds : expanded;
+
+  // Re-frame the chart whenever its layout shifts under the user: a new search, a department
+  // filter change, or expand/collapse all (tracked via `recenterEpoch`). Single-node toggles are
+  // intentionally excluded so drilling into one branch doesn't yank the whole view.
+  const recenterKey = `${debouncedSearch}|${[...departmentIds].sort().join(",")}|${recenterEpoch}`;
 
   if (loading || departmentsLoading) {
     return (
@@ -451,38 +482,208 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
           emptyText="No departments found."
           ariaLabel="Filter org chart by department"
         />
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setExpanded(new Set(parentIds))}>
-            <ChevronsUpDown aria-hidden="true" />
-            Expand all
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setExpanded(new Set(departmentsOnlyExpanded))}
-          >
-            <ChevronsDownUp aria-hidden="true" />
-            Collapse all
-          </Button>
-        </div>
       </div>
 
-      <div
-        className="overflow-x-auto rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
-        style={{ boxShadow: "var(--shadow-xs)" }}
-      >
-        {isFiltering && matchCount === 0 ? (
+      {isFiltering && matchCount === 0 ? (
+        <div
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
           <EmptyState
             icon={Workflow}
             title="No one matches that"
             body="Try a different name or department."
           />
-        ) : (
-          <div className="mx-auto w-max">
-            <OrgChartTree nodes={roots} expanded={effectiveExpanded} onToggle={toggle} />
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <OrgChartCanvas
+          containerRef={canvasRef}
+          onFullscreenChange={setIsFullscreen}
+          recenterKey={recenterKey}
+          onExpandAll={() => {
+            setExpanded(new Set(parentIds));
+            setRecenterEpoch((epoch) => epoch + 1);
+          }}
+          onCollapseAll={() => {
+            setExpanded(new Set(departmentsOnlyExpanded));
+            setRecenterEpoch((epoch) => epoch + 1);
+          }}
+        >
+          <OrgChartTree
+            nodes={roots}
+            expanded={effectiveExpanded}
+            onToggle={toggle}
+            onOpenProfile={(id) => {
+              const employee = employees.find((candidate) => candidate.id === id);
+              if (employee) setSelected(employee);
+            }}
+          />
+        </OrgChartCanvas>
+      )}
+
+      <EmployeeDetailSheet
+        employeeId={selected?.id ?? null}
+        fallbackEmployee={selected}
+        onClose={() => setSelected(null)}
+        // While full screen, portal the drawer into the canvas so it stays in the top layer.
+        container={isFullscreen ? canvasRef.current : null}
+      />
     </div>
+  );
+}
+
+interface EmployeeDetailSheetProps {
+  /** Profile to load; null keeps the drawer closed. */
+  employeeId: string | null;
+  /** List row for the clicked person, shown immediately while the full profile loads. */
+  fallbackEmployee: EmployeeListItem | null;
+  onClose: () => void;
+  /** Portal target — pass the fullscreen canvas element when full screen, else null for body. */
+  container: HTMLElement | null;
+}
+
+/** A single label/value line in the drawer. */
+function SheetField({
+  label,
+  value,
+  className = "",
+  children,
+}: {
+  label: string;
+  value?: string | null;
+  className?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className={`flex flex-col gap-0.5 ${className}`}>
+      <span className="text-xs font-medium text-[color:var(--text-tertiary)]">{label}</span>
+      {children ?? <span className="text-sm text-[color:var(--text-primary)]">{value || "—"}</span>}
+    </div>
+  );
+}
+
+/** Joins the non-empty parts of an address into a single readable line. */
+function formatAddress(address: EmployeeProfile["address"]): string {
+  if (!address) return "";
+  return [address.address, address.city, address.province, address.country]
+    .filter(Boolean)
+    .join(", ");
+}
+
+/** Formats an ISO birthday string for display; returns "—" when missing/invalid. */
+function formatBirthday(birthday: string | null | undefined): string {
+  if (!birthday) return "—";
+  try {
+    return format(parseISO(birthday), "MMMM d, yyyy");
+  } catch {
+    return birthday;
+  }
+}
+
+/**
+ * Right-side detail drawer for a person clicked in the org chart. Fetches the full profile so HR,
+ * admins, and the person themselves see all fields; every other viewer receives a profile with the
+ * sensitive fields (personal email, birthday, address, emergency contact) omitted by the backend,
+ * so those sections are simply not rendered. The list row is shown first as an instant fallback.
+ */
+function EmployeeDetailSheet({
+  employeeId,
+  fallbackEmployee,
+  onClose,
+  container,
+}: EmployeeDetailSheetProps) {
+  const { employee, loading } = useEmployeeProfile(employeeId);
+  // Prefer the fetched profile; fall back to the clicked list row so identity shows instantly.
+  const profile = employee ?? fallbackEmployee;
+
+  // Sensitive fields exist on the response only when the viewer is allowed to see them. Their
+  // presence — not their value — is the permission signal, so an empty-but-present field still
+  // renders ("—") for HR while a redacted viewer never sees the section at all.
+  const details = employee;
+  const canSeePersonalEmail = !!details && "personalEmail" in details;
+  const canSeeBirthday = !!details && "birthday" in details;
+  const address = details?.address;
+  const emergencyContact = details?.emergencyContact;
+  const showAddress = !!address && formatAddress(address).length > 0;
+  const showEmergencyContact =
+    !!emergencyContact &&
+    Boolean(emergencyContact.emergencyContactName || emergencyContact.emergencyContactNumber);
+
+  return (
+    <Sheet open={!!employeeId} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md" container={container}>
+        {profile && (
+          <>
+            <SheetHeader className="mb-6">
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                  style={{
+                    background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                  }}
+                  aria-hidden="true"
+                >
+                  {initials(profile.fullName)}
+                </span>
+                <div>
+                  <SheetTitle className="text-left text-base font-bold leading-tight text-[color:var(--text-primary)]">
+                    {profile.fullName}
+                  </SheetTitle>
+                  <SheetDescription className="text-left text-sm text-[color:var(--text-secondary)]">
+                    {profile.jobTitle ?? "—"}
+                  </SheetDescription>
+                </div>
+              </div>
+            </SheetHeader>
+
+            <div
+              className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
+              style={{ boxShadow: "var(--shadow-xs)" }}
+            >
+              <SheetField label="Department" value={profile.department} />
+              <SheetField label="Status">
+                <StatusBadge status={profile.status} dot />
+              </SheetField>
+              <SheetField label="Supervisor" value={profile.supervisor?.fullName} />
+              <SheetField
+                label="Team/s"
+                value={profile.teams.map((team) => team.name).join(", ")}
+              />
+              <SheetField label="Company email" value={profile.companyEmail} className="col-span-2" />
+
+              {canSeePersonalEmail ? (
+                <SheetField
+                  label="Personal email"
+                  value={details?.personalEmail}
+                  className="col-span-2"
+                />
+              ) : null}
+              {canSeeBirthday ? (
+                <SheetField label="Birthday" value={formatBirthday(details?.birthday)} />
+              ) : null}
+              {showAddress ? (
+                <SheetField label="Address" value={formatAddress(address)} className="col-span-2" />
+              ) : null}
+              {showEmergencyContact ? (
+                <>
+                  <SheetField
+                    label="Emergency contact"
+                    value={emergencyContact?.emergencyContactName}
+                  />
+                  <SheetField
+                    label="Contact number"
+                    value={emergencyContact?.emergencyContactNumber}
+                  />
+                </>
+              ) : null}
+            </div>
+
+            {loading && !employee ? (
+              <p className="mt-3 text-xs text-[color:var(--text-tertiary)]">Loading full profile…</p>
+            ) : null}
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }
