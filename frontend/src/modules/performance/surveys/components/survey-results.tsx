@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
   BarChart3,
@@ -9,13 +9,23 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, BadgeDot, Button } from "@/shared/ui";
+import {
+  Badge,
+  BadgeDot,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
 import { ApiError } from "@/shared/lib/api-client";
 import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
 import { useSurvey } from "../hooks/use-survey";
 import { useSurveyResults } from "../hooks/use-survey-results";
+import { useSurveyOccurrences } from "../hooks/use-survey-occurrences";
 import type {
   QuestionResult,
   ResultsFilter,
@@ -289,11 +299,24 @@ export function SurveyResults({
   canFilter?: boolean;
 }) {
   const [filter, setFilter] = useState<ResultsFilter>({});
+  // Selected round. undefined → the server reports on the latest occurrence (its id comes
+  // back as results.occurrenceId, which then drives the picker's displayed value).
+  const [selectedOccurrenceId, setSelectedOccurrenceId] = useState<string | undefined>(undefined);
   // HR fetches full detail for the rich header + subtitle; non-HR derive the header
   // from the results DTO so they never hit the HR-only getSurvey endpoint.
   const { data: survey } = useSurvey(canFilter ? surveyId : null);
-  const query = useSurveyResults(surveyId, filter);
+  // Round picker is HR-only (the occurrences endpoint is HR-gated). Non-HR still get the
+  // latest-round fix via the server default, just without the ability to switch rounds.
+  const occurrencesQuery = useSurveyOccurrences(canFilter ? surveyId : null);
+  const occurrences = useMemo(() => occurrencesQuery.data ?? [], [occurrencesQuery.data]);
+  const query = useSurveyResults(surveyId, filter, selectedOccurrenceId);
   const results = query.data;
+
+  const multiRound = occurrences.length > 1;
+  // Show the chosen round, else whichever round the server reported on, else the latest
+  // (occurrences are sorted newest-first) so the trigger has a value before results land.
+  const currentOccurrenceId =
+    selectedOccurrenceId ?? results?.occurrenceId ?? occurrences[0]?.id;
 
   // Surface the survey name as the trailing breadcrumb crumb — works on both the HR
   // results route (Organization › Surveys › {name}) and the shared non-HR route
@@ -372,6 +395,32 @@ export function SurveyResults({
           Export
         </Button>
       </div>
+
+      {/* Round picker — recurring surveys only. Each round has its own audience + responses;
+          aggregating across rounds would double-count the recurring audience. Defaults to the
+          latest round; pick a past one to inspect it. */}
+      {multiRound && (
+        <div className="mb-5 flex flex-wrap items-center gap-2.5">
+          <span className="text-[13px] font-medium text-[color:var(--text-tertiary)]">Round</span>
+          <Select
+            value={currentOccurrenceId ?? ""}
+            onValueChange={(v: string) => setSelectedOccurrenceId(v)}
+          >
+            <SelectTrigger className="w-full sm:w-[300px]" aria-label="Select survey round">
+              <SelectValue placeholder="Latest round" />
+            </SelectTrigger>
+            <SelectContent>
+              {occurrences.map((o) => (
+                <SelectItem key={o.id} value={o.id}>
+                  Round {o.occurrenceNumber} · {fmtDay(o.releaseDate)} — {o.completionCount} of{" "}
+                  {o.audienceSize}
+                  {!o.isClosed ? " · current" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {query.isLoading && <ResultsSkeleton />}
 
