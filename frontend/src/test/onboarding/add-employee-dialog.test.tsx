@@ -76,7 +76,7 @@ describe("AddEmployeeDialog unsaved changes", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith(
-        "There are unsaved changes. Fill out all the required fields or discard them before closing.",
+        "There are unsaved changes. Send the invite or discard them before closing.",
         expect.objectContaining({ position: "top-center" }),
       );
     });
