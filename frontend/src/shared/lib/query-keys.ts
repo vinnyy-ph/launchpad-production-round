@@ -63,6 +63,7 @@ export const queryKeys = {
   },
   clearance: {
     all: ["clearance"] as const,
+    templates: ["clearance", "templates"] as const,
     // Clearance requests assigned to the signed-in signatory.
     assigned: ["clearance", "assigned"] as const,
   },
