@@ -22,15 +22,9 @@ jest.mock("@/modules/people/employees/hooks/use-employee-documents", () => ({
 
 // Onboarding hooks used by the shared AddEmployeeDialog (always mounted) and
 // OnboardingCasesTable (rendered on the Onboarding tab).
+const mockUseOnboardingRecords = jest.fn();
 jest.mock("@/modules/people/onboarding/hooks/use-onboarding-records", () => ({
-  useOnboardingRecords: () => ({
-    employees: [],
-    reviews: [],
-    invitationStatusByEmployeeId: new Map(),
-    loading: false,
-    error: null,
-    reload: jest.fn(),
-  }),
+  useOnboardingRecords: () => mockUseOnboardingRecords(),
 }));
 
 jest.mock("@/modules/people/onboarding/hooks/use-onboard-employee", () => ({
@@ -166,6 +160,15 @@ describe("DirectoryPage", () => {
         { id: "dept-1", name: "R&D" },
         { id: "dept-2", name: "People Operations" },
       ],
+      loading: false,
+      error: null,
+      reload: jest.fn(),
+    });
+    mockUseOnboardingRecords.mockReturnValue({
+      employees: [],
+      reviews: [],
+      invitationStatusByEmployeeId: new Map(),
+      statusByEmployeeId: new Map(),
       loading: false,
       error: null,
       reload: jest.fn(),
@@ -335,5 +338,82 @@ describe("DirectoryPage", () => {
     expect(screen.getByLabelText("Search onboarding cases")).toBeInTheDocument();
     expect(screen.getByText("No one's onboarding right now")).toBeInTheDocument();
     expect(screen.queryByLabelText("Search employees")).not.toBeInTheDocument();
+  });
+
+  it("summarizes invite and onboarding progress on the onboarding tab", () => {
+    const onboardingEmployee: EmployeeListItem = {
+      ...sample[0],
+      id: "onboarding-1",
+      fullName: "Grace Hopper",
+      firstName: "Grace",
+      lastName: "Hopper",
+      companyEmail: "grace@acme.test",
+      status: "onboarding",
+    };
+    mockUseOnboardingRecords.mockReturnValue({
+      employees: [onboardingEmployee],
+      reviews: [],
+      invitationStatusByEmployeeId: new Map([["onboarding-1", "accepted"]]),
+      statusByEmployeeId: new Map([
+        [
+          "onboarding-1",
+          {
+            recordId: "record-1",
+            isComplete: false,
+            completedAt: null,
+            invitationStatus: "accepted",
+            profile: {
+              firstName: "Grace",
+              lastName: "Hopper",
+              middleName: null,
+              personalEmail: null,
+              birthday: null,
+              address: null,
+              emergencyContact: null,
+              jobTitle: "Engineer",
+              department: "R&D",
+            },
+            documents: [
+              {
+                id: "doc-1",
+                documentName: "ID",
+                instructions: null,
+                allowedFileTypes: "pdf",
+                isRequired: true,
+                latestSubmission: { id: "sub-1", fileUrl: "https://example.test/id.pdf", status: "approved", rejectionNote: null, submittedAt: "2026-06-01T00:00:00.000Z", reviewedAt: null },
+              },
+              {
+                id: "doc-2",
+                documentName: "Contract",
+                instructions: null,
+                allowedFileTypes: "pdf",
+                isRequired: true,
+                latestSubmission: null,
+              },
+            ],
+            customFields: [
+              { id: "field-1", fieldLabel: "Shirt size", isRequired: true, value: "M" },
+            ],
+          },
+        ],
+      ]),
+      loading: false,
+      error: null,
+      reload: jest.fn(),
+    });
+    mockSearchParamsGet.mockImplementation((key: string) => (key === "tab" ? "onboarding" : null));
+    mockUseEmployees.mockReturnValue(employeeHookResult());
+
+    renderPage();
+
+    expect(screen.getByText("Pending invites")).toBeInTheDocument();
+    expect(screen.getByText("Invite issues")).toBeInTheDocument();
+    expect(screen.getByText("In progress")).toBeInTheDocument();
+    expect(screen.getByText("Ready for review")).toBeInTheDocument();
+    expect(screen.getByText("Grace Hopper")).toBeInTheDocument();
+    expect(screen.getByText("Accepted")).toBeInTheDocument();
+    expect(screen.getByText("1/2 approved")).toBeInTheDocument();
+    expect(screen.getByText("1/1 filled")).toBeInTheDocument();
+    expect(screen.getByText("Documents pending")).toBeInTheDocument();
   });
 });

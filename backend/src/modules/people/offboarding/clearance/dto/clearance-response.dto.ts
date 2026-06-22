@@ -1,5 +1,13 @@
 import type { ApiSuccessResponseDto } from "../../../../../core/dto";
 
+/** Clearance template option HR can choose while starting offboarding. */
+export interface ClearanceTemplateOptionDto {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  signatoryCount: number;
+}
+
 /** One clearance request assigned to the caller, with offboardee + record context. */
 export interface AssignedClearanceDto {
   requestId: string;
@@ -37,6 +45,11 @@ export interface ClearanceActionDataDto {
 /** Response for GET /api/v1/clearance/assigned. */
 export type AssignedClearancesResponseDto = ApiSuccessResponseDto<
   AssignedClearanceDto[]
+>;
+
+/** Response for GET /api/v1/clearance/templates. */
+export type ClearanceTemplatesResponseDto = ApiSuccessResponseDto<
+  ClearanceTemplateOptionDto[]
 >;
 
 /** Response for the sign / reject / reset endpoints. */

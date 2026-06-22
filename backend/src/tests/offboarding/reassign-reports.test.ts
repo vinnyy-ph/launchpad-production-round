@@ -65,6 +65,7 @@ describe("POST /api/v1/offboarding/:id/reassign", () => {
         reassignedReports: 3,
         reassignedTeams: 1,
         newSupervisorId: NEW_SUPERVISOR_ID,
+        newTeamLeaderId: NEW_SUPERVISOR_ID,
       },
     });
     expect(prisma.employee.updateMany).toHaveBeenCalledWith({

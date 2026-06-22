@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,
@@ -14,10 +14,17 @@ import {
   DialogTitle,
   FormField,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/shared/ui";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useOffboardings } from "../hooks/use-offboarding";
 import { useCreateOffboarding } from "../hooks/use-create-offboarding";
+import { useClearanceTemplates } from "../hooks/use-clearance-templates";
 
 interface InitiateOffboardingDialogProps {
   open: boolean;
@@ -44,19 +51,57 @@ export function InitiateOffboardingDialog({
     open ? { status: "active", limit: 200 } : {},
   );
   const { offboardings } = useOffboardings();
+  const { templates, loading: templatesLoading, error: templatesError } = useClearanceTemplates(open);
   const { create, creating } = useCreateOffboarding();
 
   const [empId, setEmpId] = useState<string>("");
   const [tenderDate, setTenderDate] = useState<string>(todayIso());
   const [effectiveDate, setEffectiveDate] = useState<string>("");
+  const [clearanceTemplateId, setClearanceTemplateId] = useState<string>("");
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [newSupervisorId, setNewSupervisorId] = useState<string>("");
-  const [errors, setErrors] = useState<{ emp?: string; effective?: string }>({});
+  const [newTeamLeaderId, setNewTeamLeaderId] = useState<string>("");
+  const [errors, setErrors] = useState<{
+    emp?: string;
+    effective?: string;
+    clearance?: string;
+    supervisor?: string;
+    teamLeader?: string;
+  }>({});
+  const {
+    employee: selectedEmployeeProfile,
+    loading: profileLoading,
+    error: profileError,
+  } = useEmployeeProfile(empId || null);
+  const clearanceError =
+    errors.clearance ??
+    templatesError ??
+    (!templatesLoading && templates.length === 0 ? "No clearance versions are available." : undefined);
+  const directReportCount = selectedEmployeeProfile?.directReports?.length ?? 0;
+  const ledTeamCount = selectedEmployeeProfile?.ledTeams.length ?? 0;
+  const needsSupervisorReassignment = directReportCount > 0;
+  const needsTeamLeaderReassignment = ledTeamCount > 0;
+
+  useEffect(() => {
+    if (!open || clearanceTemplateId || templates.length === 0) return;
+    const defaultTemplate = templates.find((template) => template.isDefault) ?? templates[0];
+    setClearanceTemplateId(defaultTemplate.id);
+  }, [clearanceTemplateId, open, templates]);
+
+  useEffect(() => {
+    setNewSupervisorId("");
+    setNewTeamLeaderId("");
+    setErrors((current) => ({ ...current, supervisor: undefined, teamLeader: undefined }));
+  }, [empId]);
 
   function reset() {
     setEmpId("");
     setTenderDate(todayIso());
     setEffectiveDate("");
+    setClearanceTemplateId("");
+    setAttachment(null);
     setNewSupervisorId("");
+    setNewTeamLeaderId("");
     setErrors({});
   }
 
@@ -91,6 +136,11 @@ export function InitiateOffboardingDialog({
     if (!effectiveDate) next.effective = "Effective date is required.";
     else if (effectiveDate < tenderDate)
       next.effective = "Effective date cannot be before the tender date.";
+    if (!clearanceTemplateId) next.clearance = "Select a clearance version.";
+    if (needsSupervisorReassignment && !newSupervisorId)
+      next.supervisor = "Choose a new supervisor for direct reports.";
+    if (needsTeamLeaderReassignment && !newTeamLeaderId)
+      next.teamLeader = "Choose a new leader for led teams.";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -100,7 +150,10 @@ export function InitiateOffboardingDialog({
         employeeId: empId,
         tenderDate,
         effectiveDate,
+        clearanceTemplateId,
+        ...(attachment ? { attachment } : {}),
         ...(newSupervisorId ? { newSupervisorId } : {}),
+        ...(newTeamLeaderId ? { newTeamLeaderId } : {}),
       });
       toast.success(`Offboarding initiated for ${selected?.fullName ?? "employee"}.`);
       reset();
@@ -152,6 +205,48 @@ export function InitiateOffboardingDialog({
             />
           </FormField>
 
+          <FormField label="Clearance version" required error={clearanceError}>
+            <Select
+              value={clearanceTemplateId}
+              onValueChange={setClearanceTemplateId}
+              disabled={templatesLoading || templates.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    templatesLoading ? "Loading clearance versions..." : "Select a clearance version"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {template.name}
+                    {template.isDefault ? " (default)" : ""}
+                    {` - ${template.signatoryCount} signator${template.signatoryCount === 1 ? "y" : "ies"}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          <FormField label="Attachment (optional)" htmlFor="off-attachment">
+            <div className="flex items-center gap-3">
+              <Input
+                key={attachment ? "attachment-selected" : "attachment-empty"}
+                id="off-attachment"
+                type="file"
+                onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
+              />
+              {attachment ? (
+                <span className="inline-flex max-w-[180px] items-center gap-1 truncate text-xs text-[color:var(--text-tertiary)]">
+                  <Paperclip className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                  <span className="truncate">{attachment.name}</span>
+                </span>
+              ) : null}
+            </div>
+          </FormField>
+
           <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] p-3">
             <div className="flex items-start gap-2">
               <AlertCircle
@@ -159,22 +254,53 @@ export function InitiateOffboardingDialog({
                 aria-hidden="true"
               />
               <p className="text-xs text-[#B54708]">
-                If this employee has direct reports or leads teams, pick who takes over.
-                Otherwise leave this blank.
+                {empId
+                  ? profileLoading
+                    ? "Checking whether this employee has reports or led teams..."
+                    : profileError
+                      ? profileError
+                      : needsSupervisorReassignment || needsTeamLeaderReassignment
+                        ? "Complete the required handoffs before submitting this offboarding."
+                        : "This employee has no direct reports or led teams to reassign."
+                  : "Select an employee to check required report and team handoffs."}
               </p>
             </div>
-            <div className="mt-3">
-              <FormField label="Reassign reports & team leadership to (optional)">
-                <Combobox
-                  options={reassignOptions}
-                  value={newSupervisorId}
-                  onChange={(v) => setNewSupervisorId(v)}
-                  placeholder="Select a new supervisor…"
-                  searchPlaceholder="Search employees…"
-                  emptyText="No employees available."
-                />
-              </FormField>
-            </div>
+            {needsSupervisorReassignment || needsTeamLeaderReassignment ? (
+              <div className="mt-3 space-y-3">
+                {needsSupervisorReassignment ? (
+                  <FormField
+                    label={`New supervisor for ${directReportCount} direct report${directReportCount === 1 ? "" : "s"}`}
+                    required
+                    error={errors.supervisor}
+                  >
+                    <Combobox
+                      options={reassignOptions}
+                      value={newSupervisorId}
+                      onChange={(v) => setNewSupervisorId(v)}
+                      placeholder="Select a new supervisor..."
+                      searchPlaceholder="Search employees..."
+                      emptyText="No employees available."
+                    />
+                  </FormField>
+                ) : null}
+                {needsTeamLeaderReassignment ? (
+                  <FormField
+                    label={`New leader for ${ledTeamCount} team${ledTeamCount === 1 ? "" : "s"}`}
+                    required
+                    error={errors.teamLeader}
+                  >
+                    <Combobox
+                      options={reassignOptions}
+                      value={newTeamLeaderId}
+                      onChange={(v) => setNewTeamLeaderId(v)}
+                      placeholder="Select a new team leader..."
+                      searchPlaceholder="Search employees..."
+                      emptyText="No employees available."
+                    />
+                  </FormField>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -182,7 +308,10 @@ export function InitiateOffboardingDialog({
           <Button variant="secondary" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={() => void handleSubmit()} disabled={creating}>
+          <Button
+            onClick={() => void handleSubmit()}
+            disabled={creating || profileLoading || templatesLoading || templates.length === 0}
+          >
             {creating ? "Initiating…" : "Initiate offboarding"}
           </Button>
         </DialogFooter>

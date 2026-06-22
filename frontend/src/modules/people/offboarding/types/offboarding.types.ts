@@ -33,6 +33,7 @@ export interface OffboardingListItem {
   status: OffboardingStatus;
   tenderDate: string;
   effectiveDate: string;
+  attachmentUrl: string | null;
   createdAt: string;
   completedAt: string | null;
   signedCount: number;
@@ -61,9 +62,17 @@ export interface OffboardingDetail {
   status: OffboardingStatus;
   tenderDate: string;
   effectiveDate: string;
+  attachmentUrl: string | null;
   createdAt: string;
   completedAt: string | null;
   signatureRequests: SignatureRequest[];
+}
+
+export interface ClearanceTemplateOption {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  signatoryCount: number;
 }
 
 // ─── Create (POST /api/v1/offboarding) ────────────────────────────────────────
@@ -74,7 +83,9 @@ export interface InitiateOffboardingInput {
   tenderDate: string;
   effectiveDate: string;
   clearanceTemplateId?: string;
+  attachment?: File;
   newSupervisorId?: string;
+  newTeamLeaderId?: string;
 }
 
 // ─── Reassign (POST /api/v1/offboarding/:id/reassign) ─────────────────────────
@@ -84,6 +95,7 @@ export interface ReassignResult {
   reassignedReports: number;
   reassignedTeams: number;
   newSupervisorId: string;
+  newTeamLeaderId: string;
 }
 
 // ─── Clearance (signatory actions) ────────────────────────────────────────────

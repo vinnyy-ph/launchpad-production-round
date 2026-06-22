@@ -12,7 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/primitives/select";
-import { DataTable, EmptyState, FilterBar, StatusBadge, type Column } from "@/shared/ui/patterns";
+import {
+  DataTable,
+  EmptyState,
+  FilterBar,
+  StatCard,
+  StatusBadge,
+  type Column,
+} from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { InviteStatusBadge } from "./invite-status-badge";
 import { useOnboardingRecords } from "../hooks/use-onboarding-records";
@@ -26,6 +33,11 @@ interface CaseRow {
   status: string;
   progress: number;
   invitationStatus: OnboardingInvitationStatus | null;
+  documentsApproved: number;
+  documentsRequired: number;
+  customFieldsFilled: number;
+  customFieldsRequired: number;
+  stuckAt: string;
 }
 
 const ALL = "ALL";
@@ -46,6 +58,27 @@ function deriveProgress(employeeId: string, reviews: DocumentReview[]): number {
   return Math.round((approved / mine.length) * 100);
 }
 
+function ratioProgress(done: number, total: number): number {
+  if (total === 0) return 100;
+  return Math.round((done / total) * 100);
+}
+
+function deriveStuckAt(row: {
+  invitationStatus: OnboardingInvitationStatus | null;
+  documentsApproved: number;
+  documentsRequired: number;
+  customFieldsFilled: number;
+  customFieldsRequired: number;
+}): string {
+  if (!row.invitationStatus) return "Invite not sent";
+  if (row.invitationStatus === "failed_delivery") return "Invite delivery failed";
+  if (row.invitationStatus === "expired") return "Invite expired";
+  if (row.invitationStatus === "pending") return "Awaiting invite acceptance";
+  if (row.documentsApproved < row.documentsRequired) return "Documents pending";
+  if (row.customFieldsFilled < row.customFieldsRequired) return "Profile fields pending";
+  return "Ready for HR review";
+}
+
 /**
  * HR onboarding cases table — the same setup and appearance as the standalone Onboarding
  * screen, shared so the People directory's Onboarding tab stays in sync. Self-contained:
@@ -57,20 +90,43 @@ export function OnboardingCasesTable() {
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
   const debouncedSearch = useDebounce(search, 300);
 
-  const { employees, reviews, invitationStatusByEmployeeId, loading, error, reload } =
+  const { employees, reviews, invitationStatusByEmployeeId, statusByEmployeeId, loading, error, reload } =
     useOnboardingRecords();
 
   const rows = useMemo<CaseRow[]>(
     () =>
-      employees.map((employee) => ({
-        employeeId: employee.id,
-        name: employee.fullName,
-        email: employee.companyEmail,
-        status: employee.status,
-        progress: deriveProgress(employee.id, reviews),
-        invitationStatus: invitationStatusByEmployeeId.get(employee.id) ?? null,
-      })),
-    [employees, reviews, invitationStatusByEmployeeId],
+      employees.map((employee) => {
+        const status = statusByEmployeeId.get(employee.id);
+        const documents = status?.documents.filter((document) => document.isRequired) ?? [];
+        const customFields = status?.customFields.filter((field) => field.isRequired) ?? [];
+        const documentsApproved = documents.filter(
+          (document) => document.latestSubmission?.status === "approved",
+        ).length;
+        const customFieldsFilled = customFields.filter((field) => Boolean(field.value?.trim())).length;
+        const documentsRequired = documents.length;
+        const customFieldsRequired = customFields.length;
+        const invitationStatus = invitationStatusByEmployeeId.get(employee.id) ?? null;
+        const progress =
+          status
+            ? ratioProgress(documentsApproved + customFieldsFilled, documentsRequired + customFieldsRequired)
+            : deriveProgress(employee.id, reviews);
+        const row = {
+          employeeId: employee.id,
+          name: employee.fullName,
+          email: employee.companyEmail,
+          status: employee.status,
+          progress,
+          invitationStatus,
+          documentsApproved,
+          documentsRequired,
+          customFieldsFilled,
+          customFieldsRequired,
+          stuckAt: "",
+        };
+
+        return { ...row, stuckAt: deriveStuckAt(row) };
+      }),
+    [employees, reviews, invitationStatusByEmployeeId, statusByEmployeeId],
   );
 
   const filtered = useMemo(() => {
@@ -84,6 +140,12 @@ export function OnboardingCasesTable() {
   }, [rows, debouncedSearch, statusFilter]);
 
   const hasFilters = Boolean(search || statusFilter !== ALL);
+  const pendingInvites = rows.filter((row) => row.invitationStatus === "pending").length;
+  const inviteIssues = rows.filter(
+    (row) => row.invitationStatus === "expired" || row.invitationStatus === "failed_delivery",
+  ).length;
+  const inProgress = rows.filter((row) => row.invitationStatus === "accepted").length;
+  const readyForReview = rows.filter((row) => row.stuckAt === "Ready for HR review").length;
 
   const columns: Column<CaseRow>[] = [
     {
@@ -100,24 +162,53 @@ export function OnboardingCasesTable() {
       cell: (row) => <InviteStatusBadge status={row.invitationStatus} dot />,
     },
     {
-      header: "Status",
-      cell: (row) => <StatusBadge status={row.status} dot />,
-    },
-    {
       header: "Documents",
       cell: (row) => (
-        <div className="flex min-w-[120px] items-center gap-2">
-          <Progress value={row.progress} className="flex-1" />
-          <span className="w-8 text-right text-xs text-[color:var(--text-tertiary)]">
-            {row.progress}%
-          </span>
+        <div className="min-w-[140px]">
+          <p className="text-sm font-medium text-[color:var(--text-primary)]">
+            {row.documentsApproved}/{row.documentsRequired} approved
+          </p>
+          <Progress value={ratioProgress(row.documentsApproved, row.documentsRequired)} className="mt-2" />
         </div>
       ),
+    },
+    {
+      header: "Profile fields",
+      cell: (row) => (
+        <span className="text-sm text-[color:var(--text-secondary)]">
+          {row.customFieldsFilled}/{row.customFieldsRequired} filled
+        </span>
+      ),
+    },
+    {
+      header: "Stuck at",
+      cell: (row) => (
+        <div className="flex min-w-[180px] flex-col gap-1">
+          <span className="text-sm font-medium text-[color:var(--text-primary)]">{row.stuckAt}</span>
+          <div className="flex items-center gap-2">
+            <Progress value={row.progress} className="max-w-[100px] flex-1" />
+            <span className="w-8 text-right text-xs text-[color:var(--text-tertiary)]">
+              {row.progress}%
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Status",
+      cell: (row) => <StatusBadge status={row.status} dot />,
     },
   ];
 
   return (
     <>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Pending invites" value={pendingInvites} loading={loading} variant="warn" />
+        <StatCard label="Invite issues" value={inviteIssues} loading={loading} variant={inviteIssues > 0 ? "alert" : "default"} />
+        <StatCard label="In progress" value={inProgress} loading={loading} variant="brand" />
+        <StatCard label="Ready for review" value={readyForReview} loading={loading} />
+      </div>
+
       <FilterBar aria-label="Filter onboarding cases">
         <Input
           type="text"

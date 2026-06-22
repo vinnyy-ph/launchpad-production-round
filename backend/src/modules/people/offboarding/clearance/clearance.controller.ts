@@ -10,6 +10,7 @@ import { ClearanceValidation } from "./clearance.validation";
 import type {
   AssignedClearancesResponseDto,
   ClearanceActionResponseDto,
+  ClearanceTemplatesResponseDto,
 } from "./dto";
 
 /**
@@ -20,6 +21,21 @@ export class ClearanceController {
     private readonly clearanceService = new ClearanceService(),
     private readonly clearanceValidation = new ClearanceValidation(),
   ) {}
+
+  /** Handles GET /api/v1/clearance/templates - HR/admin template options. */
+  listTemplates = async (
+    _req: Request,
+    res: Response<ClearanceTemplatesResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const result = await this.clearanceService.listTemplates();
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
 
   /** Handles GET /api/v1/clearance/assigned — the caller's signature queue. */
   getAssignedClearances = async (
