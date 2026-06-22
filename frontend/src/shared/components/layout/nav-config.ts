@@ -97,7 +97,7 @@ export const SCREEN_HEADERS: Record<string, { title: string; subtitle: string }>
   teams: { title: "Teams", subtitle: "Teams you belong to at {workspaceName}." },
   overview: { title: "Team overview", subtitle: "How your direct reports are tracking." },
   roster: { title: "Roster", subtitle: "Everyone who reports to you." },
-  evaluations: { title: "Evaluations", subtitle: "Write and track reviews for the people you manage." },
+  evaluations: { title: "Evaluations", subtitle: "Write and track evaluations for the people you manage." },
   people: { title: "People", subtitle: "The {workspaceName} employee directory." },
   departments: { title: "Departments", subtitle: "Organizational departments at {workspaceName}." },
   orgchart: { title: "Structure", subtitle: "Reporting lines and team structure." },
