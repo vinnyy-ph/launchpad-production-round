@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { format } from "date-fns";
 import {
   BriefcaseBusiness,
   Check,
@@ -21,7 +22,9 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/shared/ui/primitives/dialog";
+import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { Input } from "@/shared/ui/primitives/input";
+import { PhoneInput } from "@/shared/ui";
 import {
   Select,
   SelectContent,
@@ -31,6 +34,7 @@ import {
 } from "@/shared/ui/primitives/select";
 import { StatusBadge } from "@/shared/ui/patterns";
 import { ApiError } from "@/shared/lib/api-client";
+import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
 import type { EmployeeDocument, EmployeeDocumentStatus } from "../services/employees.service";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
@@ -63,6 +67,7 @@ type EditDraft = {
   firstName: string;
   middleName: string;
   lastName: string;
+  birthday: string;
   personalEmail: string;
   companyEmail: string;
   country: string;
@@ -169,6 +174,7 @@ function blankDraft(): EditDraft {
     firstName: "",
     middleName: "",
     lastName: "",
+    birthday: "",
     personalEmail: "",
     companyEmail: "",
     country: "",
@@ -191,6 +197,9 @@ function draftFromProfile(profile: EmployeeProfile | EmployeeListItem): EditDraf
     firstName: profile.firstName ?? "",
     middleName: profile.middleName ?? "",
     lastName: profile.lastName ?? "",
+    // The API returns birthday as a full ISO datetime (e.g. "1990-05-15T00:00:00.000Z");
+    // keep only the date portion so the date field parses it and the draft compares cleanly.
+    birthday: profileDetails.birthday ? profileDetails.birthday.slice(0, 10) : "",
     personalEmail: profileDetails.personalEmail ?? "",
     companyEmail: profile.companyEmail ?? "",
     country: profile.address?.country ?? "",
@@ -198,7 +207,8 @@ function draftFromProfile(profile: EmployeeProfile | EmployeeListItem): EditDraf
     city: profile.address?.city ?? "",
     address: profile.address?.address ?? "",
     emergencyContactName: profile.emergencyContact?.emergencyContactName ?? "",
-    emergencyContactNumber: profile.emergencyContact?.emergencyContactNumber ?? "",
+    // Normalize to E.164 so PhoneInput's emitted value matches the saved draft (no false "unsaved").
+    emergencyContactNumber: toPhilippineE164(profile.emergencyContact?.emergencyContactNumber ?? ""),
     jobTitle: profile.jobTitle ?? "",
     department: profile.department ?? "",
     status: profile.status,
@@ -389,6 +399,7 @@ export function EmployeeDetailsModal({
   const profile = employee ?? fallbackEmployee;
   const profileDetails = profile as EmployeeProfile | null;
   const [draft, setDraft] = useState<EditDraft>(blankDraft);
+  const [contactNumberError, setContactNumberError] = useState<string | null>(null);
   const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
   const unsavedToastIdRef = useRef<string | number | null>(null);
@@ -484,10 +495,19 @@ export function EmployeeDetailsModal({
     event.preventDefault();
     if (!employeeId) return;
 
+    // Emergency contact is optional, but when provided it must be a valid PH mobile.
+    const contactNumber = draft.emergencyContactNumber.trim();
+    if (contactNumber && !isStrictPhilippineMobile(contactNumber)) {
+      setContactNumberError("Enter an 11-digit mobile number starting with 09.");
+      toast.error("Please fix the highlighted contact number.");
+      return;
+    }
+
     const input: EmployeeUpdateInput = {
       firstName: draft.firstName.trim(),
       middleName: nullableTrim(draft.middleName),
       lastName: draft.lastName.trim(),
+      birthday: nullableTrim(draft.birthday),
       personalEmail: nullableTrim(draft.personalEmail),
       companyEmail: draft.companyEmail.trim(),
       address: {
@@ -670,6 +690,22 @@ export function EmployeeDetailsModal({
                             />
                           </div>
 
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <label>
+                              <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
+                                Birthday
+                              </span>
+                              <DatePicker
+                                disableFuture
+                                value={draft.birthday ? new Date(`${draft.birthday}T00:00:00`) : undefined}
+                                onChange={(next) =>
+                                  updateDraft("birthday", next ? format(next, "yyyy-MM-dd") : "")
+                                }
+                                className="w-full"
+                              />
+                            </label>
+                          </div>
+
                           <div>
                             <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
                               Address
@@ -710,11 +746,24 @@ export function EmployeeDetailsModal({
                                 value={draft.emergencyContactName}
                                 onChange={(value) => updateDraft("emergencyContactName", value)}
                               />
-                              <EditableField
-                                label="Contact Number"
-                                value={draft.emergencyContactNumber}
-                                onChange={(value) => updateDraft("emergencyContactNumber", value)}
-                              />
+                              <label>
+                                <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
+                                  Contact Number
+                                </span>
+                                <PhoneInput
+                                  value={draft.emergencyContactNumber}
+                                  onChange={(value) => {
+                                    updateDraft("emergencyContactNumber", value);
+                                    if (contactNumberError) setContactNumberError(null);
+                                  }}
+                                  error={Boolean(contactNumberError)}
+                                />
+                                {contactNumberError ? (
+                                  <span className="mt-1 block text-xs text-[#D92D20]">
+                                    {contactNumberError}
+                                  </span>
+                                ) : null}
+                              </label>
                             </div>
                           </div>
                         </div>
@@ -989,7 +1038,10 @@ export function EmployeeDetailsModal({
                   variant="secondary"
                   size="sm"
                   disabled={saving}
-                  onClick={() => setDraft(savedDraft)}
+                  onClick={() => {
+                    setDraft(savedDraft);
+                    setContactNumberError(null);
+                  }}
                 >
                   Discard
                 </Button>

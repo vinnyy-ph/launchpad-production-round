@@ -30,7 +30,7 @@ import type {
 import { DocumentUploadRow } from "@/modules/people/onboarding/components/documents/document-upload";
 
 import { queryKeys } from "@/shared/lib/query-keys";
-import { isValidPhilippinePhone, toE164 } from "@/shared/lib/phone";
+import { isStrictPhilippineMobile, toE164 } from "@/shared/lib/phone";
 
 import { EmptyState } from "@/shared/ui/patterns/empty-state";
 import { FormField } from "@/shared/ui/patterns/form-field";
@@ -560,10 +560,10 @@ export default function EmployeeOnboardingPage() {
     };
   }
 
-  async function handleContinueFromProfile(): Promise<void> {
+  function handleContinueFromProfile(): void {
     const next = profileDraftErrors(profileDraft);
-    if (Object.keys(next).length === 0 && !(await isValidPhilippinePhone(emergencyContact))) {
-      next.emergencyContact = "Enter a valid Philippine mobile number.";
+    if (Object.keys(next).length === 0 && !isStrictPhilippineMobile(emergencyContact)) {
+      next.emergencyContact = "Enter an 11-digit mobile number starting with 09.";
     }
     setProfileErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -604,8 +604,8 @@ export default function EmployeeOnboardingPage() {
       setStep(1);
       return;
     }
-    if (!(await isValidPhilippinePhone(emergencyContact))) {
-      setProfileErrors({ emergencyContact: "Enter a valid Philippine mobile number." });
+    if (!isStrictPhilippineMobile(emergencyContact)) {
+      setProfileErrors({ emergencyContact: "Enter an 11-digit mobile number starting with 09." });
       toast.error("Enter a valid emergency contact number before submitting.");
       setStep(1);
       return;
