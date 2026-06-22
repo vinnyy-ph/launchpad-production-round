@@ -19,6 +19,7 @@ export interface CreateSurveyData {
   deadline: Date;
   questions: CreateSurveyQuestionData[];
   audienceConfigs: CreateAudienceConfigData[];
+  visibilityConfigs: CreateVisibilityConfigData[];
   reminderConfig?: CreateReminderConfigData;
 }
 
@@ -37,6 +38,10 @@ export interface CreateSurveyQuestionData {
 export interface CreateAudienceConfigData {
   supervisorId?: string;
   teamId?: string;
+}
+
+export interface CreateVisibilityConfigData {
+  teamId: string;
 }
 
 export interface CreateReminderConfigData {
