@@ -14,7 +14,7 @@ jest.mock("../../core/database/prisma.service", () => ({
   prisma: {
     employee: { findUnique: jest.fn() },
     pulseSurvey: { findFirst: jest.fn() },
-    surveyOccurrence: { findUnique: jest.fn() },
+    surveyOccurrence: { findUnique: jest.fn(), findFirst: jest.fn() },
     surveyResponse: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
     surveyAudienceMember: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
     team: { findUnique: jest.fn() },
@@ -46,6 +46,8 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       req.user = { id: "test-hr-user-id", role: "HR" };
       next();
     });
+    // An unscoped (no-occurrenceId) request resolves the survey's latest occurrence.
+    (prisma.surveyOccurrence.findFirst as jest.Mock).mockResolvedValue({ id: "occ-default" });
   });
 
   const setAuthUser = (user: { id: string; role: string }) => {
@@ -270,6 +272,27 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     expect(response.body.data).toHaveProperty("deadline");
     expect(response.body.data).toHaveProperty("isActive");
     expect(response.body.data).toHaveProperty("occurrenceCount");
+  });
+
+  it("defaults an unscoped request to the LATEST occurrence, not an all-rounds aggregate", async () => {
+    const s = mockSurvey({ _count: { occurrences: 3 } });
+    surveyFindFirstMock.mockResolvedValue(s);
+    (prisma.surveyOccurrence.findFirst as jest.Mock).mockResolvedValue({ id: "occ-latest" });
+    surveyResponseFindManyMock.mockResolvedValue([]);
+    surveyAudienceFindManyMock.mockResolvedValue([]);
+
+    const audienceCount = prisma.surveyAudienceMember.count as jest.Mock;
+    const responseCount = prisma.surveyResponse.count as jest.Mock;
+
+    const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
+
+    // Data query + headline counts are scoped to the latest occurrence — NOT { occurrence: { surveyId } },
+    // which would sum every round and produce the inflated denominator (e.g. 297 × rounds = 891).
+    expect(surveyResponseFindManyMock.mock.calls[0][0].where).toMatchObject({ occurrenceId: "occ-latest" });
+    expect(audienceCount.mock.calls[0][0].where).toMatchObject({ occurrenceId: "occ-latest" });
+    expect(responseCount.mock.calls[0][0].where).toMatchObject({ occurrenceId: "occ-latest" });
+    // The response echoes which round is shown so the picker can reflect the default selection.
+    expect(res.body.data.occurrenceId).toBe("occ-latest");
   });
 
   it("normalizes wrapped {value}/{selected}/{choices} answer + option shapes (no [object Object])", async () => {

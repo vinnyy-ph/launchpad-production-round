@@ -14,7 +14,7 @@ const BRAND = {
   shadow: "0 1px 3px 0 rgba(14,16,27,0.10), 0 1px 2px -1px rgba(14,16,27,0.10)",
 } as const;
 
-export interface PulseSurveyInvitationEmailParams {
+export interface PulseSurveyReminderEmailParams {
   firstName: string;
   lastName: string;
   surveyName: string;
@@ -35,11 +35,12 @@ function displayName(firstName: string, lastName: string): string {
 }
 
 /**
- * Builds the HTML body for a new pulse survey invitation email.
- * Layout follows the standard invitation pattern: logo, greeting, CTA, support copy, footer.
+ * Builds the HTML body for a pulse survey reminder email — sent on the survey's configured
+ * cadence to an audience member who has not yet responded. Same layout as the invitation:
+ * logo, greeting, CTA, support copy, footer.
  */
-export function buildPulseSurveyInvitationEmailHtml(
-  params: PulseSurveyInvitationEmailParams,
+export function buildPulseSurveyReminderEmailHtml(
+  params: PulseSurveyReminderEmailParams,
 ): string {
   const name = escapeHtml(displayName(params.firstName, params.lastName));
   const surveyName = escapeHtml(params.surveyName);
@@ -52,7 +53,7 @@ export function buildPulseSurveyInvitationEmailHtml(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>New pulse survey on ${BRAND.appName}</title>
+  <title>Reminder: complete your pulse survey on ${BRAND.appName}</title>
 </head>
 <body style="margin:0;padding:0;background-color:${BRAND.bgPage};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${BRAND.bgPage};padding:40px 16px;">
@@ -70,7 +71,7 @@ export function buildPulseSurveyInvitationEmailHtml(
                 Hi, ${name}!
               </h1>
               <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:${BRAND.textSecondary};">
-                A new pulse survey, <strong style="color:${BRAND.textPrimary};">${surveyName}</strong>, is now open and waiting for your response.
+                This is a reminder that the pulse survey, <strong style="color:${BRAND.textPrimary};">${surveyName}</strong>, is still open and waiting for your response.
                 Click the button below to answer it. It only takes a few minutes, and your input helps your team.
               </p>
             </td>

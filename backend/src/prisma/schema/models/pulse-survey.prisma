@@ -19,6 +19,7 @@ model PulseSurvey {
   audienceConfigs    SurveyAudienceConfig[]
   visibilityConfigs  SurveyVisibilityConfig[]
   reminderConfig     SurveyReminderConfig?
+  insights           SurveyInsight[]
 
   @@map("pulse_surveys")
 }

@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
+import { getJiaLogoAttachment } from "./jia-logo";
 
 export interface SendEmailOptions {
   to: string;
@@ -34,11 +35,20 @@ export class EmailService {
     const resend = new Resend(apiKey);
     const from = process.env.EMAIL_FROM ?? "onboarding@company.com";
 
+    const logo = getJiaLogoAttachment();
+
     const { error } = await resend.emails.send({
       from,
       to: options.to,
       subject: options.subject,
       html: options.html,
+      attachments: [
+        {
+          filename: logo.filename,
+          content: logo.content,
+          contentId: logo.contentId,
+        },
+      ],
     });
 
     if (error) {
@@ -61,11 +71,20 @@ export class EmailService {
       auth: user && pass ? { user, pass } : undefined,
     });
 
+    const logo = getJiaLogoAttachment();
+
     await transporter.sendMail({
       from,
       to: options.to,
       subject: options.subject,
       html: options.html,
+      attachments: [
+        {
+          filename: logo.filename,
+          path: logo.path,
+          cid: logo.cid,
+        },
+      ],
     });
   }
 }

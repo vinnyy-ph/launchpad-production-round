@@ -12,8 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui";
+import {
+  downloadBulkOnboardingTemplate,
+  OPTIONAL_COLUMNS,
+  REQUIRED_COLUMNS,
+  TEMPLATE_SAMPLE_ROWS,
+} from "./bulk-onboarding-template";
 import { BulkJobStatus } from "./bulk-job-status";
 import { useBulkOnboardingCommit, useBulkOnboardingPreview } from "../../hooks/use-bulk-upload";
+
+export { OPTIONAL_COLUMNS, REQUIRED_COLUMNS, TEMPLATE_COLUMNS } from "./bulk-onboarding-template";
 import type {
   BulkOnboardingCommitResult,
   BulkOnboardingPreviewResult,
@@ -28,50 +36,6 @@ interface BulkUploadDropzoneProps {
 
 type RawSpreadsheetRow = Record<string, unknown>;
 
-const REQUIRED_COLUMNS = ["companyEmail", "firstName", "lastName", "jobTitle", "department", "supervisorId"];
-const OPTIONAL_COLUMNS = [
-  "middleName",
-  "personalEmail",
-  "birthday",
-  "address",
-  "city",
-  "province",
-  "country",
-  "emergencyContactName",
-  "emergencyContact",
-];
-
-const TEMPLATE_COLUMNS = [...REQUIRED_COLUMNS, ...OPTIONAL_COLUMNS];
-
-const TEMPLATE_SAMPLE_ROW: Record<string, string> = {
-  companyEmail: "maria.santos@company.com",
-  firstName: "Maria",
-  lastName: "Santos",
-  jobTitle: "Nurse",
-  department: "Operations",
-  supervisorId: "Paste supervisor employee ID here",
-  middleName: "Reyes",
-  personalEmail: "maria.personal@example.com",
-  birthday: "1995-06-15",
-  address: "123 Sample Street",
-  city: "Quezon City",
-  province: "Metro Manila",
-  country: "Philippines",
-  emergencyContactName: "Juan Santos",
-  emergencyContact: "09171234567",
-};
-
-function autosizeTemplateColumns(rows: Record<string, string>[]) {
-  return TEMPLATE_COLUMNS.map((column) => {
-    const longestValue = rows.reduce(
-      (longest, row) => Math.max(longest, String(row[column] ?? "").length),
-      column.length,
-    );
-
-    return { wch: Math.min(Math.max(longestValue + 2, 12), 42) };
-  });
-}
-
 const COLUMN_ALIASES: Record<string, keyof BulkOnboardingRowInput> = {
   companyemail: "companyEmail",
   workemail: "companyEmail",
@@ -85,8 +49,10 @@ const COLUMN_ALIASES: Record<string, keyof BulkOnboardingRowInput> = {
   jobtitle: "jobTitle",
   title: "jobTitle",
   department: "department",
+  supervisoremail: "supervisorEmail",
+  manageremail: "supervisorEmail",
   supervisorid: "supervisorId",
-  supervisor: "supervisorId",
+  supervisor: "supervisorEmail",
   personalemail: "personalEmail",
   birthday: "birthday",
   birthdate: "birthday",
@@ -112,7 +78,10 @@ function toCellString(value: unknown): string | undefined {
   return text.length > 0 ? text : undefined;
 }
 
-function normalizeSpreadsheetRow(row: RawSpreadsheetRow, rowNumber: number): BulkOnboardingRowInput {
+export function normalizeSpreadsheetRow(
+  row: RawSpreadsheetRow,
+  rowNumber: number,
+): BulkOnboardingRowInput {
   const normalized: Partial<BulkOnboardingRowInput> = { rowNumber };
 
   Object.entries(row).forEach(([header, value]) => {
@@ -132,14 +101,15 @@ function rowErrorCount(preview: BulkOnboardingPreviewResult | null, rowNumber: n
   return preview?.errors.filter((error) => error.rowNumber === rowNumber).length ?? 0;
 }
 
-function fieldLabel(field: string): string {
+export function fieldLabel(field: string): string {
   const labels: Record<string, string> = {
     companyEmail: "Work email",
     firstName: "First name",
     lastName: "Last name",
     jobTitle: "Job title",
     department: "Department",
-    supervisorId: "Supervisor ID",
+    supervisorId: "Supervisor email",
+    supervisorEmail: "Supervisor email",
     personalEmail: "Personal email",
     birthday: "Birthday",
     emergencyContact: "Emergency contact",
@@ -175,9 +145,18 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
   const canCommit = rows.length > 0 && preview !== null && preview.errors.length === 0 && !result;
   const isBusy = isExtracting || previewMutation.isPending || commitMutation.isPending;
   const isDirty = Boolean(fileName || rows.length > 0 || preview || result || parseError);
+  const loadingLabel = isExtracting
+    ? "Extracting document"
+    : previewMutation.isPending
+      ? "Reviewing document"
+      : null;
 
   const groupedErrors = useMemo(
     () => groupErrorsByRow(preview?.errors ?? []).slice(0, 6),
+    [preview],
+  );
+  const previewRowsByNumber = useMemo(
+    () => new Map((preview?.rows ?? []).map((row) => [row.rowNumber, row])),
     [preview],
   );
 
@@ -192,15 +171,7 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
   }
 
   async function downloadTemplate() {
-    const XLSX = await import("xlsx");
-    const templateRows = [TEMPLATE_SAMPLE_ROW];
-    const worksheet = XLSX.utils.json_to_sheet(templateRows, {
-      header: TEMPLATE_COLUMNS,
-    });
-    worksheet["!cols"] = autosizeTemplateColumns(templateRows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Bulk onboarding");
-    XLSX.writeFile(workbook, "bulk-onboarding-template.xlsx");
+    await downloadBulkOnboardingTemplate();
   }
 
   async function parseFile(file: File) {
@@ -236,7 +207,7 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
       });
 
       const nextRows = parsed
-        .map((row, index) => normalizeSpreadsheetRow(row, index + 2))
+        .map((row, index) => normalizeSpreadsheetRow(row, index + 1))
         .filter((row) =>
           Object.entries(row).some(([key, value]) => key !== "rowNumber" && Boolean(value)),
         );
@@ -248,13 +219,12 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
       }
 
       setRows(nextRows);
+      setIsExtracting(false);
       previewMutation.mutate(nextRows, {
         onSuccess: (data) => {
           setPreview(data);
-          setIsExtracting(false);
         },
         onError: (error) => {
-          setIsExtracting(false);
           toast.error(error instanceof Error ? error.message : "Could not preview the upload.");
         },
       });
@@ -287,7 +257,22 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-3xl">
+        {loadingLabel ? (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center rounded-[inherit] bg-white/85 px-6 text-center backdrop-blur-sm">
+            <div className="flex flex-col items-center">
+              <Loader2 className="mb-3 h-8 w-8 animate-spin text-[color:var(--text-tertiary)]" />
+              <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                {loadingLabel}
+              </p>
+              <p className="mt-1 max-w-[280px] text-xs text-[color:var(--text-tertiary)]">
+                {isExtracting
+                  ? "Reading the workbook and preparing the rows."
+                  : "Checking the uploaded rows for duplicates, supervisor matches, and other issues."}
+              </p>
+            </div>
+          </div>
+        ) : null}
         <DialogHeader>
           <DialogTitle>Bulk onboarding</DialogTitle>
           <DialogDescription>
@@ -296,17 +281,22 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="flex flex-col gap-2 rounded-lg border border-[color:var(--border-primary)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+        <div className="min-w-0 space-y-4">
+          <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-[color:var(--border-primary)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-[color:var(--text-primary)]">
                 Start with the template
               </p>
               <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-                It includes the required columns and one sample row.
+                It includes the required columns and {TEMPLATE_SAMPLE_ROWS.length} sample rows.
               </p>
             </div>
-            <Button type="button" variant="outline" onClick={() => void downloadTemplate()}>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0"
+              onClick={() => void downloadTemplate()}
+            >
               <Download aria-hidden="true" />
               Download template
             </Button>
@@ -325,19 +315,19 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
             onDragOver={(event) => event.preventDefault()}
             disabled={isBusy}
           >
-            {isExtracting || previewMutation.isPending ? (
+            {loadingLabel ? (
               <Loader2 className="mb-3 h-8 w-8 animate-spin text-[color:var(--text-tertiary)]" />
             ) : (
               <UploadCloud className="mb-3 h-8 w-8 text-[color:var(--text-tertiary)]" />
             )}
             <span className="text-sm font-semibold text-[color:var(--text-primary)]">
-              {isExtracting || previewMutation.isPending
-                ? "Extracting document..."
-                : fileName || "Choose or drop an .xlsx file"}
+              {loadingLabel ? `${loadingLabel}...` : fileName || "Choose or drop an .xlsx file"}
             </span>
-            <span className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-              {isExtracting || previewMutation.isPending
-                ? "Reading the workbook and checking each row."
+            <span className="mt-1 max-w-full break-words text-xs text-[color:var(--text-tertiary)]">
+              {loadingLabel
+                ? loadingLabel === "Extracting document"
+                  ? "Reading the workbook and preparing the rows."
+                  : "Checking the uploaded rows for issues."
                 : `Required columns: ${REQUIRED_COLUMNS.join(", ")}`}
             </span>
           </button>
@@ -361,9 +351,9 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
           <BulkJobStatus preview={preview} result={result} />
 
           {rows.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border border-[color:var(--border-primary)]">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-sm">
+            <div className="min-w-0 rounded-lg border border-[color:var(--border-primary)]">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full min-w-[860px] text-left text-sm">
                   <thead className="bg-[color:var(--bg-secondary)] text-xs text-[color:var(--text-tertiary)]">
                     <tr>
                       <th className="px-3 py-2 font-semibold">Row</th>
@@ -371,12 +361,14 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                       <th className="px-3 py-2 font-semibold">Work email</th>
                       <th className="px-3 py-2 font-semibold">Job title</th>
                       <th className="px-3 py-2 font-semibold">Department</th>
+                      <th className="px-3 py-2 font-semibold">Supervisor</th>
                       <th className="px-3 py-2 font-semibold">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[color:var(--border-primary)] bg-white">
                     {rows.slice(0, 10).map((row) => {
                       const errors = rowErrorCount(preview, row.rowNumber);
+                      const previewRow = previewRowsByNumber.get(row.rowNumber);
                       return (
                         <tr key={row.rowNumber}>
                           <td className="px-3 py-2 text-[color:var(--text-tertiary)]">
@@ -393,6 +385,29 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                           </td>
                           <td className="px-3 py-2 text-[color:var(--text-secondary)]">
                             {row.department ?? "-"}
+                          </td>
+                          <td className="px-3 py-2 text-[color:var(--text-secondary)]">
+                            {previewRow?.supervisorName ? (
+                              <span className="flex flex-col">
+                                <span className="font-medium text-[color:var(--text-primary)]">
+                                  {previewRow.supervisorName}
+                                </span>
+                                <span className="text-xs text-[color:var(--text-tertiary)]">
+                                  {previewRow.supervisorEmail}
+                                </span>
+                              </span>
+                            ) : row.supervisorEmail ? (
+                              <span className="flex flex-col">
+                                <span className="font-medium text-[#B42318]">
+                                  Supervisor not found
+                                </span>
+                                <span className="text-xs text-[#7A271A]">
+                                  {row.supervisorEmail}
+                                </span>
+                              </span>
+                            ) : (
+                              "-"
+                            )}
                           </td>
                           <td className="px-3 py-2">
                             <span
@@ -420,11 +435,11 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
           ) : null}
 
           {groupedErrors.length > 0 && preview ? (
-            <div className="overflow-hidden rounded-lg border border-[#FECDCA] bg-[#FFFBFA]">
+            <div className="min-w-0 rounded-lg border border-[#FECDCA] bg-[#FFFBFA]">
               <div className="flex flex-col gap-2 border-b border-[#FECDCA] bg-[#FEF3F2] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-2">
+                <div className="flex min-w-0 items-start gap-2">
                   <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B42318]" />
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-semibold text-[#B42318]">
                       Fix {preview.invalidRows} row{preview.invalidRows === 1 ? "" : "s"} before
                       commit
@@ -462,7 +477,9 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                           <span className="inline-flex w-fit rounded-full bg-[#FEF3F2] px-2 py-0.5 font-semibold text-[#B42318]">
                             {fieldLabel(error.field)}
                           </span>
-                          <span className="text-[#7A271A]">{error.message}</span>
+                          <span className="min-w-0 break-words text-[#7A271A]">
+                            {error.message}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -479,17 +496,17 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
             </div>
           ) : null}
 
-          <div className="rounded-lg border border-[color:var(--border-primary)] bg-white p-3">
-            <div className="flex items-start gap-2">
+          <div className="min-w-0 rounded-lg border border-[color:var(--border-primary)] bg-white p-3">
+            <div className="flex min-w-0 items-start gap-2">
               <FileSpreadsheet className="mt-0.5 h-4 w-4 text-[color:var(--text-tertiary)]" />
-              <p className="text-xs text-[color:var(--text-tertiary)]">
+              <p className="min-w-0 break-words text-xs text-[color:var(--text-tertiary)]">
                 Optional pre-fill columns: {OPTIONAL_COLUMNS.join(", ")}.
               </p>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:flex-wrap sm:space-x-0">
           {isDirty ? (
             <Button type="button" variant="secondary" disabled={isBusy} onClick={reset}>
               Clear
