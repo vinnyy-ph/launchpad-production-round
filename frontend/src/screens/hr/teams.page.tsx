@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsDownUp, ChevronsUpDown, Network, Plus, Workflow } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Network, Plus, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Input, Skeleton } from "@/shared/ui";
 import {
@@ -17,12 +18,13 @@ import {
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
 import { CreateTeamDialog } from "@/modules/people/teams/components/create-team-dialog";
-import { TeamDetailsModal } from "@/modules/people/teams/components/team-details-modal";
 import {
   buildDepartmentOrgChart,
   type OrgChartItem,
 } from "@/modules/people/employees/components/org-chart/org-chart";
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
+import { OrgChartCanvas } from "@/modules/people/employees/components/org-chart/org-chart-canvas";
+import { EmployeeProfileSheet } from "@/modules/people/employees/components/employee-profile-sheet";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -49,6 +51,8 @@ function Avatar({ name, size = 7 }: { name: string; size?: 7 | 9 }) {
 }
 
 export default function TeamsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { appUser } = useAuth();
   const canManage = appUser?.role === "ADMIN" || appUser?.role === "HR";
 
@@ -63,19 +67,16 @@ export default function TeamsPage() {
   } = useEmployees({ limit: 100 });
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("org-chart");
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  // Open on the Teams tab when navigated back to with ?tab=teams (e.g. from a team detail page).
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get("tab") === "teams" ? "teams" : "org-chart",
+  );
   const [sort, setSort] = useState<DataTableSort>({ key: "name", direction: "asc" });
   const [search, setSearch] = useState("");
   const [leaderIds, setLeaderIds] = useState<Set<string>>(new Set());
   const debouncedSearch = useDebounce(search, 300);
 
   const existingNames = useMemo(() => teams.map((team) => team.name), [teams]);
-  // Read the selected team from the live list so the modal reflects member changes.
-  const selectedTeam = useMemo(
-    () => teams.find((team) => team.id === selectedTeamId) ?? null,
-    [teams, selectedTeamId],
-  );
 
   // Distinct team leaders, for the leader filter dropdown.
   const leaderOptions = useMemo(() => {
@@ -216,7 +217,7 @@ export default function TeamsPage() {
               isLoading={loading}
               error={error}
               onRetry={() => void reload()}
-              onRowClick={(team) => setSelectedTeamId(team.id)}
+              onRowClick={(team) => router.push(`/hr/teams/${team.id}`)}
               getRowId={(team) => team.id}
               sort={sort}
               onSortChange={setSort}
@@ -250,16 +251,6 @@ export default function TeamsPage() {
         employees={employees}
         existingNames={existingNames}
         onCreated={() => void reload()}
-      />
-
-      <TeamDetailsModal
-        team={selectedTeam}
-        open={selectedTeamId !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTeamId(null);
-        }}
-        canManage={canManage}
-        employees={employees}
       />
     </div>
   );
@@ -395,6 +386,16 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
 
+  // Employee whose detail drawer is open (clicked from a person card). Null = closed.
+  const [selected, setSelected] = useState<EmployeeListItem | null>(null);
+  // The canvas container element + whether it's full screen. In full screen the drawer must portal
+  // INTO this element, since a body-level portal would fall outside the fullscreen top layer.
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  // Bumped by expand-all / collapse-all so the canvas re-centers on those (but not on single-node
+  // toggles). Combined with the active filters into `recenterKey` below.
+  const [recenterEpoch, setRecenterEpoch] = useState(0);
+
   // Initial view: expand only the org root (CEO) so the departments show, but keep the
   // departments themselves collapsed (employees hidden) until the user drills in. Wait for
   // both queries to settle so `roots` already holds the CEO with its department children —
@@ -417,6 +418,11 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   // While filtering, reveal every match by expanding all parents; otherwise honor the user's
   // manual expand/collapse state (which defaults to just the CEO).
   const effectiveExpanded = isFiltering ? parentIds : expanded;
+
+  // Re-frame the chart whenever its layout shifts under the user: a new search, a department
+  // filter change, or expand/collapse all (tracked via `recenterEpoch`). Single-node toggles are
+  // intentionally excluded so drilling into one branch doesn't yank the whole view.
+  const recenterKey = `${debouncedSearch}|${[...departmentIds].sort().join(",")}|${recenterEpoch}`;
 
   if (loading || departmentsLoading) {
     return (
@@ -462,38 +468,52 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
           emptyText="No departments found."
           ariaLabel="Filter org chart by department"
         />
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setExpanded(new Set(parentIds))}>
-            <ChevronsUpDown aria-hidden="true" />
-            Expand all
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setExpanded(new Set(departmentsOnlyExpanded))}
-          >
-            <ChevronsDownUp aria-hidden="true" />
-            Collapse all
-          </Button>
-        </div>
       </div>
 
-      <div
-        className="overflow-x-auto rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
-        style={{ boxShadow: "var(--shadow-xs)" }}
-      >
-        {isFiltering && matchCount === 0 ? (
+      {isFiltering && matchCount === 0 ? (
+        <div
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
           <EmptyState
             icon={Workflow}
             title="No one matches that"
             body="Try a different name or department."
           />
-        ) : (
-          <div className="mx-auto w-max">
-            <OrgChartTree nodes={roots} expanded={effectiveExpanded} onToggle={toggle} />
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <OrgChartCanvas
+          containerRef={canvasRef}
+          onFullscreenChange={setIsFullscreen}
+          recenterKey={recenterKey}
+          onExpandAll={() => {
+            setExpanded(new Set(parentIds));
+            setRecenterEpoch((epoch) => epoch + 1);
+          }}
+          onCollapseAll={() => {
+            setExpanded(new Set(departmentsOnlyExpanded));
+            setRecenterEpoch((epoch) => epoch + 1);
+          }}
+        >
+          <OrgChartTree
+            nodes={roots}
+            expanded={effectiveExpanded}
+            onToggle={toggle}
+            onOpenProfile={(id) => {
+              const employee = employees.find((candidate) => candidate.id === id);
+              if (employee) setSelected(employee);
+            }}
+          />
+        </OrgChartCanvas>
+      )}
+
+      <EmployeeProfileSheet
+        employeeId={selected?.id ?? null}
+        fallbackEmployee={selected}
+        onClose={() => setSelected(null)}
+        // While full screen, portal the drawer into the canvas so it stays in the top layer.
+        container={isFullscreen ? canvasRef.current : null}
+      />
     </div>
   );
 }

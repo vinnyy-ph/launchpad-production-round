@@ -43,6 +43,7 @@
     "libphonenumber-js": "^1.13.7",
     "lucide-react": "^0.454.0",
     "next": "^14.2.15",
+    "philippines": "^1.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^10.0.1",
     "react-dom": "^18.3.1",

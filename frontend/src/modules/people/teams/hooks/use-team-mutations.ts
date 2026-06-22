@@ -7,8 +7,9 @@ import {
 } from "../services/teams.service";
 
 /**
- * Team management mutations (HR/Admin only): rename, add members, remove a member.
- * Each invalidates the teams list so every team card refreshes after a write.
+ * Team management mutations: rename, add members, remove a member. Renaming is an HR/Admin action;
+ * adding and removing members is allowed for HR/Admin and the team's own leader (enforced by the
+ * API). Each invalidates the teams list so every team view refreshes after a write.
  */
 export function useTeamMutations() {
   const queryClient = useQueryClient();

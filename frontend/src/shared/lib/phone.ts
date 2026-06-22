@@ -25,3 +25,29 @@ export async function isValidPhilippinePhone(value: string): Promise<boolean> {
   const { isValidPhoneNumber } = await loadPhoneUtils();
   return isValidPhoneNumber(value, PHILIPPINES);
 }
+
+/**
+ * Strict Philippine mobile check: exactly 11 digits starting with "09" in national form.
+ * Accepts the E.164 value the PhoneInput emits (+639XXXXXXXXX) since it maps to the same number.
+ * Synchronous so it can run inline during form submission without loading libphonenumber-js.
+ */
+export function isStrictPhilippineMobile(value: string): boolean {
+  const digits = value.replace(/\D/g, "");
+  // National form: 09XXXXXXXXX (11 digits).
+  if (/^09\d{9}$/.test(digits)) return true;
+  // E.164 form emitted by PhoneInput: +639XXXXXXXXX (digits-only: 639 + 9 more).
+  return /^639\d{9}$/.test(digits);
+}
+
+/**
+ * Normalize a stored PH mobile (national "09…", "639…", or "9…") to the E.164 form
+ * (+639XXXXXXXXX) the PhoneInput expects, so a freshly-loaded value doesn't read as an edit.
+ * Synchronous companion to {@link toE164}; leaves unrecognized values untouched.
+ */
+export function toPhilippineE164(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (/^09\d{9}$/.test(digits)) return `+63${digits.slice(1)}`;
+  if (/^639\d{9}$/.test(digits)) return `+${digits}`;
+  if (/^9\d{9}$/.test(digits)) return `+63${digits}`;
+  return value.trim();
+}

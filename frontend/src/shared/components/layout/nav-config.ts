@@ -119,12 +119,24 @@ const EXTRA_CRUMBS: Record<string, string[]> = {
 };
 
 /**
- * Deep-linkable sub-tabs of the People directory. They have no sidebar item of their own,
- * so `findNav` resolves their routes to "People"; the breadcrumb appends them explicitly.
+ * Sub-tabs of the People directory. They have no sidebar item of their own, so `findNav`
+ * resolves their routes to "People"; the breadcrumb appends them explicitly. The list views
+ * are reached via the `?tab=` query on `/hr/directory`, while the detail pages live under the
+ * `/hr/directory/<tab>/...` path — so each is matched by either its `tab` query or path `prefix`.
  */
-const DIRECTORY_SUBTABS: { prefix: string; label: string; href: string }[] = [
-  { prefix: "/hr/directory/onboarding", label: "Onboarding", href: "/hr/directory/onboarding" },
-  { prefix: "/hr/directory/offboarding", label: "Offboarding", href: "/hr/directory/offboarding" },
+const DIRECTORY_SUBTABS: { tab: string; prefix: string; label: string; href: string }[] = [
+  {
+    tab: "onboarding",
+    prefix: "/hr/directory/onboarding",
+    label: "Onboarding",
+    href: "/hr/directory?tab=onboarding",
+  },
+  {
+    tab: "offboarding",
+    prefix: "/hr/directory/offboarding",
+    label: "Offboarding",
+    href: "/hr/directory?tab=offboarding",
+  },
 ];
 
 /** Does this user hold the given role lane? `employee` is the base every authed user has. */
@@ -183,16 +195,17 @@ function extraCrumbsToTrail(labels: string[], href: string): BreadcrumbCrumb[] {
  * for other sidebar sections, then the non-sidebar `EXTRA_CRUMBS`. Empty when nothing matches.
  * Section-title crumbs are not navigable (no `href`); page crumbs carry their route.
  */
-export function breadcrumbForPath(pathname: string): BreadcrumbCrumb[] {
+export function breadcrumbForPath(pathname: string, tab?: string | null): BreadcrumbCrumb[] {
   const match = findNav(pathname);
   if (match) {
     const item: BreadcrumbCrumb = { label: match.item.label, href: match.item.href };
     const base: BreadcrumbCrumb[] =
       match.section.title === "General" ? [item] : [{ label: match.section.title }, item];
-    // The People directory's Onboarding/Offboarding sub-tabs are routes without a nav item,
-    // so add their crumb here (clickable back to the tab) when on one of those paths.
+    // The People directory's Onboarding/Offboarding sub-tabs have no nav item, so add their
+    // crumb here (clickable back to the tab). Match the list view by its `?tab=` query or the
+    // detail pages by their path prefix.
     if (match.item.href === "/hr/directory") {
-      const sub = DIRECTORY_SUBTABS.find((s) => pathname.startsWith(s.prefix));
+      const sub = DIRECTORY_SUBTABS.find((s) => tab === s.tab || pathname.startsWith(s.prefix));
       if (sub) base.push({ label: sub.label, href: sub.href });
     }
     return base;
