@@ -37,8 +37,29 @@ export class BulkOnboardingValidation {
 
       const rawRow = row as Record<string, unknown>;
       try {
-        const parsed = this.onboardingValidation.parseOnboardBody(rawRow);
-        rows.push({ ...parsed, rowNumber });
+        const supervisorEmail = this.optionalString(rawRow.supervisorEmail);
+        const supervisorId = this.optionalString(rawRow.supervisorId);
+
+        if (!supervisorEmail && !supervisorId) {
+          throw new Error("supervisorEmail is required");
+        }
+
+        const rowForParsing = {
+          ...rawRow,
+          supervisorId: supervisorId ?? "__pending_supervisor_email__",
+        };
+        const parsed = this.onboardingValidation.parseOnboardBody(rowForParsing);
+
+        if (!supervisorId) {
+          delete (parsed as Partial<typeof parsed>).supervisorId;
+        }
+
+        rows.push({
+          ...parsed,
+          ...(supervisorId ? { supervisorId } : {}),
+          ...(supervisorEmail ? { supervisorEmail: supervisorEmail.toLowerCase() } : {}),
+          rowNumber,
+        });
       } catch (error) {
         errors.push({
           rowNumber,
@@ -49,6 +70,20 @@ export class BulkOnboardingValidation {
     });
 
     return { totalRows: body.rows.length, rows, errors };
+  }
+
+  private optionalString(value: unknown): string | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    if (typeof value !== "string") {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+
+    return trimmed.length > 0 ? trimmed : undefined;
   }
 
   private resolveRowNumber(row: unknown, index: number): number {

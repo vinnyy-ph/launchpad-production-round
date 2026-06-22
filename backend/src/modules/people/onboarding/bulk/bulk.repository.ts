@@ -29,6 +29,36 @@ export class BulkOnboardingRepository {
     return new Set(supervisors.map((supervisor) => supervisor.id));
   }
 
+  async findSupervisorsByIds(supervisorIds: string[]) {
+    const supervisors = await prisma.employee.findMany({
+      where: { id: { in: supervisorIds } },
+      select: {
+        id: true,
+        companyEmail: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    return new Map(supervisors.map((supervisor) => [supervisor.id, supervisor]));
+  }
+
+  async findSupervisorsByEmails(supervisorEmails: string[]) {
+    const supervisors = await prisma.employee.findMany({
+      where: { companyEmail: { in: supervisorEmails } },
+      select: {
+        id: true,
+        companyEmail: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    return new Map(
+      supervisors.map((supervisor) => [supervisor.companyEmail.toLowerCase(), supervisor]),
+    );
+  }
+
   async findEmergencyContactNumbers(): Promise<string[]> {
     const contacts = await prisma.employeeEmergencyContact.findMany({
       select: { emergencyContactNumber: true },
