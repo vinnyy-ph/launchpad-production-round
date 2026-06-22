@@ -6,13 +6,10 @@ import { SURVEY_ERROR_MESSAGES } from "../../modules/performance/surveys/surveys
 // stub the client module just to satisfy the transitive import.
 jest.mock("../../core/database/prisma.service", () => ({ prisma: {} }));
 
-// Avoid pulling the scheduler/reminder read-path side effects into this unit; getMyAnswers
-// does not touch them, but the module-level imports would otherwise hit prisma.
+// Avoid pulling the scheduler read-path side effect into this unit; getMyAnswers does not
+// touch it, but the module-level import would otherwise hit prisma.
 jest.mock("../../modules/performance/surveys/occurrences/occurrence-scheduler", () => ({
   advanceDueOccurrences: jest.fn(),
-}));
-jest.mock("../../modules/performance/surveys/reminders/reminders.service", () => ({
-  sweepPulseReminders: jest.fn(),
 }));
 jest.mock("../../modules/performance/evaluations/ack-reminders", () => ({
   sweepEvalAckReminders: jest.fn(),

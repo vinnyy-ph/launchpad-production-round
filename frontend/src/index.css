@@ -99,6 +99,10 @@
     border: 1px solid transparent; background-clip: content-box;
   }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+  /* Hide the scrollbar but keep scrollability — for horizontally-scrollable tab strips. */
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
 }
 
 @layer components {
@@ -307,4 +311,88 @@
   0%, 100% { transform: translateX(0); }
   15%, 45%, 75% { transform: translateX(-6px); }
   30%, 60%, 90% { transform: translateX(6px); }
+}
+
+/* Employee onboarding — Review step recap */
+@layer components {
+  .ob-review-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+  }
+
+  .ob-review-field-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-doc-row {
+    border: 1px solid var(--border-primary);
+    border-radius: 0.5rem;
+    background: var(--bg-primary);
+    padding: 0.75rem 1rem;
+  }
+
+  .ob-review-next-box {
+    border: 1px solid var(--border-primary);
+    border-radius: 0.75rem;
+    background: var(--gray-50);
+    padding: 1rem 1.25rem;
+  }
+
+  .ob-submitted-card {
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
+  }
+
+  .ob-submitted-icon-box {
+    box-shadow: inset 0 0 0 1px rgba(14, 16, 27, 0.04);
+  }
+
+  .ob-submitted-body {
+    color: var(--gray-500);
+  }
+
+  .ob-review-timeline-marker--complete {
+    background: var(--color-success-600);
+  }
+
+  .ob-review-timeline-marker--pending {
+    border: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
+  }
+
+  .ob-review-timeline-line {
+    background: var(--gray-200);
+  }
+
+  .ob-review-timeline-line--complete {
+    background: var(--color-success-600);
+  }
+
+  .ob-review-action-link {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #3538cd;
+    transition: color 140ms var(--ease-standard);
+  }
+
+  .ob-review-action-link:hover {
+    color: #2d31a6;
+  }
+}
+
+/* Phone input — country trigger + number field share one control surface */
+@layer components {
+  .phone-input {
+    width: 100%;
+  }
+
+  .phone-input .PhoneInputInput {
+    flex: 1;
+    min-width: 0;
+  }
 }

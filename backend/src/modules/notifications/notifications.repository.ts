@@ -31,13 +31,19 @@ export class NotificationsRepository {
     });
   }
 
-  /** Loads an employee by ID with the linked auth user for notification delivery. */
+  /**
+   * Loads an employee by ID with the linked auth user for notification delivery, plus the
+   * email + name fields needed to also send a reminder email.
+   */
   async findEmployeeWithUserById(employeeId: string) {
     return prisma.employee.findUnique({
       where: { id: employeeId },
       select: {
         id: true,
         userId: true,
+        companyEmail: true,
+        firstName: true,
+        lastName: true,
       },
     });
   }

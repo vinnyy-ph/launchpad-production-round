@@ -2,10 +2,12 @@ import { Router } from "express";
 import { requireRole } from "../../../core/middleware/roles.middleware";
 import { SurveysController } from "./surveys.controller";
 import { ResultsController } from "./results/results.controller";
+import { InsightsController } from "./insights/insights.controller";
 
 const router = Router();
 const controller = new SurveysController();
 const resultsController = new ResultsController();
+const insightsController = new InsightsController();
 
 /** GET /api/v1/pulse/surveys/audience/options — HR only. Supervisors + teams for the audience picker. */
 router.get("/audience/options", requireRole("HR"), controller.getAudienceOptions);
@@ -18,6 +20,9 @@ router.get("/occurrences/:occurrenceId/results", resultsController.getOccurrence
 
 /** GET /api/v1/pulse/surveys/:id/results — Returns aggregated results for a survey. */
 router.get("/:id/results", resultsController.getSurveyResults);
+
+/** GET /api/v1/pulse/surveys/:id/insights — AI summary of open-text responses. Visibility-gated (not role-gated). */
+router.get("/:id/insights", insightsController.getSurveyInsights);
 
 /** GET /api/v1/pulse/surveys — HR only. Lists pulse surveys with optional status filter and pagination. */
 router.get("/", requireRole("HR"), controller.listSurveys);

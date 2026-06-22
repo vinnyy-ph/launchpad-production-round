@@ -8,6 +8,9 @@ import type {
   HrCompleteOnboardingResult,
   OnboardEmployeeInput,
   OnboardEmployeeResult,
+  BulkOnboardingCommitResult,
+  BulkOnboardingPreviewResult,
+  BulkOnboardingRowInput,
   OnboardingCustomFieldConfig,
   OnboardingDocStatus,
   OnboardingDocumentConfig,
@@ -145,6 +148,26 @@ export async function onboardEmployee(
   const res = await apiFetch<Envelope<OnboardEmployeeResult>>(HR_BASE, {
     method: "POST",
     body: JSON.stringify(input),
+  });
+  return res.data;
+}
+
+export async function previewBulkOnboarding(
+  rows: BulkOnboardingRowInput[],
+): Promise<BulkOnboardingPreviewResult> {
+  const res = await apiFetch<Envelope<BulkOnboardingPreviewResult>>(`${HR_BASE}/bulk/preview`, {
+    method: "POST",
+    body: JSON.stringify({ rows }),
+  });
+  return res.data;
+}
+
+export async function commitBulkOnboarding(
+  rows: BulkOnboardingRowInput[],
+): Promise<BulkOnboardingCommitResult> {
+  const res = await apiFetch<Envelope<BulkOnboardingCommitResult>>(`${HR_BASE}/bulk/commit`, {
+    method: "POST",
+    body: JSON.stringify({ rows }),
   });
   return res.data;
 }

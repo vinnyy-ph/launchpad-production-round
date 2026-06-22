@@ -1,0 +1,16 @@
+// Cached AI summary of a survey's open-text responses, per viewer scope.
+// scopeKey is "ALL" for HR/root; otherwise the viewer's employeeId.
+model SurveyInsight {
+  id            String      @id @default(uuid())
+  surveyId      String
+  survey        PulseSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  scopeKey      String
+  payload       Json
+  responseCount Int
+  model         String
+  generatedAt   DateTime    @default(now())
+
+  @@unique([surveyId, scopeKey])
+  @@index([surveyId])
+  @@map("survey_insights")
+}

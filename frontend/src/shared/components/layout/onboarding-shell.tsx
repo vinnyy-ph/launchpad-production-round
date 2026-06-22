@@ -1,8 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
+import { signOutUser } from "@/modules/auth/services/auth.service";
+import { Button } from "@/shared/ui/primitives/button";
 
 /**
  * Focused chrome for the onboarding wizard. A still-onboarding hire has no other
@@ -17,8 +21,14 @@ function initialsOf(name: string): string {
 }
 
 export function OnboardingShell({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const { appUser } = useAuth();
   const initials = appUser?.displayName ? initialsOf(appUser.displayName) : "";
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    router.push("/login");
+  };
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--bg-secondary)" }}>
@@ -47,6 +57,17 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
               {appUser.displayName}
             </span>
           )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleSignOut()}
+            aria-label="Sign out"
+            className="text-[color:var(--text-secondary)]"
+          >
+            <LogOut size={14} />
+            <span className="hidden sm:inline">Sign out</span>
+          </Button>
         </div>
       </header>
       <main className="flex-1 overflow-y-auto">

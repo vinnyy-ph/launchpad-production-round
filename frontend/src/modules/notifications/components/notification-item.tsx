@@ -28,6 +28,13 @@ function resolveRoute(n: Notification): string | null {
       return id
         ? `/employee/surveys?tab=acknowledgements&eval=${id}`
         : "/employee/surveys?tab=acknowledgements";
+    case "EVAL_DEEMED_ACK":
+      // Sent to both parties under one type; the reviewer's copy carries a /supervisor
+      // linkUrl, the reviewee's an /evaluations/:id link — route off that prefix.
+      if (n.linkUrl?.startsWith("/supervisor")) return "/supervisor/evaluations";
+      return id
+        ? `/employee/surveys?tab=acknowledgements&eval=${id}`
+        : "/employee/surveys?tab=acknowledgements";
     case "CLEARANCE_SIGN_REQUEST":
     case "CLEARANCE_REJECTED":
       return "/employee/clearance";

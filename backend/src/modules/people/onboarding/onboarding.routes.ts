@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireRole } from "../../../core/middleware/roles.middleware";
+import { bulkOnboardingRouter } from "./bulk";
 import { customFieldsRouter } from "./custom-fields";
 import { documentReviewsRouter } from "./document-reviews";
 import { documentsRouter } from "./documents";
@@ -41,3 +42,6 @@ onboardingRouter.use("/custom-fields", customFieldsRouter);
 
 /** HR-managed onboarding invitations. */
 onboardingRouter.use("/invitations", invitationRouter);
+
+/** HR bulk onboarding upload preview and commit. */
+onboardingRouter.use("/bulk", bulkOnboardingRouter);

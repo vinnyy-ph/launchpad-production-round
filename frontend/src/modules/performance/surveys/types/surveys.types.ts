@@ -251,6 +251,28 @@ export interface ResultsFilter {
   supervisorId?: string;
 }
 
+// ─── AI Insights (PER-12) ──────────────────────────────────────────────────────
+
+export type InsightSentiment = "positive" | "neutral" | "negative" | "mixed";
+
+export interface SurveyInsight {
+  surveyId: string;
+  available: boolean;
+  reason?: "no_open_text" | "no_responses";
+  suppressed: boolean;
+  isAnonymous: boolean;
+  responseCount: number;
+  model: string | null;
+  generatedAt: string | null;
+  cached: boolean;
+  insight?: {
+    oneLiner: string;
+    sentiment: { overall: InsightSentiment; rationale: string };
+    themes: { label: string; description: string }[];
+    quotes: string[];
+  };
+}
+
 // ─── Inputs ───────────────────────────────────────────────────────────────────
 
 export interface QuestionInput {

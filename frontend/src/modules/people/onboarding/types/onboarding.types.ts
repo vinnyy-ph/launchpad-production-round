@@ -80,6 +80,42 @@ export interface OnboardEmployeeInput {
   emergencyContact?: string;
 }
 
+export type BulkOnboardingRowInput = Omit<OnboardEmployeeInput, "supervisorId"> & {
+  rowNumber: number;
+  supervisorId?: string;
+  supervisorEmail?: string;
+};
+
+export interface BulkOnboardingRowError {
+  rowNumber: number;
+  field: string;
+  message: string;
+}
+
+export interface BulkOnboardingPreviewResult {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  errors: BulkOnboardingRowError[];
+  rows: BulkOnboardingPreviewRow[];
+}
+
+export interface BulkOnboardingPreviewRow {
+  rowNumber: number;
+  employeeName: string;
+  companyEmail: string;
+  jobTitle: string;
+  department: string;
+  supervisorEmail: string | null;
+  supervisorName: string | null;
+  status: "valid" | "invalid";
+}
+
+export interface BulkOnboardingCommitResult {
+  created: OnboardEmployeeResult[];
+  inviteFailures: BulkOnboardingRowError[];
+}
+
 export interface OnboardedEmployee {
   id: string;
   companyEmail: string;
@@ -144,6 +180,7 @@ export interface OnboardingProfile {
   firstName: string;
   lastName: string;
   middleName: string | null;
+  companyEmail?: string | null;
   personalEmail: string | null;
   birthday: string | null;
   address: OnboardingAddress | null;

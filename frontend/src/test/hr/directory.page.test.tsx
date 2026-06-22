@@ -64,10 +64,16 @@ jest.mock("@/shared/hooks/use-debounce", () => ({
   useDebounce: <T,>(value: T) => value,
 }));
 
+const mockReplace = jest.fn();
+const mockSearchParamsGet = jest.fn((_key: string) => null as string | null);
+
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace, prefetch: jest.fn() }),
   usePathname: () => "/hr/directory",
   useParams: () => ({}),
+  useSearchParams: () => ({
+    get: (key: string) => mockSearchParamsGet(key),
+  }),
 }));
 
 import DirectoryPage from "@/screens/hr/directory.page";
@@ -138,6 +144,7 @@ function employeeHookResult(overrides: Record<string, unknown> = {}) {
 
 describe("DirectoryPage", () => {
   beforeEach(() => {
+    mockSearchParamsGet.mockImplementation((_key: string) => null);
     mockUseTeams.mockReturnValue({
       teams: [
         { id: "team-1", name: "Platform" },
@@ -317,5 +324,15 @@ describe("DirectoryPage", () => {
     mockUseEmployees.mockReturnValue(employeeHookResult({ employees: [], error: "Boom" }));
     renderPage();
     expect(screen.getByText("Boom")).toBeInTheDocument();
+  });
+
+  it("renders onboarding cases when ?tab=onboarding is in the URL", () => {
+    mockSearchParamsGet.mockImplementation((key: string) => (key === "tab" ? "onboarding" : null));
+    mockUseEmployees.mockReturnValue(employeeHookResult());
+    renderPage();
+
+    expect(screen.getByLabelText("Search onboarding cases")).toBeInTheDocument();
+    expect(screen.getByText("No one's onboarding right now")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Search employees")).not.toBeInTheDocument();
   });
 });

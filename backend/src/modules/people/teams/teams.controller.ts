@@ -24,8 +24,18 @@ export class TeamsController {
     next: NextFunction,
   ) => {
     try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
       const filters = this.teamsValidation.parseListTeamsQuery(req.query);
-      const result = await this.teamsService.listTeams(filters);
+      const result = await this.teamsService.listTeams(filters, {
+        userId: req.user.id,
+        role: req.user.role,
+      });
       return res.json(result);
     } catch (error) {
       return next(error);

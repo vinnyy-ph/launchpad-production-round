@@ -43,6 +43,7 @@ export class EmployeesValidation {
       teamIds: this.parseIdList(query.teamIds),
       departmentIds: this.parseIdList(query.departmentId),
       supervisorIds: this.parseIdList(query.supervisorId),
+      reportingToId: this.parseOptionalString(query.reportingToId),
       sortBy: this.parseSortBy(query.sortBy),
       sortDirection: this.parseSortDirection(query.sortDirection),
     };

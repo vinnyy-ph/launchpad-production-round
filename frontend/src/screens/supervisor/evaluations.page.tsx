@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { format, startOfMonth, endOfMonth, isBefore } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import {
   ClipboardCheck,
   Plus,
-  Pencil,
   Trash2,
   Send,
   Eye,
   ChevronLeft,
   ArrowUpDown,
   FileText,
+  Search,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -74,19 +74,9 @@ import {
 } from "@/modules/performance/evaluations";
 import { useAutosave } from "@/modules/performance/shared/use-autosave";
 import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
+import { formatPeriod } from "./evaluations.format";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** A period interval, hyphen-separated. Drops the year when both ends fall in the current year. */
-function formatPeriod(startIso: string, endIso: string): string {
-  const from = new Date(startIso);
-  const to = new Date(endIso);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return "—";
-  const currentYear = new Date().getFullYear();
-  const sameYear = from.getFullYear() === currentYear && to.getFullYear() === currentYear;
-  const fmt = sameYear ? "LLL d" : "LLL d, yyyy";
-  return `${format(from, fmt)} - ${format(to, fmt)}`;
-}
 
 /** A single date, relative when near today (Yesterday/Today/Tomorrow/Next <weekday>),
  *  otherwise an absolute date with the year dropped when it falls in the current year. */
@@ -128,27 +118,15 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-type AckTone = "warning" | "success" | "info" | "error";
+type AckTone = "warning" | "success" | "info";
 
-/** Acknowledgement status for the table, surfacing the deadline / overdue signal. */
-function ackInfo(
-  ev: Evaluation,
-): { status: string; tone: AckTone; note: string | null } | null {
+/** Acknowledgement status for the table: Pending / Acknowledged / Auto-acknowledged (no overdue). */
+function ackInfo(ev: Evaluation): { status: string; tone: AckTone } | null {
   if (!ev.isSent) return null;
   const ack = ev.acknowledgement;
-  if (ack?.acknowledgedAt && !ack.isDeemedAck) return { status: "ACKNOWLEDGED", tone: "success", note: null };
-  if (ack?.isDeemedAck) return { status: "DEEMED_ACK", tone: "info", note: null };
-  // Still pending — escalate to overdue once the ack deadline has passed.
-  const deadline = ev.ackDeadline ? new Date(ev.ackDeadline) : null;
-  const validDeadline = deadline && !Number.isNaN(deadline.getTime()) ? deadline : null;
-  if (validDeadline && isBefore(validDeadline, new Date())) {
-    return { status: "OVERDUE", tone: "error", note: `due ${format(validDeadline, "LLL d")}` };
-  }
-  return {
-    status: "PENDING",
-    tone: "warning",
-    note: validDeadline ? `due ${format(validDeadline, "LLL d")}` : null,
-  };
+  if (ack?.acknowledgedAt && !ack.isDeemedAck) return { status: "Acknowledged", tone: "success" };
+  if (ack?.isDeemedAck) return { status: "Auto-acknowledged", tone: "info" };
+  return { status: "Pending", tone: "warning" };
 }
 
 // Overall-rating options — number, label, and a one-line bar for each level.
@@ -377,9 +355,10 @@ interface EditorProps {
   onClose: () => void;
   initial: Evaluation | null;
   reviewees: Reviewee[];
-  saving: boolean;
   onSubmit: (input: EvaluationInput, files: File[]) => void;
   onRequestSend: (payload: SendPayload) => void;
+  /** Request deletion of the current draft (opens the parent's confirm). Drafts only. */
+  onRequestDelete?: () => void;
   /** Silent autosave persist. Creates when no id, updates otherwise; returns the draft id. */
   onAutosave?: (input: EvaluationInput, draftId: string | null) => Promise<string>;
 }
@@ -401,9 +380,9 @@ function EvaluationEditorDialog({
   onClose,
   initial,
   reviewees,
-  saving,
   onSubmit,
   onRequestSend,
+  onRequestDelete,
   onAutosave,
 }: EditorProps) {
   const [revieweeId, setRevieweeId] = useState("");
@@ -464,6 +443,9 @@ function EvaluationEditorDialog({
   // Hydrate once per open. Guarded so autosave creating the draft — which flips `initial`
   // from null to the saved evaluation — does not re-hydrate over the in-progress edits.
   const hydratedRef = useRef(false);
+  // Guards the save-on-close (files path) against re-entry while its upload is in flight, so a
+  // double Cancel/Esc/backdrop can't create two drafts. Reset on each open.
+  const closeSavingRef = useRef(false);
   useEffect(() => {
     if (!open) {
       hydratedRef.current = false;
@@ -471,6 +453,7 @@ function EvaluationEditorDialog({
     }
     if (hydratedRef.current) return;
     hydratedRef.current = true;
+    closeSavingRef.current = false;
     setStep("form");
     let baseline: EvalSnapshot;
     if (initial) {
@@ -609,6 +592,27 @@ function EvaluationEditorDialog({
     onRequestSend({ existing: initial, input, name: previewName, files: localFiles });
   };
 
+  /** Leave the editor, keeping the work. Autosave persists the text fields but never uploads
+   *  files — so when attachments are pending on a persistable draft, do a real save (which
+   *  uploads them) and let the page close on success; otherwise just flush the text autosave. */
+  const handleClose = () => {
+    if (isViewOnly) {
+      onClose();
+      return;
+    }
+    autosave.cancel();
+    const input = buildInput();
+    if (localFiles.length > 0 && canPersist && input) {
+      if (closeSavingRef.current) return; // an upload-on-close is already running
+      closeSavingRef.current = true;
+      autosave.clearBuffer();
+      onSubmit(input, localFiles); // the page closes the editor on success
+      return;
+    }
+    autosave.flush();
+    onClose();
+  };
+
   const revieweeName = (id: string) => reviewees.find((r) => r.id === id)?.fullName ?? id;
 
   const previewName = initial?.reviewee?.fullName ?? (revieweeId ? revieweeName(revieweeId) : "the employee");
@@ -625,18 +629,15 @@ function EvaluationEditorDialog({
       : "Evaluate one of your direct reports for a set period. It saves as a draft you can edit until you send.";
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent
         className="dialog-pop flex max-h-[90vh] flex-col gap-0 sm:max-w-2xl"
         // Block Radix's own outside-dismiss so portaled Selects / date pickers / dropdowns
         // (incl. clicking a trigger again to close it) can never close the modal. A real
-        // backdrop click closes it explicitly via onOverlayClick, flushing the draft.
+        // backdrop click closes it explicitly via onOverlayClick, keeping the draft.
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        onOverlayClick={() => {
-          if (!isViewOnly) autosave.flush();
-          onClose();
-        }}
+        onOverlayClick={handleClose}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -668,7 +669,8 @@ function EvaluationEditorDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            // Form step → advance to the preview; preview step → save as a draft.
+            // Form step → advance to the preview. (The preview step has no submit button; the
+            // draft autosaves and persists on close.)
             if (!isViewOnly && step === "form") setStep("preview");
             else handleSubmit();
           }}
@@ -676,7 +678,7 @@ function EvaluationEditorDialog({
         >
           {/* Scroll region — full-bleed so the thin scrollbar sits at the modal edge,
               while content stays padded in line with the header. */}
-          <div className="-mx-6 mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-1 scrollbar-thin">
+          <div className="-mx-6 mt-4 min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-5 scrollbar-thin">
             {showPreview ? (
               // ── Employee-facing preview ──────────────────────────────────────
               <div
@@ -884,7 +886,7 @@ function EvaluationEditorDialog({
                   htmlFor="ev-summary"
                   error={errors.summary}
                   hint="A short narrative tying the period together."
-                  optional
+                  required
                   hintAbove
                 >
                   <Textarea
@@ -999,7 +1001,7 @@ function EvaluationEditorDialog({
             )}
           </div>
 
-          {/* Bottom bar — divider sits flush with the scroll edge (no gap above the line) */}
+          {/* Bottom bar — the scroll region's pb keeps content off the divider above it */}
           <div className="flex items-center gap-2 border-t border-[color:var(--border-primary)] pt-4">
             {!isViewOnly && (
               <DraftSaveStatus
@@ -1009,9 +1011,14 @@ function EvaluationEditorDialog({
                 onRetry={autosave.retry}
               />
             )}
-            {!isViewOnly && step === "preview" && (
-              <Button variant="ghost" type="button" onClick={() => setStep("form")}>
-                <ChevronLeft size={14} className="mr-1" /> Back
+            {isDraft && onRequestDelete && (
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={onRequestDelete}
+                className="text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+              >
+                <Trash2 size={14} className="mr-1" /> Delete draft
               </Button>
             )}
             <div className="ml-auto flex gap-2">
@@ -1021,7 +1028,7 @@ function EvaluationEditorDialog({
                 </Button>
               ) : step === "form" ? (
                 <>
-                  <Button variant="secondary" type="button" onClick={onClose}>
+                  <Button variant="secondary" type="button" onClick={handleClose}>
                     Cancel
                   </Button>
                   <TooltipProvider delayDuration={0}>
@@ -1043,12 +1050,14 @@ function EvaluationEditorDialog({
                   </TooltipProvider>
                 </>
               ) : (
+                // Preview step. No explicit "Save as draft" — the draft autosaves; Back, Cancel
+                // and Send sit together as one action group.
                 <>
-                  <Button variant="secondary" type="button" onClick={onClose}>
-                    Cancel
+                  <Button variant="ghost" type="button" onClick={() => setStep("form")}>
+                    <ChevronLeft size={14} className="mr-1" /> Back
                   </Button>
-                  <Button type="submit" variant="secondary" disabled={saving}>
-                    {saving ? "Saving…" : "Save as draft"}
+                  <Button variant="secondary" type="button" onClick={handleClose}>
+                    Cancel
                   </Button>
                   <Button type="button" onClick={handleSend}>
                     <Send size={14} className="mr-1" /> Send
@@ -1065,7 +1074,7 @@ function EvaluationEditorDialog({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-type StatusFilter = "ALL" | "sent" | "draft" | "answered";
+type StatusFilter = "ALL" | "sent" | "draft";
 
 const PAGE_SIZE = 10;
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -1073,7 +1082,7 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "period", label: "Period" },
   { value: "grade", label: "Grade" },
   { value: "status", label: "Status" },
-  { value: "due", label: "Due date" },
+  { value: "due", label: "Acknowledgement due" },
 ];
 
 export default function EvaluationsPage() {
@@ -1118,15 +1127,12 @@ export default function EvaluationsPage() {
 
   const draftCount = evals.filter((e) => !e.isSent).length;
   const sentCount = evals.filter((e) => e.isSent).length;
-  const ackedCount = evals.filter((e) => e.acknowledgement?.acknowledgedAt).length;
 
   // Search + status filter, then sort — all client-side over this supervisor's set.
   const filtered = useMemo(() => {
     let list = evals;
     if (statusFilter === "draft") list = list.filter((e) => !e.isSent);
     else if (statusFilter === "sent") list = list.filter((e) => e.isSent);
-    else if (statusFilter === "answered")
-      list = list.filter((e) => !!e.acknowledgement?.acknowledgedAt);
     const q = search.trim().toLowerCase();
     if (q) list = list.filter((e) => nameOf(e).toLowerCase().includes(q));
     return list;
@@ -1273,6 +1279,7 @@ export default function EvaluationsPage() {
   const columns: Column<Evaluation>[] = [
     {
       header: "Reviewee",
+      className: "w-full",
       sortable: true,
       sortKey: "reviewee",
       cell: (ev) => (
@@ -1283,6 +1290,7 @@ export default function EvaluationsPage() {
     },
     {
       header: "Period",
+      className: "text-right whitespace-nowrap",
       sortable: true,
       sortKey: "period",
       cell: (ev) => (
@@ -1293,12 +1301,14 @@ export default function EvaluationsPage() {
     },
     {
       header: "Grade",
+      className: "text-right whitespace-nowrap",
       sortable: true,
       sortKey: "grade",
       cell: (ev) => (
         <div>
           <span className="text-sm font-semibold text-[color:var(--text-primary)]">{ev.grade}</span>
-          <span className="ml-1.5 text-xs text-[color:var(--text-tertiary)]">
+          {/* Label is hidden on mobile cards — the number alone reads cleanly there. */}
+          <span className="ml-1.5 hidden text-xs text-[color:var(--text-tertiary)] md:inline">
             {GRADE_LABELS[ev.grade]}
           </span>
         </div>
@@ -1307,6 +1317,7 @@ export default function EvaluationsPage() {
     {
       header: "Status",
       mobileLabel: "Status",
+      className: "text-right",
       sortable: true,
       sortKey: "status",
       cell: (ev) => <StatusBadge status={ev.isSent ? "SENT" : "DRAFT"} dot />,
@@ -1314,6 +1325,7 @@ export default function EvaluationsPage() {
     {
       header: "Acknowledgement",
       mobileLabel: "Acknowledgement",
+      className: "text-right",
       cell: (ev) => {
         const ack = ackInfo(ev);
         if (!ack) return <span className="text-xs text-[color:var(--text-quaternary)]">—</span>;
@@ -1321,95 +1333,21 @@ export default function EvaluationsPage() {
       },
     },
     {
-      header: "Due date",
-      mobileLabel: "Due date",
+      header: "Acknowledgement due",
+      mobileLabel: "Acknowledgement due",
+      className: "text-right whitespace-nowrap",
       sortable: true,
       sortKey: "due",
       cell: (ev) => {
         const deadline = ev.isSent && ev.ackDeadline ? new Date(ev.ackDeadline) : null;
         if (!deadline || Number.isNaN(deadline.getTime()))
           return <span className="text-xs text-[color:var(--text-quaternary)]">—</span>;
-        const overdue = ackInfo(ev)?.status === "OVERDUE";
         return (
-          <span
-            className={
-              overdue
-                ? "text-sm font-medium text-[#B42318]"
-                : "text-sm text-[color:var(--text-secondary)]"
-            }
-          >
+          <span className="text-sm text-[color:var(--text-secondary)]">
             {formatRelativeDate(ev.ackDeadline as string)}
           </span>
         );
       },
-    },
-    {
-      header: "",
-      mobileFooter: true,
-      className: "w-[1%] whitespace-nowrap text-right",
-      cell: (ev) => (
-        <div className="flex w-full justify-end">
-          <div className="inline-flex items-center gap-1">
-            {ev.isSent ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openRow(ev);
-                }}
-                aria-label="View evaluation"
-                title="View evaluation"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openRow(ev);
-                  }}
-                  aria-label="Edit draft"
-                  title="Edit draft"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-[color:hsl(var(--primary))] hover:bg-gray-50 hover:text-[color:hsl(var(--primary))]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPendingSend({ existing: ev, name: nameOf(ev) });
-                  }}
-                  aria-label="Send evaluation"
-                  title="Send evaluation"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeletingId(ev.id);
-                  }}
-                  aria-label="Delete draft"
-                  title="Delete draft"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      ),
     },
   ];
 
@@ -1428,14 +1366,13 @@ export default function EvaluationsPage() {
       <div
         role="tablist"
         aria-label="Filter by status"
-        className="mb-5 flex items-center gap-6 overflow-x-auto border-b border-[color:var(--border-primary)]"
+        className="mb-5 flex items-center gap-6 overflow-x-auto overflow-y-hidden scrollbar-none border-b border-[color:var(--border-primary)]"
       >
         {(
           [
             { value: "ALL", label: "All", count: evals.length },
-            { value: "sent", label: "Sent", count: sentCount },
             { value: "draft", label: "Drafts", count: draftCount },
-            { value: "answered", label: "Answered", count: ackedCount },
+            { value: "sent", label: "Sent", count: sentCount },
           ] as { value: StatusFilter; label: string; count: number }[]
         ).map((t) => {
           const active = statusFilter === t.value;
@@ -1479,14 +1416,20 @@ export default function EvaluationsPage() {
 
       <FilterBar aria-label="Filter evaluations" className="gap-3">
         <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <Input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by reviewee…"
-            aria-label="Search evaluations"
-            className="w-full sm:max-w-[320px]"
-          />
+          <div className="relative w-full sm:max-w-[320px]">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
+            />
+            <Input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by employee"
+              aria-label="Search evaluations"
+              className="w-full pl-9"
+            />
+          </div>
           <div className="flex w-full gap-2 md:hidden">
             <Select
               value={sort.key}
@@ -1558,9 +1501,9 @@ export default function EvaluationsPage() {
         onClose={() => setEditorOpen(false)}
         initial={editing}
         reviewees={revieweeList}
-        saving={createMutation.isPending || updateMutation.isPending}
         onSubmit={handleSubmit}
         onRequestSend={(payload) => setPendingSend(payload)}
+        onRequestDelete={() => editing && setDeletingId(editing.id)}
         onAutosave={handleAutosave}
       />
 
