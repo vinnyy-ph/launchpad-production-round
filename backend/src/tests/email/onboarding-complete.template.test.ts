@@ -12,7 +12,9 @@ describe("buildOnboardingCompleteEmailHtml", () => {
     expect(html).toContain("Manage Jia");
     expect(html).toContain("Your account is active — onboarding complete.");
     expect(html).toContain("Go to Manage Jia");
-    expect(html).toContain("data:image/png;base64,");
+    // Logo is a CID inline attachment, not a base64 data URI (see jia-logo.ts).
+    expect(html).toContain('src="cid:jia-logo@managejia"');
+    expect(html).not.toContain("data:image/png;base64,");
     expect(html).toContain('href="http://localhost:3000"');
   });
 
