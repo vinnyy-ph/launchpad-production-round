@@ -26,7 +26,7 @@ const supervisor = {
 
 function buildRow(overrides: Record<string, unknown> = {}) {
   return {
-    rowNumber: 2,
+    rowNumber: 1,
     companyEmail: "new.hire@example.com",
     firstName: "New",
     lastName: "Hire",
@@ -95,7 +95,7 @@ describe("bulk onboarding supervisor email resolution", () => {
 
     expect(preview.errors).toEqual([]);
     expect(preview.rows[0]).toMatchObject({
-      rowNumber: 2,
+      rowNumber: 1,
       supervisorEmail: "jane.manager@example.com",
       supervisorName: "Jane Manager",
       status: "valid",
@@ -111,7 +111,7 @@ describe("bulk onboarding supervisor email resolution", () => {
 
     expect(preview.errors).toEqual([
       {
-        rowNumber: 2,
+        rowNumber: 1,
         field: "supervisorEmail",
         message: "Supervisor not found.",
       },
@@ -173,7 +173,7 @@ describe("bulk onboarding supervisor email resolution", () => {
     expect(preview.errors).toEqual(
       expect.arrayContaining([
         {
-          rowNumber: 2,
+          rowNumber: 1,
           field: "companyEmail",
           message: "An employee with this email already exists.",
         },
