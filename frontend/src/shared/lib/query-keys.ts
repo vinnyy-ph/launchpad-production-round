@@ -90,5 +90,7 @@ export const queryKeys = {
       ["surveys", "mine", "answered", occurrenceId] as const,
     // Surveys whose results the signed-in user may view.
     viewableResults: ["surveys", "viewable-results"] as const,
+    // AI insight summary for a survey's open-text responses.
+    insights: (id: string) => ["surveys", "insights", id] as const,
   },
 } as const;

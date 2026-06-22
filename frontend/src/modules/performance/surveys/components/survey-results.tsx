@@ -7,7 +7,6 @@ import {
   Download,
   Lock,
   RefreshCw,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge, BadgeDot, Button } from "@/shared/ui";
@@ -30,6 +29,7 @@ import {
   deriveStatus,
 } from "../types/surveys.types";
 import { ResultsFilters } from "./results/results-filters";
+import { AiInsightsPanel } from "./ai-insights-panel";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -247,18 +247,10 @@ function OpenTextBody({
   const hidden = isAnonymous || q.responses.length === 0;
   return (
     <div>
-      <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3.5">
         <span className="text-[13.5px] text-[color:var(--text-tertiary)]">
           {q.responseCount} written {q.responseCount === 1 ? "response" : "responses"}
         </span>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => toast.info("AI summary is coming soon.")}
-        >
-          <Sparkles size={15} className="text-[color:var(--brand-blue)]" />
-          Summarize with AI
-        </Button>
       </div>
       {isAnonymous ? (
         <p className="rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[13.5px] text-[color:var(--text-tertiary)]">
@@ -424,6 +416,16 @@ export function SurveyResults({
             />
             <StatCard value={untilCloses} label="Until it closes" />
           </div>
+
+          {!results.suppressed && results.totalResponses > 0 && (
+            <AiInsightsPanel
+              surveyId={surveyId}
+              isAnonymous={results.isAnonymous}
+              hasOpenText={results.questions.some(
+                (q) => q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER",
+              )}
+            />
+          )}
 
           {/* Filters + showing line */}
           {canFilter && <ResultsFilters filter={filter} onChange={setFilter} />}

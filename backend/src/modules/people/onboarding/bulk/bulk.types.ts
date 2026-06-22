@@ -1,8 +1,10 @@
 
 import type { OnboardEmployeeDataDto, OnboardEmployeeRequestDto } from "../dto";
 
-export type BulkOnboardingRowInput = OnboardEmployeeRequestDto & {
+export type BulkOnboardingRowInput = Omit<OnboardEmployeeRequestDto, "supervisorId"> & {
   rowNumber: number;
+  supervisorId?: string;
+  supervisorEmail?: string;
 };
 
 export interface BulkOnboardingRowError {
@@ -16,6 +18,18 @@ export interface BulkOnboardingPreviewData {
   validRows: number;
   invalidRows: number;
   errors: BulkOnboardingRowError[];
+  rows: BulkOnboardingPreviewRow[];
+}
+
+export interface BulkOnboardingPreviewRow {
+  rowNumber: number;
+  employeeName: string;
+  companyEmail: string;
+  jobTitle: string;
+  department: string;
+  supervisorEmail: string | null;
+  supervisorName: string | null;
+  status: "valid" | "invalid";
 }
 
 export interface ParsedBulkOnboardingRows {

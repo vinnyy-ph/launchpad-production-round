@@ -2,11 +2,13 @@ import "dotenv/config";
 import { prisma } from "../core/database/prisma.service";
 import { runDeemedAckSweep } from "./deemed-ack.job";
 import { runEvalAckReminderSweep } from "./eval-ack-reminder.job";
+import { runSurveyReminderSweep } from "./survey-reminder.job";
 
 /** Every daily-cadence sweep, run from a single cron. Add new daily jobs as one line each. */
 const DAILY_JOBS: ReadonlyArray<{ name: string; run: () => Promise<unknown> }> = [
   { name: "deemed-ack", run: () => runDeemedAckSweep() },
   { name: "eval-ack-reminder", run: () => runEvalAckReminderSweep() },
+  { name: "survey-reminder", run: () => runSurveyReminderSweep() },
 ];
 
 /**
