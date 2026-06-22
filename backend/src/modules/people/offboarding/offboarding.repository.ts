@@ -44,6 +44,16 @@ export class OffboardingRepository {
     });
   }
 
+  /** Counts direct reports and led teams that must be reassigned before offboarding. */
+  async countTransitionResponsibilities(employeeId: string) {
+    const [directReports, ledTeams] = await Promise.all([
+      prisma.employee.count({ where: { supervisorId: employeeId } }),
+      prisma.team.count({ where: { leaderId: employeeId } }),
+    ]);
+
+    return { directReports, ledTeams };
+  }
+
   /** Returns the in-flight offboarding record for an employee, if any. */
   async findActiveRecordByEmployeeId(employeeId: string) {
     return prisma.offboardingRecord.findUnique({
@@ -104,6 +114,7 @@ export class OffboardingRepository {
           initiatedById,
           tenderDate: new Date(dto.tenderDate),
           effectiveDate: new Date(dto.effectiveDate),
+          attachmentUrl: dto.attachmentUrl,
           status: "IN_PROGRESS",
         },
       });
@@ -162,17 +173,25 @@ export class OffboardingRepository {
    * Reassigns every direct report of the offboardee to a new supervisor and
    * transfers leadership of any team the offboardee leads — atomically.
    */
-  async reassignReportsAndTeams(offboardeeId: string, newSupervisorId: string) {
+  async reassignReportsAndTeams(
+    offboardeeId: string,
+    newSupervisorId: string | undefined,
+    newTeamLeaderId: string | undefined = newSupervisorId,
+  ) {
     return prisma.$transaction(async (tx) => {
-      const reports = await tx.employee.updateMany({
-        where: { supervisorId: offboardeeId },
-        data: { supervisorId: newSupervisorId },
-      });
+      const reports = newSupervisorId
+        ? await tx.employee.updateMany({
+            where: { supervisorId: offboardeeId },
+            data: { supervisorId: newSupervisorId },
+          })
+        : { count: 0 };
 
-      const teams = await tx.team.updateMany({
-        where: { leaderId: offboardeeId },
-        data: { leaderId: newSupervisorId },
-      });
+      const teams = newTeamLeaderId
+        ? await tx.team.updateMany({
+            where: { leaderId: offboardeeId },
+            data: { leaderId: newTeamLeaderId },
+          })
+        : { count: 0 };
 
       return { reassignedReports: reports.count, reassignedTeams: teams.count };
     });
