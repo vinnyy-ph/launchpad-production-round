@@ -154,19 +154,6 @@ function OffboardingDetailInner() {
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <p className="mb-2 text-xs text-[color:var(--text-tertiary)]">
-        <span className="cursor-pointer hover:underline" onClick={() => router.push("/hr")}>
-          HR
-        </span>
-        {" › "}
-        <span className="cursor-pointer hover:underline" onClick={() => router.push("/hr/directory/offboarding")}>
-          Offboarding
-        </span>
-        {" › "}
-        <span className="font-medium text-[color:var(--text-secondary)]">{employeeName}</span>
-      </p>
-
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">

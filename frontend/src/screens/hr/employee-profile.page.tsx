@@ -14,12 +14,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
   StatusBadge,
   EmptyState,
 } from "@/shared/ui";
@@ -279,17 +273,6 @@ export default function EmployeeProfilePage() {
   if (loading) {
     return (
       <div>
-        <Breadcrumb className="mb-4">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/hr/directory">Directory</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <Skeleton className="h-4 w-24" />
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
         <ProfileSkeleton />
       </div>
     );
@@ -300,17 +283,6 @@ export default function EmployeeProfilePage() {
   if (error) {
     return (
       <div>
-        <Breadcrumb className="mb-4">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/hr/directory">Directory</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Error</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
         <div
           className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
           style={{ boxShadow: "var(--shadow-xs)" }}
@@ -330,17 +302,6 @@ export default function EmployeeProfilePage() {
   if (!profile) {
     return (
       <div>
-        <Breadcrumb className="mb-4">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/hr/directory">Directory</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Not found</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
         <EmptyState
           icon={UserRound}
           title="Employee not found"
@@ -363,23 +324,6 @@ export default function EmployeeProfilePage() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/hr">People</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/hr/directory">Directory</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{profile.fullName}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
       {/* Profile header */}
       <div
         className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6"

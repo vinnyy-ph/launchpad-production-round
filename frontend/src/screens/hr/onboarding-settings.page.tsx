@@ -271,17 +271,6 @@ export default function OnboardingSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <nav className="text-xs text-[color:var(--text-tertiary)]" aria-label="Breadcrumb">
-        <button
-          onClick={() => router.push("/hr/directory/onboarding")}
-          className="transition-colors hover:text-[color:var(--text-primary)]"
-        >
-          Onboarding
-        </button>
-        <span className="mx-1">›</span>
-        <span className="text-[color:var(--text-secondary)]">Settings</span>
-      </nav>
-
       <PageHeader
         level="page"
         title="Onboarding settings"
