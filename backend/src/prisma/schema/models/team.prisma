@@ -9,6 +9,7 @@ model Team {
   members                TeamMember[]
   surveyAudienceConfig   SurveyAudienceConfig[]
   surveyVisibilityConfig SurveyVisibilityConfig[]
+  surveyResultShares     SurveyResultShare[]
 
   @@map("teams")
 }

@@ -347,7 +347,13 @@ export function TeamDetailsView({
             </Button>
           </div>
         ) : (
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[color:var(--bg-secondary)]"
+              aria-hidden="true"
+            >
+              <Users size={20} className="text-[color:var(--text-secondary)]" />
+            </span>
             <div className="min-w-0">
               <h1 className="truncate text-xl font-bold text-[color:var(--text-primary)]">
                 {team.name}
@@ -379,7 +385,7 @@ export function TeamDetailsView({
         style={{ boxShadow: "var(--shadow-xs)" }}
       >
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          Team leader
+          Team lead
         </p>
         <PersonRow
           person={team.leader}
@@ -388,14 +394,11 @@ export function TeamDetailsView({
         />
       </div>
 
-      {/* Members (excludes the leader, shown above) */}
-      <div
-        className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
-        style={{ boxShadow: "var(--shadow-xs)" }}
-      >
-        <div className="mb-2 flex items-center justify-between">
+      {/* Team members (excludes the leader, shown above) — a card grid, not a flat list. */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
           <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-            Members ({otherMembers.length})
+            Team members ({otherMembers.length})
           </p>
           {canManageMembers && (
             <Button size="sm" onClick={() => setAddMode(true)}>
@@ -405,13 +408,20 @@ export function TeamDetailsView({
         </div>
 
         {otherMembers.length === 0 ? (
-          <p className="px-2 py-2 text-xs text-[color:var(--text-tertiary)]">
+          <div
+            className="rounded-2xl border border-[color:var(--border-primary)] bg-white px-6 py-8 text-center text-sm text-[color:var(--text-tertiary)]"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          >
             No additional members yet.
-          </p>
+          </div>
         ) : (
-          <ul className="divide-y divide-[color:var(--border-primary)]">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {otherMembers.map((member) => (
-              <li key={member.id} className="flex items-center gap-2">
+              <div
+                key={member.id}
+                className="flex items-center gap-1 rounded-2xl border border-[color:var(--border-primary)] bg-white pr-1.5 transition-colors hover:border-[color:var(--border-secondary)]"
+                style={{ boxShadow: "var(--shadow-xs)" }}
+              >
                 <div className="min-w-0 flex-1">
                   <PersonRow person={member} onOpen={() => setProfileId(member.id)} />
                 </div>
@@ -433,9 +443,9 @@ export function TeamDetailsView({
                     </Tooltip>
                   </TooltipProvider>
                 )}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
 

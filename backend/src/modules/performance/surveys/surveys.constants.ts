@@ -27,4 +27,11 @@ export const SURVEY_ERROR_MESSAGES = {
     "This team has fewer than 3 members, so its anonymous results are not visible to the team supervisor",
   BOTH_FILTERS_PROVIDED: "Only one of teamId or supervisorId may be provided",
   RESULTS_SUPPRESSED: "Insufficient responses to display results",
+  // Small-team result share (HR → supervisor)
+  TEAM_NOT_FOUND: "Team not found",
+  SHARE_NOT_ANONYMOUS: "Only anonymous surveys can be shared with a supervisor this way",
+  SHARE_NOT_SMALL_TEAM: "This team is not small enough to share results with its supervisor",
+  SHARE_NOT_COMPLETED: "Available once this survey closes",
+  SHARE_NO_SUPERVISOR: "This team has no supervisor to send results to",
+  SHARE_ACTOR_NOT_EMPLOYEE: "Your account is not linked to an employee record",
 } as const;

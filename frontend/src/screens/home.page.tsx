@@ -16,13 +16,18 @@ import {
   FileText,
   FileCheck2,
   TrendingUp,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
 import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
 import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { KpiCard, type KpiCardProps } from "@/shared/ui/patterns";
+import { cn } from "@/shared/lib/utils";
+import { useMyTeams } from "@/modules/people/teams/hooks/use-my-teams";
+import type { Team } from "@/modules/people/teams/types/teams.types";
 import type { AppUser, EmployeeStatus } from "@/modules/auth/types/auth.types";
 
 export default function HomePage() {
@@ -32,9 +37,13 @@ export default function HomePage() {
   const { notifications, loading: notifLoading, error: notifError, reload: reloadNotifs } = useNotifications(5);
   const { markRead } = useMarkRead(() => void reloadNotifs());
 
-  // Time-aware greeting is set after mount so the server-prerendered HTML and the
-  // client hydration agree (the clock only exists on the client). First paint shows
-  // the neutral fallback, then the greeting resolves to morning/afternoon/evening.
+  // Teams the caller belongs to — shown in the "Your team" people section alongside their
+  // org-graph supervisor, so the dashboard reflects People as well as Performance.
+  const { teams: myTeams, loading: teamsLoading } = useMyTeams(appUser?.employeeId || undefined);
+
+  // Time-aware greeting is set after mount so the server-prerendered HTML and the client
+  // hydration agree (the clock only exists on the client). First paint shows the neutral
+  // fallback, then it resolves to morning/afternoon/evening.
   const [greeting, setGreeting] = useState("Welcome back");
   useEffect(() => {
     const h = new Date().getHours();
@@ -47,19 +56,19 @@ export default function HomePage() {
 
   return (
     <div className="min-w-0 space-y-7">
-      {/* Greeting hero — personal landing, with the one Jia gradient accent. */}
-      <header>
-        <span
-          className="block h-1 w-10 rounded-full"
-          style={{ background: "var(--gradient-jia)" }}
-          aria-hidden="true"
-        />
-        <h1 className="mt-3 text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
+      {/* Greeting hero — the single Jia gradient moment on this surface. Bright gradient with
+          cool-black text (AA-safe on the light pastel stops); the one sanctioned gradient use. */}
+      <div
+        className="rounded-[24px] px-6 py-7 sm:px-8 sm:py-8"
+        style={{ background: "var(--gradient-jia)", boxShadow: "var(--shadow-inset-brand)" }}
+      >
+        <span className="text-base font-bold text-[color:var(--text-secondary)]" aria-hidden="true">✦</span>
+        <h1 className="mt-2 text-[26px] font-bold leading-tight tracking-[-0.02em] text-[color:var(--text-primary)] sm:text-[32px]">
           {greeting}
           {firstName ? `, ${firstName}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">{summary}</p>
-      </header>
+        <p className="mt-1.5 max-w-xl text-sm font-medium text-[color:var(--text-secondary)]">{summary}</p>
+      </div>
 
       {/* At a glance — one section per hat the user holds (Your work → Your team →
           Organization). Each card links to where the metric is acted on. */}
@@ -80,7 +89,7 @@ export default function HomePage() {
             <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
               {section.title}
             </h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className={cn("grid gap-4", GRID_COLS[section.cols])}>
               {section.cards.map((card) => (
                 <KpiCard key={card.label} {...card} loading={statsLoading} />
               ))}
@@ -88,6 +97,13 @@ export default function HomePage() {
           </section>
         ))
       )}
+
+      {/* Your team — people-module context: the caller's supervisor + the teams they're on. */}
+      <PeopleSection
+        supervisor={stats?.supervisor ?? null}
+        teams={myTeams}
+        loading={statsLoading || teamsLoading}
+      />
 
       {/* Recent notifications */}
       <section>
@@ -145,6 +161,123 @@ interface DashSection {
   key: string;
   title: string;
   cards: KpiCardProps[];
+  /** How many columns the metric grid uses at desktop width. */
+  cols: 2 | 3 | 4;
+}
+
+/** Tailwind column classes per section width — keeps a 2-card lane from stranding in a 4-up grid. */
+const GRID_COLS: Record<2 | 3 | 4, string> = {
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-2 sm:grid-cols-4",
+};
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
+}
+
+function Avatar({ name, className }: { name: string; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white",
+        className,
+      )}
+      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+/**
+ * People-module context for the dashboard: who the caller reports to (org-graph supervisor)
+ * and the teams they belong to — so the home screen reflects People, not only Performance.
+ * Renders nothing when the caller has neither (e.g. the root node on no team), so the section
+ * never shows an empty shell.
+ */
+function PeopleSection({
+  supervisor,
+  teams,
+  loading,
+}: {
+  supervisor: DashboardStats["supervisor"];
+  teams: Team[];
+  loading: boolean;
+}) {
+  if (!loading && !supervisor && teams.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+        Your team
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Who you report to (org-graph supervisor — distinct from any team's leader). */}
+        <div
+          className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+            Your supervisor
+          </p>
+          {loading ? (
+            <div className="mt-3 flex items-center gap-2.5">
+              <span className="h-9 w-9 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
+              <span className="h-3.5 w-28 rounded bg-[color:var(--bg-tertiary)]" />
+            </div>
+          ) : supervisor ? (
+            <div className="mt-3 flex items-center gap-2.5">
+              <Avatar name={supervisor.fullName} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+                  {supervisor.fullName}
+                </p>
+                <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                  {supervisor.jobTitle ?? "Supervisor"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-[color:var(--text-tertiary)]">
+              You&apos;re at the top of the org chart.
+            </p>
+          )}
+        </div>
+
+        {/* Teams the caller belongs to — each links to its detail page. */}
+        {teams.map((team) => (
+          <Link
+            key={team.id}
+            href={`/employee/teams/${team.id}`}
+            className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+              Team
+            </p>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{team.name}</p>
+                <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                  {team.memberCount} {team.memberCount === 1 ? "member" : "members"} · Led by{" "}
+                  {team.leader.fullName}
+                </p>
+              </div>
+              <ArrowRight
+                size={15}
+                className="flex-none text-[color:var(--text-quaternary)] transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 /** First name for the greeting: first token of the display name, else the email local part. */
@@ -196,7 +329,7 @@ function buildSummary(
 
 /**
  * The KPI sections to show, one per hat the user holds, in fixed order:
- * Your work (every employee) → Your team (supervisors) → Organization (HR/Admin).
+ * Your work (every employee) → Team you manage (supervisors) → Organization (HR/Admin).
  * Mirrors the additive sidebar so the dashboard never hides a lane the user has.
  */
 function buildSections(
@@ -212,8 +345,8 @@ function buildSections(
 
   // Your work — the caller's own to-dos. Onboarding figures only matter while onboarding.
   const work: KpiCardProps[] = [
-    { icon: MessageSquare, label: "Unanswered surveys", value: num(stats?.unreadSurveys), href: "/employee/surveys" },
-    { icon: FileCheck2, label: "Evals to acknowledge", value: num(stats?.pendingAcknowledgements), href: "/employee/surveys" },
+    { icon: MessageSquare, label: "Surveys to answer", value: num(stats?.unreadSurveys), href: "/employee/surveys", period: "Pulse check-ins" },
+    { icon: FileCheck2, label: "Evaluations to acknowledge", value: num(stats?.pendingAcknowledgements), href: "/employee/surveys?tab=acknowledgements", period: "From your supervisor" },
   ];
   if (employeeStatus === "ONBOARDING") {
     work.push(
@@ -226,13 +359,14 @@ function buildSections(
       },
     );
   }
-  sections.push({ key: "work", title: "Your work", cards: work });
+  sections.push({ key: "work", title: "Your work", cards: work, cols: 2 });
 
-  // Your team — supervisors only.
+  // Team you manage — supervisors only.
   if (isSupervisor) {
     sections.push({
       key: "team",
-      title: "Your team",
+      title: "Team you manage",
+      cols: 3,
       cards: [
         { icon: ClipboardCheck, label: "Pending evaluations", value: num(stats?.pendingEvaluations), href: "/supervisor/evaluations" },
         { icon: Users, label: "Direct reports", value: num(stats?.directReports), href: "/supervisor/roster" },
@@ -255,6 +389,7 @@ function buildSections(
     sections.push({
       key: "org",
       title: "Organization",
+      cols: 4,
       cards: [
         { icon: UserPlus, label: "Pending onboarding", value: num(stats?.pendingOnboarding), href: "/hr/directory/onboarding" },
         { icon: UserMinus, label: "Pending offboarding", value: num(stats?.pendingOffboarding), href: "/hr/directory/offboarding" },
