@@ -8,6 +8,7 @@ import {
   buildUpdateEmailBody,
   mockSuccessfulInvitationUpdate,
   onboardingInvitationFindFirstMock,
+  onboardingInvitationResendAttemptCreateMock,
   resetInvitationMocks,
   transactionMock,
 } from "./invitation-test.helpers";
@@ -28,6 +29,7 @@ jest.mock("../../../core/database/prisma.service", () => ({
       create: jest.fn(),
       update: jest.fn(),
     },
+    onboardingInvitationResendAttempt: { count: jest.fn(), create: jest.fn() },
     user: { update: jest.fn() },
     employee: { update: jest.fn() },
     $transaction: jest.fn(),
@@ -66,6 +68,9 @@ describe("PATCH /api/v1/onboarding/invitations/:invitationId/email", () => {
         sentToEmail: "maria.santos.corrected@launchpad.ph",
         status: "pending",
       },
+    });
+    expect(onboardingInvitationResendAttemptCreateMock).toHaveBeenCalledWith({
+      data: { invitationId: INVITATION_ID },
     });
   });
 

@@ -110,6 +110,25 @@ export class InvitationRepository {
     });
   }
 
+  /** Counts resend attempts for one invitation after the supplied timestamp. */
+  async countResendAttemptsSince(invitationId: string, since: Date) {
+    return prisma.onboardingInvitationResendAttempt.count({
+      where: {
+        invitationId,
+        attemptedAt: {
+          gte: since,
+        },
+      },
+    });
+  }
+
+  /** Records one successful resend attempt. */
+  async createResendAttempt(invitationId: string) {
+    return prisma.onboardingInvitationResendAttempt.create({
+      data: { invitationId },
+    });
+  }
+
   /** Updates invitation status after a delivery attempt. */
   async updateStatus(invitationId: string, status: InviteStatus) {
     return prisma.onboardingInvitation.update({

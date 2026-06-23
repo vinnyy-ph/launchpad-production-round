@@ -17,6 +17,10 @@ export const onboardingInvitationCreateMock =
   mockedPrisma.onboardingInvitation.create as jest.Mock;
 export const onboardingInvitationUpdateMock =
   mockedPrisma.onboardingInvitation.update as jest.Mock;
+export const onboardingInvitationResendAttemptCountMock =
+  mockedPrisma.onboardingInvitationResendAttempt.count as jest.Mock;
+export const onboardingInvitationResendAttemptCreateMock =
+  mockedPrisma.onboardingInvitationResendAttempt.create as jest.Mock;
 export const transactionMock = mockedPrisma.$transaction as jest.Mock;
 
 /** Clears invitation-related Prisma mocks before each test. */
@@ -26,7 +30,18 @@ export function resetInvitationMocks() {
   onboardingInvitationFindFirstMock.mockReset();
   onboardingInvitationCreateMock.mockReset();
   onboardingInvitationUpdateMock.mockReset();
+  onboardingInvitationResendAttemptCountMock.mockReset();
+  onboardingInvitationResendAttemptCreateMock.mockReset();
   transactionMock.mockReset();
+
+  onboardingInvitationResendAttemptCountMock.mockResolvedValue(0);
+  onboardingInvitationResendAttemptCreateMock.mockResolvedValue({
+    id: "resend-attempt-id",
+    invitationId: INVITATION_ID,
+    attemptedAt: new Date("2026-06-17T08:02:00.000Z"),
+    createdAt: new Date("2026-06-17T08:02:00.000Z"),
+    updatedAt: new Date("2026-06-17T08:02:00.000Z"),
+  });
 }
 
 /** Minimal HR account injected by the auth mock. */
@@ -69,8 +84,8 @@ export function buildAdminUser() {
 }
 
 export function buildInvitationRecord(overrides: Record<string, unknown> = {}) {
-  const sentAt = new Date("2026-06-17T08:00:00.000Z");
-  const expiresAt = new Date("2026-07-17T08:00:00.000Z");
+  const sentAt = new Date(Date.now() - 61_000);
+  const expiresAt = new Date(sentAt.getTime() + 24 * 60 * 60 * 1000);
 
   return {
     id: INVITATION_ID,

@@ -116,7 +116,7 @@ Expand **POST /api/v1/onboarding/invitations/{recordId}/send**.
     "sentToEmail": "maria.santos@launchpad.ph",
     "status": "pending",
     "sentAt": "2026-06-17T08:00:00.000Z",
-    "expiresAt": "2026-07-17T08:00:00.000Z"
+    "expiresAt": "2026-06-18T08:00:00.000Z"
   }
 }
 ```
@@ -146,7 +146,7 @@ Expand **GET /api/v1/onboarding/invitations/{recordId}**.
       "sentToEmail": "maria.santos@launchpad.ph",
       "status": "pending",
       "sentAt": "2026-06-17T08:00:00.000Z",
-      "expiresAt": "2026-07-17T08:00:00.000Z"
+      "expiresAt": "2026-06-18T08:00:00.000Z"
     }
   ]
 }
@@ -155,7 +155,7 @@ Expand **GET /api/v1/onboarding/invitations/{recordId}**.
 Possible `status` values:
 - `pending` — waiting for the employee to sign in
 - `accepted` — employee has created their account
-- `expired` — invitation passed its 30-day expiry window
+- `expired` — invitation passed its 24-hour expiry window
 - `failed_delivery` — email could not be delivered
 
 ---
@@ -185,6 +185,11 @@ Expand **POST /api/v1/onboarding/invitations/{invitationId}/resend**.
 ```
 
 Maria should receive another onboarding email.
+
+Resend limits:
+- Resend becomes available 60 seconds after the latest send or resend.
+- Each invitation is capped at 5 resend attempts per rolling hour.
+- If the cap is reached, wait until an older resend attempt falls outside the rolling hour.
 
 ---
 

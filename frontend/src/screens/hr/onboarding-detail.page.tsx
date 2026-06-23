@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ClipboardList, Mail, CheckCircle2, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -48,6 +48,7 @@ function formatDate(iso: string | null | undefined): string {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const INVITATION_RESEND_COOLDOWN_SECONDS = 60;
 
 function DetailSkeleton() {
   return (
@@ -111,6 +112,7 @@ function OnboardingDetailInner() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteEmailError, setInviteEmailError] = useState<string | undefined>();
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const submissionsByDoc = useMemo(() => {
     const mine = reviews
@@ -135,6 +137,22 @@ function OnboardingDetailInner() {
 
   const profile = status?.profile;
   const invitationStatus = status?.invitationStatus ?? latestInvitation?.status ?? null;
+  const resendCooldownRemainingSeconds = useMemo(() => {
+    if (!latestInvitation?.sentAt || invitationStatus === "accepted") return 0;
+
+    const sentAtMs = new Date(latestInvitation.sentAt).getTime();
+    if (Number.isNaN(sentAtMs)) return 0;
+
+    const availableAtMs = sentAtMs + INVITATION_RESEND_COOLDOWN_SECONDS * 1000;
+    return Math.max(0, Math.ceil((availableAtMs - nowMs) / 1000));
+  }, [invitationStatus, latestInvitation?.sentAt, nowMs]);
+
+  useEffect(() => {
+    if (resendCooldownRemainingSeconds <= 0) return;
+
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldownRemainingSeconds]);
 
   function submitApprove() {
     if (!approveTarget) return;
@@ -189,7 +207,10 @@ function OnboardingDetailInner() {
       return;
     }
     invite.mutate(recordId, {
-      onSuccess: () => toast.success("Invitation sent."),
+      onSuccess: () => {
+        toast.success("Invitation sent.");
+        void reloadInvitation();
+      },
       onError: (e) => toast.error(e instanceof Error ? e.message : "Could not send invitation."),
     });
   }
@@ -279,12 +300,20 @@ function OnboardingDetailInner() {
   const canEditInviteEmail =
     !isComplete && latestInvitation != null && invitationStatus !== "accepted";
   const resendBlockedByAcceptance = invitationStatus === "accepted";
-  const resendDisabled = invite.isPending || resend.isPending || resendBlockedByAcceptance;
+  const resendBlockedByCooldown = resendCooldownRemainingSeconds > 0;
+  const resendDisabled =
+    invite.isPending || resend.isPending || resendBlockedByAcceptance || resendBlockedByCooldown;
+  const resendInviteLabel =
+    invite.isPending || resend.isPending
+      ? "Sending..."
+      : resendBlockedByCooldown
+        ? `Resend in ${resendCooldownRemainingSeconds}s`
+        : "Resend invite";
 
   const resendInviteButton = (
     <Button variant="outline" onClick={handleResendInvite} disabled={resendDisabled}>
       <Mail aria-hidden="true" />
-      {invite.isPending || resend.isPending ? "Sending…" : "Resend invite"}
+      {resendInviteLabel}
     </Button>
   );
 
@@ -300,14 +329,16 @@ function OnboardingDetailInner() {
 
         {!isComplete && recordId && (
           <div className="flex flex-shrink-0 flex-col items-stretch sm:items-end">
-            {resendBlockedByAcceptance ? (
+            {resendBlockedByAcceptance || resendBlockedByCooldown ? (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="inline-flex">{resendInviteButton}</span>
                   </TooltipTrigger>
                   <TooltipContent side="top" align="end" className="max-w-[260px] text-center">
-                    You can&apos;t resend invite because the employee already accepted the invitation.
+                    {resendBlockedByAcceptance
+                      ? "You can't resend invite because the employee already accepted the invitation."
+                      : `Resend available in ${resendCooldownRemainingSeconds}s.`}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

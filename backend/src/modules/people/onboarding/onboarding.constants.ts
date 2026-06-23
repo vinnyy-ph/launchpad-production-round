@@ -21,5 +21,11 @@ export const REQUIRED_PROFILE_FIELDS = [
   "emergencyContact",
 ] as const;
 
-/** Number of days before an onboarding invitation expires. */
-export const INVITATION_EXPIRY_DAYS = 30;
+/** Number of hours before an onboarding invitation expires. */
+export const INVITATION_EXPIRY_HOURS = 24;
+
+/** Minimum seconds HR must wait before resending the same invitation. */
+export const INVITATION_RESEND_COOLDOWN_SECONDS = 60;
+
+/** Maximum resends allowed for one invitation in a rolling hour. */
+export const INVITATION_RESEND_MAX_ATTEMPTS_PER_HOUR = 5;

@@ -14,8 +14,17 @@ export interface SurveyVisibilityInfo {
 
 /**
  * Pure access gate for a survey's results. Mirrors the rule matrix in the spec.
- * The SUPERVISOR_BASED case depends on whether any of the caller's downward chain
- * is in the audience — that async lookup is resolved by the caller and passed in as
+ *
+ * Access = `isHrOrRoot(viewer) || satisfiesVisibilityScope(viewer, survey)`. HR and the org
+ * root node are the FLOOR of the viewer set: they may open the results in every visibility
+ * scope, never removed by it ("HR + Root Only" is just the case where no extra viewers are
+ * added). Visibility scopes only ADD viewers on top of that floor. This gates ACCESS only —
+ * the results service still scopes a root's *data* to their own chain (a root sitting outside
+ * a Team-based survey's teams gets in, but sees their slice), and anonymity/min-group-size
+ * suppression is applied separately downstream.
+ *
+ * The SUPERVISOR_BASED case depends on whether any of the caller's downward chain is in the
+ * audience — that async lookup is resolved by the caller and passed in as
  * `supervisorAudienceOverlap`, keeping this function pure and synchronous.
  */
 export function canViewSurveyResults(
@@ -25,6 +34,9 @@ export function canViewSurveyResults(
 ): boolean {
   if (ctx.isHR) return true;
   if (!ctx.caller) return false;
+  // Root node (the single employee with no supervisor) is part of the access floor alongside
+  // HR, independent of the visibility scope. This subsumes the HR_ROOT_ONLY root case below.
+  if (ctx.caller.supervisorId === null) return true;
 
   switch (survey.visibility) {
     case "EVERYONE":

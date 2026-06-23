@@ -42,12 +42,15 @@ export function isStrictPhilippineMobile(value: string): boolean {
 /**
  * Normalize a stored PH mobile (national "09…", "639…", or "9…") to the E.164 form
  * (+639XXXXXXXXX) the PhoneInput expects, so a freshly-loaded value doesn't read as an edit.
- * Synchronous companion to {@link toE164}; leaves unrecognized values untouched.
+ * Synchronous companion to {@link toE164}; keeps already-international values in strict
+ * E.164 shape so react-phone-number-input never receives display-formatted numbers.
  */
 export function toPhilippineE164(value: string): string {
-  const digits = value.replace(/\D/g, "");
+  const trimmed = value.trim();
+  const digits = trimmed.replace(/\D/g, "");
   if (/^09\d{9}$/.test(digits)) return `+63${digits.slice(1)}`;
   if (/^639\d{9}$/.test(digits)) return `+${digits}`;
   if (/^9\d{9}$/.test(digits)) return `+63${digits}`;
-  return value.trim();
+  if (trimmed.startsWith("+") && digits) return `+${digits}`;
+  return trimmed;
 }

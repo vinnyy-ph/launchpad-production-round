@@ -1,7 +1,7 @@
 import { tryExtractNormalizedPhilippinePhone } from "../../shared/phone";
 import { prisma } from "../../../core/database/prisma.service";
 import type { OnboardEmployeeRequestDto } from "./dto";
-import { INVITATION_EXPIRY_DAYS } from "./onboarding.constants";
+import { INVITATION_EXPIRY_HOURS } from "./onboarding.constants";
 
 /**
  * Handles onboarding persistence queries.
@@ -78,8 +78,9 @@ export class OnboardingRepository {
    * Also finds-or-creates the default OnboardingTemplate and the Department by name.
    */
   async createOnboarding(dto: OnboardEmployeeRequestDto) {
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + INVITATION_EXPIRY_DAYS);
+    const expiresAt = new Date(
+      Date.now() + INVITATION_EXPIRY_HOURS * 60 * 60 * 1000,
+    );
 
     // Neon + PrismaPg can be slow on cold connections; default 5s interactive tx timeout is too tight.
     return prisma.$transaction(
