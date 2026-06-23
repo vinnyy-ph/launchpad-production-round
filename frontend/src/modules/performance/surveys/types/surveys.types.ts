@@ -171,13 +171,15 @@ export interface MyAnswer {
 }
 
 /** The employee's own submitted answers for one completed occurrence.
- *  `answers` is empty for anonymous surveys — content is unrecoverable by design. */
+ *  `answers` is empty for anonymous surveys — content is unrecoverable by design.
+ *  `submitted` is false when the caller is in the audience but hasn't responded yet. */
 export interface MyAnswers {
   occurrenceId: string;
   surveyId: string;
   surveyName: string;
   occurrenceNumber: number;
   isAnonymous: boolean;
+  submitted: boolean;
   answers: MyAnswer[];
 }
 

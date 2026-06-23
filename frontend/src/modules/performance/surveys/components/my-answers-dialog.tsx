@@ -138,17 +138,29 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
             </div>
           )}
 
-          {data && isAnonymous && (
+          {data && !data.submitted && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[13px] text-[color:var(--text-secondary)]">
+              <AlertCircle
+                size={17}
+                className="mt-0.5 flex-none text-[color:var(--text-tertiary)]"
+                aria-hidden="true"
+              />
+              <span>You haven&apos;t responded to this pulse yet.</span>
+            </div>
+          )}
+
+          {data && data.submitted && isAnonymous && (
             <div className="flex items-start gap-2.5 rounded-xl border border-[#C7D7FE] bg-[#EEF4FF] px-4 py-3 text-[13px] text-[#3538CD]">
               <ShieldCheck size={17} className="mt-0.5 flex-none" aria-hidden="true" />
               <span>
-                This survey was anonymous — your responses aren&apos;t linked to you, so they
-                can&apos;t be shown here.
+                This pulse was anonymous. To protect anonymity, your answers aren&apos;t linked
+                to you — so they can&apos;t be shown back here. Others only ever see aggregates.
               </span>
             </div>
           )}
 
           {data &&
+            data.submitted &&
             !isAnonymous &&
             data.answers.map((a) => (
               <div key={a.questionId}>

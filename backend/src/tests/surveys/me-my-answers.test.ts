@@ -49,6 +49,7 @@ function makeRepo(over: Record<string, unknown> = {}) {
       questions,
     }),
     hasCompleted: jest.fn().mockResolvedValue(true),
+    isAudienceMember: jest.fn().mockResolvedValue(true),
     findMyAnswers: jest.fn().mockResolvedValue([
       { questionId: "q1", answerText: "Good", answerData: null },
       { questionId: "q2", answerText: null, answerData: 4 },
@@ -63,6 +64,7 @@ describe("MeService.getMyAnswers", () => {
     const result = await new MeService(repo).getMyAnswers("user-1", "occ-1");
 
     expect(result.isAnonymous).toBe(false);
+    expect(result.submitted).toBe(true);
     expect(result.surveyName).toBe("Q3 Pulse");
     expect(result.answers).toHaveLength(2);
     expect(result.answers[0]).toMatchObject({
@@ -90,6 +92,7 @@ describe("MeService.getMyAnswers", () => {
     const result = await new MeService(repo).getMyAnswers("user-1", "occ-1");
 
     expect(result.isAnonymous).toBe(true);
+    expect(result.submitted).toBe(true);
     expect(result.answers).toEqual([]);
     expect((repo.findMyAnswers as jest.Mock)).not.toHaveBeenCalled();
   });
@@ -101,8 +104,24 @@ describe("MeService.getMyAnswers", () => {
     );
   });
 
-  it("404s when the employee never completed the occurrence", async () => {
-    const repo = makeRepo({ hasCompleted: jest.fn().mockResolvedValue(false) });
+  it("returns a clean no-submission result when in the audience but not yet completed", async () => {
+    const repo = makeRepo({
+      hasCompleted: jest.fn().mockResolvedValue(false),
+      isAudienceMember: jest.fn().mockResolvedValue(true),
+    });
+    const result = await new MeService(repo).getMyAnswers("user-1", "occ-1");
+
+    expect(result.submitted).toBe(false);
+    expect(result.answers).toEqual([]);
+    expect(result.surveyName).toBe("Q3 Pulse");
+    expect((repo.findMyAnswers as jest.Mock)).not.toHaveBeenCalled();
+  });
+
+  it("404s when the caller never completed AND is not in the audience (no probing by id)", async () => {
+    const repo = makeRepo({
+      hasCompleted: jest.fn().mockResolvedValue(false),
+      isAudienceMember: jest.fn().mockResolvedValue(false),
+    });
     await expect(new MeService(repo).getMyAnswers("user-1", "occ-1")).rejects.toThrow(
       SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND,
     );
