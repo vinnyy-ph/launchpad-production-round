@@ -45,6 +45,8 @@ model Employee {
   surveyCompletions          SurveyCompletion[]
   surveyAudienceMemberships  SurveyAudienceMember[]
   surveyAudienceTargets      SurveyAudienceConfig[]
+  surveyResultsShared        SurveyResultShare[]            @relation("SurveyResultShareSharedBy")
+  surveyResultsReceived      SurveyResultShare[]            @relation("SurveyResultShareSupervisor")
   notifications              Notification[]
 
   @@map("employees")

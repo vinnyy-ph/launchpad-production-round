@@ -7,6 +7,7 @@ import {
   Download,
   Lock,
   RefreshCw,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -18,6 +19,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  useConfirm,
 } from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
@@ -26,9 +28,11 @@ import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context
 import { useSurvey } from "../hooks/use-survey";
 import { useSurveyResults } from "../hooks/use-survey-results";
 import { useSurveyOccurrences } from "../hooks/use-survey-occurrences";
+import { useShareResults } from "../hooks/use-share-results";
 import type {
   QuestionResult,
   ResultsFilter,
+  SmallTeamShare,
   SurveyDetail,
   SurveyResults as SurveyResultsType,
 } from "../types/surveys.types";
@@ -287,21 +291,106 @@ function OpenTextBody({
   );
 }
 
+/**
+ * HR-only action to deliberately share a small anonymous team's results with that team's
+ * supervisor (who is otherwise blocked from the breakdown). Disabled with a clear reason until
+ * the occurrence closes; requires an explicit confirm before sending the semi-identifiable data.
+ */
+export function ShareToSupervisorCard({
+  share,
+  surveyName,
+  surveyId,
+}: {
+  share: SmallTeamShare;
+  surveyName: string;
+  surveyId: string;
+}) {
+  const confirm = useConfirm();
+  const shareMutation = useShareResults(surveyId);
+
+  const hasSupervisor = !!share.supervisorId;
+  const supervisorLabel = share.supervisorName ?? "the team's supervisor";
+  const canSend = hasSupervisor && share.occurrenceCompleted;
+  const reason = !hasSupervisor
+    ? "This team has no supervisor to send results to."
+    : !share.occurrenceCompleted
+      ? "Available once this survey closes."
+      : null;
+
+  const handleSend = () => {
+    void confirm({
+      title: `Send results to ${supervisorLabel}?`,
+      description: `Send ${surveyName} results for ${share.teamName} to ${supervisorLabel}? They will be able to see individual responses for this small team.`,
+      confirmLabel: "Send results",
+      confirmLoadingLabel: "Sending…",
+      onConfirm: async () => {
+        try {
+          await shareMutation.mutateAsync({
+            teamId: share.teamId,
+            occurrenceId: share.occurrenceId,
+          });
+          toast.success(`Results sent to ${supervisorLabel}.`);
+        } catch (e) {
+          toast.error(
+            e instanceof ApiError ? e.message : "Couldn't send results. Please try again.",
+          );
+          throw e; // keep the dialog open so HR can retry
+        }
+      },
+    });
+  };
+
+  return (
+    <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-[color:var(--text-primary)]">
+          Share with the team&apos;s supervisor
+        </p>
+        <p className="mt-1 text-[13px] text-[color:var(--text-tertiary)]">
+          {share.alreadySharedAt
+            ? `Sent to ${supervisorLabel} on ${fmtDay(share.alreadySharedAt)}. They can now view this small team's results.`
+            : `${supervisorLabel} can't normally see this small team's anonymous results. ${
+                reason ?? "You can deliberately share them."
+              }`}
+        </p>
+      </div>
+      <Button
+        variant="secondary"
+        onClick={handleSend}
+        disabled={!canSend}
+        title={reason ?? undefined}
+        className="flex-none"
+      >
+        <Send size={15} />
+        {share.alreadySharedAt ? "Send again" : "Send to supervisor"}
+      </Button>
+    </div>
+  );
+}
+
 // ─── container ──────────────────────────────────────────────────────────────────
 
 /** Results dashboard for one survey: header, summary stats, scope filters, per-question charts.
- *  canFilter (default true) controls whether HR-only features (getSurvey, ResultsFilters) are active. */
+ *  canFilter (default true) controls whether HR-only features (getSurvey, ResultsFilters) are active.
+ *  initialFilter / initialOccurrenceId seed the view from a deep link — used when a supervisor
+ *  opens an HR-shared small-team result, where the filter UI is hidden (canFilter=false). */
 export function SurveyResults({
   surveyId,
   canFilter = true,
+  initialFilter,
+  initialOccurrenceId,
 }: {
   surveyId: string;
   canFilter?: boolean;
+  initialFilter?: ResultsFilter;
+  initialOccurrenceId?: string;
 }) {
-  const [filter, setFilter] = useState<ResultsFilter>({});
+  const [filter, setFilter] = useState<ResultsFilter>(initialFilter ?? {});
   // Selected round. undefined → the server reports on the latest occurrence (its id comes
   // back as results.occurrenceId, which then drives the picker's displayed value).
-  const [selectedOccurrenceId, setSelectedOccurrenceId] = useState<string | undefined>(undefined);
+  const [selectedOccurrenceId, setSelectedOccurrenceId] = useState<string | undefined>(
+    initialOccurrenceId,
+  );
   // HR fetches full detail for the rich header + subtitle; non-HR derive the header
   // from the results DTO so they never hit the HR-only getSurvey endpoint.
   const { data: survey } = useSurvey(canFilter ? surveyId : null);
@@ -479,6 +568,15 @@ export function SurveyResults({
           {/* Filters + showing line */}
           {canFilter && <ResultsFilters filter={filter} onChange={setFilter} />}
           <p className="mb-4 mt-2 text-[13px] text-[color:var(--text-tertiary)]">{showingText}</p>
+
+          {/* HR-only: deliberately share this small anonymous team's results with its supervisor. */}
+          {canFilter && results.smallTeamShare && (
+            <ShareToSupervisorCard
+              share={results.smallTeamShare}
+              surveyName={headerName || results.surveyName}
+              surveyId={surveyId}
+            />
+          )}
 
           {results.suppressed ? (
             <div className="flex gap-3 rounded-2xl border border-[#FEDF89] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">

@@ -8,7 +8,12 @@ import {
   type SurveyVisibilityInfo,
 } from "../rules/results-visibility";
 import { ResultsRepository } from "./results.repository";
-import type { QuestionResult, SurveyResultsResponseDto, VisibleResultSurveyDto } from "./results.types";
+import type {
+  QuestionResult,
+  SmallTeamShareDto,
+  SurveyResultsResponseDto,
+  VisibleResultSurveyDto,
+} from "./results.types";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -103,22 +108,56 @@ export class ResultsService {
     //     (its leader), while HR and every manager above the leader may still see it — even
     //     though the group is below the normal min-group-size threshold. When granted, this
     //     overrides the generic visibility/filter checks below and lifts gate() suppression.
+    //
+    //     One additional grant: once HR has DELIBERATELY shared this small team's results with
+    //     its supervisor (a SurveyResultShare row exists for this occurrence + team), that
+    //     supervisor is also let through — the share is the consent gate. `smallTeamShare`
+    //     below is the HR-only hint that powers the send action on the results view.
     let smallTeamOverride = false;
+    let smallTeamShare: SmallTeamShareDto | null = null;
     if (survey.isAnonymous && teamIdQuery) {
-      const team = await prisma.team.findUnique({
-        where: { id: teamIdQuery },
-        select: { leaderId: true, _count: { select: { members: true } } },
-      });
+      const team = await this.repo.findTeamForShare(teamIdQuery);
 
       if (team && team._count.members < MIN_TEAM_SIZE) {
-        const headsAbove = await createOrgChains(prisma).upwardChain(team.leaderId);
         const isLeader = !!caller && caller.id === team.leaderId;
-        const isHeadAbove = !!caller && headsAbove.includes(caller.id);
+        const existingShare = effectiveOccurrenceId
+          ? await this.repo.findResultShare(effectiveOccurrenceId, teamIdQuery)
+          : null;
 
-        if (isHR || isHeadAbove) {
+        if (isHR) {
           smallTeamOverride = true;
-        } else if (isLeader) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR);
+        } else {
+          const headsAbove = await createOrgChains(prisma).upwardChain(team.leaderId);
+          const isHeadAbove = !!caller && headsAbove.includes(caller.id);
+          if (isHeadAbove) {
+            smallTeamOverride = true;
+          } else if (isLeader) {
+            // The supervisor sees the breakdown only after HR has shared it with them.
+            if (existingShare) {
+              smallTeamOverride = true;
+            } else {
+              throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR);
+            }
+          }
+        }
+
+        // HR-only hint: when can HR push this small team's results to its supervisor?
+        if (isHR && effectiveOccurrenceId) {
+          const occ = await this.repo.findOccurrence(effectiveOccurrenceId);
+          const completed =
+            !!occ && (occ.isClosed || new Date(occ.deadline).getTime() < Date.now());
+          const leaderName = team.leader
+            ? [team.leader.firstName, team.leader.lastName].filter(Boolean).join(" ").trim() || null
+            : null;
+          smallTeamShare = {
+            occurrenceId: effectiveOccurrenceId,
+            teamId: teamIdQuery,
+            teamName: team.name ?? "this team",
+            supervisorId: team.leaderId ?? null,
+            supervisorName: leaderName,
+            occurrenceCompleted: completed,
+            alreadySharedAt: existingShare ? existingShare.sharedAt.toISOString() : null,
+          };
         }
       }
     }
@@ -397,6 +436,7 @@ export class ResultsService {
           : null,
         suppressed: gated.suppressed,
         questions: gated.suppressed ? [] : gated.data,
+        ...(smallTeamShare && { smallTeamShare }),
       },
     };
   }

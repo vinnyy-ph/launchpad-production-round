@@ -18,6 +18,7 @@ jest.mock("../../core/database/prisma.service", () => ({
     surveyResponse: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
     surveyAudienceMember: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
     team: { findUnique: jest.fn() },
+    surveyResultShare: { findUnique: jest.fn(), upsert: jest.fn() },
   },
 }));
 
@@ -466,6 +467,109 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
         success: false,
         errorCode: "RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR",
       });
+    });
+
+    it("lets the small team's supervisor (leader) see results once HR has shared them", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
+      teamFindMock.mockResolvedValue({
+        id: "team-small",
+        name: "Team Small",
+        leaderId: "leader-emp",
+        leader: { id: "leader-emp", firstName: "Lee", lastName: "Dre", status: "ACTIVE" },
+        _count: { members: 2 },
+      });
+      mockCreateOrgChains.mockReturnValue({
+        downwardChain: jest.fn().mockResolvedValue([]),
+        upwardChain: jest.fn().mockResolvedValue(["boss-emp"]),
+      });
+      employeeFindMock.mockResolvedValue({
+        id: "leader-emp",
+        userId: "leader-user",
+        supervisorId: "boss-emp",
+        teamMemberships: [{ teamId: "team-small" }],
+      });
+      // A share grant exists for this occurrence + team → the leader is let through.
+      (prisma.surveyResultShare.findUnique as jest.Mock).mockResolvedValue({
+        id: "share-1",
+        occurrenceId: "occ-default",
+        teamId: "team-small",
+        supervisorId: "leader-emp",
+        sharedAt: new Date(),
+      });
+      surveyResponseFindManyMock.mockResolvedValue(twoResponses);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+      setAuthUser({ id: "leader-user", role: "EMPLOYEE" });
+
+      const res = await request(app)
+        .get(`${URL}/survey-001/results?teamId=team-small`)
+        .expect(200);
+      expect(res.body.data.suppressed).toBe(false);
+      expect(res.body.data.questions.length).toBeGreaterThan(0);
+    });
+
+    it("attaches a smallTeamShare hint for HR on an anonymous small-team filtered view", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
+      teamFindMock.mockResolvedValue({
+        id: "team-small",
+        name: "Team Small",
+        leaderId: "leader-emp",
+        leader: { id: "leader-emp", firstName: "Lee", lastName: "Dre", status: "ACTIVE" },
+        _count: { members: 2 },
+      });
+      // Completed occurrence (deadline in the past) → action will be enabled.
+      (prisma.surveyOccurrence.findUnique as jest.Mock).mockResolvedValue({
+        id: "occ-default",
+        surveyId: "survey-001",
+        isClosed: false,
+        deadline: new Date("2020-01-01"),
+      });
+      (prisma.surveyResultShare.findUnique as jest.Mock).mockResolvedValue(null);
+      surveyResponseFindManyMock.mockResolvedValue(twoResponses);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+      // caller is HR (default auth)
+
+      const res = await request(app)
+        .get(`${URL}/survey-001/results?teamId=team-small`)
+        .expect(200);
+
+      expect(res.body.data.smallTeamShare).toMatchObject({
+        teamId: "team-small",
+        teamName: "Team Small",
+        supervisorId: "leader-emp",
+        supervisorName: "Lee Dre",
+        occurrenceCompleted: true,
+        alreadySharedAt: null,
+      });
+    });
+
+    it("does NOT attach a smallTeamShare hint for a non-HR head-above viewer", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
+      teamFindMock.mockResolvedValue({
+        id: "team-small",
+        name: "Team Small",
+        leaderId: "leader-emp",
+        leader: { id: "leader-emp", firstName: "Lee", lastName: "Dre", status: "ACTIVE" },
+        _count: { members: 2 },
+      });
+      mockCreateOrgChains.mockReturnValue({
+        downwardChain: jest.fn().mockResolvedValue([]),
+        upwardChain: jest.fn().mockResolvedValue(["boss-emp"]),
+      });
+      employeeFindMock.mockResolvedValue({
+        id: "boss-emp",
+        userId: "boss-user",
+        supervisorId: null,
+        teamMemberships: [],
+      });
+      (prisma.surveyResultShare.findUnique as jest.Mock).mockResolvedValue(null);
+      surveyResponseFindManyMock.mockResolvedValue(twoResponses);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+      setAuthUser({ id: "boss-user", role: "EMPLOYEE" });
+
+      const res = await request(app)
+        .get(`${URL}/survey-001/results?teamId=team-small`)
+        .expect(200);
+      expect(res.body.data.smallTeamShare).toBeUndefined();
     });
 
     it("lets a manager above the supervisor see the small team's results (suppression lifted)", async () => {
