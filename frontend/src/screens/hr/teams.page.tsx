@@ -120,7 +120,7 @@ export default function TeamsPage() {
   const columns: Column<Team>[] = [
     {
       header: "Team name",
-      className: "min-w-[150px]",
+      className: "min-w-[200px]",
       sortable: true,
       sortKey: "name",
       cell: (team) => (
@@ -129,11 +129,11 @@ export default function TeamsPage() {
     },
     {
       header: "Team leaders",
-      className: "min-w-[200px] text-center",
+      className: "min-w-[150px] text-start",
       sortable: true,
       sortKey: "leader",
       cell: (team) => (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-start gap-2">
           <Avatar name={team.leader.fullName} src={team.leader.avatarUrl} />
           <span className="truncate text-sm text-[color:var(--text-secondary)]">
             {team.leader.fullName}
@@ -143,7 +143,7 @@ export default function TeamsPage() {
     },
     {
       header: "Members",
-      className: "min-w-[200px] text-center",
+      className: "min-w-[150px] text-center",
       sortable: true,
       sortKey: "members",
       cell: (team) => (

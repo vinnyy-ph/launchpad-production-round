@@ -179,58 +179,68 @@ export default function RosterPage() {
   }, [search, statusFilter, sort]);
 
   const columns: Column<EmployeeListItem>[] = [
-    {
-      header: "Name",
-      sortable: true,
-      sortKey: "name",
-      cell: (row) => (
-        <div className="flex items-center gap-3">
-          <UserAvatar
-            src={row.avatarUrl}
-            fallback={initials(row.fullName)}
-            className="h-8 w-8"
-            fallbackClassName="text-xs font-bold text-white"
-            fallbackStyle={{
-              background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
-            }}
-          />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-              {row.fullName}
-            </p>
-            <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.companyEmail}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: "Role / Department",
-      sortable: true,
-      sortKey: "role",
-      cell: (row) => (
-        <div className="min-w-0">
-          <p className="truncate text-sm text-[color:var(--text-primary)]">{row.jobTitle ?? "—"}</p>
-          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-            {row.department ?? "—"}
-          </p>
-        </div>
-      ),
-    },
-    {
-      header: "Team/s",
-      cell: (row) => (
-        <span className="text-sm text-[color:var(--text-secondary)]">
-          {row.teams.length ? row.teams.map((t) => t.name).join(", ") : "—"}
-        </span>
-      ),
-    },
-    {
-      header: "Status",
-      mobileLabel: "Status",
-      sortable: true,
-      sortKey: "status",
-      cell: (row) => <StatusBadge status={row.status} dot />,
-    },
+      {
+          header: "Name",
+          sortable: true,
+          className: "max-w-[200px] text-start",
+          sortKey: "name",
+          cell: (row) => (
+              <div className="flex items-center gap-3">
+                  <UserAvatar
+                      src={row.avatarUrl}
+                      fallback={initials(row.fullName)}
+                      className="h-8 w-8"
+                      fallbackClassName="text-xs font-bold text-white"
+                      fallbackStyle={{
+                          background:
+                              "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                      }}
+                  />
+                  <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+                          {row.fullName}
+                      </p>
+                      <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                          {row.companyEmail}
+                      </p>
+                  </div>
+              </div>
+          ),
+      },
+      {
+          header: "Job Title / Department",
+          sortable: true,
+          className: "max-w-[200px] text-start",
+          sortKey: "role",
+          cell: (row) => (
+              <div className="min-w-0">
+                  <p className="truncate text-sm text-[color:var(--text-primary)]">
+                      {row.jobTitle ?? "—"}
+                  </p>
+                  <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                      {row.department ?? "—"}
+                  </p>
+              </div>
+          ),
+      },
+      {
+          header: "Team/s",
+          className: "min-w-[200px] text-start",
+          cell: (row) => (
+              <span className="text-sm text-[color:var(--text-secondary)]">
+                  {row.teams.length
+                      ? row.teams.map((t) => t.name).join(", ")
+                      : "—"}
+              </span>
+          ),
+      },
+      {
+          header: "Status",
+          mobileLabel: "Status",
+          sortable: true,
+          sortKey: "status",
+          cell: (row) => <StatusBadge status={row.status} dot />,
+      },
   ];
 
   return (
