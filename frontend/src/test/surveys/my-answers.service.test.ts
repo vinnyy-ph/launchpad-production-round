@@ -16,7 +16,7 @@ describe("fetchMyAnswers", () => {
     mockedApiFetch.mockResolvedValueOnce({
       success: true,
       message: "ok",
-      data: { occurrenceId: "occ-1", surveyId: "s1", surveyName: "Q3", occurrenceNumber: 1, isAnonymous: false, answers: [] },
+      data: { occurrenceId: "occ-1", surveyId: "s1", surveyName: "Q3", occurrenceNumber: 1, isAnonymous: false, submitted: true, answers: [] },
     });
 
     await fetchMyAnswers("occ-1");
@@ -34,6 +34,7 @@ describe("fetchMyAnswers", () => {
         surveyName: "Q3",
         occurrenceNumber: 1,
         isAnonymous: false,
+        submitted: true,
         answers: [
           { questionId: "q1", questionText: "Pick", type: "MULTIPLE_CHOICE", options: { choices: ["A", "B"] }, scaleMin: null, scaleMax: null, scaleMinLabel: null, scaleMaxLabel: null, answerText: null, answerData: "A" },
           { questionId: "q2", questionText: "Why", type: "SHORT_ANSWER", options: null, scaleMin: null, scaleMax: null, scaleMinLabel: null, scaleMaxLabel: null, answerText: "Because", answerData: null },
