@@ -1,5 +1,6 @@
 import type { User } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
+import { CloudinaryService } from "../../../core/cloudinary";
 import { downwardChain, upwardChain } from "../../shared/org";
 import { NotificationsService } from "../../notifications/notifications.service";
 import type {
@@ -14,6 +15,16 @@ import type {
 import { OffboardingRepository } from "./offboarding.repository";
 import type { OffboardingRecordWithRelations } from "./offboarding.types";
 
+const cloudinaryService = new CloudinaryService();
+
+function resolveAttachmentUrl(url: string | null | undefined): string | null {
+  if (!url) {
+    return null;
+  }
+
+  return cloudinaryService.resolveOnboardingDocumentViewUrl(url);
+}
+
 /** Maps a persisted offboarding record (with relations) to the detail DTO. */
 export function toOffboardingDetailDto(
   record: OffboardingRecordWithRelations,
@@ -23,9 +34,12 @@ export function toOffboardingDetailDto(
     employee: {
       id: record.employee.id,
       firstName: record.employee.firstName,
+      middleName: record.employee.middleName,
       lastName: record.employee.lastName,
+      companyEmail: record.employee.companyEmail,
       jobTitle: record.employee.jobTitle,
       department: record.employee.department?.name ?? null,
+      avatarUrl: record.employee.user?.avatarUrl ?? null,
     },
     initiatedBy: {
       id: record.initiatedBy.id,
@@ -36,7 +50,7 @@ export function toOffboardingDetailDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
-    attachmentUrl: record.attachmentUrl ?? null,
+    attachmentUrl: resolveAttachmentUrl(record.attachmentUrl),
     createdAt: record.createdAt.toISOString(),
     completedAt: record.completedAt?.toISOString() ?? null,
     signatureRequests: record.signatureRequests.map((request) => ({
@@ -69,14 +83,17 @@ function toOffboardingListItemDto(
     employee: {
       id: record.employee.id,
       firstName: record.employee.firstName,
+      middleName: record.employee.middleName,
       lastName: record.employee.lastName,
+      companyEmail: record.employee.companyEmail,
       jobTitle: record.employee.jobTitle,
       department: record.employee.department?.name ?? null,
+      avatarUrl: record.employee.user?.avatarUrl ?? null,
     },
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
-    attachmentUrl: record.attachmentUrl ?? null,
+    attachmentUrl: resolveAttachmentUrl(record.attachmentUrl),
     signedCount,
     totalCount,
     createdAt: record.createdAt.toISOString(),

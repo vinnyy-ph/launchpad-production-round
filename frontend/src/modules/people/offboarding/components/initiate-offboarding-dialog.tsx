@@ -24,7 +24,7 @@ import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useOffboardings } from "../hooks/use-offboarding";
 import { useCreateOffboarding } from "../hooks/use-create-offboarding";
-import { useClearanceTemplates } from "../hooks/use-clearance-templates";
+import { useClearanceTemplateOptions } from "../hooks/use-clearance-templates";
 
 interface InitiateOffboardingDialogProps {
   open: boolean;
@@ -51,8 +51,10 @@ export function InitiateOffboardingDialog({
     open ? { status: "active", limit: 200 } : {},
   );
   const { offboardings } = useOffboardings();
-  const { templates, loading: templatesLoading, error: templatesError } = useClearanceTemplates(open);
   const { create, creating } = useCreateOffboarding();
+  // Only fetch clearance version options while the dialog is open.
+  const { templates, loading: templatesLoading, error: templatesError } =
+    useClearanceTemplateOptions(open);
 
   const [empId, setEmpId] = useState<string>("");
   const [tenderDate, setTenderDate] = useState<string>(todayIso());

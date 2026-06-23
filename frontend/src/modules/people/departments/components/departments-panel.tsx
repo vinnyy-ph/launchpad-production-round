@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Building2, Pencil, Plus, Trash2 } from "lucide-react";
@@ -34,7 +32,12 @@ import type {
 
 const PAGE_SIZE = 10;
 
-export default function DepartmentsPage() {
+/**
+ * Departments management for the HR Configurations page: a searchable, paginated table
+ * with create/rename/delete. Renders as a section panel (no page-level chrome) so it can
+ * sit under the Configurations › Departments tab.
+ */
+export function DepartmentsPanel() {
   const confirm = useConfirm();
   const { remove } = useDepartmentMutations();
 
@@ -175,7 +178,7 @@ export default function DepartmentsPage() {
   return (
     <div className="min-w-0">
       <PageHeader
-        level="page"
+        level="default"
         title="Departments"
         subtitle="The departments employees can be assigned to."
         action={

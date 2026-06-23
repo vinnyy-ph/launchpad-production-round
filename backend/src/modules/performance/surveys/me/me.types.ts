@@ -36,6 +36,8 @@ export interface MyAnswersDetail {
   surveyName: string;
   occurrenceNumber: number;
   isAnonymous: boolean;
+  /** False when the caller is in the audience but hasn't responded to this occurrence yet. */
+  submitted: boolean;
   /** Empty for anonymous surveys — individual content is unrecoverable by design. */
   answers: MyAnswerItem[];
 }

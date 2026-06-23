@@ -85,6 +85,7 @@ export class SupervisorOnboardingService {
       lastName: record.employee.lastName,
       jobTitle: record.employee.jobTitle,
       department: record.employee.department?.name ?? null,
+      avatarUrl: record.employee.user?.avatarUrl ?? null,
       status: record.isComplete ? "completed" : "onboarding",
       onboarding: {
         recordId: record.id,

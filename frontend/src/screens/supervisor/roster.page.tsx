@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  UserAvatar,
 } from "@/shared/ui";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -95,6 +96,8 @@ export default function RosterPage() {
       middleName: null,
       lastName: ref?.lastName ?? "",
       fullName: ref?.fullName || appUser?.displayName || appUser?.email || "You",
+      // This card is the signed-in supervisor, so their own Google photo applies.
+      avatarUrl: appUser?.avatarUrl ?? null,
       companyEmail: ref?.companyEmail ?? appUser?.email ?? "",
       jobTitle: ref?.jobTitle ?? null,
       department: null,
@@ -176,58 +179,68 @@ export default function RosterPage() {
   }, [search, statusFilter, sort]);
 
   const columns: Column<EmployeeListItem>[] = [
-    {
-      header: "Name",
-      sortable: true,
-      sortKey: "name",
-      cell: (row) => (
-        <div className="flex items-center gap-3">
-          <span
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-            style={{
-              background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
-            }}
-            aria-hidden="true"
-          >
-            {initials(row.fullName)}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-              {row.fullName}
-            </p>
-            <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.companyEmail}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: "Role / Department",
-      sortable: true,
-      sortKey: "role",
-      cell: (row) => (
-        <div className="min-w-0">
-          <p className="truncate text-sm text-[color:var(--text-primary)]">{row.jobTitle ?? "—"}</p>
-          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-            {row.department ?? "—"}
-          </p>
-        </div>
-      ),
-    },
-    {
-      header: "Team/s",
-      cell: (row) => (
-        <span className="text-sm text-[color:var(--text-secondary)]">
-          {row.teams.length ? row.teams.map((t) => t.name).join(", ") : "—"}
-        </span>
-      ),
-    },
-    {
-      header: "Status",
-      mobileLabel: "Status",
-      sortable: true,
-      sortKey: "status",
-      cell: (row) => <StatusBadge status={row.status} dot />,
-    },
+      {
+          header: "Name",
+          sortable: true,
+          className: "max-w-[200px] text-start",
+          sortKey: "name",
+          cell: (row) => (
+              <div className="flex items-center gap-3">
+                  <UserAvatar
+                      src={row.avatarUrl}
+                      fallback={initials(row.fullName)}
+                      className="h-8 w-8"
+                      fallbackClassName="text-xs font-bold text-white"
+                      fallbackStyle={{
+                          background:
+                              "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                      }}
+                  />
+                  <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+                          {row.fullName}
+                      </p>
+                      <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                          {row.companyEmail}
+                      </p>
+                  </div>
+              </div>
+          ),
+      },
+      {
+          header: "Job Title / Department",
+          sortable: true,
+          className: "max-w-[200px] text-start",
+          sortKey: "role",
+          cell: (row) => (
+              <div className="min-w-0">
+                  <p className="truncate text-sm text-[color:var(--text-primary)]">
+                      {row.jobTitle ?? "—"}
+                  </p>
+                  <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                      {row.department ?? "—"}
+                  </p>
+              </div>
+          ),
+      },
+      {
+          header: "Team/s",
+          className: "min-w-[200px] text-start",
+          cell: (row) => (
+              <span className="text-sm text-[color:var(--text-secondary)]">
+                  {row.teams.length
+                      ? row.teams.map((t) => t.name).join(", ")
+                      : "—"}
+              </span>
+          ),
+      },
+      {
+          header: "Status",
+          mobileLabel: "Status",
+          sortable: true,
+          sortKey: "status",
+          cell: (row) => <StatusBadge status={row.status} dot />,
+      },
   ];
 
   return (
@@ -395,12 +408,14 @@ export default function RosterPage() {
         </div>
       )}
 
-      {/* Detail drawer. Fetches the role-aware profile, so an HR viewer sees the full record while a
-          plain supervisor still gets the redacted set. */}
+      {/* Detail drawer. Roster is a supervisor-context surface, so sensitive fields are always
+          redacted here — even for an HR viewer. HR's unredacted view lives only in the People
+          directory and the structure org chart. */}
       <EmployeeProfileSheet
         employeeId={selected?.id ?? null}
         fallbackEmployee={selected}
         onClose={() => setSelected(null)}
+        redacted
       />
     </div>
   );

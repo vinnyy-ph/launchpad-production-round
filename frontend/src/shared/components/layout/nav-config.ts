@@ -20,7 +20,8 @@ import {
   Dataflow03,
   MessageSquare01,
   UsersPlus,
-  Building01,
+  Settings01,
+  LogOut01,
 } from "@untitledui/icons";
 import type { AppUser } from "@/modules/auth/types/auth.types";
 
@@ -41,6 +42,12 @@ export interface NavItem {
   href: string;
   /** Optional pending-count pill (e.g. unsigned clearances). Unset = no pill. */
   badge?: number;
+  /**
+   * Optional per-item gate evaluated on top of the section's role lane. When set, the item
+   * is shown only if it returns true (e.g. the employee's own Offboarding tab appears only
+   * while their status is OFFBOARDING). Unset = always shown for the role.
+   */
+  visible?: (user: AppUser) => boolean;
 }
 
 export interface NavSection {
@@ -62,6 +69,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: "dashboard", label: "Dashboard", icon: LayoutAlt01, href: "/" },
       { id: "performance", label: "Performance", icon: BarChartSquare02, href: "/employee/surveys" },
       { id: "teams", label: "Teams", icon: Users01, href: "/employee/teams" },
+      {
+        id: "offboarding",
+        label: "Offboarding",
+        icon: LogOut01,
+        href: "/offboarding",
+        // Personal offboarding only exists once HR has initiated it for this employee.
+        visible: (user) => user.employeeStatus === "OFFBOARDING",
+      },
     ],
   },
   {
@@ -78,9 +93,9 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Organization",
     items: [
       { id: "people", label: "People", icon: Users01, href: "/hr/directory" },
-      { id: "departments", label: "Departments", icon: Building01, href: "/hr/departments" },
       { id: "orgchart", label: "Structure", icon: Dataflow03, href: "/hr/teams" },
       { id: "surveys", label: "Surveys", icon: MessageSquare01, href: "/hr/surveys" },
+      { id: "configurations", label: "Configurations", icon: Settings01, href: "/hr/configurations" },
     ],
   },
   {
@@ -95,13 +110,20 @@ export const SCREEN_HEADERS: Record<string, { title: string; subtitle: string }>
   dashboard: { title: "Dashboard", subtitle: "Your day at a glance across {workspaceName}." },
   performance: { title: "Performance", subtitle: "Your performance evaluations and pulse surveys." },
   teams: { title: "Teams", subtitle: "Teams you belong to at {workspaceName}." },
+  offboarding: {
+    title: "My offboarding",
+    subtitle: "Track your offboarding status and clearance progress.",
+  },
   overview: { title: "Team overview", subtitle: "How your direct reports are tracking." },
   roster: { title: "Roster", subtitle: "Everyone who reports to you." },
   evaluations: { title: "Evaluations", subtitle: "Write and track evaluations for the people you manage." },
   people: { title: "People", subtitle: "The {workspaceName} employee directory." },
-  departments: { title: "Departments", subtitle: "Organizational departments at {workspaceName}." },
   orgchart: { title: "Structure", subtitle: "Reporting lines and team structure." },
   surveys: { title: "Surveys", subtitle: "Engagement and pulse surveys." },
+  configurations: {
+    title: "Configurations",
+    subtitle: "Organization-wide setup for {workspaceName}.",
+  },
   users: { title: "Users", subtitle: "Accounts, roles, and access." },
 };
 
@@ -114,7 +136,6 @@ const EXTRA_CRUMBS: Record<string, string[]> = {
   "/employee/profile": ["My profile"],
   "/employee/onboarding": ["My onboarding"],
   "/employee/clearance": ["My clearances"],
-  "/offboarding": ["My offboarding"],
   "/supervisor/status": ["My Team", "Hierarchy status"],
 };
 
@@ -154,9 +175,20 @@ export function hasNavRole(user: AppUser | null | undefined, role: NavRole): boo
   }
 }
 
-/** The sections this user can see, in fixed stacking order. Empty when unauthenticated. */
+/**
+ * The sections (and items) this user can see, in fixed stacking order. A section is included
+ * when the user holds its role lane; within it, items with a `visible` gate are filtered by it.
+ * Sections left with no visible items are dropped. Empty when unauthenticated.
+ */
 export function visibleSections(user: AppUser | null | undefined): NavSection[] {
-  return NAV_SECTIONS.filter((section) => hasNavRole(user, section.role));
+  if (!user) return [];
+
+  return NAV_SECTIONS.filter((section) => hasNavRole(user, section.role))
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => item.visible?.(user) ?? true),
+    }))
+    .filter((section) => section.items.length > 0);
 }
 
 /**

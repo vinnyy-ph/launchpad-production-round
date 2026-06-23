@@ -21,6 +21,7 @@ import { onboardingRouter } from "./modules/people/onboarding";
 import { employeeOnboardingRouter } from "./modules/people/onboarding/employee-onboarding";
 import { offboardingRouter } from "./modules/people/offboarding";
 import { clearanceRouter } from "./modules/people/offboarding/clearance";
+import { clearanceTemplatesRouter } from "./modules/people/offboarding/clearance-templates";
 import { pulseSurveysRouter } from "./modules/performance/surveys";
 import { notificationsRouter } from "./modules/notifications";
 import { supervisorOnboardingRouter } from "./modules/people/onboarding/supervisor-onboarding";
@@ -30,6 +31,11 @@ import {
 } from "./core/globals";
 
 export const app = express();
+
+if (process.env.NODE_ENV === "production") {
+  // Railway sits behind one reverse proxy; required so rate limits use the real client IP.
+  app.set("trust proxy", 1);
+}
 
 const origins = (process.env.CORS_ORIGIN ?? "http://localhost:3000").split(",");
 
@@ -51,7 +57,9 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "healthy" }));
 
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (process.env.NODE_ENV !== "production") {
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 app.use(globalLimiter);
 
@@ -104,6 +112,11 @@ app.use(
   offboardingRouter,
 );
 app.use(`${API_ROUTES.VERSIONED_ROOT}/clearance`, authenticate, clearanceRouter);
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/clearance-templates`,
+  authenticate,
+  clearanceTemplatesRouter,
+);
 
 /** Fallback for unhandled errors — returns JSON instead of a blank 500 page. */
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

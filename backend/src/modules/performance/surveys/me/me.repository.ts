@@ -169,6 +169,17 @@ export class MeRepository {
     return completion !== null;
   }
 
+  /** Whether this employee is in the occurrence's resolved audience (snapshot at activation).
+   *  Lets a non-responder in the audience get a clean "no submission" while a non-recipient
+   *  still 404s — so survey names can't be probed by occurrence id. */
+  async isAudienceMember(occurrenceId: string, employeeId: string): Promise<boolean> {
+    const member = await prisma.surveyAudienceMember.findUnique({
+      where: { occurrenceId_employeeId: { occurrenceId, employeeId } },
+      select: { employeeId: true },
+    });
+    return member !== null;
+  }
+
   /** The employee's own answers for an occurrence. Returns nothing for anonymous surveys
    *  (the response carries no employee link), so callers must gate on anonymity first. */
   async findMyAnswers(

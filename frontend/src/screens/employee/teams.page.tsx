@@ -8,7 +8,7 @@ import { useMyTeams } from "@/modules/people/teams/hooks/use-my-teams";
 import type { Team } from "@/modules/people/teams/types/teams.types";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
-import { Input, Badge, Skeleton } from "@/shared/ui";
+import { Input, Badge, Skeleton, UserAvatar } from "@/shared/ui";
 import { EmptyState, ErrorState, FilterBar } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
 
@@ -18,18 +18,15 @@ function initials(name: string): string {
   return (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
 }
 
-function Avatar({ name, className }: { name: string; className?: string }) {
+function Avatar({ name, src, className }: { name: string; src?: string | null; className?: string }) {
   return (
-    <span
-      className={cn(
-        "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white",
-        className,
-      )}
-      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
+    <UserAvatar
+      src={src}
+      fallback={initials(name)}
+      className={cn("h-9 w-9", className)}
+      fallbackClassName="text-[11px] font-bold text-white"
+      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+    />
   );
 }
 
@@ -54,7 +51,7 @@ function TeamCard({ team }: { team: Team }) {
       </div>
 
       <div className="mt-4 flex items-center gap-2.5">
-        <Avatar name={team.leader.fullName} />
+        <Avatar name={team.leader.fullName} src={team.leader.avatarUrl} />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
             {team.leader.fullName}
@@ -69,7 +66,8 @@ function TeamCard({ team }: { team: Team }) {
             <Avatar
               key={member.id}
               name={member.fullName}
-              className="h-7 w-7 text-[10px] ring-2 ring-white"
+              src={member.avatarUrl}
+              className="h-7 w-7 ring-2 ring-white"
             />
           ))}
           {extra > 0 && (

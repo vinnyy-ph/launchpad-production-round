@@ -3,6 +3,8 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   googleId  String?  @unique
+  /// Google profile picture URL captured from the Firebase token at sign-in; null when the account has no photo.
+  avatarUrl String?
   role      Role     @default(EMPLOYEE)
   isActive  Boolean   @default(true)
   lastLoginAt DateTime?

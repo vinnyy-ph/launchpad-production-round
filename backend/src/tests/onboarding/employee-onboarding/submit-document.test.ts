@@ -20,6 +20,10 @@ jest.mock("../../../core/cloudinary", () => ({
   CloudinaryService: jest.fn().mockImplementation(() => ({
     uploadOnboardingDocument: (...args: unknown[]) =>
       uploadOnboardingDocumentMock(...args),
+    resolveOnboardingDocumentViewUrl: (stored: string) =>
+      stored.startsWith("http")
+        ? stored
+        : `https://signed.example.test/${stored}`,
   })),
 }));
 
@@ -47,9 +51,7 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
   beforeEach(() => {
     resetEmployeeOnboardingMocks();
     uploadOnboardingDocumentMock.mockReset();
-    uploadOnboardingDocumentMock.mockResolvedValue(
-      "https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.pdf",
-    );
+    uploadOnboardingDocumentMock.mockResolvedValue("onboarding/nbi-clearance|image");
   });
 
   it("creates a pending document submission", async () => {
@@ -128,6 +130,26 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
     const response = await request(app)
       .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
       .attach("file", Buffer.from("fake executable"), "nbi-clearance.exe")
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      errorCode: "INVALID_FILE_TYPE",
+    });
+    expect(uploadOnboardingDocumentMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when a PDF extension hides non-PDF content", async () => {
+    onboardingRecordFindFirstMock.mockResolvedValue(buildOnboardingRecord());
+    onboardingDocumentFindFirstMock.mockResolvedValue(buildDocumentRecord());
+    onboardingDocumentSubmissionFindFirstMock.mockResolvedValue(null);
+
+    const response = await request(app)
+      .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
+      .attach("file", Buffer.from("MZ fake executable"), {
+        filename: "nbi-clearance.pdf",
+        contentType: "application/pdf",
+      })
       .expect(400);
 
     expect(response.body).toMatchObject({

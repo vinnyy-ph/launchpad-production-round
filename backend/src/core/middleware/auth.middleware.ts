@@ -59,6 +59,8 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     req.user = account;
     req.firebaseUid = decoded.uid;
+    // Google profile picture (present on Google-provider tokens); persisted at session bootstrap.
+    req.firebasePicture = decoded.picture ?? null;
     return next();
   } catch (error) {
     return next(error);

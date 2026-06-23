@@ -45,25 +45,32 @@ export class MeService {
       throw new Error(SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND);
     }
 
-    // Proof the caller actually answered this occurrence. Tracked separately from the
-    // (possibly anonymized) response, so it holds for anonymous surveys too. Doubles as the
-    // ownership gate — identity comes from the session, never the request.
-    const completed = await this.repository.hasCompleted(occurrenceId, employeeId);
-    if (!completed) {
-      throw new Error(SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND);
-    }
-
     const base = {
       occurrenceId,
       surveyId: occurrence.surveyId,
       surveyName: occurrence.surveyName,
       occurrenceNumber: occurrence.occurrenceNumber,
+      isAnonymous: occurrence.isAnonymous,
     };
 
+    // Did the caller actually answer this occurrence? Completion is tracked separately from
+    // the (possibly anonymized) response, so it holds for anonymous surveys too. Identity
+    // comes from the session, never the request.
+    const completed = await this.repository.hasCompleted(occurrenceId, employeeId);
+    if (!completed) {
+      // In the audience but not yet responded → clean "no submission", not an error.
+      // Outside the audience → 404, so a non-recipient can't probe survey names by occurrence id.
+      const inAudience = await this.repository.isAudienceMember(occurrenceId, employeeId);
+      if (!inAudience) {
+        throw new Error(SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND);
+      }
+      return { ...base, submitted: false, answers: [] };
+    }
+
     // Anonymity firewall: an anonymous response has no employee link, so the content is
-    // unrecoverable by design. Return the flag with no answers — never re-identify.
+    // unrecoverable by design. Confirm submission, return no answers — never re-identify.
     if (occurrence.isAnonymous) {
-      return { ...base, isAnonymous: true, answers: [] };
+      return { ...base, submitted: true, answers: [] };
     }
 
     const rows = await this.repository.findMyAnswers(occurrenceId, employeeId);
@@ -81,6 +88,6 @@ export class MeService {
       answerData: byQuestion.get(q.id)?.answerData ?? null,
     }));
 
-    return { ...base, isAnonymous: false, answers };
+    return { ...base, submitted: true, answers };
   }
 }

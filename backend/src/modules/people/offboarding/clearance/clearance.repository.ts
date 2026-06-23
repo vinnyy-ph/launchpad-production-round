@@ -16,6 +16,7 @@ const requestInclude = {
           lastName: true,
           jobTitle: true,
           department: { select: { name: true } },
+          user: { select: { avatarUrl: true } },
         },
       },
     },
@@ -45,6 +46,52 @@ export class ClearanceRepository {
     return prisma.employee.findUnique({
       where: { userId },
       select: { id: true },
+    });
+  }
+
+  /** Loads an employee by id with the name fields needed for notifications. */
+  async findEmployeeById(employeeId: string) {
+    return prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { id: true, firstName: true, lastName: true },
+    });
+  }
+
+  /**
+   * Returns true when another signature request on the same offboarding is already
+   * assigned to the given signatory (guards the unique [offboardingId, signatoryId]).
+   */
+  async signatoryHasRequestOnOffboarding(
+    offboardingId: string,
+    signatoryId: string,
+    exceptRequestId: string,
+  ): Promise<boolean> {
+    const existing = await prisma.clearanceSignatureRequest.findFirst({
+      where: {
+        offboardingId,
+        signatoryId,
+        NOT: { id: exceptRequestId },
+      },
+      select: { id: true },
+    });
+
+    return existing !== null;
+  }
+
+  /**
+   * Reassigns a signature request to a new signatory and resets it to PENDING,
+   * clearing any prior note/sign so the new person starts fresh.
+   */
+  async replaceSignatory(requestId: string, newSignatoryId: string) {
+    return prisma.clearanceSignatureRequest.update({
+      where: { id: requestId },
+      data: {
+        signatoryId: newSignatoryId,
+        status: "PENDING",
+        note: null,
+        actionAt: null,
+      },
+      include: requestInclude,
     });
   }
 

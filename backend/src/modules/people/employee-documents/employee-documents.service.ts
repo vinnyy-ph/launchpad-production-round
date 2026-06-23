@@ -6,6 +6,7 @@ import type {
 } from "./dto";
 import type { EmployeeDocumentRecord } from "./employee-documents.repository";
 import { EmployeeDocumentsRepository } from "./employee-documents.repository";
+import { CloudinaryService } from "../../../core/cloudinary";
 
 /**
  * Business logic for listing an employee's uploaded documents in the HR directory profile.
@@ -13,6 +14,7 @@ import { EmployeeDocumentsRepository } from "./employee-documents.repository";
 export class EmployeeDocumentsService {
   constructor(
     private readonly repository = new EmployeeDocumentsRepository(),
+    private readonly cloudinaryService = new CloudinaryService(),
   ) {}
 
   /**
@@ -32,7 +34,9 @@ export class EmployeeDocumentsService {
     return {
       id: submission.id,
       documentName: submission.document.documentName,
-      fileUrl: submission.fileUrl,
+      fileUrl: this.cloudinaryService.resolveOnboardingDocumentViewUrl(
+        submission.fileUrl,
+      ),
       status: this.toStatusDto(submission.status),
       rejectionNote: submission.rejectionNote,
       submittedAt: submission.submittedAt.toISOString(),
