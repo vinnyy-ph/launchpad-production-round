@@ -67,6 +67,14 @@ export const API_SUCCESS_MESSAGES = {
   CLEARANCE_SIGNED: "Clearance signed successfully",
   CLEARANCE_REJECTED: "Clearance rejected successfully",
   CLEARANCE_RESET: "Clearance request reset to pending successfully",
+  CLEARANCE_SIGNATORY_REPLACED: "Clearance signatory replaced successfully",
+  CLEARANCE_TEMPLATES_RETRIEVED:
+    "Clearance versions retrieved successfully",
+  CLEARANCE_TEMPLATE_CREATED: "Clearance version created successfully",
+  CLEARANCE_TEMPLATE_UPDATED: "Clearance version updated successfully",
+  CLEARANCE_TEMPLATE_DELETED: "Clearance version deleted successfully",
+  CLEARANCE_TEMPLATE_SET_DEFAULT:
+    "Clearance version set as default successfully",
   DEPARTMENTS_RETRIEVED: "Departments retrieved successfully",
   DEPARTMENT_CREATED: "Department created successfully",
   DEPARTMENT_UPDATED: "Department updated successfully",

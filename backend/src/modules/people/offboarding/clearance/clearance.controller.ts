@@ -84,6 +84,30 @@ export class ClearanceController {
     }
   };
 
+  /** Handles POST /api/v1/clearance/:requestId/replace-signatory. ADMIN/HR. */
+  replaceSignatory = async (
+    req: Request,
+    res: Response<ClearanceActionResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const { requestId } = this.clearanceValidation.parseRequestIdParam(
+        req.params,
+      );
+      const { newSignatoryId } = this.clearanceValidation.parseReplaceBody(
+        req.body,
+      );
+      const result = await this.clearanceService.replaceSignatory(
+        requestId,
+        newSignatoryId,
+      );
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
   /** Handles POST /api/v1/clearance/:requestId/reset. ADMIN/HR or the signatory. */
   resetClearance = async (
     req: Request,
@@ -174,6 +198,36 @@ export class ClearanceController {
         code: API_ERROR_CODES.SIGNATURE_REQUEST_NOT_PENDING,
         topMessage: API_ERROR_MESSAGES.SIGNATURE_REQUEST_NOT_PENDING,
         topCode: API_ERROR_CODES.SIGNATURE_REQUEST_NOT_PENDING,
+      });
+    }
+
+    if (error.message === "Offboarding not in progress") {
+      return this.fail(res, HTTP_STATUS_CODES.CONFLICT, {
+        field: "requestId",
+        message: API_ERROR_MESSAGES.OFFBOARDING_NOT_IN_PROGRESS,
+        code: API_ERROR_CODES.OFFBOARDING_NOT_IN_PROGRESS,
+        topMessage: API_ERROR_MESSAGES.OFFBOARDING_NOT_IN_PROGRESS,
+        topCode: API_ERROR_CODES.OFFBOARDING_NOT_IN_PROGRESS,
+      });
+    }
+
+    if (error.message === "Signatory not found") {
+      return this.fail(res, HTTP_STATUS_CODES.NOT_FOUND, {
+        field: "newSignatoryId",
+        message: API_ERROR_MESSAGES.SIGNATORY_NOT_FOUND,
+        code: API_ERROR_CODES.SIGNATORY_NOT_FOUND,
+        topMessage: API_ERROR_MESSAGES.SIGNATORY_NOT_FOUND,
+        topCode: API_ERROR_CODES.SIGNATORY_NOT_FOUND,
+      });
+    }
+
+    if (error.message === "Signatory already on clearance") {
+      return this.fail(res, HTTP_STATUS_CODES.CONFLICT, {
+        field: "newSignatoryId",
+        message: API_ERROR_MESSAGES.SIGNATORY_ALREADY_ON_CLEARANCE,
+        code: API_ERROR_CODES.SIGNATORY_ALREADY_ON_CLEARANCE,
+        topMessage: API_ERROR_MESSAGES.SIGNATORY_ALREADY_ON_CLEARANCE,
+        topCode: API_ERROR_CODES.SIGNATORY_ALREADY_ON_CLEARANCE,
       });
     }
 

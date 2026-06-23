@@ -4,6 +4,7 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import {
   getAssignedClearances,
   rejectClearance,
+  replaceClearanceSignatory,
   resetClearance,
   signClearance,
 } from "../services/offboarding.service";
@@ -77,6 +78,21 @@ export function useResetClearance() {
   return {
     reset: mutation.mutateAsync,
     resetting: mutation.isPending,
+    error: mutation.error instanceof Error ? mutation.error.message : null,
+  };
+}
+
+/** Replaces the signatory on an in-progress clearance item (ADMIN/HR). */
+export function useReplaceClearanceSignatory() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (vars: { requestId: string; newSignatoryId: string }) =>
+      replaceClearanceSignatory(vars.requestId, vars.newSignatoryId),
+    onSuccess: (action) => invalidateAfterAction(queryClient, action),
+  });
+  return {
+    replace: mutation.mutateAsync,
+    replacing: mutation.isPending,
     error: mutation.error instanceof Error ? mutation.error.message : null,
   };
 }

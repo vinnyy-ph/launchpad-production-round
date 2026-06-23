@@ -22,6 +22,7 @@ import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use
 import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
 import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
+import { useAssignedClearances, AssignedClearancesSection } from "@/modules/people/offboarding";
 import { KpiCard, type KpiCardProps } from "@/shared/ui/patterns";
 import type { AppUser, EmployeeStatus } from "@/modules/auth/types/auth.types";
 
@@ -31,6 +32,11 @@ export default function HomePage() {
 
   const { notifications, loading: notifLoading, error: notifError, reload: reloadNotifs } = useNotifications(5);
   const { markRead } = useMarkRead(() => void reloadNotifs());
+
+  // Clearances the signed-in user must sign. Surfaced on the dashboard only when something
+  // is actually pending, so it stays out of the way for everyone who isn't a signatory.
+  const { clearances: assignedClearances } = useAssignedClearances(Boolean(appUser?.employeeId));
+  const hasPendingSignatures = assignedClearances.some((c) => c.status === "PENDING");
 
   // Time-aware greeting is set after mount so the server-prerendered HTML and the
   // client hydration agree (the clock only exists on the client). First paint shows
@@ -87,6 +93,16 @@ export default function HomePage() {
             </div>
           </section>
         ))
+      )}
+
+      {/* Clearances awaiting the signed-in user's signature — only when something is pending. */}
+      {hasPendingSignatures && (
+        <section>
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+            Clearances Awaiting my signature
+          </h2>
+          <AssignedClearancesSection />
+        </section>
       )}
 
       {/* Recent notifications */}

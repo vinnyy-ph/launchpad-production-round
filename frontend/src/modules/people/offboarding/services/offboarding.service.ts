@@ -2,15 +2,19 @@ import { apiFetch } from "@/shared/lib/api-client";
 import type {
   AssignedClearance,
   ClearanceAction,
+  ClearanceTemplate,
+  CreateClearanceTemplateInput,
   InitiateOffboardingInput,
   OffboardingDetail,
   OffboardingListItem,
   ReassignResult,
   SupervisorOnboardingEmployee,
+  UpdateClearanceTemplateInput,
 } from "../types/offboarding.types";
 
 const OFFBOARDING_BASE = "/api/v1/offboarding";
 const CLEARANCE_BASE = "/api/v1/clearance";
+const CLEARANCE_TEMPLATES_BASE = "/api/v1/clearance-templates";
 const SUPERVISOR_ONBOARDING_BASE = "/api/v1/supervisor-onboarding";
 
 // Backend success envelope: { success, message, data }.
@@ -99,6 +103,66 @@ export async function resetClearance(requestId: string): Promise<ClearanceAction
     method: "POST",
   });
   return res.data;
+}
+
+/** Replaces the signatory on an in-progress clearance item (ADMIN/HR). */
+export async function replaceClearanceSignatory(
+  requestId: string,
+  newSignatoryId: string,
+): Promise<ClearanceAction> {
+  const res = await apiFetch<Envelope<ClearanceAction>>(
+    `${CLEARANCE_BASE}/${requestId}/replace-signatory`,
+    {
+      method: "POST",
+      body: JSON.stringify({ newSignatoryId }),
+    },
+  );
+  return res.data;
+}
+
+// ─── Clearance versions (templates, ADMIN/HR) ─────────────────────────────────
+
+/** All clearance versions with their signatories (default first). */
+export async function getClearanceTemplates(): Promise<ClearanceTemplate[]> {
+  const res = await apiFetch<Envelope<ClearanceTemplate[]>>(CLEARANCE_TEMPLATES_BASE);
+  return res.data;
+}
+
+/** Creates a clearance version. */
+export async function createClearanceTemplate(
+  input: CreateClearanceTemplateInput,
+): Promise<ClearanceTemplate> {
+  const res = await apiFetch<Envelope<ClearanceTemplate>>(CLEARANCE_TEMPLATES_BASE, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.data;
+}
+
+/** Edits a clearance version's name + signatories. */
+export async function updateClearanceTemplate(
+  id: string,
+  input: UpdateClearanceTemplateInput,
+): Promise<ClearanceTemplate> {
+  const res = await apiFetch<Envelope<ClearanceTemplate>>(`${CLEARANCE_TEMPLATES_BASE}/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+  return res.data;
+}
+
+/** Sets a clearance version as the default. */
+export async function setDefaultClearanceTemplate(id: string): Promise<ClearanceTemplate> {
+  const res = await apiFetch<Envelope<ClearanceTemplate>>(
+    `${CLEARANCE_TEMPLATES_BASE}/${id}/default`,
+    { method: "POST" },
+  );
+  return res.data;
+}
+
+/** Deletes a clearance version (blocked when in use by an offboarding case). */
+export async function deleteClearanceTemplate(id: string): Promise<void> {
+  await apiFetch(`${CLEARANCE_TEMPLATES_BASE}/${id}`, { method: "DELETE" });
 }
 
 // ─── Supervisor onboarding (read-only) ────────────────────────────────────────

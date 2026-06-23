@@ -88,6 +88,17 @@ export const API_ERROR_MESSAGES = {
   SIGNATURE_REQUEST_NOT_PENDING:
     "This clearance request has already been actioned",
   REJECTION_NOTE_REQUIRED: "A note is required when rejecting a clearance",
+  CLEARANCE_TEMPLATE_REQUIRES_SIGNATORY:
+    "A clearance version must have at least one signatory",
+  CLEARANCE_TEMPLATE_DUPLICATE_SIGNATORY:
+    "Each employee can only appear once in a clearance version",
+  CLEARANCE_TEMPLATE_IN_USE:
+    "This clearance version cannot be deleted while offboarding cases are using it",
+  SIGNATORY_NOT_FOUND: "The selected signatory employee was not found",
+  SIGNATORY_ALREADY_ON_CLEARANCE:
+    "The selected employee is already a signatory on this clearance",
+  OFFBOARDING_NOT_IN_PROGRESS:
+    "Signatories can only be replaced while the offboarding case is in progress",
   DEPARTMENT_NOT_FOUND: "Department not found",
   DEPARTMENT_ALREADY_EXISTS: "A department with this name already exists",
   DEPARTMENT_HAS_EMPLOYEES:

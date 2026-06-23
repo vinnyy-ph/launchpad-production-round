@@ -172,6 +172,67 @@ export class ClearanceService {
   }
 
   /**
+   * Replaces the signatory on an in-progress clearance item (e.g. the original
+   * signatory left). Keeps the snapshotted purpose/requirements, resets the item to
+   * PENDING, and notifies the new signatory. ADMIN/HR only (enforced at the route).
+   */
+  async replaceSignatory(
+    requestId: string,
+    newSignatoryId: string,
+  ): Promise<ClearanceActionResponseDto> {
+    const request = await this.clearanceRepository.findRequestById(requestId);
+
+    if (!request) {
+      throw new Error("Signature request not found");
+    }
+
+    if (request.offboarding.status !== "IN_PROGRESS") {
+      throw new Error("Offboarding not in progress");
+    }
+
+    const newSignatory = await this.clearanceRepository.findEmployeeById(
+      newSignatoryId,
+    );
+
+    if (!newSignatory) {
+      throw new Error("Signatory not found");
+    }
+
+    const alreadyAssigned =
+      await this.clearanceRepository.signatoryHasRequestOnOffboarding(
+        request.offboardingId,
+        newSignatoryId,
+        requestId,
+      );
+
+    if (alreadyAssigned) {
+      throw new Error("Signatory already on clearance");
+    }
+
+    const updated = await this.clearanceRepository.replaceSignatory(
+      requestId,
+      newSignatoryId,
+    );
+
+    const employeeName = `${updated.offboarding.employee.firstName} ${updated.offboarding.employee.lastName}`;
+
+    await this.notificationsService.notifyClearanceSignRequest(
+      newSignatoryId,
+      employeeName,
+      updated.id,
+    );
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.CLEARANCE_SIGNATORY_REPLACED,
+      data: this.toActionDto(updated, {
+        offboardingCompleted: false,
+        employeeInactivated: false,
+      }),
+    };
+  }
+
+  /**
    * Completes the offboarding when no signature requests remain unsigned.
    * Server-enforced: marks the record COMPLETED and the employee INACTIVE.
    */

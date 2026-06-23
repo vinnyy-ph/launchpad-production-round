@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -18,6 +18,7 @@ import {
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useOffboardings } from "../hooks/use-offboarding";
 import { useCreateOffboarding } from "../hooks/use-create-offboarding";
+import { useClearanceTemplates } from "../hooks/use-clearance-templates";
 
 interface InitiateOffboardingDialogProps {
   open: boolean;
@@ -45,18 +46,29 @@ export function InitiateOffboardingDialog({
   );
   const { offboardings } = useOffboardings();
   const { create, creating } = useCreateOffboarding();
+  // Only fetch clearance versions while the dialog is open.
+  const { templates, loading: templatesLoading } = useClearanceTemplates(open);
 
   const [empId, setEmpId] = useState<string>("");
   const [tenderDate, setTenderDate] = useState<string>(todayIso());
   const [effectiveDate, setEffectiveDate] = useState<string>("");
   const [newSupervisorId, setNewSupervisorId] = useState<string>("");
-  const [errors, setErrors] = useState<{ emp?: string; effective?: string }>({});
+  const [clearanceTemplateId, setClearanceTemplateId] = useState<string>("");
+  const [errors, setErrors] = useState<{ emp?: string; effective?: string; template?: string }>({});
+
+  // Default the version picker to the org default once versions load (unless the user picked one).
+  useEffect(() => {
+    if (!open || clearanceTemplateId) return;
+    const preferred = templates.find((t) => t.isDefault) ?? templates[0];
+    if (preferred) setClearanceTemplateId(preferred.id);
+  }, [open, templates, clearanceTemplateId]);
 
   function reset() {
     setEmpId("");
     setTenderDate(todayIso());
     setEffectiveDate("");
     setNewSupervisorId("");
+    setClearanceTemplateId("");
     setErrors({});
   }
 
@@ -85,9 +97,17 @@ export function InitiateOffboardingDialog({
     .filter((e) => e.id !== empId)
     .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
 
+  const templateOptions = templates.map((t) => ({
+    value: t.id,
+    label: `${t.name}${t.isDefault ? " · Default" : ""} · ${t.signatories.length} signator${
+      t.signatories.length === 1 ? "y" : "ies"
+    }`,
+  }));
+
   async function handleSubmit() {
     const next: typeof errors = {};
     if (!empId) next.emp = "Select an employee.";
+    if (!clearanceTemplateId) next.template = "Select a clearance version.";
     if (!effectiveDate) next.effective = "Effective date is required.";
     else if (effectiveDate < tenderDate)
       next.effective = "Effective date cannot be before the tender date.";
@@ -100,6 +120,7 @@ export function InitiateOffboardingDialog({
         employeeId: empId,
         tenderDate,
         effectiveDate,
+        clearanceTemplateId,
         ...(newSupervisorId ? { newSupervisorId } : {}),
       });
       toast.success(`Offboarding initiated for ${selected?.fullName ?? "employee"}.`);
@@ -149,6 +170,23 @@ export function InitiateOffboardingDialog({
               min={tenderDate || todayIso()}
               value={effectiveDate}
               onChange={(e) => setEffectiveDate(e.target.value)}
+            />
+          </FormField>
+
+          <FormField label="Clearance version" required error={errors.template}>
+            <Combobox
+              options={templateOptions}
+              value={clearanceTemplateId}
+              onChange={(v) => setClearanceTemplateId(v)}
+              placeholder={
+                templatesLoading
+                  ? "Loading versions…"
+                  : templateOptions.length === 0
+                    ? "No clearance versions configured"
+                    : "Select a clearance version…"
+              }
+              searchPlaceholder="Search versions…"
+              emptyText="No clearance versions. Add one under Clearance setup."
             />
           </FormField>
 

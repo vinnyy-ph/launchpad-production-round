@@ -65,6 +65,8 @@ export const queryKeys = {
     all: ["clearance"] as const,
     // Clearance requests assigned to the signed-in signatory.
     assigned: ["clearance", "assigned"] as const,
+    // HR-managed clearance versions (templates) with their signatories.
+    templates: ["clearance", "templates"] as const,
   },
   supervisorOnboarding: {
     // The onboarding side of a supervisor's downward chain (read-only consume).

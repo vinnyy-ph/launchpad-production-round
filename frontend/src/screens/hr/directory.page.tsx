@@ -289,9 +289,18 @@ export default function DirectoryPage() {
               </>
             ) : null}
             {tab === "offboarding" ? (
-              <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
-                <Plus /> Initiate offboarding
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => router.push("/hr/directory/offboarding/clearance")}
+                >
+                  <Settings2 aria-hidden="true" /> Clearance setup
+                </Button>
+                <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
+                  <Plus /> Initiate offboarding
+                </Button>
+              </>
             ) : null}
           </div>
         }
