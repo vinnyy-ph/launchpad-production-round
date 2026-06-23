@@ -1,11 +1,7 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Settings2, ArrowLeft } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
 import {
   Button,
   Checkbox,
@@ -48,12 +44,16 @@ import {
   serializeAllowedFileTypes,
 } from "@/modules/people/onboarding/constants/allowed-file-types";
 
-export default function OnboardingSettingsPage() {
-  const router = useRouter();
+const SECTION_TITLE = "Onboarding setup";
+const SECTION_SUBTITLE = "Manage required documents and custom fields for new hires.";
+
+/**
+ * Onboarding configuration for the HR Configurations page: required documents and custom
+ * fields applied to all new onboarding cases. Renders as a section panel (no page-level
+ * chrome) so it can sit under the Configurations › Onboarding setup tab.
+ */
+export function OnboardingSetupPanel() {
   const confirm = useConfirm();
-  // Surface this page in the topbar breadcrumb (Organization › People › Onboarding › Settings)
-  // instead of rendering an in-page breadcrumb.
-  usePageBreadcrumb(["Settings"]);
 
   const { documents, loading: docsLoading, error: docsError, reload: reloadDocs } =
     useDocumentConfigs();
@@ -244,11 +244,7 @@ export default function OnboardingSettingsPage() {
   if (loading && documents.length === 0 && fields.length === 0) {
     return (
       <div>
-        <PageHeader
-          level="page"
-          title="Onboarding settings"
-          subtitle="Manage required documents and custom fields for new hires."
-        />
+        <PageHeader level="default" title={SECTION_TITLE} subtitle={SECTION_SUBTITLE} />
         <PageSkeleton />
       </div>
     );
@@ -257,11 +253,7 @@ export default function OnboardingSettingsPage() {
   if (error) {
     return (
       <div>
-        <PageHeader
-          level="page"
-          title="Onboarding settings"
-          subtitle="Manage required documents and custom fields for new hires."
-        />
+        <PageHeader level="default" title={SECTION_TITLE} subtitle={SECTION_SUBTITLE} />
         <ErrorState
           message={error}
           onRetry={() => {
@@ -275,17 +267,7 @@ export default function OnboardingSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        level="page"
-        title="Onboarding settings"
-        subtitle="Manage required documents and custom fields for new hires."
-        action={
-          <Button variant="outline" onClick={() => router.push("/hr/directory/onboarding")}>
-            <ArrowLeft aria-hidden="true" />
-            Back to onboarding
-          </Button>
-        }
-      />
+      <PageHeader level="default" title={SECTION_TITLE} subtitle={SECTION_SUBTITLE} />
 
       <div
         className="rounded-xl border border-[color:var(--border-primary)] bg-white"

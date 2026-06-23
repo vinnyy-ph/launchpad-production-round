@@ -272,7 +272,7 @@ export default function DirectoryPage() {
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/directory/onboarding/settings")}
+                  onClick={() => router.push("/hr/configurations?tab=onboarding")}
                 >
                   <Settings2 aria-hidden="true" /> Onboarding setup
                 </Button>
@@ -293,7 +293,7 @@ export default function DirectoryPage() {
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/directory/offboarding/clearance")}
+                  onClick={() => router.push("/hr/configurations?tab=clearances")}
                 >
                   <Settings2 aria-hidden="true" /> Clearance setup
                 </Button>

@@ -1,11 +1,7 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, Plus, ShieldCheck, Star, Trash2 } from "lucide-react";
+import { Pencil, Plus, ShieldCheck, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
 import {
   Badge,
   Button,
@@ -25,19 +21,21 @@ import type {
 } from "@/modules/people/offboarding";
 import { ClearanceVersionDialog } from "@/modules/people/offboarding/components/clearance-version-dialog";
 
+const SECTION_TITLE = "Clearance versions";
+const SECTION_SUBTITLE = "Manage the signatory lists offboarding uses to build clearances.";
+
 function signatoryName(p: { firstName: string; lastName: string }): string {
   return `${p.firstName} ${p.lastName}`.trim();
 }
 
 /**
- * HR management for clearance versions — the named signatory lists offboarding draws from.
- * HR can create versions, edit their signatories, pick the default, and delete unused ones.
+ * Clearance-version management for the HR Configurations page — the named signatory lists
+ * offboarding draws from. HR can create versions, edit their signatories, pick the default,
+ * and delete unused ones. Renders as a section panel (no page-level chrome) so it can sit
+ * under the Configurations › Clearances tab.
  */
-export default function ClearanceSettingsPage() {
-  const router = useRouter();
+export function ClearancesPanel() {
   const confirm = useConfirm();
-  // Topbar breadcrumb: Organization › People › Offboarding › Clearance versions.
-  usePageBreadcrumb(["Clearance versions"]);
 
   const { templates, loading, error, reload } = useClearanceTemplates();
   const { create, update, setDefault, remove } = useClearanceTemplateMutations();
@@ -114,11 +112,7 @@ export default function ClearanceSettingsPage() {
   if (loading && templates.length === 0) {
     return (
       <div>
-        <PageHeader
-          level="page"
-          title="Clearance versions"
-          subtitle="Manage the signatory lists offboarding uses to build clearances."
-        />
+        <PageHeader level="default" title={SECTION_TITLE} subtitle={SECTION_SUBTITLE} />
         <PageSkeleton />
       </div>
     );
@@ -127,11 +121,7 @@ export default function ClearanceSettingsPage() {
   if (error) {
     return (
       <div>
-        <PageHeader
-          level="page"
-          title="Clearance versions"
-          subtitle="Manage the signatory lists offboarding uses to build clearances."
-        />
+        <PageHeader level="default" title={SECTION_TITLE} subtitle={SECTION_SUBTITLE} />
         <ErrorState message={error} onRetry={() => void reload()} />
       </div>
     );
@@ -140,20 +130,14 @@ export default function ClearanceSettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        level="page"
-        title="Clearance versions"
-        subtitle="Manage the signatory lists offboarding uses to build clearances."
+        level="default"
+        title={SECTION_TITLE}
+        subtitle={SECTION_SUBTITLE}
         action={
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={() => router.push("/hr/directory/offboarding")}>
-              <ArrowLeft aria-hidden="true" />
-              Back to offboarding
-            </Button>
-            <Button onClick={openCreate}>
-              <Plus aria-hidden="true" />
-              New version
-            </Button>
-          </div>
+          <Button onClick={openCreate}>
+            <Plus aria-hidden="true" />
+            New version
+          </Button>
         }
       />
 

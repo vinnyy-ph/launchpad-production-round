@@ -20,7 +20,7 @@ import {
   Dataflow03,
   MessageSquare01,
   UsersPlus,
-  Building01,
+  Settings01,
   LogOut01,
 } from "@untitledui/icons";
 import type { AppUser } from "@/modules/auth/types/auth.types";
@@ -93,9 +93,9 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Organization",
     items: [
       { id: "people", label: "People", icon: Users01, href: "/hr/directory" },
-      { id: "departments", label: "Departments", icon: Building01, href: "/hr/departments" },
       { id: "orgchart", label: "Structure", icon: Dataflow03, href: "/hr/teams" },
       { id: "surveys", label: "Surveys", icon: MessageSquare01, href: "/hr/surveys" },
+      { id: "configurations", label: "Configurations", icon: Settings01, href: "/hr/configurations" },
     ],
   },
   {
@@ -118,9 +118,12 @@ export const SCREEN_HEADERS: Record<string, { title: string; subtitle: string }>
   roster: { title: "Roster", subtitle: "Everyone who reports to you." },
   evaluations: { title: "Evaluations", subtitle: "Write and track evaluations for the people you manage." },
   people: { title: "People", subtitle: "The {workspaceName} employee directory." },
-  departments: { title: "Departments", subtitle: "Organizational departments at {workspaceName}." },
   orgchart: { title: "Structure", subtitle: "Reporting lines and team structure." },
   surveys: { title: "Surveys", subtitle: "Engagement and pulse surveys." },
+  configurations: {
+    title: "Configurations",
+    subtitle: "Organization-wide setup for {workspaceName}.",
+  },
   users: { title: "Users", subtitle: "Accounts, roles, and access." },
 };
 
