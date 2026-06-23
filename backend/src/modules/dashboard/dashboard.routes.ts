@@ -53,7 +53,17 @@ dashboardRoutes.get("/", authenticate, async (req, res, next) => {
           // not part of the redacted profile set — so safe to surface on the dashboard.
           prisma.employee.findUnique({
             where: { id: me },
-            select: { supervisor: { select: { id: true, firstName: true, lastName: true, jobTitle: true } } },
+            select: {
+              supervisor: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  jobTitle: true,
+                  user: { select: { avatarUrl: true } },
+                },
+              },
+            },
           }),
         ]);
       stats.pendingDocuments = pendingDocuments;
@@ -62,7 +72,12 @@ dashboardRoutes.get("/", authenticate, async (req, res, next) => {
       stats.pendingAcknowledgements = pendingAcknowledgements;
       const sup = meRecord?.supervisor;
       stats.supervisor = sup
-        ? { id: sup.id, fullName: `${sup.firstName} ${sup.lastName}`, jobTitle: sup.jobTitle }
+        ? {
+            id: sup.id,
+            fullName: `${sup.firstName} ${sup.lastName}`,
+            jobTitle: sup.jobTitle,
+            avatarUrl: sup.user?.avatarUrl ?? null,
+          }
         : null;
     }
 

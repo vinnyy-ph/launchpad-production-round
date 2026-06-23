@@ -5,6 +5,7 @@ import type {
   EmployeeListMeta,
   EmployeeProfile,
   EmployeeUpdateInput,
+  MyProfileUpdateInput,
 } from "../types/employees.types";
 
 export interface EmployeeListResult {
@@ -44,6 +45,15 @@ export async function getEmployees(filters: EmployeeFilters = {}): Promise<Emplo
   return apiFetch<EmployeeListResult>(`${BASE}?${qs}`);
 }
 
+/**
+ * Fetches the entire directory in one non-paginated payload (org chart). HR/Admin get full
+ * fields; other viewers get redacted items. Returns just the list — there is no pagination meta.
+ */
+export async function getAllEmployees(): Promise<EmployeeListItem[]> {
+  const res = await apiFetch<{ data: EmployeeListItem[] }>(`${BASE}/all`);
+  return res.data;
+}
+
 export async function getEmployeeProfile(employeeId: string): Promise<EmployeeProfileResult> {
   return apiFetch<EmployeeProfileResult>(`${BASE}/${employeeId}`);
 }
@@ -54,6 +64,16 @@ export async function updateEmployee(
   input: EmployeeUpdateInput,
 ): Promise<EmployeeProfileResult> {
   return apiFetch<EmployeeProfileResult>(`${BASE}/${employeeId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Updates the signed-in employee's OWN profile (self-service). Returns the refreshed profile. */
+export async function updateMyProfile(
+  input: MyProfileUpdateInput,
+): Promise<EmployeeProfileResult> {
+  return apiFetch<EmployeeProfileResult>(`${BASE}/me`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });

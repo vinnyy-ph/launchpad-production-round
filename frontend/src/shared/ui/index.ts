@@ -1,6 +1,7 @@
 // Primitives (shadcn, Jia-themed)
 export * from "./primitives/alert-dialog";
 export * from "./primitives/avatar";
+export * from "./primitives/user-avatar";
 export * from "./primitives/badge";
 export * from "./primitives/button";
 export * from "./primitives/card";

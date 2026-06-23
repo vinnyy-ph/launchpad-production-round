@@ -10,6 +10,8 @@ export const queryKeys = {
     all: ["employees"] as const,
     list: (filters?: Record<string, unknown>) =>
       filters ? (["employees", "list", filters] as const) : (["employees", "list"] as const),
+    // The whole directory, non-paginated (org chart).
+    allList: ["employees", "all"] as const,
     detail: (id: string) => ["employees", "detail", id] as const,
   },
   departments: {
@@ -63,9 +65,12 @@ export const queryKeys = {
   },
   clearance: {
     all: ["clearance"] as const,
-    templates: ["clearance", "templates"] as const,
     // Clearance requests assigned to the signed-in signatory.
     assigned: ["clearance", "assigned"] as const,
+    // Lightweight clearance version options for the offboarding initiate picker.
+    templateOptions: ["clearance", "template-options"] as const,
+    // HR-managed clearance versions (templates) with their signatories.
+    templates: ["clearance", "templates"] as const,
   },
   supervisorOnboarding: {
     // The onboarding side of a supervisor's downward chain (read-only consume).

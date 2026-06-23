@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/shared/ui/primitives/select";
 import { StatusBadge } from "@/shared/ui/patterns";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { ApiError } from "@/shared/lib/api-client";
 import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
 import type { EmployeeDocument, EmployeeDocumentStatus } from "../services/employees.service";
@@ -565,14 +566,15 @@ export function EmployeeDetailsModal({
             {profile ? (
               <>
                 <div className="border-b border-[color:var(--border-primary)] px-6 py-6 text-center">
-                  <span
-                    className="mx-auto flex h-20 w-20 items-center justify-center rounded-full text-lg font-bold text-[color:var(--text-primary)]"
-                    style={{
+                  <UserAvatar
+                    src={profile.avatarUrl}
+                    fallback={initials(profile)}
+                    className="mx-auto h-20 w-20"
+                    fallbackClassName="text-lg font-bold text-[color:var(--text-primary)]"
+                    fallbackStyle={{
                       background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
                     }}
-                  >
-                    {initials(profile)}
-                  </span>
+                  />
                   <h2 className="mt-4 truncate text-sm font-bold text-[color:var(--text-primary)]">
                     {fullName(profile)}
                   </h2>

@@ -59,11 +59,17 @@ describe("GET /api/v1/employees - search and filter employees", () => {
         where: expect.objectContaining({
           status: "ACTIVE",
           supervisorId: "supervisor-1",
-          OR: expect.arrayContaining([
-            { firstName: { contains: "marcus", mode: "insensitive" } },
-            { companyEmail: { contains: "marcus", mode: "insensitive" } },
-            { department: { name: { contains: "marcus", mode: "insensitive" } } },
-          ]),
+          // Search is tokenized: every term is its own OR group, ANDed together, so a
+          // multi-word full-name query matches across separate name columns.
+          AND: [
+            {
+              OR: expect.arrayContaining([
+                { firstName: { contains: "marcus", mode: "insensitive" } },
+                { companyEmail: { contains: "marcus", mode: "insensitive" } },
+                { department: { name: { contains: "marcus", mode: "insensitive" } } },
+              ]),
+            },
+          ],
           teamMemberships: {
             some: {
               team: {
@@ -80,5 +86,35 @@ describe("GET /api/v1/employees - search and filter employees", () => {
         supervisorId: "supervisor-1",
       }),
     });
+  });
+
+  it("splits a multi-word search into one ANDed OR group per term (full-name search)", async () => {
+    findManyMock.mockResolvedValue([]);
+    countMock.mockResolvedValue(0);
+
+    await request(app).get("/api/v1/employees").query({ search: "jane smith" }).expect(200);
+
+    // "jane smith" matches no single column, so each term gets its own OR group and the groups
+    // are ANDed — letting firstName "Jane" and lastName "Smith" satisfy the query together.
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: expect.arrayContaining([
+                { firstName: { contains: "jane", mode: "insensitive" } },
+                { lastName: { contains: "jane", mode: "insensitive" } },
+              ]),
+            },
+            {
+              OR: expect.arrayContaining([
+                { firstName: { contains: "smith", mode: "insensitive" } },
+                { lastName: { contains: "smith", mode: "insensitive" } },
+              ]),
+            },
+          ],
+        }),
+      }),
+    );
   });
 });

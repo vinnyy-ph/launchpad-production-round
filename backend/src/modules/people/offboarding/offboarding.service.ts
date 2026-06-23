@@ -34,9 +34,12 @@ export function toOffboardingDetailDto(
     employee: {
       id: record.employee.id,
       firstName: record.employee.firstName,
+      middleName: record.employee.middleName,
       lastName: record.employee.lastName,
+      companyEmail: record.employee.companyEmail,
       jobTitle: record.employee.jobTitle,
       department: record.employee.department?.name ?? null,
+      avatarUrl: record.employee.user?.avatarUrl ?? null,
     },
     initiatedBy: {
       id: record.initiatedBy.id,
@@ -80,9 +83,12 @@ function toOffboardingListItemDto(
     employee: {
       id: record.employee.id,
       firstName: record.employee.firstName,
+      middleName: record.employee.middleName,
       lastName: record.employee.lastName,
+      companyEmail: record.employee.companyEmail,
       jobTitle: record.employee.jobTitle,
       department: record.employee.department?.name ?? null,
+      avatarUrl: record.employee.user?.avatarUrl ?? null,
     },
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),

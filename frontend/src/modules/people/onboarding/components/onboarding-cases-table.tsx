@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { Input } from "@/shared/ui/primitives/input";
 import { Progress } from "@/shared/ui/primitives/progress";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ import {
   type Column,
 } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
+import { matchesSearchTerms } from "@/shared/lib/search";
 import { InviteStatusBadge } from "./invite-status-badge";
 import { useOnboardingRecords } from "../hooks/use-onboarding-records";
 import type { DocumentReview, OnboardingInvitationStatus } from "../types/onboarding.types";
@@ -30,6 +32,7 @@ interface CaseRow {
   employeeId: string;
   name: string;
   email: string;
+  avatarUrl: string | null;
   status: string;
   progress: number;
   invitationStatus: OnboardingInvitationStatus | null;
@@ -41,6 +44,13 @@ interface CaseRow {
 }
 
 const ALL = "ALL";
+
+/** Two-letter initials for the default avatar fallback. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
+}
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: ALL, label: "All statuses" },
@@ -114,6 +124,7 @@ export function OnboardingCasesTable() {
           employeeId: employee.id,
           name: employee.fullName,
           email: employee.companyEmail,
+          avatarUrl: employee.avatarUrl,
           status: employee.status,
           progress,
           invitationStatus,
@@ -130,10 +141,9 @@ export function OnboardingCasesTable() {
   );
 
   const filtered = useMemo(() => {
-    const query = debouncedSearch.toLowerCase().trim();
     return rows.filter((row) => {
-      const matchesSearch =
-        !query || row.name.toLowerCase().includes(query) || row.email.toLowerCase().includes(query);
+      // Match full name (first/middle/last, already joined in `name`) and email, term by term.
+      const matchesSearch = matchesSearchTerms(debouncedSearch, `${row.name} ${row.email}`);
       const matchesStatus = statusFilter === ALL || row.invitationStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -151,9 +161,20 @@ export function OnboardingCasesTable() {
     {
       header: "Employee",
       cell: (row) => (
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{row.name}</p>
-          <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.email}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <UserAvatar
+            src={row.avatarUrl}
+            fallback={initials(row.name)}
+            className="h-8 w-8"
+            fallbackClassName="text-[11px] font-bold text-[color:var(--text-primary)]"
+            fallbackStyle={{
+              background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+            }}
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{row.name}</p>
+            <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.email}</p>
+          </div>
         </div>
       ),
     },

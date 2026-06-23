@@ -21,6 +21,7 @@ import { onboardingRouter } from "./modules/people/onboarding";
 import { employeeOnboardingRouter } from "./modules/people/onboarding/employee-onboarding";
 import { offboardingRouter } from "./modules/people/offboarding";
 import { clearanceRouter } from "./modules/people/offboarding/clearance";
+import { clearanceTemplatesRouter } from "./modules/people/offboarding/clearance-templates";
 import { pulseSurveysRouter } from "./modules/performance/surveys";
 import { notificationsRouter } from "./modules/notifications";
 import { supervisorOnboardingRouter } from "./modules/people/onboarding/supervisor-onboarding";
@@ -111,6 +112,11 @@ app.use(
   offboardingRouter,
 );
 app.use(`${API_ROUTES.VERSIONED_ROOT}/clearance`, authenticate, clearanceRouter);
+app.use(
+  `${API_ROUTES.VERSIONED_ROOT}/clearance-templates`,
+  authenticate,
+  clearanceTemplatesRouter,
+);
 
 /** Fallback for unhandled errors — returns JSON instead of a blank 500 page. */
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

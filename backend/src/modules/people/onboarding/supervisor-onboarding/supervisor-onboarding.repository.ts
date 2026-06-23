@@ -44,6 +44,7 @@ export class SupervisorOnboardingRepository {
         employee: {
           include: {
             department: { select: { name: true } },
+            user: { select: { avatarUrl: true } },
           },
         },
         template: {

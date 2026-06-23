@@ -16,6 +16,12 @@ export interface OffboardingEmployee {
   lastName: string;
   jobTitle: string | null;
   department: string | null;
+  /** Google profile picture URL; null when the account has no photo. */
+  avatarUrl: string | null;
+  // Present on offboarding list/detail payloads (used for search); absent on the clearance
+  // "offboardee" context, hence optional.
+  middleName?: string | null;
+  companyEmail?: string;
 }
 
 export interface OffboardingPerson {
@@ -98,6 +104,55 @@ export interface ReassignResult {
   newTeamLeaderId: string;
 }
 
+// ─── Clearance versions (templates, GET/POST/PUT/DELETE /api/v1/clearance-templates) ──
+// HR-managed named lists of signatories that offboarding snapshots at initiation.
+
+/** One configured signatory on a clearance version. */
+export interface ClearanceTemplateSignatory {
+  id: string;
+  employee: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    jobTitle: string | null;
+  };
+  purpose: string;
+  requirements: string;
+  order: number;
+}
+
+/** A clearance version with its ordered signatories. */
+export interface ClearanceTemplate {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  /** Offboarding cases currently using this version — when > 0 it cannot be deleted. */
+  inUseCount: number;
+  signatories: ClearanceTemplateSignatory[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One signatory in a create/update version payload (order = array position). */
+export interface ClearanceSignatoryInput {
+  employeeId: string;
+  purpose: string;
+  requirements: string;
+}
+
+/** Body for creating a clearance version. */
+export interface CreateClearanceTemplateInput {
+  name: string;
+  isDefault: boolean;
+  signatories: ClearanceSignatoryInput[];
+}
+
+/** Body for editing a clearance version's name + signatories (default set separately). */
+export interface UpdateClearanceTemplateInput {
+  name: string;
+  signatories: ClearanceSignatoryInput[];
+}
+
 // ─── Clearance (signatory actions) ────────────────────────────────────────────
 
 /** A clearance row where the signed-in user is the signatory (GET /clearance/assigned). */
@@ -140,6 +195,8 @@ export interface SupervisorOnboardingEmployee {
   lastName: string;
   jobTitle: string | null;
   department: string | null;
+  /** Google profile picture URL; null when the account has no photo. */
+  avatarUrl: string | null;
   status: "onboarding" | "completed";
   onboarding: {
     recordId: string;
