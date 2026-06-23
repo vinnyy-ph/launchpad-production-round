@@ -324,11 +324,12 @@
 /* Employee onboarding — Review step recap */
 @layer components {
   .ob-review-section-title {
-    font-size: 11px;
+    font-size: 12px;
+    line-height: 1;
     font-weight: 700;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--gray-500);
+    color: var(--text-tertiary);
   }
 
   .ob-review-field-label {
@@ -337,11 +338,181 @@
     color: var(--text-tertiary);
   }
 
+  .ob-review-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-2xl);
+    background: var(--bg-primary);
+    padding: 36px 32px;
+    text-align: center;
+    box-shadow: var(--shadow-inset-brand), var(--shadow-xs);
+  }
+
+  .ob-review-hero--warning {
+    border-color: #fedf89;
+    background: #fffcf5;
+  }
+
+  .ob-review-hero--success {
+    border-color: #abefc6;
+    background: #f6fef9;
+  }
+
+  .ob-review-hero-icon {
+    margin-bottom: 20px;
+    display: inline-flex;
+    width: 56px;
+    height: 56px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xl);
+    border: 1px solid currentColor;
+    background: var(--bg-primary);
+    color: var(--text-tertiary);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .ob-review-hero--warning .ob-review-hero-icon {
+    border-color: #fedf89;
+    background: #fffaeb;
+    color: var(--color-warning-600);
+  }
+
+  .ob-review-hero--success .ob-review-hero-icon {
+    border-color: #abefc6;
+    background: var(--color-success-50);
+    color: var(--color-success-600);
+  }
+
+  .ob-review-hero h1 {
+    width: 100%;
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+
+  .ob-review-hero p {
+    margin-top: 8px;
+    width: 100%;
+    max-width: 460px;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--gray-500);
+    text-wrap: pretty;
+  }
+
   .ob-review-doc-row {
     border: 1px solid var(--border-primary);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-xl);
     background: var(--bg-primary);
-    padding: 0.75rem 1rem;
+    overflow: hidden;
+  }
+
+  .ob-review-doc-row--changes {
+    border-color: #fedf89;
+    background: #fffefb;
+  }
+
+  .ob-review-doc-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .ob-review-doc-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-doc-name {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .ob-review-doc-file {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--text-tertiary);
+    word-break: break-word;
+  }
+
+  .ob-review-doc-detail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid #fde9b8;
+    background: #fffcf5;
+    padding: 14px 16px;
+  }
+
+  .ob-review-doc-reason {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 260px;
+    gap: 8px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #b54708;
+  }
+
+  .ob-review-doc-reason svg {
+    color: var(--color-warning-600);
+  }
+
+  .ob-review-chip {
+    display: inline-flex;
+    height: 24px;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radius-full);
+    padding: 0 10px;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .ob-review-chip--approved {
+    border: 1px solid #abefc6;
+    background: var(--color-success-50);
+    color: #067647;
+  }
+
+  .ob-review-chip--review {
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+  }
+
+  .ob-review-chip--changes {
+    border: 1px solid #fedf89;
+    background: var(--color-warning-50);
+    color: #b54708;
+  }
+
+  .ob-review-chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: currentColor;
   }
 
   .ob-review-next-box {
@@ -364,21 +535,103 @@
     color: var(--gray-500);
   }
 
-  .ob-review-timeline-marker--complete {
-    background: var(--color-success-600);
+  .ob-review-timeline-step {
+    display: flex;
+    gap: 16px;
   }
 
-  .ob-review-timeline-marker--pending {
-    border: 1px solid var(--border-primary);
-    background: var(--bg-secondary);
+  .ob-review-timeline-rail {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .ob-review-timeline-marker {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--bg-primary);
+    color: var(--text-quaternary);
+    box-shadow: inset 0 0 0 1.5px var(--border-secondary);
+  }
+
+  .ob-review-timeline-step--complete .ob-review-timeline-marker {
+    background: var(--color-success-600);
+    color: white;
+    box-shadow: none;
+  }
+
+  .ob-review-timeline-step--active .ob-review-timeline-marker {
+    background: var(--gradient-jia);
+    color: white;
+    box-shadow: 0 0 0 4px var(--gray-100);
+  }
+
+  .ob-review-timeline-step--alert .ob-review-timeline-marker {
+    background: var(--color-warning-50);
+    color: var(--color-warning-600);
+    box-shadow: inset 0 0 0 1.5px #fedf89;
   }
 
   .ob-review-timeline-line {
-    background: var(--gray-200);
+    margin: 6px 0;
+    width: 2px;
+    min-height: 22px;
+    flex: 1 1 auto;
+    background: var(--border-primary);
   }
 
-  .ob-review-timeline-line--complete {
+  .ob-review-timeline-step--complete .ob-review-timeline-line {
     background: var(--color-success-600);
+  }
+
+  .ob-review-timeline-body {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding-bottom: 24px;
+  }
+
+  .ob-review-timeline-step:last-child .ob-review-timeline-body {
+    padding-bottom: 0;
+  }
+
+  .ob-review-timeline-row {
+    display: flex;
+    min-height: 36px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+  }
+
+  .ob-review-timeline-title {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .ob-review-timeline-step--pending .ob-review-timeline-title {
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-timeline-date {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-timeline-desc {
+    margin-top: 2px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--gray-500);
+    text-wrap: pretty;
   }
 
   .ob-review-action-link {
