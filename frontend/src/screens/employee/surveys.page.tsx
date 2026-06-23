@@ -417,6 +417,17 @@ export default function EmployeeSurveysPage() {
   const pendingAcks = evals.filter(isPendingAck).length;
   const unansweredCount = pending.length;
 
+  // Keep the URL's ?tab= in sync with the active tab so the view is shareable and refresh-safe
+  // (replaceState, not push — switching tabs shouldn't stack browser-history entries).
+  const changeTab = (next: "survey" | "acknowledgements" | "results") => {
+    setTab(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next === "survey") params.delete("tab");
+    else params.set("tab", next);
+    const qs = params.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  };
+
   return (
     <div>
       <PageHeader
@@ -428,7 +439,7 @@ export default function EmployeeSurveysPage() {
       <PageTabs
         ariaLabel="Performance sections"
         value={tab}
-        onChange={(v) => setTab(v as "survey" | "acknowledgements" | "results")}
+        onChange={(v) => changeTab(v as "survey" | "acknowledgements" | "results")}
         items={[
           { value: "survey", label: "Pulse surveys", count: unansweredCount },
           { value: "acknowledgements", label: "Evaluations", count: pendingAcks },

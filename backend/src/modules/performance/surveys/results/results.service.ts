@@ -8,7 +8,12 @@ import {
   type SurveyVisibilityInfo,
 } from "../rules/results-visibility";
 import { ResultsRepository } from "./results.repository";
-import type { QuestionResult, SurveyResultsResponseDto, VisibleResultSurveyDto } from "./results.types";
+import type {
+  QuestionResult,
+  SmallTeamShareDto,
+  SurveyResultsResponseDto,
+  VisibleResultSurveyDto,
+} from "./results.types";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -103,22 +108,56 @@ export class ResultsService {
     //     (its leader), while HR and every manager above the leader may still see it — even
     //     though the group is below the normal min-group-size threshold. When granted, this
     //     overrides the generic visibility/filter checks below and lifts gate() suppression.
+    //
+    //     One additional grant: once HR has DELIBERATELY shared this small team's results with
+    //     its supervisor (a SurveyResultShare row exists for this occurrence + team), that
+    //     supervisor is also let through — the share is the consent gate. `smallTeamShare`
+    //     below is the HR-only hint that powers the send action on the results view.
     let smallTeamOverride = false;
+    let smallTeamShare: SmallTeamShareDto | null = null;
     if (survey.isAnonymous && teamIdQuery) {
-      const team = await prisma.team.findUnique({
-        where: { id: teamIdQuery },
-        select: { leaderId: true, _count: { select: { members: true } } },
-      });
+      const team = await this.repo.findTeamForShare(teamIdQuery);
 
       if (team && team._count.members < MIN_TEAM_SIZE) {
-        const headsAbove = await createOrgChains(prisma).upwardChain(team.leaderId);
         const isLeader = !!caller && caller.id === team.leaderId;
-        const isHeadAbove = !!caller && headsAbove.includes(caller.id);
+        const existingShare = effectiveOccurrenceId
+          ? await this.repo.findResultShare(effectiveOccurrenceId, teamIdQuery)
+          : null;
 
-        if (isHR || isHeadAbove) {
+        if (isHR) {
           smallTeamOverride = true;
-        } else if (isLeader) {
-          throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR);
+        } else {
+          const headsAbove = await createOrgChains(prisma).upwardChain(team.leaderId);
+          const isHeadAbove = !!caller && headsAbove.includes(caller.id);
+          if (isHeadAbove) {
+            smallTeamOverride = true;
+          } else if (isLeader) {
+            // The supervisor sees the breakdown only after HR has shared it with them.
+            if (existingShare) {
+              smallTeamOverride = true;
+            } else {
+              throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR);
+            }
+          }
+        }
+
+        // HR-only hint: when can HR push this small team's results to its supervisor?
+        if (isHR && effectiveOccurrenceId) {
+          const occ = await this.repo.findOccurrence(effectiveOccurrenceId);
+          const completed =
+            !!occ && (occ.isClosed || new Date(occ.deadline).getTime() < Date.now());
+          const leaderName = team.leader
+            ? [team.leader.firstName, team.leader.lastName].filter(Boolean).join(" ").trim() || null
+            : null;
+          smallTeamShare = {
+            occurrenceId: effectiveOccurrenceId,
+            teamId: teamIdQuery,
+            teamName: team.name ?? "this team",
+            supervisorId: team.leaderId ?? null,
+            supervisorName: leaderName,
+            occurrenceCompleted: completed,
+            alreadySharedAt: existingShare ? existingShare.sharedAt.toISOString() : null,
+          };
         }
       }
     }
@@ -363,16 +402,20 @@ export class ResultsService {
       this.repo.countResponses(responseCountWhere),
     ]);
 
-    // 9. Minimum-group-size suppression for anonymous surveys. It fires on ANY view with fewer
-    //    than MIN_GROUP responses, EXCEPT where an override lifts it:
-    //    (a) smallTeamOverride — a team-scoped view of a sub-3-member team, for HR / heads-above;
-    //    (b) smallSurveyHrOverride — the survey's whole audience is itself below MIN_TEAM_SIZE and
-    //        the caller is HR, so the unfiltered view IS that small group. The team's supervisor,
-    //        being non-HR, stays suppressed here just as on a direct team filter.
-    const smallSurveyHrOverride =
-      survey.isAnonymous && isHR && !isFilterActive && recipientCount < MIN_TEAM_SIZE;
+    // 9. Minimum-group-size suppression for anonymous surveys. Below MIN_GROUP responses BOTH
+    //    the breakdown and the aggregate are withheld — at n=1 a single linear-scale value or
+    //    free-text answer IS that one person's response. It fires on ANY view (audience-agnostic,
+    //    recomputed per occurrence) EXCEPT where an exception lifts it:
+    //    (a) HR / ADMIN and the org root node — the controlled data-controller exception: they
+    //        always see the underlying results (they cannot re-identify an anonymous respondent,
+    //        and the anonymity guard exists to stop peer/supervisor re-identification, not the
+    //        data controller). This subsumes the old "tiny whole audience" HR override.
+    //    (b) smallTeamOverride — a team-scoped view of a sub-3-member team for a head-above, or
+    //        the team's own supervisor once HR has deliberately shared the results with them.
+    const isRoot = !!caller && caller.supervisorId === null;
+    const privileged = isHR || isRoot;
     const gated =
-      smallTeamOverride || smallSurveyHrOverride
+      privileged || smallTeamOverride
         ? { suppressed: false as const, data: questionResults }
         : gate({ count: responses.length, data: questionResults }, survey.isAnonymous);
 
@@ -397,6 +440,7 @@ export class ResultsService {
           : null,
         suppressed: gated.suppressed,
         questions: gated.suppressed ? [] : gated.data,
+        ...(smallTeamShare && { smallTeamShare }),
       },
     };
   }

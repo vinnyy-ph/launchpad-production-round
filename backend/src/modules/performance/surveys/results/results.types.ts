@@ -31,6 +31,24 @@ export interface VisibleResultSurveyDto {
   status: "active" | "closed";
 }
 
+/**
+ * HR-only hint attached to an anonymous, team-filtered results view of a small
+ * (sub-MIN_TEAM_SIZE) team. Drives the "send results to the team's supervisor" action.
+ * Present only for HR viewers on that exact view — never for any other role or view.
+ */
+export interface SmallTeamShareDto {
+  occurrenceId: string;
+  teamId: string;
+  teamName: string;
+  /** The team's supervisor (leader). null when the team has no resolvable supervisor. */
+  supervisorId: string | null;
+  supervisorName: string | null;
+  /** The send action is only allowed once the occurrence is completed (closed or past deadline). */
+  occurrenceCompleted: boolean;
+  /** ISO timestamp of the last share, or null if never shared. */
+  alreadySharedAt: string | null;
+}
+
 export interface SurveyResultsResponseDto {
   success: boolean;
   data: {
@@ -49,5 +67,7 @@ export interface SurveyResultsResponseDto {
     filter: { teamId?: string; supervisorId?: string } | null;
     suppressed: boolean; // true when min-group-size rule fired
     questions: QuestionResult[]; // empty when suppressed = true
+    /** HR-only; present on an anonymous small-team filtered view. Drives the share action. */
+    smallTeamShare?: SmallTeamShareDto;
   };
 }
