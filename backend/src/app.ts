@@ -31,6 +31,11 @@ import {
 
 export const app = express();
 
+if (process.env.NODE_ENV === "production") {
+  // Railway sits behind one reverse proxy; required so rate limits use the real client IP.
+  app.set("trust proxy", 1);
+}
+
 const origins = (process.env.CORS_ORIGIN ?? "http://localhost:3000").split(",");
 
 app.use(cors({ origin: origins, credentials: true }));
