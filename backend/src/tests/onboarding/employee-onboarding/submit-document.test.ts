@@ -146,7 +146,8 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
 
     const response = await request(app)
       .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
-      .attach("file", Buffer.from("MZ fake executable"), "nbi-clearance.pdf", {
+      .attach("file", Buffer.from("MZ fake executable"), {
+        filename: "nbi-clearance.pdf",
         contentType: "application/pdf",
       })
       .expect(400);
