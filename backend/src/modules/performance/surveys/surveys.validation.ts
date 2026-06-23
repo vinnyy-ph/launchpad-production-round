@@ -43,6 +43,23 @@ const MAX_LIMIT = 100;
 
 const VALID_STATUSES = new Set<string>(["draft", "active", "inactive"]);
 
+/** Validates and normalizes a visibilityConfigs array into `{ teamId }[]`. */
+function parseVisibilityConfigs(raw: unknown): { teamId: string }[] {
+  if (!Array.isArray(raw)) {
+    throw new Error("visibilityConfigs must be an array");
+  }
+  return raw.map((cfg: unknown, idx: number) => {
+    if (!cfg || typeof cfg !== "object") {
+      throw new Error(`visibilityConfigs[${idx}] must be an object`);
+    }
+    const teamId = (cfg as Record<string, unknown>).teamId;
+    if (typeof teamId !== "string" || teamId.length === 0) {
+      throw new Error(`visibilityConfigs[${idx}]: ${SURVEY_ERROR_MESSAGES.INVALID_VISIBILITY_CONFIG}`);
+    }
+    return { teamId };
+  });
+}
+
 export class SurveysValidation {
   parseListQuery(query: Record<string, unknown>): ListSurveysQuery {
     const rawPage = query.page;
@@ -236,6 +253,26 @@ export class SurveysValidation {
       }
     }
 
+    // --- visibilityConfigs ---
+    const resolvedVisibility = (b.visibility ?? "EVERYONE") as SurveyVisibility;
+    let visibilityConfigs: CreateSurveyInput["visibilityConfigs"] = undefined;
+
+    if (resolvedVisibility === "SPECIFIC_TEAMS" && b.visibilityConfigs !== undefined) {
+      visibilityConfigs = parseVisibilityConfigs(b.visibilityConfigs);
+    }
+    // When visibility !== SPECIFIC_TEAMS, visibilityConfigs are silently ignored.
+
+    // A SPECIFIC_TEAMS visibility must name at least one team, otherwise results would be
+    // visible to no one (the access gate scopes to an empty team list).
+    if (resolvedVisibility === "SPECIFIC_TEAMS") {
+      const hasTeam = (visibilityConfigs ?? []).some(
+        (c) => typeof c.teamId === "string" && c.teamId.length > 0,
+      );
+      if (!hasTeam) {
+        throw new Error(SURVEY_ERROR_MESSAGES.VISIBILITY_CONFIG_REQUIRED_TEAM);
+      }
+    }
+
     // --- reminderConfig ---
     let reminderConfig: CreateSurveyInput["reminderConfig"] = undefined;
     if (b.reminderConfig !== undefined) {
@@ -268,6 +305,7 @@ export class SurveysValidation {
       ...(typeof b.isActive === "boolean" && { isActive: b.isActive }),
       questions,
       ...(audienceConfigs !== undefined && { audienceConfigs }),
+      ...(visibilityConfigs !== undefined && { visibilityConfigs }),
       ...(reminderConfig !== undefined && { reminderConfig }),
     };
   }
@@ -428,6 +466,11 @@ export class SurveysValidation {
           ...(hasTeam && { teamId: cfgObj.teamId as string }),
         };
       });
+    }
+
+    // --- visibilityConfigs ---
+    if (b.visibilityConfigs !== undefined) {
+      result.visibilityConfigs = parseVisibilityConfigs(b.visibilityConfigs);
     }
 
     // --- reminderConfig ---

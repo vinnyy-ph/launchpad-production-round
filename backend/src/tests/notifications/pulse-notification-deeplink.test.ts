@@ -41,7 +41,8 @@ describe("pulse notifications deep-link to the exact occurrence", () => {
     employeeFindManyMock.mockResolvedValue([{ id: "emp-1", userId: "user-1" }]);
     notificationCreateMock.mockResolvedValue(buildNotification({ type: "NEW_PULSE" }));
 
-    const service = new NotificationsService();
+    const emailService = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+    const service = new NotificationsService(undefined, undefined, emailService as never);
     await service.notifyNewPulse(["emp-1"], SURVEY_ID, "Q3 Pulse", OCCURRENCE_ID);
 
     expect(notificationCreateMock).toHaveBeenCalledWith(
@@ -61,7 +62,8 @@ describe("pulse notifications deep-link to the exact occurrence", () => {
     notificationFindFirstMock.mockResolvedValue(null); // no prior reminder → fires now
     notificationCreateMock.mockResolvedValue(buildNotification({ type: "PULSE_REMINDER" }));
 
-    const service = new NotificationsService();
+    const emailService = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+    const service = new NotificationsService(undefined, undefined, emailService as never);
     await service.remindPulseIfDue(
       "emp-1",
       1,

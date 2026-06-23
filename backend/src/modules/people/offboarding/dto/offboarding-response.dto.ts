@@ -32,6 +32,7 @@ export interface OffboardingListItemDto {
   status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   tenderDate: string;
   effectiveDate: string;
+  attachmentUrl: string | null;
   signedCount: number;
   totalCount: number;
   createdAt: string;
@@ -51,6 +52,7 @@ export interface OffboardingDetailDto {
   status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   tenderDate: string;
   effectiveDate: string;
+  attachmentUrl: string | null;
   createdAt: string;
   completedAt: string | null;
   signatureRequests: SignatureRequestDto[];
@@ -75,4 +77,5 @@ export type ReassignResponseDto = ApiSuccessResponseDto<{
   reassignedReports: number;
   reassignedTeams: number;
   newSupervisorId: string;
+  newTeamLeaderId: string;
 }>;

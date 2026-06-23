@@ -68,6 +68,7 @@ function BirthdatePicker({
   disabled,
   className,
 }: Pick<DatePickerProps, "value" | "onChange" | "disabled" | "className">) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const [draft, setDraft] = React.useState(() => toDateInputValue(value));
 
   React.useEffect(() => {
@@ -76,17 +77,15 @@ function BirthdatePicker({
 
   return (
     <div className={cn("relative", className)}>
-      <CalendarIcon
-        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
-        aria-hidden="true"
-      />
       <Input
+        ref={inputRef}
         type="date"
         disabled={disabled}
         min={toDateInputValue(BIRTHDATE_START)}
         max={todayInputMax()}
         value={draft}
-        className="min-w-0 pl-9"
+        // Hide the browser's built-in indicator; the button below is the single calendar trigger.
+        className="min-w-0 pr-9 [&::-webkit-calendar-picker-indicator]:hidden"
         onChange={(e) => {
           const raw = e.target.value;
           setDraft(raw);
@@ -95,6 +94,15 @@ function BirthdatePicker({
           else if (!raw.trim()) onChange?.(undefined);
         }}
       />
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label="Open calendar"
+        onClick={() => inputRef.current?.showPicker?.()}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-secondary)] focus-visible:outline-none focus-visible:text-[color:var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-[.38]"
+      >
+        <CalendarIcon className="h-4 w-4" aria-hidden="true" />
+      </button>
     </div>
   );
 }

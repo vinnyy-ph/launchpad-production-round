@@ -277,6 +277,14 @@
   .org-tree > li::after {
     display: none;
   }
+
+  /* Figma-like pan surface: grab on the empty canvas, grabbing while dragging. */
+  .org-canvas-surface {
+    cursor: grab;
+  }
+  .org-canvas-surface:active {
+    cursor: grabbing;
+  }
 }
 
 @keyframes directory-profile-dialog-in {

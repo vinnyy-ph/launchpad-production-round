@@ -266,6 +266,7 @@ export default function DirectoryPage() {
         subtitle="Everyone at DG Technologies, from new hires to active staff."
         action={
           <div className="flex flex-col gap-2 sm:flex-row">
+            {/* Adding a person always starts an onboarding case, so the action lives on that tab. */}
             {tab === "onboarding" ? (
               <>
                 <Button
@@ -282,17 +283,16 @@ export default function DirectoryPage() {
                 >
                   <FileSpreadsheet aria-hidden="true" /> Bulk upload
                 </Button>
+                <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
+                  <Plus /> Onboard new employee
+                </Button>
               </>
             ) : null}
             {tab === "offboarding" ? (
               <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
                 <Plus /> Initiate offboarding
               </Button>
-            ) : (
-              <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
-                <Plus /> Add employee
-              </Button>
-            )}
+            ) : null}
           </div>
         }
       />

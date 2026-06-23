@@ -35,6 +35,16 @@ export class ResultsRepository {
     });
   }
 
+  /** The most recent occurrence (highest occurrenceNumber) for a survey, or null if never activated. */
+  async findLatestOccurrenceId(surveyId: string): Promise<string | null> {
+    const occ = await prisma.surveyOccurrence.findFirst({
+      where: { surveyId },
+      orderBy: { occurrenceNumber: "desc" },
+      select: { id: true },
+    });
+    return occ?.id ?? null;
+  }
+
   async findResponsesWithAnswers(where: Prisma.SurveyResponseWhereInput) {
     return prisma.surveyResponse.findMany({
       where,

@@ -72,6 +72,7 @@ import type {
   CreateSurveyInput,
   QuestionInput,
   AudienceConfigInput,
+  VisibilityConfigInput,
 } from "../types/surveys.types";
 import { RECURRING_TYPE_LABEL, QUESTION_TYPE_LABEL } from "../types/surveys.types";
 
@@ -128,6 +129,7 @@ interface BuilderState {
   reminderFrequency: ReminderFrequency | "NONE";
   reminderEveryXDays: number;
   visibility: Visibility;
+  visibilityTeamIds: string[];
   questions: DraftQuestion[];
 }
 
@@ -144,6 +146,7 @@ function defaultBuilder(): BuilderState {
     reminderFrequency: "NONE",
     reminderEveryXDays: 3,
     visibility: "SUPERVISOR_BASED",
+    visibilityTeamIds: [],
     questions: [],
   };
 }
@@ -215,6 +218,13 @@ function buildAudienceConfigs(state: BuilderState): AudienceConfigInput[] {
   return [];
 }
 
+function buildVisibilityConfigs(state: BuilderState): VisibilityConfigInput[] {
+  if (state.visibility === "SPECIFIC_TEAMS") {
+    return state.visibilityTeamIds.map((teamId) => ({ teamId }));
+  }
+  return [];
+}
+
 // Pure validation (no React state) so the same rules drive both the on-submit error display
 // and the autosave "is this complete enough for the server to accept a create?" gate. Mirrors
 // the backend create requirements (name, future deadline, ≥1 valid question, named audience).
@@ -232,6 +242,9 @@ function computeBuilderErrors(form: BuilderState): Record<string, string> {
   }
   if (form.audienceType === "SPECIFIC_TEAMS" && form.audienceTeamIds.length === 0) {
     errs.audience = "Select at least one team.";
+  }
+  if (form.visibility === "SPECIFIC_TEAMS" && form.visibilityTeamIds.length === 0) {
+    errs.visibility = "Select at least one team that can see results.";
   }
   form.questions.forEach((q, i) => {
     if (!q.questionText.trim()) errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
@@ -264,6 +277,7 @@ function toBuilderSnapshot(form: BuilderState) {
     reminderFrequency: form.reminderFrequency,
     reminderEveryXDays: form.reminderEveryXDays,
     visibility: form.visibility,
+    visibilityTeamIds: form.visibilityTeamIds,
     questions: form.questions.map((q) => ({
       type: q.type,
       questionText: q.questionText,
@@ -521,6 +535,9 @@ export function SurveyBuilderDialog({
           reminderFrequency: initial.reminderConfig?.frequency ?? "NONE",
           reminderEveryXDays: initial.reminderConfig?.everyXDays ?? 3,
           visibility: initial.visibility,
+          visibilityTeamIds: initial.visibilityConfigs
+            .map((c) => c.teamId)
+            .filter((v): v is string => !!v),
           questions: initial.questions
             .slice()
             .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -559,6 +576,7 @@ export function SurveyBuilderDialog({
       reminderFrequency: buffered.reminderFrequency,
       reminderEveryXDays: buffered.reminderEveryXDays,
       visibility: buffered.visibility,
+      visibilityTeamIds: buffered.visibilityTeamIds,
       questions: buffered.questions.map((q) => ({ id: uid(), ...q })),
     });
     autosave.acceptRecovery();
@@ -649,6 +667,14 @@ export function SurveyBuilderDialog({
         : f.audienceTeamIds.filter((t) => t !== id),
     }));
 
+  const toggleVisibilityTeam = (id: string, checked: boolean) =>
+    setForm((f) => ({
+      ...f,
+      visibilityTeamIds: checked
+        ? [...f.visibilityTeamIds, id]
+        : f.visibilityTeamIds.filter((t) => t !== id),
+    }));
+
   // ── Live audience preview (debounced) ──
   const previewInput = useMemo(
     () => ({ audienceType: form.audienceType, audienceConfigs: buildAudienceConfigs(form) }),
@@ -668,7 +694,7 @@ export function SurveyBuilderDialog({
     const errs = computeBuilderErrors(form);
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      const settingsErr = errs.name || errs.deadline || errs.audience;
+      const settingsErr = errs.name || errs.deadline || errs.audience || errs.visibility;
       setActiveTab(settingsErr ? "settings" : "questions");
     }
     return Object.keys(errs).length === 0;
@@ -705,6 +731,7 @@ export function SurveyBuilderDialog({
       visibility: form.visibility,
       questions,
       audienceConfigs: buildAudienceConfigs(form),
+      visibilityConfigs: buildVisibilityConfigs(form),
     };
 
     if (form.reminderFrequency !== "NONE") {
@@ -1015,7 +1042,7 @@ export function SurveyBuilderDialog({
                   )}
 
                   {/* Visibility */}
-                  <FormField label="Who can see results?" htmlFor="sv-visibility">
+                  <FormField label="Who can see results?" htmlFor="sv-visibility" error={errors.visibility}>
                     <Select
                       value={form.visibility}
                       onValueChange={(v) => set("visibility", v as Visibility)}
@@ -1053,6 +1080,22 @@ export function SurveyBuilderDialog({
                       </SelectContent>
                     </Select>
                   </FormField>
+
+                  {/* Visibility team multi-select (only when results are scoped to specific teams) */}
+                  {form.visibility === "SPECIFIC_TEAMS" && (
+                    <div>
+                      <p className="mb-2 text-xs text-[color:var(--text-tertiary)]">
+                        Pick the teams allowed to view this survey&apos;s results.
+                      </p>
+                      <MultiSelectChecklist
+                        options={teams.map((t) => ({ id: t.id, label: t.name }))}
+                        selected={form.visibilityTeamIds}
+                        onToggle={toggleVisibilityTeam}
+                        searchPlaceholder="Search teams…"
+                        emptyText={optionsQuery.isLoading ? "Loading…" : "No teams found."}
+                      />
+                    </div>
+                  )}
                 </SectionCard>
 
                 <SectionCard icon={CalendarDays} title="Schedule">

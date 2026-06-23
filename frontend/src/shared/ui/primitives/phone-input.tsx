@@ -33,8 +33,19 @@ const PhoneInputFieldContext = React.createContext<PhoneInputFieldContextValue>(
 });
 
 const InputComponent = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className: inputClassName, ...inputProps }, ref) => {
+  ({ className: inputClassName, onChange, ...inputProps }, ref) => {
     const { id, error, disabled, placeholder } = React.useContext(PhoneInputFieldContext);
+
+    // Reject keystrokes/pastes that push the PH number past 11 digits (national "09…" form).
+    // Strip an optional "63" country code (pasted E.164) and the trunk "0" so what's left is the
+    // 10-digit subscriber number; that caps the input at 11 digits including the leading "0".
+    const handleChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+      let digits = event.target.value.replace(/\D/g, "");
+      if (digits.startsWith("63")) digits = digits.slice(2);
+      if (digits.startsWith("0")) digits = digits.slice(1);
+      if (digits.length > 10) return;
+      onChange?.(event);
+    };
 
     return (
       <Input
@@ -43,6 +54,7 @@ const InputComponent = React.forwardRef<HTMLInputElement, InputProps>(
         error={error}
         disabled={disabled}
         placeholder={placeholder}
+        onChange={handleChange}
         className={cn(
           "min-w-0 flex-1 rounded-s-none rounded-e-md border-l-0 focus-visible:z-10",
           inputClassName,

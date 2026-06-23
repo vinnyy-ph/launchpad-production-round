@@ -30,10 +30,11 @@ import type {
 import { DocumentUploadRow } from "@/modules/people/onboarding/components/documents/document-upload";
 
 import { queryKeys } from "@/shared/lib/query-keys";
-import { isValidPhilippinePhone, toE164 } from "@/shared/lib/phone";
+import { isStrictPhilippineMobile, toE164 } from "@/shared/lib/phone";
 
 import { EmptyState } from "@/shared/ui/patterns/empty-state";
 import { FormField } from "@/shared/ui/patterns/form-field";
+import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
 import { ProgressSteps } from "@/shared/ui/patterns/progress-steps";
 import { StatusBadge } from "@/shared/ui/patterns/status-badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -489,7 +490,8 @@ export default function EmployeeOnboardingPage() {
     setAddress(profile.address?.address ?? "");
     setCity(profile.address?.city ?? "");
     setProvince(profile.address?.province ?? "");
-    setCountry(profile.address?.country ?? "");
+    // PH-only deployment: default an empty country to Philippines so the address dropdowns resolve.
+    setCountry(profile.address?.country?.trim() || "Philippines");
     setEmergencyContactName(profile.emergencyContact?.emergencyContactName ?? "");
     void toE164(profile.emergencyContact?.emergencyContactNumber ?? "").then(setEmergencyContact);
     setBirthday(profile.birthday ? new Date(`${profile.birthday}T00:00:00`) : undefined);
@@ -560,10 +562,10 @@ export default function EmployeeOnboardingPage() {
     };
   }
 
-  async function handleContinueFromProfile(): Promise<void> {
+  function handleContinueFromProfile(): void {
     const next = profileDraftErrors(profileDraft);
-    if (Object.keys(next).length === 0 && !(await isValidPhilippinePhone(emergencyContact))) {
-      next.emergencyContact = "Enter a valid Philippine mobile number.";
+    if (Object.keys(next).length === 0 && !isStrictPhilippineMobile(emergencyContact)) {
+      next.emergencyContact = "Enter an 11-digit mobile number starting with 09.";
     }
     setProfileErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -604,8 +606,8 @@ export default function EmployeeOnboardingPage() {
       setStep(1);
       return;
     }
-    if (!(await isValidPhilippinePhone(emergencyContact))) {
-      setProfileErrors({ emergencyContact: "Enter a valid Philippine mobile number." });
+    if (!isStrictPhilippineMobile(emergencyContact)) {
+      setProfileErrors({ emergencyContact: "Enter an 11-digit mobile number starting with 09." });
       toast.error("Enter a valid emergency contact number before submitting.");
       setStep(1);
       return;
@@ -868,63 +870,25 @@ export default function EmployeeOnboardingPage() {
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
                 Address
               </h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <FormField
-                  label="Street address"
+              <div className="flex flex-col gap-4">
+                <PhAddressFields
+                  idPrefix="ob"
                   required
-                  htmlFor="ob-address"
-                  error={visibleProfileErrors.address}
-                  className="sm:col-span-3"
-                >
-                  <Input
-                    id="ob-address"
-                    value={address}
-                    error={Boolean(visibleProfileErrors.address)}
-                    onChange={(e) => {
-                      touchProfileField("address");
-                      setAddress(e.target.value);
-                    }}
-                    placeholder="House/unit no., street, barangay"
-                  />
-                </FormField>
-                <FormField
-                  label="Country"
-                  required
-                  htmlFor="ob-country"
-                  error={visibleProfileErrors.country}
-                >
-                  <Input
-                    id="ob-country"
-                    value={country}
-                    error={Boolean(visibleProfileErrors.country)}
-                    onChange={(e) => {
-                      touchProfileField("country");
-                      setCountry(e.target.value);
-                    }}
-                  />
-                </FormField>
-                <FormField label="Province" required htmlFor="ob-province" error={visibleProfileErrors.province}>
-                  <Input
-                    id="ob-province"
-                    value={province}
-                    error={Boolean(visibleProfileErrors.province)}
-                    onChange={(e) => {
-                      touchProfileField("province");
-                      setProvince(e.target.value);
-                    }}
-                  />
-                </FormField>
-                <FormField label="City" required htmlFor="ob-city" error={visibleProfileErrors.city}>
-                  <Input
-                    id="ob-city"
-                    value={city}
-                    error={Boolean(visibleProfileErrors.city)}
-                    onChange={(e) => {
-                      touchProfileField("city");
-                      setCity(e.target.value);
-                    }}
-                  />
-                </FormField>
+                  value={{ country, province, city, address }}
+                  errors={{
+                    address: visibleProfileErrors.address,
+                    country: visibleProfileErrors.country,
+                    province: visibleProfileErrors.province,
+                    city: visibleProfileErrors.city,
+                  }}
+                  onTouch={touchProfileField}
+                  onChange={(patch) => {
+                    if (patch.address !== undefined) setAddress(patch.address);
+                    if (patch.country !== undefined) setCountry(patch.country);
+                    if (patch.province !== undefined) setProvince(patch.province);
+                    if (patch.city !== undefined) setCity(patch.city);
+                  }}
+                />
               </div>
             </div>
 

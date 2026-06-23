@@ -1,4 +1,4 @@
-import type { AudienceType } from "@prisma/client";
+import type { AudienceType, SurveyVisibility } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import type {
@@ -66,6 +66,8 @@ export class SurveysService {
       })),
       // audienceConfigs only forwarded for non-EVERYONE types; validation already stripped them otherwise
       audienceConfigs: input.audienceConfigs ?? [],
+      // visibilityConfigs only forwarded for SPECIFIC_TEAMS visibility; validation stripped them otherwise
+      visibilityConfigs: input.visibilityConfigs ?? [],
       ...(input.reminderConfig !== undefined && {
         reminderConfig: {
           frequency: input.reminderConfig.frequency ?? "DAILY",
@@ -159,6 +161,21 @@ export class SurveysService {
               teamId: c.teamId ?? undefined,
             }));
       this.assertAudienceConfigsPresent(finalAudienceType, finalConfigs);
+    }
+
+    // Visibility configs mirror the audience-config rules. A non-SPECIFIC_TEAMS visibility
+    // drops any configs; a SPECIFIC_TEAMS visibility must name at least one team.
+    if (input.visibility !== undefined && input.visibility !== "SPECIFIC_TEAMS") {
+      input.visibilityConfigs = [];
+    }
+
+    if (input.visibility !== undefined || input.visibilityConfigs !== undefined) {
+      const finalVisibility = input.visibility ?? survey.visibility;
+      const finalVisibilityConfigs =
+        input.visibilityConfigs !== undefined
+          ? input.visibilityConfigs
+          : survey.visibilityConfigs.map((c) => ({ teamId: c.teamId }));
+      this.assertVisibilityConfigsPresent(finalVisibility, finalVisibilityConfigs);
     }
 
     if (input.reminderConfig && input.reminderConfig !== null) {
@@ -440,6 +457,21 @@ export class SurveysService {
     }
   }
 
+  /** Throws a validation error when SPECIFIC_TEAMS visibility has no team configs. */
+  private assertVisibilityConfigsPresent(
+    visibility: SurveyVisibility,
+    configs: { teamId: string }[],
+  ): void {
+    if (visibility === "SPECIFIC_TEAMS") {
+      const hasTeam = configs.some(
+        (c) => typeof c.teamId === "string" && c.teamId.length > 0,
+      );
+      if (!hasTeam) {
+        throw new Error(SURVEY_ERROR_MESSAGES.VISIBILITY_CONFIG_REQUIRED_TEAM);
+      }
+    }
+  }
+
   private toListItem(survey: SurveyListRow): SurveyListItemDto {
     const latest = survey.occurrences?.[0];
     return {
@@ -553,7 +585,13 @@ export class SurveysService {
         createdAt: cfg.createdAt,
         updatedAt: cfg.updatedAt,
       })),
-      visibilityConfigs: [],
+      visibilityConfigs: (survey.visibilityConfigs ?? []).map((vc) => ({
+        id: vc.id,
+        surveyId: vc.surveyId,
+        teamId: vc.teamId,
+        createdAt: vc.createdAt,
+        updatedAt: vc.updatedAt,
+      })),
       reminderConfig: survey.reminderConfig
         ? {
             id: survey.reminderConfig.id,

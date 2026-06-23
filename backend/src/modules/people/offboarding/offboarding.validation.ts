@@ -34,14 +34,26 @@ export class OffboardingValidation {
       dto.newSupervisorId = newSupervisorId;
     }
 
+    const newTeamLeaderId = this.optionalString(body.newTeamLeaderId);
+    if (newTeamLeaderId !== undefined) {
+      dto.newTeamLeaderId = newTeamLeaderId;
+    }
+
     return dto;
   }
 
   /** Validates the reassign body. */
   parseReassignBody(body: Record<string, unknown>): ReassignReportsRequestDto {
-    return {
+    const dto: ReassignReportsRequestDto = {
       newSupervisorId: this.requireString(body.newSupervisorId, "newSupervisorId"),
     };
+
+    const newTeamLeaderId = this.optionalString(body.newTeamLeaderId);
+    if (newTeamLeaderId !== undefined) {
+      dto.newTeamLeaderId = newTeamLeaderId;
+    }
+
+    return dto;
   }
 
   /** Validates the :id route param. */

@@ -11,6 +11,11 @@ export { PageTabs, type PageTabItem } from "./page-tabs";
 export { MultiSelectFilter, type MultiSelectFilterOption } from "./multi-select-filter";
 export { TablePagination } from "./table-pagination";
 export { FormField, type FormFieldProps } from "./form-field";
+export {
+  PhAddressFields,
+  type PhAddressFieldsProps,
+  type PhAddressValue,
+} from "./ph-address-fields";
 export * from "./page-section";
 export * from "./stat-card";
 export { KpiCard, type KpiCardProps } from "./kpi-card";
