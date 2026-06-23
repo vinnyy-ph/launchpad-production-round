@@ -1,13 +1,25 @@
-import { ORG, TEAMS, allDepts, totalHeadcount, teamSize, validateOrg } from '../../../prisma/seed/org-structure'
+import { ORG, TEAMS, allDepts, topDepartments, totalHeadcount, teamSize, validateOrg } from '../../../prisma/seed/org-structure'
 
 describe('org structure', () => {
   it('totals 300 employees', () => {
     expect(totalHeadcount()).toBe(300)
   })
-  it('has 22 leaf departments', () => {
+  it('has 10 top-level departments', () => {
+    expect(topDepartments().length).toBe(10)
+  })
+  it('has 22 sub-departments', () => {
     expect(allDepts().length).toBe(22)
   })
-  it('department names are unique', () => {
+  it('top-level department headcounts sum to 300', () => {
+    expect(topDepartments().reduce((n, d) => n + d.headcount, 0)).toBe(300)
+  })
+  it('top-level departments include the expected 10 names', () => {
+    expect(topDepartments().map((d) => d.name).sort()).toEqual([
+      'Customer Support', 'Design', 'Engineering', 'Executive Leadership', 'Finance',
+      'Growth', 'IT', 'Operations', 'People', 'Product',
+    ])
+  })
+  it('sub-department names are unique', () => {
     const names = allDepts().map((d) => d.name)
     expect(new Set(names).size).toBe(names.length)
   })

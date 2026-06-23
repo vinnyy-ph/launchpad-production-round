@@ -1,6 +1,6 @@
 // backend/prisma/seed/users.ts
 import { PrismaClient, Employee, EmployeeStatus, Role } from '@prisma/client'
-import { ORG, allDepts, validateOrg } from './org-structure'
+import { ORG, allDepts, deptNameForGroup, topDepartments, validateOrg } from './org-structure'
 import { createPeopleGenerator } from './names'
 
 export type SeededUsers = {
@@ -16,6 +16,7 @@ export type SeededUsers = {
 }
 
 const nextPerson = createPeopleGenerator(20260621) // fixed seed → deterministic
+const TEAM_SPAN = 5 // max direct reports per supervisor when subdividing a sub-department
 
 async function createEmployee(
   prisma: PrismaClient,
@@ -50,13 +51,16 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeededUsers> {
   const icTitle = (dept: string) => `${tiers[Math.floor(tierRng() * tiers.length)]}${dept} Specialist`.replace(/\s+/g, ' ').trim()
   const leadTitle = (dept: string) => (dept === 'IT' ? 'IT Manager' : `${dept} Lead`)
 
-  // 1–2. Departments
-  const deptId: Record<string, string> = {}
-  for (const d of allDepts()) {
+  // 1–2. Departments — create the 10 top-level departments, then map each sub-department to
+  // its group's department id so every employee in a group lands in that one DB department.
+  const deptRowId: Record<string, string> = {}
+  for (const d of topDepartments()) {
     const row = await prisma.department.create({ data: { name: d.name } })
-    deptId[d.name] = row.id
+    deptRowId[d.name] = row.id
   }
-  const execId = deptId['Executive Leadership']
+  const deptId: Record<string, string> = {}
+  for (const g of ORG) for (const d of g.depts) deptId[d.name] = deptRowId[deptNameForGroup(g)]
+  const execId = deptRowId['Executive Leadership']
 
   const all: Employee[] = []
   const generated: Employee[] = []
@@ -95,31 +99,53 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeededUsers> {
     track(e, 'Executive Leadership', true)
   }
 
-  const fillICs = async (deptName: string, count: number, supervisorId: string) => {
-    for (let i = 0; i < count; i++) {
-      const p = nextPerson()
-      const e = await createEmployee(prisma, { email: p.email, firstName: p.firstName, lastName: p.lastName, jobTitle: icTitle(deptName), departmentId: deptId[deptName], supervisorId })
+  // Fill a sub-department: arrange `count` members into a balanced tree under `lead` so no
+  // supervisor has more than TEAM_SPAN direct reports (instead of the lead managing everyone
+  // flat). A member that ends up with reports is titled "<dept> Team Lead"; leaves keep an IC
+  // title. BFS assignment guarantees each member's supervisor is created before it.
+  const fillSubDept = async (deptName: string, lead: Employee, count: number) => {
+    if (count <= 0) return
+    const parent = new Array<number>(count + 1) // member m (1..count) → parent node (0 = the lead)
+    const childCount = new Array<number>(count + 1).fill(0)
+    const queue: number[] = [0]
+    let next = 1
+    while (next <= count) {
+      const p = queue.shift() as number
+      for (let c = 0; c < TEAM_SPAN && next <= count; c++) {
+        parent[next] = p
+        childCount[p]++
+        queue.push(next)
+        next++
+      }
+    }
+    const idByNode: Record<number, string> = { 0: lead.id }
+    for (let m = 1; m <= count; m++) {
+      const person = nextPerson()
+      const jobTitle = childCount[m] > 0 ? `${deptName} Team Lead` : icTitle(deptName)
+      const e = await createEmployee(prisma, {
+        email: person.email, firstName: person.firstName, lastName: person.lastName,
+        jobTitle, departmentId: deptId[deptName], supervisorId: idByNode[parent[m]],
+      })
+      idByNode[m] = e.id
       track(e, deptName, true)
     }
   }
 
-  // 6–7. Non-Executive groups
+  // 6–7. Non-Executive groups — every sub-department lead reports directly to the owning board
+  // exec (the leads are peers, not nested under a primary lead), and each sub-department is
+  // subdivided into small teams beneath its lead.
   for (const group of ORG) {
     if (group.group === 'Executive') continue
     const owner = byTitle[group.owner as string]
-    let primaryLead: Employee | null = null
-    for (let i = 0; i < group.depts.length; i++) {
-      const d = group.depts[i]
-      const isPrimary = i === 0
+    for (const d of group.depts) {
       const p = nextPerson()
       const lead = await createEmployee(prisma, {
         email: p.email, firstName: p.firstName, lastName: p.lastName, jobTitle: leadTitle(d.name),
-        departmentId: deptId[d.name], supervisorId: isPrimary ? owner.id : (primaryLead as Employee).id,
+        departmentId: deptId[d.name], supervisorId: owner.id,
       })
       track(lead, d.name, true)
       deptLead[d.name] = lead
-      if (isPrimary) primaryLead = lead
-      await fillICs(d.name, d.headcount - 1, lead.id)
+      await fillSubDept(d.name, lead, d.headcount - 1)
     }
   }
 

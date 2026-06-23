@@ -4,8 +4,14 @@ export type LeafDept = { name: string; headcount: number }
 export type Group = { group: string; owner: string | null; depts: LeafDept[] }
 export type TeamSpec = { name: string; leaderDept: string; mix: { dept: string; count: number }[] }
 
-// First dept in each group is the PRIMARY (its lead reports to the owning board exec;
-// the other dept leads in the group report to the primary lead).
+// Each group is a top-level DB Department (10 total). The entries under `depts` are
+// sub-departments used only to wire the in-department reporting tree, lead/IC job titles
+// and team membership — they are NOT separate Department rows. Every employee in a group is
+// assigned to that group's single DB department, so the org chart shows the CEO connected to
+// 10 departments, with the sub-department structure visible as the supervisor hierarchy inside.
+//
+// First dept in each group is the PRIMARY (its lead heads the group and reports to the owning
+// board exec; the other dept leads in the group report to the primary lead).
 export const ORG: Group[] = [
   { group: 'Engineering', owner: 'CTO', depts: [
     { name: 'Frontend', headcount: 32 },
@@ -71,8 +77,17 @@ export const TEAMS: TeamSpec[] = [
   { name: 'Research Pod', leaderDept: 'UX Research', mix: [{ dept: 'UX Research', count: 2 }] },
 ]
 
+/** Sub-departments across all groups (used for reporting-tree wiring, leads and team mixes). */
 export function allDepts(): LeafDept[] {
   return ORG.flatMap((g) => g.depts)
+}
+/** The DB department name for a group (the Executive group's department is "Executive Leadership"). */
+export function deptNameForGroup(g: Group): string {
+  return g.group === 'Executive' ? 'Executive Leadership' : g.group
+}
+/** The 10 top-level departments that become DB Department rows, with summed headcount. */
+export function topDepartments(): LeafDept[] {
+  return ORG.map((g) => ({ name: deptNameForGroup(g), headcount: g.depts.reduce((n, d) => n + d.headcount, 0) }))
 }
 export function totalHeadcount(): number {
   return allDepts().reduce((n, d) => n + d.headcount, 0)
@@ -82,5 +97,6 @@ export function teamSize(t: TeamSpec): number {
 }
 export function validateOrg(): void {
   if (totalHeadcount() !== 300) throw new Error(`Org total headcount is ${totalHeadcount()}, expected 300`)
-  if (allDepts().length !== 22) throw new Error(`Expected 22 departments, got ${allDepts().length}`)
+  if (topDepartments().length !== 10) throw new Error(`Expected 10 departments, got ${topDepartments().length}`)
+  if (allDepts().length !== 22) throw new Error(`Expected 22 sub-departments, got ${allDepts().length}`)
 }

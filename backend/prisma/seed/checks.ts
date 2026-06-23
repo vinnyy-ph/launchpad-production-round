@@ -2,7 +2,7 @@
 import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { allDepts, TEAMS, teamSize } from './org-structure'
+import { topDepartments, TEAMS, teamSize } from './org-structure'
 
 const url = process.env.DIRECT_URL || process.env.DATABASE_URL
 if (!url) throw new Error('DATABASE_URL required')
@@ -16,11 +16,11 @@ async function main() {
 
   eq('users', await prisma.user.count(), 300)
   eq('employees', await prisma.employee.count(), 300)
-  eq('departments', await prisma.department.count(), 22)
+  eq('departments', await prisma.department.count(), 10)
   eq('teams', await prisma.team.count(), 9)
   eq('root employees (supervisorId null)', await prisma.employee.count({ where: { supervisorId: null } }), 1)
 
-  for (const d of allDepts()) {
+  for (const d of topDepartments()) {
     const row = await prisma.department.findUnique({ where: { name: d.name } })
     if (!row) { errors.push(`missing department ${d.name}`); continue }
     eq(`dept ${d.name} headcount`, await prisma.employee.count({ where: { departmentId: row.id } }), d.headcount)

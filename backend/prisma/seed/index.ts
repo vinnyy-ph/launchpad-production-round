@@ -33,13 +33,13 @@ if (!databaseUrl) {
 }
 
 function createSeedAdapter(connectionString: string) {
-  // PrismaPg (pg over TCP) supports interactive transactions; the Neon HTTP adapter
-  // does not ("Transactions are not supported in HTTP mode"), which breaks the seed.
-  // Mirrors the runtime adapter in src/core/database/prisma.service.ts.
+  // PrismaPg (pg over TCP) supports the implicit transactions Prisma wraps around the seed's
+  // nested writes (employee.create with nested address/emergencyContact). Neon's HTTP adapter
+  // cannot ("Transactions are not supported in HTTP mode"), so it is not an option here.
   //
-  // keepAlive + a generous connect timeout keep the long sequential seed alive over a
-  // remote Neon connection (the seed makes thousands of round-trips; without keep-alive
-  // the socket gets dropped by NAT/idle reapers part-way through).
+  // keepAlive + a generous connect timeout keep the long sequential seed alive over a remote
+  // Neon connection (the seed makes thousands of round-trips; without keep-alive the socket gets
+  // dropped by NAT/idle reapers part-way through). Transient drops are retried via withRetry below.
   return new PrismaPg({
     connectionString,
     keepAlive: true,
@@ -48,8 +48,40 @@ function createSeedAdapter(connectionString: string) {
   })
 }
 
+// A single dropped socket to remote Neon (ETIMEDOUT/ECONNRESET on one op) otherwise aborts the
+// whole multi-minute seed. This extension transparently retries any operation that fails with a
+// transient connection error, with backoff, so the seed survives intermittent drops. Retries are
+// safe: a timed-out write either committed or rolled back, and clearAll runs first.
+function withRetry(client: PrismaClient): PrismaClient {
+  const TRANSIENT = ['ETIMEDOUT', 'ECONNRESET', 'EPIPE', 'ENOTFOUND', 'ECONNREFUSED']
+  const isTransient = (e: unknown): boolean => {
+    const err = e as { code?: string; cause?: { code?: string }; message?: string }
+    const code = err?.code ?? err?.cause?.code
+    return (code != null && TRANSIENT.includes(code)) || /ETIMEDOUT|ECONNRESET|socket|connection.*(closed|terminated|reset)/i.test(err?.message ?? '')
+  }
+  const extended = client.$extends({
+    query: {
+      async $allOperations({ args, query }) {
+        const MAX_ATTEMPTS = 6
+        let lastErr: unknown
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+          try {
+            return await query(args)
+          } catch (e) {
+            if (!isTransient(e) || attempt === MAX_ATTEMPTS) throw e
+            lastErr = e
+            await new Promise((r) => setTimeout(r, 500 * attempt))
+          }
+        }
+        throw lastErr
+      },
+    },
+  })
+  return extended as unknown as PrismaClient
+}
+
 const adapter = createSeedAdapter(databaseUrl)
-const prisma = new PrismaClient({ adapter })
+const prisma = withRetry(new PrismaClient({ adapter }))
 
 async function clearAll() {
   await prisma.notification.deleteMany()
