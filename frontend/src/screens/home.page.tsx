@@ -16,13 +16,16 @@ import {
   FileText,
   FileCheck2,
   TrendingUp,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
 import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
 import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { KpiCard, type KpiCardProps } from "@/shared/ui/patterns";
+import { cn } from "@/shared/lib/utils";
 import type { AppUser, EmployeeStatus } from "@/modules/auth/types/auth.types";
 
 export default function HomePage() {
@@ -36,30 +39,70 @@ export default function HomePage() {
   // client hydration agree (the clock only exists on the client). First paint shows
   // the neutral fallback, then the greeting resolves to morning/afternoon/evening.
   const [greeting, setGreeting] = useState("Welcome back");
+  const [dateLabel, setDateLabel] = useState("");
   useEffect(() => {
-    const h = new Date().getHours();
+    const now = new Date();
+    const h = now.getHours();
     setGreeting(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
+    setDateLabel(now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }));
   }, []);
 
   const firstName = getFirstName(appUser);
   const summary = buildSummary(appUser?.role, appUser?.isSupervisor, stats);
   const sections = buildSections(appUser?.role, appUser?.isSupervisor, appUser?.employeeStatus, stats);
 
+  // Personal employee-lane to-dos surfaced as hero CTAs — every role holds the employee lane,
+  // so these deep-link the same way for employee, supervisor, HR, and admin.
+  const heroActions: { label: string; href: string }[] = [];
+  if (stats?.unreadSurveys) {
+    heroActions.push({
+      label: stats.unreadSurveys === 1 ? "Answer survey" : "Answer surveys",
+      href: "/employee/surveys",
+    });
+  }
+  if (stats?.pendingAcknowledgements) {
+    heroActions.push({
+      label: stats.pendingAcknowledgements === 1 ? "Review evaluation" : "Review evaluations",
+      href: "/employee/surveys?tab=acknowledgements",
+    });
+  }
+
   return (
     <div className="min-w-0 space-y-7">
-      {/* Greeting hero — personal landing, with the one Jia gradient accent. */}
-      <header>
-        <span
-          className="block h-1 w-10 rounded-full"
-          style={{ background: "var(--gradient-jia)" }}
-          aria-hidden="true"
-        />
-        <h1 className="mt-3 text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
+      {/* Greeting hero — the single Jia gradient moment on this surface. Bright gradient with
+          cool-black text (AA-safe on the light pastel stops); the one sanctioned gradient use. */}
+      <div
+        className="rounded-[24px] px-6 py-7 sm:px-8 sm:py-8"
+        style={{ background: "var(--gradient-jia)", boxShadow: "var(--shadow-inset-brand)" }}
+      >
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[color:var(--text-secondary)]">
+          {dateLabel ? `${dateLabel} ✦` : "✦"}
+        </p>
+        <h1 className="mt-2.5 text-[26px] font-bold leading-tight tracking-[-0.02em] text-[color:var(--text-primary)] sm:text-[32px]">
           {greeting}
           {firstName ? `, ${firstName}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">{summary}</p>
-      </header>
+        <p className="mt-1.5 max-w-xl text-sm font-medium text-[color:var(--text-secondary)]">{summary}</p>
+        {heroActions.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2.5">
+            {heroActions.map((action, i) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className={cn(
+                  "inline-flex h-10 items-center gap-1.5 rounded-lg px-4 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[color:var(--text-primary)]",
+                  i === 0
+                    ? "bg-[color:var(--text-primary)] text-white shadow-sm hover:bg-[color:var(--gray-800)]"
+                    : "bg-white/80 text-[color:var(--text-primary)] hover:bg-white",
+                )}
+              >
+                {action.label}
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* At a glance — one section per hat the user holds (Your work → Your team →
           Organization). Each card links to where the metric is acted on. */}
@@ -80,7 +123,7 @@ export default function HomePage() {
             <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
               {section.title}
             </h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className={cn("grid gap-4", GRID_COLS[section.cols])}>
               {section.cards.map((card) => (
                 <KpiCard key={card.label} {...card} loading={statsLoading} />
               ))}
@@ -145,7 +188,16 @@ interface DashSection {
   key: string;
   title: string;
   cards: KpiCardProps[];
+  /** How many columns the metric grid uses at desktop width. */
+  cols: 2 | 3 | 4;
 }
+
+/** Tailwind column classes per section width — keeps a 2-card lane from stranding in a 4-up grid. */
+const GRID_COLS: Record<2 | 3 | 4, string> = {
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-2 sm:grid-cols-4",
+};
 
 /** First name for the greeting: first token of the display name, else the email local part. */
 function getFirstName(user: AppUser | null | undefined): string {
@@ -212,8 +264,8 @@ function buildSections(
 
   // Your work — the caller's own to-dos. Onboarding figures only matter while onboarding.
   const work: KpiCardProps[] = [
-    { icon: MessageSquare, label: "Surveys to answer", value: num(stats?.unreadSurveys), href: "/employee/surveys" },
-    { icon: FileCheck2, label: "Evaluations to acknowledge", value: num(stats?.pendingAcknowledgements), href: "/employee/surveys?tab=acknowledgements" },
+    { icon: MessageSquare, label: "Surveys to answer", value: num(stats?.unreadSurveys), href: "/employee/surveys", period: "Pulse check-ins" },
+    { icon: FileCheck2, label: "Evaluations to acknowledge", value: num(stats?.pendingAcknowledgements), href: "/employee/surveys?tab=acknowledgements", period: "From your supervisor" },
   ];
   if (employeeStatus === "ONBOARDING") {
     work.push(
@@ -226,13 +278,14 @@ function buildSections(
       },
     );
   }
-  sections.push({ key: "work", title: "Your work", cards: work });
+  sections.push({ key: "work", title: "Your work", cards: work, cols: 2 });
 
   // Your team — supervisors only.
   if (isSupervisor) {
     sections.push({
       key: "team",
       title: "Your team",
+      cols: 3,
       cards: [
         { icon: ClipboardCheck, label: "Pending evaluations", value: num(stats?.pendingEvaluations), href: "/supervisor/evaluations" },
         { icon: Users, label: "Direct reports", value: num(stats?.directReports), href: "/supervisor/roster" },
@@ -255,6 +308,7 @@ function buildSections(
     sections.push({
       key: "org",
       title: "Organization",
+      cols: 4,
       cards: [
         { icon: UserPlus, label: "Pending onboarding", value: num(stats?.pendingOnboarding), href: "/hr/directory/onboarding" },
         { icon: UserMinus, label: "Pending offboarding", value: num(stats?.pendingOffboarding), href: "/hr/directory/offboarding" },
