@@ -136,4 +136,23 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
     });
     expect(uploadOnboardingDocumentMock).not.toHaveBeenCalled();
   });
+
+  it("returns 400 when a PDF extension hides non-PDF content", async () => {
+    onboardingRecordFindFirstMock.mockResolvedValue(buildOnboardingRecord());
+    onboardingDocumentFindFirstMock.mockResolvedValue(buildDocumentRecord());
+    onboardingDocumentSubmissionFindFirstMock.mockResolvedValue(null);
+
+    const response = await request(app)
+      .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
+      .attach("file", Buffer.from("MZ fake executable"), "nbi-clearance.pdf", {
+        contentType: "application/pdf",
+      })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      errorCode: "INVALID_FILE_TYPE",
+    });
+    expect(uploadOnboardingDocumentMock).not.toHaveBeenCalled();
+  });
 });

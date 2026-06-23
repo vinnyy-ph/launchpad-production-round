@@ -155,7 +155,7 @@ Real-time notifications authenticate via Firebase token in the handshake (`backe
 | Email HTML injection | `escapeHtml()` in all email templates                            | `backend/src/core/email/templates/`                                                        |
 | File upload limits   | Multer in-memory: onboarding 5 MB, evaluations/offboarding 10 MB | `*-upload.middleware.ts` modules                                                           |
 | Evaluation uploads   | PDF-only `fileFilter` on multer                                  | `backend/src/modules/performance/evaluations/evaluation-upload.middleware.ts`              |
-| Onboarding uploads   | Extension check against HR-configured `allowedFileTypes`         | `backend/src/modules/people/onboarding/employee-onboarding/employee-onboarding.service.ts` |
+| Onboarding uploads   | Extension, MIME, and magic-byte checks against HR-configured `allowedFileTypes`; multer `fileFilter` | `employee-onboarding/onboarding-file-validation.ts`, `middleware/onboarding-upload.middleware.ts` |
 | API documentation    | OpenAPI 3.0 with `bearerAuth` (Firebase JWT); Swagger UI disabled in production | `backend/src/docs/swagger.config.ts`, `backend/src/app.ts`                                 |
 
 
@@ -360,7 +360,6 @@ Close with [Section 10](#10-known-limitations-and-remediation-tracker) — docum
 
 | Gap                                           | Risk                                 | Evidence                          | Remediation (planned)                                    | Owner | Priority |
 | --------------------------------------------- | ------------------------------------ | --------------------------------- | -------------------------------------------------------- | ----- | -------- |
-| Onboarding uploads: extension-only validation | Malicious file upload                | `employee-onboarding.service.ts`  | Add MIME/magic-byte checks + multer `fileFilter`         | TBD   | Medium   |
 | Onboarding docs use public Cloudinary URLs    | URL leakage if shared                | `cloudinary.service.ts`           | Align sensitive docs with authenticated delivery pattern | TBD   | Medium   |
 | No `trust proxy` behind Railway               | Rate limit bypass / wrong client IP  | `rate-limit.middleware.ts`        | Set `app.set('trust proxy', 1)` in production            | TBD   | Low      |
 | Auth limiter same as global (100/15min)       | Brute-force auth attempts            | `rate-limit.middleware.ts`        | Stricter limit on `/api/auth`                            | TBD   | Low      |
@@ -415,6 +414,7 @@ Close with [Section 10](#10-known-limitations-and-remediation-tracker) — docum
 - `backend/src/modules/performance/surveys/rules/response-firewall.test.ts`
 - `backend/src/modules/performance/surveys/rules/results-visibility.test.ts`
 - `backend/src/tests/onboarding/employee-onboarding/submit-document.test.ts`
+- `backend/src/modules/people/onboarding/employee-onboarding/onboarding-file-validation.test.ts`
 - `backend/src/tests/email/onboarding-invitation.template.test.ts`
 - `backend/src/tests/email/onboarding-complete.template.test.ts`
 - `backend/src/tests/email/pulse-survey-reminder.template.test.ts`
