@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/shared/ui/primitives/select";
 import { DataTable, EmptyState, FilterBar, StatusBadge, type Column } from "@/shared/ui/patterns";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useOffboardings } from "../hooks/use-offboarding";
 import type { OffboardingListItem, OffboardingStatus } from "../types/offboarding.types";
@@ -27,6 +28,13 @@ const STATUS_OPTIONS: { value: typeof ALL | OffboardingStatus; label: string }[]
 
 function fullName(e: { firstName: string; lastName: string }): string {
   return `${e.firstName} ${e.lastName}`.trim();
+}
+
+/** Two-letter initials for the default avatar fallback. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
 }
 
 function formatDate(iso: string): string {
@@ -68,14 +76,25 @@ export function OffboardingCasesTable() {
     {
       header: "Employee",
       cell: (r) => (
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-            {fullName(r.employee)}
-          </p>
-          <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-            {r.employee.jobTitle ?? "—"}
-            {r.employee.department ? ` · ${r.employee.department}` : ""}
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <UserAvatar
+            src={r.employee.avatarUrl}
+            fallback={initials(fullName(r.employee))}
+            className="h-8 w-8"
+            fallbackClassName="text-[11px] font-bold text-[color:var(--text-primary)]"
+            fallbackStyle={{
+              background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+            }}
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+              {fullName(r.employee)}
+            </p>
+            <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+              {r.employee.jobTitle ?? "—"}
+              {r.employee.department ? ` · ${r.employee.department}` : ""}
+            </p>
+          </div>
         </div>
       ),
     },

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Network, Plus, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { Button, Input, Skeleton } from "@/shared/ui";
+import { Button, Input, Skeleton, UserAvatar } from "@/shared/ui";
 import {
   DataTable,
   EmptyState,
@@ -37,16 +37,17 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function Avatar({ name, size = 7 }: { name: string; size?: 7 | 9 }) {
-  const dim = size === 9 ? "h-9 w-9 text-[11px]" : "h-7 w-7 text-[10px]";
+function Avatar({ name, src, size = 7 }: { name: string; src?: string | null; size?: 7 | 9 }) {
+  const dim = size === 9 ? "h-9 w-9" : "h-7 w-7";
+  const textSize = size === 9 ? "text-[11px]" : "text-[10px]";
   return (
-    <span
-      className={`flex flex-shrink-0 items-center justify-center rounded-full font-bold text-white ${dim}`}
-      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
+    <UserAvatar
+      src={src}
+      fallback={initials(name)}
+      className={`flex-shrink-0 ${dim}`}
+      fallbackClassName={`${textSize} font-bold text-white`}
+      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+    />
   );
 }
 
@@ -133,7 +134,7 @@ export default function TeamsPage() {
       sortKey: "leader",
       cell: (team) => (
         <div className="flex items-center justify-center gap-2">
-          <Avatar name={team.leader.fullName} />
+          <Avatar name={team.leader.fullName} src={team.leader.avatarUrl} />
           <span className="truncate text-sm text-[color:var(--text-secondary)]">
             {team.leader.fullName}
           </span>

@@ -17,6 +17,7 @@ const employeeProfileInclude = {
       email: true,
       role: true,
       isActive: true,
+      avatarUrl: true,
     },
   },
   supervisor: {
@@ -86,6 +87,13 @@ type EmployeeProfileRecord = Prisma.EmployeeGetPayload<{
  * so both produce the exact same record shape the service maps from.
  */
 const employeeListInclude = {
+  // The Google profile picture lives on the linked User; selected so list rows
+  // (directory table, org chart, onboarding cases) can render the avatar.
+  user: {
+    select: {
+      avatarUrl: true,
+    },
+  },
   department: {
     select: {
       id: true,

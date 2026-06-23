@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  UserAvatar,
 } from "@/shared/ui";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -95,6 +96,8 @@ export default function RosterPage() {
       middleName: null,
       lastName: ref?.lastName ?? "",
       fullName: ref?.fullName || appUser?.displayName || appUser?.email || "You",
+      // This card is the signed-in supervisor, so their own Google photo applies.
+      avatarUrl: appUser?.avatarUrl ?? null,
       companyEmail: ref?.companyEmail ?? appUser?.email ?? "",
       jobTitle: ref?.jobTitle ?? null,
       department: null,
@@ -182,15 +185,15 @@ export default function RosterPage() {
       sortKey: "name",
       cell: (row) => (
         <div className="flex items-center gap-3">
-          <span
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-            style={{
+          <UserAvatar
+            src={row.avatarUrl}
+            fallback={initials(row.fullName)}
+            className="h-8 w-8"
+            fallbackClassName="text-xs font-bold text-white"
+            fallbackStyle={{
               background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
             }}
-            aria-hidden="true"
-          >
-            {initials(row.fullName)}
-          </span>
+          />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
               {row.fullName}

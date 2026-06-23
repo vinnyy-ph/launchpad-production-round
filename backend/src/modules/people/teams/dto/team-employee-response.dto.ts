@@ -6,4 +6,6 @@ export interface TeamEmployeeResponseDto {
   fullName: string;
   companyEmail: string;
   jobTitle: string | null;
+  /** Google profile picture URL; null when the account has no photo. */
+  avatarUrl: string | null;
 }

@@ -12,6 +12,7 @@ const teamInclude = {
       lastName: true,
       companyEmail: true,
       jobTitle: true,
+      user: { select: { avatarUrl: true } },
     },
   },
   members: {
@@ -24,6 +25,7 @@ const teamInclude = {
           lastName: true,
           companyEmail: true,
           jobTitle: true,
+          user: { select: { avatarUrl: true } },
         },
       },
     },

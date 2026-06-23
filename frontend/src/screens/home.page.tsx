@@ -26,6 +26,7 @@ import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { useAssignedClearances, AssignedClearancesSection } from "@/modules/people/offboarding";
 import { KpiCard, type KpiCardProps } from "@/shared/ui/patterns";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { cn } from "@/shared/lib/utils";
 import { useMyTeams } from "@/modules/people/teams/hooks/use-my-teams";
 import type { Team } from "@/modules/people/teams/types/teams.types";
@@ -196,18 +197,15 @@ function initials(name: string): string {
   return (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
 }
 
-function Avatar({ name, className }: { name: string; className?: string }) {
+function Avatar({ name, src, className }: { name: string; src?: string | null; className?: string }) {
   return (
-    <span
-      className={cn(
-        "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white",
-        className,
-      )}
-      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
+    <UserAvatar
+      src={src}
+      fallback={initials(name)}
+      className={cn("h-9 w-9", className)}
+      fallbackClassName="text-[11px] font-bold text-white"
+      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+    />
   );
 }
 
@@ -249,7 +247,7 @@ function PeopleSection({
             </div>
           ) : supervisor ? (
             <div className="mt-3 flex items-center gap-2.5">
-              <Avatar name={supervisor.fullName} />
+              <Avatar name={supervisor.fullName} src={supervisor.avatarUrl} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
                   {supervisor.fullName}

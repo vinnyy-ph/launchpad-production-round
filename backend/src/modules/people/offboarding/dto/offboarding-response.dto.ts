@@ -7,6 +7,8 @@ export interface OffboardingEmployeeSummaryDto {
   lastName: string;
   jobTitle: string | null;
   department: string | null;
+  /** Google profile picture URL; null when the account has no photo. */
+  avatarUrl: string | null;
 }
 
 /** One clearance signature request with its signatory and snapshot context. */

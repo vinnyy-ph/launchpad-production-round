@@ -11,6 +11,7 @@ import type { EmployeeProfile } from "@/modules/people/employees/types/employees
 
 import { Button } from "@/shared/ui/primitives/button";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { StatusBadge } from "@/shared/ui/patterns";
 import { PageSection } from "@/shared/ui/patterns";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -147,15 +148,15 @@ export default function ProfilePage() {
 
       {/* Avatar + identity */}
       <div className="flex items-center gap-4">
-        <div
-          className="flex h-16 w-16 flex-shrink-0 select-none items-center justify-center rounded-full text-lg font-bold text-white"
-          style={{
+        <UserAvatar
+          src={appUser?.avatarUrl}
+          fallback={initials(profile.fullName)}
+          className="h-16 w-16 select-none"
+          fallbackClassName="text-lg font-bold text-white"
+          fallbackStyle={{
             background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
           }}
-          aria-hidden="true"
-        >
-          {initials(profile.fullName)}
-        </div>
+        />
         <div>
           <h2 className="text-lg font-bold leading-tight text-[color:var(--text-primary)]">
             {profile.fullName}

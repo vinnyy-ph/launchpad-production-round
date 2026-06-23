@@ -8,6 +8,7 @@ import {
   SheetTitle,
   Skeleton,
   StatusBadge,
+  UserAvatar,
 } from "@/shared/ui";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
 import type { EmployeeProfile } from "../types/employees.types";
@@ -51,15 +52,15 @@ export function RedactedProfileSheet({ employeeId, open, onOpenChange }: Redacte
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
         <SheetHeader className="mb-6">
           <div className="flex items-center gap-3">
-            <span
-              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-              style={{
+            <UserAvatar
+              src={profile?.avatarUrl}
+              fallback={profile ? initials(profile.fullName) : ""}
+              className="h-12 w-12"
+              fallbackClassName="text-sm font-bold text-white"
+              fallbackStyle={{
                 background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
               }}
-              aria-hidden="true"
-            >
-              {profile ? initials(profile.fullName) : ""}
-            </span>
+            />
             <div className="min-w-0">
               <SheetTitle className="text-left text-base font-bold leading-tight text-[color:var(--text-primary)]">
                 {profile?.fullName ?? "Profile"}

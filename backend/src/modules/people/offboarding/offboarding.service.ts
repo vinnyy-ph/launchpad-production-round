@@ -26,6 +26,7 @@ export function toOffboardingDetailDto(
       lastName: record.employee.lastName,
       jobTitle: record.employee.jobTitle,
       department: record.employee.department?.name ?? null,
+      avatarUrl: record.employee.user?.avatarUrl ?? null,
     },
     initiatedBy: {
       id: record.initiatedBy.id,
@@ -72,6 +73,7 @@ function toOffboardingListItemDto(
       lastName: record.employee.lastName,
       jobTitle: record.employee.jobTitle,
       department: record.employee.department?.name ?? null,
+      avatarUrl: record.employee.user?.avatarUrl ?? null,
     },
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),

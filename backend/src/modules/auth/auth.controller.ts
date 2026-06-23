@@ -12,7 +12,7 @@ export async function getSession(req: Request, res: Response) {
       .status(403)
       .json({ error: "This email is linked to a different Google identity." });
   }
-  await recordLastLogin(req.user!.id);
+  await recordLastLogin(req.user!.id, req.firebasePicture ?? null);
   const session = await resolveSession(req.user!);
   return res.json(session);
 }

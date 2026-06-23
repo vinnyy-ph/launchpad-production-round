@@ -63,10 +63,17 @@ export async function bindGoogleId(user: User, firebaseUid: string): Promise<boo
   return true;
 }
 
-/** Records the user's most recent sign-in time. */
-export async function recordLastLogin(userId: string): Promise<void> {
+/**
+ * Records the user's most recent sign-in time and refreshes their Google profile picture.
+ * `avatarUrl` is taken from the verified Firebase token on every sign-in so the stored photo
+ * stays in sync with the Google account (null clears it when the account has no photo).
+ */
+export async function recordLastLogin(
+  userId: string,
+  avatarUrl: string | null = null,
+): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
-    data: { lastLoginAt: new Date() },
+    data: { lastLoginAt: new Date(), avatarUrl },
   });
 }

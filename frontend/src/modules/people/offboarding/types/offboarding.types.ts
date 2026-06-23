@@ -16,6 +16,8 @@ export interface OffboardingEmployee {
   lastName: string;
   jobTitle: string | null;
   department: string | null;
+  /** Google profile picture URL; null when the account has no photo. */
+  avatarUrl: string | null;
 }
 
 export interface OffboardingPerson {
@@ -189,6 +191,8 @@ export interface SupervisorOnboardingEmployee {
   lastName: string;
   jobTitle: string | null;
   department: string | null;
+  /** Google profile picture URL; null when the account has no photo. */
+  avatarUrl: string | null;
   status: "onboarding" | "completed";
   onboarding: {
     recordId: string;

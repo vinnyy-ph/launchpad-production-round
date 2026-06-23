@@ -23,6 +23,7 @@ import {
   DialogTitle,
   FormField,
   Skeleton,
+  UserAvatar,
 } from "@/shared/ui";
 import {
   useOffboarding,
@@ -165,12 +166,15 @@ function OffboardingDetailInner() {
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
-          <span
-            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-[color:var(--text-primary)]"
-            style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-          >
-            {initials(employeeName)}
-          </span>
+          <UserAvatar
+            src={employee.avatarUrl}
+            fallback={initials(employeeName)}
+            className="h-12 w-12"
+            fallbackClassName="text-sm font-bold text-[color:var(--text-primary)]"
+            fallbackStyle={{
+              background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+            }}
+          />
           <div>
             <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
               {employeeName}

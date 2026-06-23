@@ -43,6 +43,8 @@ export interface EmployeeListItem {
   lastName: string;
   fullName: string;
   companyEmail: string;
+  /** Google profile picture URL; null when the account has no photo (UI falls back to initials). */
+  avatarUrl: string | null;
   jobTitle: string | null;
   department: string | null;
   address: EmployeeAddress | null;

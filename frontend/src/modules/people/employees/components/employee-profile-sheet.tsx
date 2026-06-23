@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import { format, parseISO } from "date-fns";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton } from "@/shared/ui";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, UserAvatar } from "@/shared/ui";
 import { StatusBadge } from "@/shared/ui/patterns";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
 import type { EmployeeListItem, EmployeeProfile } from "../types/employees.types";
@@ -114,15 +114,15 @@ export function EmployeeProfileSheet({
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md" container={container}>
         <SheetHeader className="mb-6">
           <div className="flex items-center gap-3">
-            <span
-              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-              style={{
+            <UserAvatar
+              src={profile?.avatarUrl}
+              fallback={profile ? initials(profile.fullName) : ""}
+              className="h-12 w-12"
+              fallbackClassName="text-sm font-bold text-white"
+              fallbackStyle={{
                 background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
               }}
-              aria-hidden="true"
-            >
-              {profile ? initials(profile.fullName) : ""}
-            </span>
+            />
             <div className="min-w-0">
               <SheetTitle className="text-left text-base font-bold leading-tight text-[color:var(--text-primary)]">
                 {profile?.fullName ?? "Profile"}

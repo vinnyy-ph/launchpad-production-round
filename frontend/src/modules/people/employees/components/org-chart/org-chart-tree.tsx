@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, ChevronDown, ChevronRight } from "lucide-react";
-import { StatusBadge } from "@/shared/ui";
+import { StatusBadge, UserAvatar } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import type { OrgChartItem } from "./org-chart";
 
@@ -24,15 +24,15 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, src }: { name: string; src?: string | null }) {
   return (
-    <span
-      className="mx-auto flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold text-white"
-      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
+    <UserAvatar
+      src={src}
+      fallback={initials(name)}
+      className="mx-auto h-10 w-10"
+      fallbackClassName="text-xs font-bold text-white"
+      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+    />
   );
 }
 
@@ -108,7 +108,7 @@ function OrgChartNode({ node, expanded, onToggle, onOpenProfile, matchedIds }: O
   const personIdentity =
     node.kind === "person" ? (
       <>
-        <Avatar name={node.employee.fullName} />
+        <Avatar name={node.employee.fullName} src={node.employee.avatarUrl} />
         <p className="mt-2 truncate text-sm font-bold text-[color:var(--text-primary)]">
           {node.employee.fullName}
         </p>

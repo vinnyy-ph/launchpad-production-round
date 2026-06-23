@@ -261,12 +261,14 @@ export class TeamsService {
     lastName: string;
     companyEmail: string;
     jobTitle: string | null;
+    user: { avatarUrl: string | null } | null;
   }): TeamEmployeeResponseDto {
     return {
       id: employee.id,
       fullName: [employee.firstName, employee.middleName, employee.lastName].filter(Boolean).join(" "),
       companyEmail: employee.companyEmail,
       jobTitle: employee.jobTitle,
+      avatarUrl: employee.user?.avatarUrl ?? null,
     };
   }
 }

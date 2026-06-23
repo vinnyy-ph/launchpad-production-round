@@ -67,6 +67,7 @@ export class ClearanceService {
           lastName: request.offboarding.employee.lastName,
           jobTitle: request.offboarding.employee.jobTitle,
           department: request.offboarding.employee.department?.name ?? null,
+          avatarUrl: request.offboarding.employee.user?.avatarUrl ?? null,
         },
         effectiveDate: request.offboarding.effectiveDate.toISOString(),
         recordStatus: request.offboarding.status,

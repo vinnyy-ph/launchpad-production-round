@@ -25,7 +25,12 @@ interface SessionResponse {
   displayName: string | null;
 }
 
-function toAppUser(session: SessionResponse): AppUser {
+/**
+ * Build the AppUser from the backend session plus the signed-in Firebase account's
+ * Google profile picture. `avatarUrl` comes from Firebase (not the backend) because it
+ * belongs to the currently authenticated Google account; it is null when absent.
+ */
+function toAppUser(session: SessionResponse, avatarUrl: string | null): AppUser {
   return {
     userId: session.userId,
     employeeId: session.employeeId ?? "",
@@ -37,6 +42,7 @@ function toAppUser(session: SessionResponse): AppUser {
     employeeStatus: session.employeeStatus ?? "ACTIVE",
     email: session.email,
     displayName: session.displayName,
+    avatarUrl,
   };
 }
 
@@ -89,7 +95,11 @@ export function initAuthListener(): void {
             return;
           }
           const session = (await res.json()) as SessionResponse;
-          useAuthStore.setState({ appUser: toAppUser(session), loading: false, authError: null });
+          useAuthStore.setState({
+            appUser: toAppUser(session, firebaseUser.photoURL),
+            loading: false,
+            authError: null,
+          });
         } catch {
           useAuthStore.setState({
             appUser: null,

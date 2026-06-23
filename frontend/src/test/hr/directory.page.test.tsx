@@ -81,6 +81,7 @@ const sample: EmployeeListItem[] = [
     lastName: "Lovelace",
     fullName: "Ada Byron Lovelace",
     companyEmail: "ada@acme.test",
+    avatarUrl: null,
     jobTitle: "Engineer",
     department: "R&D",
     address: {
