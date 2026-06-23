@@ -402,16 +402,20 @@ export class ResultsService {
       this.repo.countResponses(responseCountWhere),
     ]);
 
-    // 9. Minimum-group-size suppression for anonymous surveys. It fires on ANY view with fewer
-    //    than MIN_GROUP responses, EXCEPT where an override lifts it:
-    //    (a) smallTeamOverride — a team-scoped view of a sub-3-member team, for HR / heads-above;
-    //    (b) smallSurveyHrOverride — the survey's whole audience is itself below MIN_TEAM_SIZE and
-    //        the caller is HR, so the unfiltered view IS that small group. The team's supervisor,
-    //        being non-HR, stays suppressed here just as on a direct team filter.
-    const smallSurveyHrOverride =
-      survey.isAnonymous && isHR && !isFilterActive && recipientCount < MIN_TEAM_SIZE;
+    // 9. Minimum-group-size suppression for anonymous surveys. Below MIN_GROUP responses BOTH
+    //    the breakdown and the aggregate are withheld — at n=1 a single linear-scale value or
+    //    free-text answer IS that one person's response. It fires on ANY view (audience-agnostic,
+    //    recomputed per occurrence) EXCEPT where an exception lifts it:
+    //    (a) HR / ADMIN and the org root node — the controlled data-controller exception: they
+    //        always see the underlying results (they cannot re-identify an anonymous respondent,
+    //        and the anonymity guard exists to stop peer/supervisor re-identification, not the
+    //        data controller). This subsumes the old "tiny whole audience" HR override.
+    //    (b) smallTeamOverride — a team-scoped view of a sub-3-member team for a head-above, or
+    //        the team's own supervisor once HR has deliberately shared the results with them.
+    const isRoot = !!caller && caller.supervisorId === null;
+    const privileged = isHR || isRoot;
     const gated =
-      smallTeamOverride || smallSurveyHrOverride
+      privileged || smallTeamOverride
         ? { suppressed: false as const, data: questionResults }
         : gate({ count: responses.length, data: questionResults }, survey.isAnonymous);
 

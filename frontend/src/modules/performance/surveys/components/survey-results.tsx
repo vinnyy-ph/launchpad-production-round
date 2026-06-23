@@ -582,10 +582,11 @@ export function SurveyResults({
             <div className="flex gap-3 rounded-2xl border border-[#FEDF89] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
               <Lock size={18} className="mt-0.5 flex-none" />
               <div>
-                <p className="text-sm font-bold">Results hidden to protect anonymity.</p>
+                <p className="text-sm font-bold">Not enough responses to show results anonymously.</p>
                 <p className="mt-1 text-[13px] font-medium">
-                  This view has fewer than 3 responses. We don&apos;t show breakdowns that small, so
-                  answers can&apos;t be traced back to anyone. Try widening your filter.
+                  This view has fewer than 3 responses, so we can&apos;t show any results — even a
+                  summary — without risking someone being identified.
+                  {canFilter ? " Try widening your filter." : ""}
                 </p>
               </div>
             </div>
