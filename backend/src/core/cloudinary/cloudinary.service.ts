@@ -47,11 +47,14 @@ export class CloudinaryService {
 
     const base64 = buffer.toString("base64");
     const dataUri = `data:${mimeType || "application/octet-stream"};base64,${base64}`;
+    const normalizedMimeType = mimeType.toLowerCase().split(";")[0]?.trim();
+    const resourceType = normalizedMimeType === "application/pdf" ? "raw" : "image";
 
-    // `auto` keeps PDFs previewable inline; `authenticated` blocks unsigned public URLs.
+    // PDFs must be raw assets so signed delivery returns PDF bytes instead of an
+    // image-transformation response that browser PDF viewers cannot load.
     const result = await cloudinary.uploader.upload(dataUri, {
       folder: "onboarding",
-      resource_type: "auto",
+      resource_type: resourceType,
       type: "authenticated",
       use_filename: true,
       unique_filename: true,
