@@ -51,7 +51,9 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "healthy" }));
 
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (process.env.NODE_ENV !== "production") {
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 app.use(globalLimiter);
 
