@@ -45,6 +45,7 @@ export function DocumentViewerModal({
                 <iframe
                   src={fileUrl}
                   title={documentName ?? "Document preview"}
+                  sandbox="allow-same-origin"
                   className="h-[70vh] w-full"
                 />
               ) : (
