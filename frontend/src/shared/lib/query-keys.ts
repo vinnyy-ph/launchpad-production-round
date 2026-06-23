@@ -97,6 +97,12 @@ export const queryKeys = {
     // The signed-in employee's own answers for one completed occurrence.
     mineAnswers: (occurrenceId: string) =>
       ["surveys", "mine", "answered", occurrenceId] as const,
+    // Authorized drill-down name list for one occurrence (named surveys).
+    respondents: (occurrenceId: string) =>
+      ["surveys", "respondents", occurrenceId] as const,
+    // One named respondent's answers for one occurrence.
+    respondentAnswers: (occurrenceId: string, employeeId: string) =>
+      ["surveys", "respondents", occurrenceId, employeeId] as const,
     // Surveys whose results the signed-in user may view.
     viewableResults: ["surveys", "viewable-results"] as const,
     // AI insight summary for a survey's open-text responses.

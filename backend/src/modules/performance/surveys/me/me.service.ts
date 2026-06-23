@@ -1,7 +1,32 @@
-import { MeRepository } from "./me.repository";
+import { MeRepository, type MyAnswersOccurrence } from "./me.repository";
 import type { AnsweredSurveyItem, MyAnswerItem, MyAnswersDetail, PendingSurveyItem } from "./me.types";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { advanceDueOccurrences } from "../occurrences/occurrence-scheduler";
+
+/**
+ * Shape an occurrence's ordered questions + an employee's stored answer rows into the
+ * per-question answer list. Subject-agnostic: reused by the self view (this module) and by
+ * the authority-gated individual drill-down (the respondents module), so both render answers
+ * identically and differ only in who is allowed to read them.
+ */
+export function buildAnswerItems(
+  questions: MyAnswersOccurrence["questions"],
+  rows: { questionId: string; answerText: string | null; answerData: unknown }[],
+): MyAnswerItem[] {
+  const byQuestion = new Map(rows.map((r) => [r.questionId, r]));
+  return questions.map((q) => ({
+    questionId: q.id,
+    questionText: q.questionText,
+    type: q.type,
+    options: q.options,
+    scaleMin: q.scaleMin,
+    scaleMax: q.scaleMax,
+    scaleMinLabel: q.scaleMinLabel,
+    scaleMaxLabel: q.scaleMaxLabel,
+    answerText: byQuestion.get(q.id)?.answerText ?? null,
+    answerData: byQuestion.get(q.id)?.answerData ?? null,
+  }));
+}
 
 export class MeService {
   constructor(private readonly repository = new MeRepository()) {}
@@ -74,20 +99,6 @@ export class MeService {
     }
 
     const rows = await this.repository.findMyAnswers(occurrenceId, employeeId);
-    const byQuestion = new Map(rows.map((r) => [r.questionId, r]));
-    const answers: MyAnswerItem[] = occurrence.questions.map((q) => ({
-      questionId: q.id,
-      questionText: q.questionText,
-      type: q.type,
-      options: q.options,
-      scaleMin: q.scaleMin,
-      scaleMax: q.scaleMax,
-      scaleMinLabel: q.scaleMinLabel,
-      scaleMaxLabel: q.scaleMaxLabel,
-      answerText: byQuestion.get(q.id)?.answerText ?? null,
-      answerData: byQuestion.get(q.id)?.answerData ?? null,
-    }));
-
-    return { ...base, submitted: true, answers };
+    return { ...base, submitted: true, answers: buildAnswerItems(occurrence.questions, rows) };
   }
 }
