@@ -24,7 +24,7 @@ import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useOffboardings } from "../hooks/use-offboarding";
 import { useCreateOffboarding } from "../hooks/use-create-offboarding";
-import { useClearanceTemplates } from "../hooks/use-clearance-templates";
+import { useClearanceTemplateOptions } from "../hooks/use-clearance-templates";
 
 interface InitiateOffboardingDialogProps {
   open: boolean;
@@ -51,10 +51,10 @@ export function InitiateOffboardingDialog({
     open ? { status: "active", limit: 200 } : {},
   );
   const { offboardings } = useOffboardings();
-  const { templates, loading: templatesLoading, error: templatesError } = useClearanceTemplates(open);
   const { create, creating } = useCreateOffboarding();
-  // Only fetch clearance versions while the dialog is open.
-  const { templates, loading: templatesLoading } = useClearanceTemplates(open);
+  // Only fetch clearance version options while the dialog is open.
+  const { templates, loading: templatesLoading, error: templatesError } =
+    useClearanceTemplateOptions(open);
 
   const [empId, setEmpId] = useState<string>("");
   const [tenderDate, setTenderDate] = useState<string>(todayIso());
@@ -132,17 +132,9 @@ export function InitiateOffboardingDialog({
     .filter((e) => e.id !== empId)
     .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
 
-  const templateOptions = templates.map((t) => ({
-    value: t.id,
-    label: `${t.name}${t.isDefault ? " · Default" : ""} · ${t.signatories.length} signator${
-      t.signatories.length === 1 ? "y" : "ies"
-    }`,
-  }));
-
   async function handleSubmit() {
     const next: typeof errors = {};
     if (!empId) next.emp = "Select an employee.";
-    if (!clearanceTemplateId) next.template = "Select a clearance version.";
     if (!effectiveDate) next.effective = "Effective date is required.";
     else if (effectiveDate < tenderDate)
       next.effective = "Effective date cannot be before the tender date.";

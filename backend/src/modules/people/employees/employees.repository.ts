@@ -81,6 +81,53 @@ type EmployeeProfileRecord = Prisma.EmployeeGetPayload<{
 }>;
 
 /**
+ * Relations selected for directory list items (the list table and the org chart).
+ * Shared between the paginated `findMany` and the non-paginated `findAllForDirectory`
+ * so both produce the exact same record shape the service maps from.
+ */
+const employeeListInclude = {
+  department: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  supervisor: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+    },
+  },
+  address: {
+    select: {
+      address: true,
+      city: true,
+      province: true,
+      country: true,
+    },
+  },
+  emergencyContact: {
+    select: {
+      emergencyContactName: true,
+      emergencyContactNumber: true,
+    },
+  },
+  teamMemberships: {
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.EmployeeInclude;
+
+/**
  * Handles employee persistence queries and keeps Prisma-specific filtering out of controllers.
  */
 export class EmployeesRepository {
@@ -151,52 +198,25 @@ export class EmployeesRepository {
         skip,
         take: filters.limit,
         orderBy,
-        include: {
-          department: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          supervisor: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              companyEmail: true,
-              jobTitle: true,
-            },
-          },
-          address: {
-            select: {
-              address: true,
-              city: true,
-              province: true,
-              country: true,
-            },
-          },
-          emergencyContact: {
-            select: {
-              emergencyContactName: true,
-              emergencyContactNumber: true,
-            },
-          },
-          teamMemberships: {
-            include: {
-              team: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-          },
-        },
+        include: employeeListInclude,
       }),
       prisma.employee.count({ where }),
     ]);
 
     return { employees, total };
+  }
+
+  /**
+   * Returns every directory employee (no pagination) with the list-item relations, ordered by
+   * name. Drives the org chart, which needs the whole supervisor hierarchy in one payload —
+   * paginating would drop intermediate supervisors and break the tree.
+   */
+  async findAllForDirectory() {
+    return prisma.employee.findMany({
+      where: { user: { role: { in: EMPLOYEE_DIRECTORY_ROLES } } },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      include: employeeListInclude,
+    });
   }
 
   /**

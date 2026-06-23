@@ -9,7 +9,6 @@ export { AssignedClearancesSection } from "./components/assigned-clearances-sect
 
 export { useOffboardings, useOffboarding, useMyOffboarding } from "./hooks/use-offboarding";
 export { useCreateOffboarding, useReassignOffboarding } from "./hooks/use-create-offboarding";
-export { useClearanceTemplates } from "./hooks/use-clearance-templates";
 export {
   useAssignedClearances,
   useSignClearance,
@@ -18,6 +17,7 @@ export {
   useReplaceClearanceSignatory,
 } from "./hooks/use-sign-clearance";
 export {
+  useClearanceTemplateOptions,
   useClearanceTemplates,
   useClearanceTemplateMutations,
 } from "./hooks/use-clearance-templates";

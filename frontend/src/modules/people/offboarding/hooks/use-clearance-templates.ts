@@ -3,6 +3,7 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import {
   createClearanceTemplate,
   deleteClearanceTemplate,
+  getClearanceTemplateOptions,
   getClearanceTemplates,
   setDefaultClearanceTemplate,
   updateClearanceTemplate,
@@ -12,7 +13,29 @@ import type {
   UpdateClearanceTemplateInput,
 } from "../types/offboarding.types";
 
-/** Clearance template options HR can choose when initiating offboarding. */
+/**
+ * Lightweight clearance version options (id, name, isDefault, signatoryCount) for the
+ * offboarding initiate picker. Hits GET /clearance/templates.
+ */
+export function useClearanceTemplateOptions(enabled = true) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.clearance.templateOptions,
+    queryFn: () => getClearanceTemplateOptions(),
+    enabled,
+  });
+
+  return {
+    templates: data ?? [],
+    loading: isLoading,
+    error: error instanceof Error ? error.message : null,
+    reload: refetch,
+  };
+}
+
+/**
+ * Full HR-managed clearance versions (with signatories + in-use count) for the management
+ * page. Hits GET /clearance-templates.
+ */
 export function useClearanceTemplates(enabled = true) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.clearance.templates,

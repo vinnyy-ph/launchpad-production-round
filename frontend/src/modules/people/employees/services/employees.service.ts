@@ -44,6 +44,15 @@ export async function getEmployees(filters: EmployeeFilters = {}): Promise<Emplo
   return apiFetch<EmployeeListResult>(`${BASE}?${qs}`);
 }
 
+/**
+ * Fetches the entire directory in one non-paginated payload (org chart). HR/Admin get full
+ * fields; other viewers get redacted items. Returns just the list — there is no pagination meta.
+ */
+export async function getAllEmployees(): Promise<EmployeeListItem[]> {
+  const res = await apiFetch<{ data: EmployeeListItem[] }>(`${BASE}/all`);
+  return res.data;
+}
+
 export async function getEmployeeProfile(employeeId: string): Promise<EmployeeProfileResult> {
   return apiFetch<EmployeeProfileResult>(`${BASE}/${employeeId}`);
 }

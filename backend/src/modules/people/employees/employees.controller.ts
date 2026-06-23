@@ -3,6 +3,7 @@ import type { ApiErrorResponseDto } from "../../../core/dto";
 import { API_ERROR_CODES, API_ERROR_MESSAGES, HTTP_STATUS_CODES } from "../../../core/globals";
 import type {
   EmployeeProfileResponseDto,
+  ListAllEmployeesResponseDto,
   ListEmployeesResponseDto,
   UpdateEmployeeProfileResponseDto,
 } from "./dto";
@@ -71,6 +72,33 @@ export class EmployeesController {
         });
       }
 
+      return next(error);
+    }
+  };
+
+  /**
+   * Handles GET /api/v1/employees/all — the entire directory, non-paginated, for the org chart.
+   */
+  listAllEmployees = async (
+    req: Request,
+    res: Response<ListAllEmployeesResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const result = await this.employeesService.listAllEmployees({
+        userId: req.user.id,
+        role: req.user.role,
+      });
+
+      return res.json(result);
+    } catch (error) {
       return next(error);
     }
   };

@@ -76,8 +76,8 @@ function buildOffboardingFormData(input: InitiateOffboardingInput): FormData {
   return formData;
 }
 
-/** Clearance templates HR can choose while initiating an offboarding. */
-export async function getClearanceTemplates(): Promise<ClearanceTemplateOption[]> {
+/** Lightweight clearance version options HR picks from while initiating an offboarding. */
+export async function getClearanceTemplateOptions(): Promise<ClearanceTemplateOption[]> {
   const res = await apiFetch<Envelope<ClearanceTemplateOption[]>>(`${CLEARANCE_BASE}/templates`);
   return res.data;
 }

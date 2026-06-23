@@ -19,6 +19,7 @@ export type {
   SortDirection,
 } from "./list-employees-query.dto";
 export type { ListEmployeesResponseDto } from "./list-employees-response.dto";
+export type { ListAllEmployeesResponseDto } from "./list-all-employees-response.dto";
 export type { UpdateEmployeeAddressRequestDto } from "./update-employee-address-request.dto";
 export type { UpdateEmployeeEmergencyContactRequestDto } from "./update-employee-emergency-contact-request.dto";
 export type { UpdateEmployeeProfileParamsDto } from "./update-employee-profile-params.dto";

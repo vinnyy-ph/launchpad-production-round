@@ -8,6 +8,7 @@ import type {
   EmployeeListItemResponseDto,
   EmployeeStatusDto,
   GetEmployeeProfileParamsDto,
+  ListAllEmployeesResponseDto,
   ListEmployeesQueryDto,
   ListEmployeesResponseDto,
   RedactedEmployeeProfileDto,
@@ -72,6 +73,26 @@ export class EmployeesService {
         total,
         totalPages: Math.ceil(total / filters.limit),
       },
+    };
+  }
+
+  /**
+   * Returns the entire directory in one non-paginated payload for the org chart.
+   * Same redaction rules as the list: HR/Admin get full fields, everyone else a redacted item.
+   */
+  async listAllEmployees(
+    viewer: EmployeeViewerContext,
+  ): Promise<ListAllEmployeesResponseDto> {
+    const isPrivileged = PRIVILEGED_VIEWER_ROLES.includes(viewer.role);
+    const employees = await this.employeesRepository.findAllForDirectory();
+
+    return {
+      success: true,
+      data: employees.map((employee) =>
+        isPrivileged
+          ? this.toListItemResponse(employee)
+          : this.toRedactedListItemResponse(employee),
+      ),
     };
   }
 

@@ -25,30 +25,6 @@ function initials(name: string): string {
   return (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
 }
 
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-}
-
-function formatAddress(profile: EmployeeProfile): string {
-  const a = profile.address;
-  if (!a) return "—";
-  const parts = [a.address, a.city, a.province, a.country].map((p) => p?.trim()).filter(Boolean);
-  return parts.length ? parts.join(", ") : "—";
-}
-
-function formatEmergencyContact(profile: EmployeeProfile): string {
-  const c = profile.emergencyContact;
-  if (!c) return "—";
-  const parts = [c.emergencyContactName, c.emergencyContactNumber]
-    .map((p) => p?.trim())
-    .filter(Boolean);
-  return parts.length ? parts.join(" · ") : "—";
-}
-
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -59,20 +35,16 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 /**
- * Read-only employee profile drawer for non-HR viewers (e.g. teammates and team leaders).
+ * Read-only employee profile drawer for team-context surfaces (teammates and team leaders).
  *
- * Reads the profile through the redaction-aware endpoint: HR/Admin and the employee themselves
- * receive the full record, while everyone else gets a redacted one with sensitive fields omitted.
- * The sensitive section is therefore rendered only when those fields are present in the payload,
- * so a teammate's view hides them automatically while a self/HR view still shows them.
+ * Sensitive fields (personal email, birthday, home address, emergency contact) are ALWAYS hidden
+ * here — even for an HR viewer. This is intentional: HR's unredacted view is exposed only in the
+ * People directory and the structure org chart, while the teams view stays redacted for everyone.
+ * Shows identity, work, team, and supervisor data only.
  */
 export function RedactedProfileSheet({ employeeId, open, onOpenChange }: RedactedProfileSheetProps) {
   const { employee, loading, error } = useEmployeeProfile(open ? employeeId : null);
   const profile = employee as EmployeeProfile | null;
-
-  const showSensitive = Boolean(
-    profile?.personalEmail || profile?.birthday || profile?.address || profile?.emergencyContact,
-  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -130,28 +102,10 @@ export function RedactedProfileSheet({ employeeId, open, onOpenChange }: Redacte
                 </div>
               </div>
 
-              {showSensitive ? (
-                <div
-                  className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
-                  style={{ boxShadow: "var(--shadow-xs)" }}
-                >
-                  <div className="col-span-2">
-                    <Field label="Personal email" value={profile.personalEmail || "—"} />
-                  </div>
-                  <Field label="Date of birth" value={formatDate(profile.birthday)} />
-                  <div className="col-span-2">
-                    <Field label="Home address" value={formatAddress(profile)} />
-                  </div>
-                  <div className="col-span-2">
-                    <Field label="Emergency contact" value={formatEmergencyContact(profile)} />
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-[color:var(--text-tertiary)]">
-                  Personal details (birthday, home address, emergency contact) are visible only to
-                  HR, Admin, and the employee themselves.
-                </p>
-              )}
+              <p className="text-xs text-[color:var(--text-tertiary)]">
+                Personal details (birthday, home address, emergency contact) are visible only to
+                HR, Admin, and the employee themselves.
+              </p>
             </div>
           </>
         ) : null}

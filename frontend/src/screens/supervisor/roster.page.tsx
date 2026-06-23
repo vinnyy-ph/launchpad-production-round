@@ -395,12 +395,14 @@ export default function RosterPage() {
         </div>
       )}
 
-      {/* Detail drawer. Fetches the role-aware profile, so an HR viewer sees the full record while a
-          plain supervisor still gets the redacted set. */}
+      {/* Detail drawer. Roster is a supervisor-context surface, so sensitive fields are always
+          redacted here — even for an HR viewer. HR's unredacted view lives only in the People
+          directory and the structure org chart. */}
       <EmployeeProfileSheet
         employeeId={selected?.id ?? null}
         fallbackEmployee={selected}
         onClose={() => setSelected(null)}
+        redacted
       />
     </div>
   );

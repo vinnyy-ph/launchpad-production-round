@@ -2,7 +2,21 @@
 
 import { Building2, ChevronDown, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/shared/ui";
+import { cn } from "@/shared/lib/utils";
 import type { OrgChartItem } from "./org-chart";
+
+/**
+ * Gradient-pink outline for a person card that matches the active search. Uses the
+ * double-background trick (inner white on padding-box + brand gradient on border-box) so the
+ * gradient hugs the card's rounded corners — a plain `border-image` would square them off.
+ */
+const MATCH_OUTLINE_STYLE: React.CSSProperties = {
+  boxShadow: "var(--shadow-xs)",
+  backgroundImage:
+    "linear-gradient(#fff, #fff), linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+  backgroundOrigin: "border-box",
+  backgroundClip: "padding-box, border-box",
+};
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -30,6 +44,8 @@ interface OrgChartTreeProps {
   onToggle: (nodeId: string) => void;
   /** When provided, person cards become clickable and call this with the employee id. */
   onOpenProfile?: (employeeId: string) => void;
+  /** Employee ids matching the active search — their person cards get a gradient-pink outline. */
+  matchedIds?: Set<string>;
 }
 
 /**
@@ -37,7 +53,7 @@ interface OrgChartTreeProps {
  * department beneath it, and each department's employees as a supervisor hierarchy, connected
  * with lines. Wrap in a horizontally scrollable container — wide orgs exceed the viewport.
  */
-export function OrgChartTree({ nodes, expanded, onToggle, onOpenProfile }: OrgChartTreeProps) {
+export function OrgChartTree({ nodes, expanded, onToggle, onOpenProfile, matchedIds }: OrgChartTreeProps) {
   if (nodes.length === 0) return null;
 
   return (
@@ -49,6 +65,7 @@ export function OrgChartTree({ nodes, expanded, onToggle, onOpenProfile }: OrgCh
           expanded={expanded}
           onToggle={onToggle}
           onOpenProfile={onOpenProfile}
+          matchedIds={matchedIds}
         />
       ))}
     </ul>
@@ -60,12 +77,15 @@ interface OrgChartNodeProps {
   expanded: Set<string>;
   onToggle: (nodeId: string) => void;
   onOpenProfile?: (employeeId: string) => void;
+  matchedIds?: Set<string>;
 }
 
 /** One card (person or department) plus its children beneath it when expanded. */
-function OrgChartNode({ node, expanded, onToggle, onOpenProfile }: OrgChartNodeProps) {
+function OrgChartNode({ node, expanded, onToggle, onOpenProfile, matchedIds }: OrgChartNodeProps) {
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.id);
+  // A person card matching the active search gets a gradient-pink outline.
+  const matched = node.kind === "person" && Boolean(matchedIds?.has(node.employee.id));
 
   const toggle = hasChildren ? (
     <button
@@ -121,8 +141,11 @@ function OrgChartNode({ node, expanded, onToggle, onOpenProfile }: OrgChartNodeP
         </div>
       ) : (
         <div
-          className="w-[200px] rounded-xl border border-[color:var(--border-primary)] bg-white p-3 text-center"
-          style={{ boxShadow: "var(--shadow-xs)" }}
+          className={cn(
+            "w-[200px] rounded-xl bg-white p-3 text-center",
+            matched ? "border-2 border-transparent" : "border border-[color:var(--border-primary)]",
+          )}
+          style={matched ? MATCH_OUTLINE_STYLE : { boxShadow: "var(--shadow-xs)" }}
         >
           {onOpenProfile ? (
             <button
@@ -152,6 +175,7 @@ function OrgChartNode({ node, expanded, onToggle, onOpenProfile }: OrgChartNodeP
               expanded={expanded}
               onToggle={onToggle}
               onOpenProfile={onOpenProfile}
+              matchedIds={matchedIds}
             />
           ))}
         </ul>

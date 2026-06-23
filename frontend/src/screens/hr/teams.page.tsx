@@ -25,7 +25,7 @@ import {
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
 import { OrgChartCanvas } from "@/modules/people/employees/components/org-chart/org-chart-canvas";
 import { EmployeeProfileSheet } from "@/modules/people/employees/components/employee-profile-sheet";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees, useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
@@ -58,13 +58,13 @@ export default function TeamsPage() {
 
   const { teams, loading, error, reload } = useTeams();
   const { employees } = useEmployees({ status: "active", limit: 100 });
-  // Whole-organization list (all statuses) for the supervisor-hierarchy org chart.
+  // Whole-organization list (all statuses, non-paginated) for the supervisor-hierarchy org chart.
   const {
     employees: orgEmployees,
     loading: orgLoading,
     error: orgError,
     reload: orgReload,
-  } = useEmployees({ limit: 100 });
+  } = useAllEmployees();
 
   const [createOpen, setCreateOpen] = useState(false);
   // Open on the Teams tab when navigated back to with ?tab=teams (e.g. from a team detail page).
@@ -360,6 +360,16 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
     [filteredEmployees, visibleDepartmentNames],
   );
 
+  // Employees whose name matches the current search — their cards get a gradient-pink outline.
+  // Empty when not searching, so nothing is highlighted by default.
+  const matchedIds = useMemo(() => {
+    const query = debouncedSearch.trim().toLowerCase();
+    if (!query) return new Set<string>();
+    return new Set(
+      employees.filter((e) => e.fullName.toLowerCase().includes(query)).map((e) => e.id),
+    );
+  }, [employees, debouncedSearch]);
+
   // Ids of nodes that actually have children — the only ones that can be toggled / expanded.
   const parentIds = useMemo(() => {
     const ids = new Set<string>();
@@ -499,6 +509,7 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
             nodes={roots}
             expanded={effectiveExpanded}
             onToggle={toggle}
+            matchedIds={matchedIds}
             onOpenProfile={(id) => {
               const employee = employees.find((candidate) => candidate.id === id);
               if (employee) setSelected(employee);

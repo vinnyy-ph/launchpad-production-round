@@ -2,7 +2,7 @@
 
 import { type ReactNode } from "react";
 import { format, parseISO } from "date-fns";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/ui";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton } from "@/shared/ui";
 import { StatusBadge } from "@/shared/ui/patterns";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
 import type { EmployeeListItem, EmployeeProfile } from "../types/employees.types";
@@ -62,6 +62,14 @@ export interface EmployeeProfileSheetProps {
    * element only when the drawer must live inside it — e.g. a fullscreen canvas in the top layer.
    */
   container?: HTMLElement | null;
+  /**
+   * Force the redacted presentation — sensitive fields (personal email, birthday, address,
+   * emergency contact) are hidden regardless of the viewer's role. Used on supervisor-context
+   * surfaces (e.g. the roster) where HR's privileged view is intentionally NOT exposed; the
+   * unredacted view lives only in the People directory and the structure org chart. Defaults to
+   * false, where visibility follows the role-aware server payload.
+   */
+  redacted?: boolean;
 }
 
 /**
@@ -78,51 +86,65 @@ export function EmployeeProfileSheet({
   fallbackEmployee,
   onClose,
   container,
+  redacted = false,
 }: EmployeeProfileSheetProps) {
-  const { employee, loading } = useEmployeeProfile(employeeId);
+  const { employee, loading, error } = useEmployeeProfile(employeeId);
   // Prefer the fetched profile; fall back to the clicked list row so identity shows instantly.
   const profile = employee ?? fallbackEmployee;
 
   // Sensitive fields exist on the response only when the viewer is allowed to see them. Their
   // presence — not their value — is the permission signal, so an empty-but-present field still
-  // renders ("—") for HR while a redacted viewer never sees the section at all.
+  // renders ("—") for HR while a redacted viewer never sees the section at all. `redacted` forces
+  // the hidden presentation even for a privileged payload (supervisor-context surfaces).
   const details = employee;
-  const canSeePersonalEmail = !!details && "personalEmail" in details;
-  const canSeeBirthday = !!details && "birthday" in details;
+  const canSeePersonalEmail = !redacted && !!details && "personalEmail" in details;
+  const canSeeBirthday = !redacted && !!details && "birthday" in details;
   const address = details?.address;
   const emergencyContact = details?.emergencyContact;
-  const showAddress = !!address && formatAddress(address).length > 0;
+  const showAddress = !redacted && !!address && formatAddress(address).length > 0;
   const showEmergencyContact =
+    !redacted &&
     !!emergencyContact &&
     Boolean(emergencyContact.emergencyContactName || emergencyContact.emergencyContactNumber);
+  const showSensitive =
+    canSeePersonalEmail || canSeeBirthday || showAddress || showEmergencyContact;
 
   return (
     <Sheet open={!!employeeId} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md" container={container}>
-        {profile && (
-          <>
-            <SheetHeader className="mb-6">
-              <div className="flex items-center gap-3">
-                <span
-                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                  style={{
-                    background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
-                  }}
-                  aria-hidden="true"
-                >
-                  {initials(profile.fullName)}
-                </span>
-                <div>
-                  <SheetTitle className="text-left text-base font-bold leading-tight text-[color:var(--text-primary)]">
-                    {profile.fullName}
-                  </SheetTitle>
-                  <SheetDescription className="text-left text-sm text-[color:var(--text-secondary)]">
-                    {profile.jobTitle ?? "—"}
-                  </SheetDescription>
-                </div>
-              </div>
-            </SheetHeader>
+        <SheetHeader className="mb-6">
+          <div className="flex items-center gap-3">
+            <span
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+              style={{
+                background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+              }}
+              aria-hidden="true"
+            >
+              {profile ? initials(profile.fullName) : ""}
+            </span>
+            <div className="min-w-0">
+              <SheetTitle className="text-left text-base font-bold leading-tight text-[color:var(--text-primary)]">
+                {profile?.fullName ?? "Profile"}
+              </SheetTitle>
+              <SheetDescription className="text-left text-sm text-[color:var(--text-secondary)]">
+                {profile?.jobTitle ?? (loading ? "Loading…" : "—")}
+              </SheetDescription>
+            </div>
+          </div>
+        </SheetHeader>
 
+        {loading && !employee ? (
+          <div className="space-y-4">
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+          </div>
+        ) : error ? (
+          <p className="text-sm text-[color:var(--text-secondary)]">
+            We couldn&apos;t load this profile. Please try again.
+          </p>
+        ) : profile ? (
+          <div className="space-y-4">
             <div
               className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
               style={{ boxShadow: "var(--shadow-xs)" }}
@@ -134,39 +156,42 @@ export function EmployeeProfileSheet({
               <SheetField label="Supervisor" value={profile.supervisor?.fullName} />
               <SheetField label="Team/s" value={profile.teams.map((team) => team.name).join(", ")} />
               <SheetField label="Company email" value={profile.companyEmail} className="col-span-2" />
-
-              {canSeePersonalEmail ? (
-                <SheetField
-                  label="Personal email"
-                  value={details?.personalEmail}
-                  className="col-span-2"
-                />
-              ) : null}
-              {canSeeBirthday ? (
-                <SheetField label="Birthday" value={formatBirthday(details?.birthday)} />
-              ) : null}
-              {showAddress ? (
-                <SheetField label="Address" value={formatAddress(address)} className="col-span-2" />
-              ) : null}
-              {showEmergencyContact ? (
-                <>
-                  <SheetField
-                    label="Emergency contact"
-                    value={emergencyContact?.emergencyContactName}
-                  />
-                  <SheetField
-                    label="Contact number"
-                    value={emergencyContact?.emergencyContactNumber}
-                  />
-                </>
-              ) : null}
             </div>
 
-            {loading && !employee ? (
-              <p className="mt-3 text-xs text-[color:var(--text-tertiary)]">Loading full profile…</p>
+            {showSensitive ? (
+              <div
+                className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
+                style={{ boxShadow: "var(--shadow-xs)" }}
+              >
+                {canSeePersonalEmail ? (
+                  <SheetField
+                    label="Personal email"
+                    value={details?.personalEmail}
+                    className="col-span-2"
+                  />
+                ) : null}
+                {canSeeBirthday ? (
+                  <SheetField label="Birthday" value={formatBirthday(details?.birthday)} />
+                ) : null}
+                {showAddress ? (
+                  <SheetField label="Address" value={formatAddress(address)} className="col-span-2" />
+                ) : null}
+                {showEmergencyContact ? (
+                  <>
+                    <SheetField
+                      label="Emergency contact"
+                      value={emergencyContact?.emergencyContactName}
+                    />
+                    <SheetField
+                      label="Contact number"
+                      value={emergencyContact?.emergencyContactNumber}
+                    />
+                  </>
+                ) : null}
+              </div>
             ) : null}
-          </>
-        )}
+          </div>
+        ) : null}
       </SheetContent>
     </Sheet>
   );
