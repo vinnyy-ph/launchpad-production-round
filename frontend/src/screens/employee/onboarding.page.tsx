@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isToday } from "date-fns";
 import { toast } from "sonner";
@@ -12,6 +13,8 @@ import {
   FileText,
   Mail,
   Lock,
+  Upload,
+  ArrowRight,
 } from "lucide-react";
 
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -36,7 +39,6 @@ import { EmptyState } from "@/shared/ui/patterns/empty-state";
 import { FormField } from "@/shared/ui/patterns/form-field";
 import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
 import { ProgressSteps } from "@/shared/ui/patterns/progress-steps";
-import { StatusBadge } from "@/shared/ui/patterns/status-badge";
 import { Button } from "@/shared/ui/primitives/button";
 import { Input } from "@/shared/ui/primitives/input";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
@@ -215,11 +217,11 @@ function HrSetBadge() {
 function reviewDocumentBadge(
   status: OnboardingDocStatus | null,
   hasStagedFile: boolean,
-): { label: string; tone: "neutral" | "success" | "error" | "warning" } | null {
-  if (status === "pending") return { label: "In review", tone: "neutral" };
-  if (status === "approved") return { label: "Approved", tone: "success" };
-  if (status === "rejected") return { label: "Rejected", tone: "error" };
-  if (hasStagedFile) return { label: "Ready", tone: "neutral" };
+): { label: string; tone: "review" | "approved" | "changes" } | null {
+  if (status === "pending") return { label: "In review", tone: "review" };
+  if (status === "approved") return { label: "Approved", tone: "approved" };
+  if (status === "rejected") return { label: "Needs changes", tone: "changes" };
+  if (hasStagedFile) return { label: "Ready", tone: "review" };
   return null;
 }
 
@@ -228,27 +230,55 @@ function ReviewDocumentRow({
   filename,
   status,
   hasStagedFile,
+  rejectionNote,
+  onReupload,
 }: {
   documentName: string;
   filename: string;
   status: OnboardingDocStatus | null;
   hasStagedFile: boolean;
+  rejectionNote?: string | null;
+  onReupload?: () => void;
 }) {
   const badge = reviewDocumentBadge(status, hasStagedFile);
+  const needsChanges = status === "rejected";
 
   return (
-    <div className="ob-review-doc-row flex items-center gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] text-[color:var(--text-tertiary)]">
-        <FileText className="h-4 w-4" strokeWidth={1.6} aria-hidden="true" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">{documentName}</p>
-        <p className="truncate text-xs text-[color:var(--text-tertiary)]" title={filename}>
-          {filename}
-        </p>
+    <div className={needsChanges ? "ob-review-doc-row ob-review-doc-row--changes" : "ob-review-doc-row"}>
+      <div className="ob-review-doc-main">
+        <span className="ob-review-doc-icon">
+          <FileText className="h-[18px] w-[18px]" strokeWidth={1.6} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="ob-review-doc-name truncate">{documentName}</p>
+          <p className="ob-review-doc-file truncate" title={filename}>
+            {filename}
+          </p>
+        </div>
+        {badge ? (
+          <span className={`ob-review-chip ob-review-chip--${badge.tone}`}>
+            {badge.tone === "approved" ? (
+              <Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
+            ) : (
+              <span className="ob-review-chip-dot" aria-hidden="true" />
+            )}
+            {badge.label}
+          </span>
+        ) : null}
       </div>
-      {badge ? (
-        <StatusBadge status={badge.label} tone={badge.tone} dot shape="modern" className="shrink-0" />
+      {needsChanges ? (
+        <div className="ob-review-doc-detail">
+          <div className="ob-review-doc-reason">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.8} aria-hidden="true" />
+            <span>{rejectionNote ?? "HR asked for another upload before they can finish reviewing."}</span>
+          </div>
+          {onReupload ? (
+            <Button type="button" size="sm" onClick={onReupload}>
+              <Upload className="h-4 w-4" strokeWidth={1.7} aria-hidden="true" />
+              Re-upload
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -293,7 +323,7 @@ function SubmittedConfirmation() {
   );
 }
 
-type TimelineStepState = "complete" | "active" | "pending";
+type TimelineStepState = "complete" | "active" | "pending" | "alert";
 
 function ReviewTimelineStep({
   state,
@@ -309,38 +339,33 @@ function ReviewTimelineStep({
   isLast: boolean;
 }) {
   return (
-    <div className="ob-review-timeline-step flex gap-4">
-      <div className="flex flex-col items-center">
+    <div className={`ob-review-timeline-step ob-review-timeline-step--${state}`}>
+      <div className="ob-review-timeline-rail">
         {state === "complete" ? (
-          <span className="ob-review-timeline-marker ob-review-timeline-marker--complete flex h-6 w-6 items-center justify-center rounded-full">
-            <Check className="h-3.5 w-3.5 text-white" strokeWidth={2.5} aria-hidden="true" />
+          <span className="ob-review-timeline-marker">
+            <Check className="h-[18px] w-[18px]" strokeWidth={2.6} aria-hidden="true" />
+          </span>
+        ) : state === "alert" ? (
+          <span className="ob-review-timeline-marker">
+            <AlertCircle className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
           </span>
         ) : state === "active" ? (
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-jia">
-            <span className="h-2 w-2 rounded-full bg-white" aria-hidden="true" />
+          <span className="ob-review-timeline-marker">
+            <span className="h-[9px] w-[9px] rounded-full bg-white" aria-hidden="true" />
           </span>
         ) : (
-          <span className="ob-review-timeline-marker ob-review-timeline-marker--pending flex h-6 w-6 items-center justify-center rounded-full">
-            <span className="h-2 w-2 rounded-full bg-[color:var(--gray-300)]" aria-hidden="true" />
+          <span className="ob-review-timeline-marker">
+            <span className="h-[9px] w-[9px] rounded-full bg-[color:var(--gray-neutral-300)]" aria-hidden="true" />
           </span>
         )}
-        {!isLast ? (
-          <span
-            className={
-              state === "complete"
-                ? "ob-review-timeline-line ob-review-timeline-line--complete mt-1 min-h-12 w-px flex-1"
-                : "ob-review-timeline-line mt-1 min-h-12 w-px flex-1"
-            }
-            aria-hidden="true"
-          />
-        ) : null}
+        {!isLast ? <span className="ob-review-timeline-line" aria-hidden="true" /> : null}
       </div>
-      <div className={isLast ? "pb-0" : "pb-8"}>
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <p className="text-sm font-semibold text-[color:var(--text-primary)]">{title}</p>
-          {meta ? <p className="text-xs text-[color:var(--text-tertiary)]">{meta}</p> : null}
+      <div className="ob-review-timeline-body">
+        <div className="ob-review-timeline-row">
+          <p className="ob-review-timeline-title">{title}</p>
+          {meta ? <p className="ob-review-timeline-date">{meta}</p> : null}
         </div>
-        <p className="mt-1 text-sm text-[color:var(--text-tertiary)] [text-wrap:pretty]">{description}</p>
+        <p className="ob-review-timeline-desc">{description}</p>
       </div>
     </div>
   );
@@ -355,44 +380,85 @@ function formatReviewDateLabel(isoDate: string | undefined): string {
 function AccountUnderReviewStatus({
   documents,
   allDocsApproved,
+  isComplete = false,
+  onReupload,
 }: {
   documents: Array<{
     id: string;
     documentName: string;
-    latestSubmission: { fileUrl: string; status: OnboardingDocStatus; submittedAt: string } | null;
+    latestSubmission: {
+      fileUrl: string;
+      status: OnboardingDocStatus;
+      rejectionNote: string | null;
+      submittedAt: string;
+      reviewedAt: string | null;
+    } | null;
   }>;
   allDocsApproved: boolean;
+  isComplete?: boolean;
+  onReupload?: () => void;
 }) {
   const docsApproved = documents.filter((d) => d.latestSubmission?.status === "approved").length;
+  const docsRejected = documents.filter((d) => d.latestSubmission?.status === "rejected").length;
   const docsTotal = documents.length;
   const submittedAt = documents
     .map((d) => d.latestSubmission?.submittedAt)
-    .filter(Boolean)
+    .filter((date): date is string => Boolean(date))
     .sort()[0];
+  const reviewedAt = documents
+    .map((d) => d.latestSubmission?.reviewedAt)
+    .filter((date): date is string => Boolean(date))
+    .sort()
+    .at(-1);
 
-  const documentReviewState: TimelineStepState = allDocsApproved ? "complete" : "active";
-  const activationState: TimelineStepState = allDocsApproved ? "active" : "pending";
+  const actionNeeded = docsRejected > 0;
+  const activated = isComplete || allDocsApproved;
+  const documentReviewState: TimelineStepState = actionNeeded ? "alert" : activated ? "complete" : "active";
+  const activationState: TimelineStepState = activated ? "complete" : "pending";
 
   return (
-    <div className="mx-auto flex w-full max-w-[960px] flex-col gap-4">
-      <section
-        className="rounded-2xl border border-[color:var(--border-primary)] bg-white px-8 py-10 text-center"
-        style={{ boxShadow: CARD_SHADOW }}
-      >
-        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-[color:var(--text-primary)] [text-wrap:pretty]">
-          Your account is under review
+    <div className="mx-auto flex w-full max-w-[720px] flex-col">
+      <section className={`ob-review-hero ${activated ? "ob-review-hero--success" : actionNeeded ? "ob-review-hero--warning" : ""}`}>
+        {activated || actionNeeded ? (
+          <span className="ob-review-hero-icon">
+            {activated ? (
+              <Check className="h-7 w-7" strokeWidth={2.4} aria-hidden="true" />
+            ) : (
+              <AlertCircle className="h-[26px] w-[26px]" strokeWidth={1.8} aria-hidden="true" />
+            )}
+          </span>
+        ) : null}
+        <h1>
+          {activated
+            ? "You're all set"
+            : actionNeeded
+              ? docsRejected === 1
+                ? "One document needs your attention"
+                : `${docsRejected} documents need your attention`
+              : "Your account is under review"}
         </h1>
-        <p className="mx-auto mt-2 max-w-xl text-sm text-[color:var(--text-tertiary)] [text-wrap:pretty]">
-          HR is reviewing each of your documents. You&apos;ll get an email when there&apos;s an update — no need
-          to wait here.
+        <p>
+          {activated
+            ? "Your account is active. Head to your dashboard to get started."
+            : actionNeeded
+              ? "HR asked for a change before they can finish reviewing. Re-upload the document below to continue."
+              : "HR is reviewing each of your documents. You'll get an email when there's an update — no need to wait here."}
         </p>
+        {activated ? (
+          <Button asChild size="lg" className="mt-6">
+            <Link href="/">
+              Go to dashboard
+              <ArrowRight className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
+            </Link>
+          </Button>
+        ) : null}
       </section>
 
       <section
-        className="rounded-2xl border border-[color:var(--border-primary)] bg-white px-8 py-8"
+        className="mt-5 rounded-2xl border border-[color:var(--border-primary)] bg-white p-8"
         style={{ boxShadow: CARD_SHADOW }}
       >
-        <div className="mb-8">
+        <div>
           <ReviewTimelineStep
             state="complete"
             title="Submitted for review"
@@ -403,8 +469,15 @@ function AccountUnderReviewStatus({
           <ReviewTimelineStep
             state={documentReviewState}
             title="Document review"
+            meta={activated ? formatReviewDateLabel(reviewedAt) : undefined}
             description={
-              docsTotal === 0
+              actionNeeded
+                ? docsRejected === 1
+                  ? "1 document needs changes before HR can continue."
+                  : `${docsRejected} documents need changes before HR can continue.`
+                : activated
+                  ? "All documents approved by HR."
+                  : docsTotal === 0
                 ? "HR is reviewing your submission."
                 : `HR is checking each document. ${docsApproved} of ${docsTotal} approved so far.`
             }
@@ -413,20 +486,21 @@ function AccountUnderReviewStatus({
           <ReviewTimelineStep
             state={activationState}
             title="Account activated"
-            description="You'll get an email the moment your account is ready."
+            meta={activated ? "Today" : undefined}
+            description={activated ? "Your Manage Jia account is ready." : "You'll get an email the moment your account is ready."}
             isLast
           />
         </div>
 
         {docsTotal > 0 ? (
-          <div>
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mt-2 border-t border-[color:var(--gray-100)] pt-8">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <p className="ob-review-section-title">Documents</p>
-              <p className="text-xs font-medium text-[color:var(--text-tertiary)]">
+              <p className="text-xs leading-[18px] text-[color:var(--text-tertiary)]">
                 {docsApproved} of {docsTotal} approved
               </p>
             </div>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-2.5">
               {documents.map((doc) => (
                 <ReviewDocumentRow
                   key={doc.id}
@@ -434,6 +508,8 @@ function AccountUnderReviewStatus({
                   filename={fileNameFromUrl(doc.latestSubmission?.fileUrl) ?? "—"}
                   status={doc.latestSubmission?.status ?? null}
                   hasStagedFile={false}
+                  rejectionNote={doc.latestSubmission?.rejectionNote}
+                  onReupload={doc.latestSubmission?.status === "rejected" ? onReupload : undefined}
                 />
               ))}
             </div>
@@ -475,11 +551,15 @@ export default function EmployeeOnboardingPage() {
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
   const [finishing, setFinishing] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [reviewActionDismissed, setReviewActionDismissed] = useState(false);
 
   const didInitStep = useRef(false);
 
   useEffect(() => {
     if (!status) return;
+    if ((status.documents ?? []).every((d) => d.latestSubmission?.status !== "rejected")) {
+      setReviewActionDismissed(false);
+    }
 
     setFields(status.customFields ?? []);
     const profile = status.profile;
@@ -670,7 +750,7 @@ export default function EmployeeOnboardingPage() {
     );
   }
 
-  if (status === null || status.isComplete) {
+  if (status === null) {
     return (
       <div className="mx-auto w-full max-w-[960px]">
         <div
@@ -678,13 +758,9 @@ export default function EmployeeOnboardingPage() {
           style={{ boxShadow: CARD_SHADOW }}
         >
           <EmptyState
-            icon={status?.isComplete ? PartyPopper : CheckCircle2}
-            title={status?.isComplete ? "Onboarding complete" : "No onboarding in progress"}
-            body={
-              status?.isComplete
-                ? "You're all set — nothing left to do here."
-                : "Your onboarding hasn't started yet. Check back later."
-            }
+            icon={CheckCircle2}
+            title="No onboarding in progress"
+            body="Your onboarding hasn't started yet. Check back later."
           />
         </div>
       </div>
@@ -709,6 +785,7 @@ export default function EmployeeOnboardingPage() {
   };
 
   const docsInReview = documents.filter((d) => d.latestSubmission?.status === "pending").length;
+  const docsRejected = documents.filter((d) => d.latestSubmission?.status === "rejected").length;
   const stagedCount = Object.keys(pendingFiles).length;
   const docsUploaded = documents.filter((d) => {
     const s = docStatus(d.id);
@@ -717,6 +794,8 @@ export default function EmployeeOnboardingPage() {
   const docsToUpload = documents.length - docsUploaded;
   const docsDone = documents.length === 0 || documents.every((d) => documentIsReady(d.id));
   const allDocsApproved = documents.length > 0 && documents.every((d) => docStatus(d.id) === "approved");
+  const actionNeeded =
+    profileDone && docsRejected > 0 && stagedCount === 0 && !status.isComplete && !reviewActionDismissed;
 
   const awaitingHrReview =
     profileDone &&
@@ -765,9 +844,19 @@ export default function EmployeeOnboardingPage() {
   });
   const back = () => setStep((s) => Math.max(1, s - 1));
 
-  // Screen 2 — return visit while HR is reviewing (not the moment you just clicked Submit)
-  if (submitted && !hasSubmitted) {
-    return <AccountUnderReviewStatus documents={documents} allDocsApproved={allDocsApproved} />;
+  // Return visits after submission: HR review, action needed, or activated.
+  if (status.isComplete || actionNeeded || (submitted && !hasSubmitted)) {
+    return (
+      <AccountUnderReviewStatus
+        documents={documents}
+        allDocsApproved={allDocsApproved}
+        isComplete={status.isComplete}
+        onReupload={() => {
+          setReviewActionDismissed(true);
+          setStep(3);
+        }}
+      />
+    );
   }
 
   return (
@@ -783,7 +872,7 @@ export default function EmployeeOnboardingPage() {
       </div>
 
       <div className="flex flex-col gap-4">
-        <ProgressSteps items={progressSteps} className="mx-auto max-w-[760px]" />
+        <ProgressSteps items={progressSteps} className="mx-auto mb-6 max-w-[600px]" />
 
         {submitted && hasSubmitted ? (
           <SubmittedConfirmation />
@@ -1189,6 +1278,8 @@ export default function EmployeeOnboardingPage() {
                         filename={filename}
                         status={doc.latestSubmission?.status ?? null}
                         hasStagedFile={Boolean(selected)}
+                        rejectionNote={doc.latestSubmission?.rejectionNote}
+                        onReupload={() => goStep(3)}
                       />
                     );
                   })}
