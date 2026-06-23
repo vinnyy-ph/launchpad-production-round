@@ -28,13 +28,13 @@ function countOpenSurveys(employeeId: string) {
 dashboardRoutes.get("/", authenticate, async (req, res, next) => {
   try {
     const session = await resolveSession(req.user!);
-    const stats: Record<string, number> = {};
+    const stats: Record<string, unknown> = {};
     const me = session.employeeId;
 
     // Employee lane — the caller's own to-dos: pulses to answer, evaluations to
     // acknowledge, plus onboarding figures (meaningful while ONBOARDING).
     if (me) {
-      const [pendingDocuments, totalDocuments, approvedDocuments, unreadSurveys, pendingAcknowledgements] =
+      const [pendingDocuments, totalDocuments, approvedDocuments, unreadSurveys, pendingAcknowledgements, meRecord] =
         await Promise.all([
           prisma.onboardingDocumentSubmission.count({ where: { status: "PENDING", record: { employeeId: me } } }),
           prisma.onboardingDocumentSubmission.count({ where: { record: { employeeId: me } } }),
@@ -49,11 +49,21 @@ dashboardRoutes.get("/", authenticate, async (req, res, next) => {
               NOT: { acknowledgement: { OR: [{ acknowledgedAt: { not: null } }, { isDeemedAck: true }] } },
             },
           }),
+          // The caller's own supervisor (org-graph reportsTo). Name + title only — both public,
+          // not part of the redacted profile set — so safe to surface on the dashboard.
+          prisma.employee.findUnique({
+            where: { id: me },
+            select: { supervisor: { select: { id: true, firstName: true, lastName: true, jobTitle: true } } },
+          }),
         ]);
       stats.pendingDocuments = pendingDocuments;
       stats.onboardingProgress = totalDocuments > 0 ? Math.round((approvedDocuments / totalDocuments) * 100) : 0;
       stats.unreadSurveys = unreadSurveys;
       stats.pendingAcknowledgements = pendingAcknowledgements;
+      const sup = meRecord?.supervisor;
+      stats.supervisor = sup
+        ? { id: sup.id, fullName: `${sup.firstName} ${sup.lastName}`, jobTitle: sup.jobTitle }
+        : null;
     }
 
     // Supervisor lane — the team they manage. (Surveys live in the employee lane above.)
