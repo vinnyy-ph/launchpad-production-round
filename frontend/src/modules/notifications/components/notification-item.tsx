@@ -10,7 +10,7 @@ interface Props {
 }
 
 // The backend stamps `linkUrl`s that don't match the client routes (e.g.
-// `/surveys/:id`, `/evaluations/:id`, `/clearance`, `/offboarding/me`), so
+// `/surveys/:id`, `/evaluations/:id`, `/clearance`), so
 // click-to-land is driven off the notification TYPE. Where the destination
 // screen supports a deep-link query (the employee Performance hub expands the
 // exact evaluation via `?tab=acknowledgements&eval=<id>`), the trailing id from
@@ -36,11 +36,14 @@ function resolveRoute(n: Notification): string | null {
         ? `/employee/surveys?tab=acknowledgements&eval=${id}`
         : "/employee/surveys?tab=acknowledgements";
     case "CLEARANCE_SIGN_REQUEST":
+      return "/employee/clearance";
     case "CLEARANCE_REJECTED":
+      if (n.linkUrl?.startsWith("/hr/directory/offboarding")) return n.linkUrl;
       return "/employee/clearance";
     case "OFFBOARDING_STARTED":
-    case "OFFBOARDING_STATUS":
       return "/offboarding";
+    case "OFFBOARDING_STATUS":
+      return "/supervisor/status";
     case "ONBOARDING_INVITE":
       return "/employee/onboarding";
     case "ONBOARDING_COMPLETE":

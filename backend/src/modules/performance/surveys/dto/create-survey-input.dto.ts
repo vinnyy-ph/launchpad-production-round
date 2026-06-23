@@ -27,6 +27,11 @@ export interface CreateAudienceConfigInput {
   teamId?: string;
 }
 
+export interface CreateVisibilityConfigInput {
+  /** Team allowed to view results — only meaningful when visibility is SPECIFIC_TEAMS */
+  teamId: string;
+}
+
 export interface CreateReminderConfigInput {
   frequency?: ReminderFrequency;
   /** Required when frequency = EVERY_X_DAYS */
@@ -45,5 +50,7 @@ export interface CreateSurveyInput {
   questions: CreateSurveyQuestionInput[];
   /** Only meaningful when audienceType is SUPERVISOR_BASED or SPECIFIC_TEAMS */
   audienceConfigs?: CreateAudienceConfigInput[];
+  /** Only meaningful when visibility is SPECIFIC_TEAMS */
+  visibilityConfigs?: CreateVisibilityConfigInput[];
   reminderConfig?: CreateReminderConfigInput;
 }

@@ -64,6 +64,8 @@ export const API_SUCCESS_MESSAGES = {
   REPORTS_REASSIGNED: "Reports and team leadership reassigned successfully",
   CLEARANCE_REQUESTS_RETRIEVED:
     "Clearance signature requests retrieved successfully",
+  CLEARANCE_TEMPLATES_RETRIEVED:
+    "Clearance templates retrieved successfully",
   CLEARANCE_SIGNED: "Clearance signed successfully",
   CLEARANCE_REJECTED: "Clearance rejected successfully",
   CLEARANCE_RESET: "Clearance request reset to pending successfully",

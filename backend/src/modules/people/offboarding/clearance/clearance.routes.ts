@@ -9,6 +9,13 @@ export const clearanceRouter = Router();
 /** Clearance requests assigned to the caller (signatory queue + pending banner). */
 clearanceRouter.get("/assigned", clearanceController.getAssignedClearances);
 
+/** Clearance template options for HR/admin when starting offboarding. */
+clearanceRouter.get(
+  "/templates",
+  requireRole("ADMIN", "HR"),
+  clearanceController.listTemplates,
+);
+
 /** Sign a clearance request. Caller must be the request's signatory. */
 clearanceRouter.post("/:requestId/sign", clearanceController.signClearance);
 

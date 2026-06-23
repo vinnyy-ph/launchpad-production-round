@@ -12,7 +12,7 @@ import type {
   UpdateClearanceTemplateInput,
 } from "../types/offboarding.types";
 
-/** HR-managed clearance versions with their signatories (default first). */
+/** Clearance template options HR can choose when initiating offboarding. */
 export function useClearanceTemplates(enabled = true) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.clearance.templates,

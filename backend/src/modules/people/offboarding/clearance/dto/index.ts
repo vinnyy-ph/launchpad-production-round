@@ -3,6 +3,8 @@ export type {
   AssignedClearancesResponseDto,
   ClearanceActionDataDto,
   ClearanceActionResponseDto,
+  ClearanceTemplateOptionDto,
+  ClearanceTemplatesResponseDto,
 } from "./clearance-response.dto";
 export type {
   RejectClearanceRequestDto,

@@ -27,6 +27,19 @@ const requestInclude = {
  * All Prisma access for clearance signing lives here.
  */
 export class ClearanceRepository {
+  /** Lists clearance templates with signatory counts for HR selection. */
+  async listTemplates() {
+    return prisma.clearanceTemplate.findMany({
+      orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        isDefault: true,
+        _count: { select: { signatories: true } },
+      },
+    });
+  }
+
   /** Loads the employee profile linked to an auth user. */
   async findEmployeeByUserId(userId: string) {
     return prisma.employee.findUnique({

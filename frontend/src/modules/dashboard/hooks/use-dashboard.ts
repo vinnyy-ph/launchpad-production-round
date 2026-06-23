@@ -21,6 +21,8 @@ export interface DashboardStats {
   onboardingProgress?: number;
   pendingAcknowledgements?: number;
   clearanceStatus?: string | null;
+  /** The caller's org-graph supervisor (reportsTo). Null when they are the root node. */
+  supervisor?: { id: string; fullName: string; jobTitle: string | null } | null;
 }
 
 // GET /api/dashboard (not versioned) returns role-gated counts: a subset of the
