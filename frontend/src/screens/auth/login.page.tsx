@@ -9,6 +9,7 @@ import { getSignInErrorMessage } from "@/modules/auth/services/auth-errors";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { clearAuthError } from "@/modules/auth/stores/auth.store";
 import {
+  Checkbox,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -191,6 +192,7 @@ function LegalDialog({
 
 export default function LoginPage() {
   const [status, setStatus] = useState<"idle" | "loading">("idle");
+  const [rememberMe, setRememberMe] = useState(false);
   const [legal, setLegal] = useState<LegalDoc | null>(null);
   const { authError } = useAuth();
   const loading = status === "loading";
@@ -207,7 +209,7 @@ export default function LoginPage() {
     toast.dismiss("login-error");
     setStatus("loading");
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(rememberMe);
       // success: useAuth observes the user; the /login guard redirects to "/".
     } catch (err) {
       setStatus("idle");
@@ -234,6 +236,21 @@ export default function LoginPage() {
           </p>
 
           <GoogleSignInButton className="mt-8" onClick={handleSignIn} loading={loading} />
+
+          <label className="mt-4 flex cursor-pointer items-start gap-2.5">
+            <Checkbox
+              id="remember-me"
+              checked={rememberMe}
+              disabled={loading}
+              onCheckedChange={(checked) => setRememberMe(checked === true)}
+              className="mt-0.5"
+            />
+            <span className="text-[13px] leading-snug text-[color:var(--text-secondary)]">
+              <span className="font-medium text-[color:var(--text-primary)]">
+                Remember me
+              </span>
+            </span>
+          </label>
 
           {authError && (
             <p role="alert" className="mt-4 text-sm font-medium text-red-600">
