@@ -1,4 +1,9 @@
 import { v2 as cloudinary } from "cloudinary";
+import {
+  formatOnboardingDocumentStorageKey,
+  isLegacyOnboardingDocumentUrl,
+  parseOnboardingDocumentStorageKey,
+} from "./onboarding-document-storage";
 
 /**
  * Uploads onboarding documents to Cloudinary using server-side credentials.
@@ -30,7 +35,8 @@ export class CloudinaryService {
   }
 
   /**
-   * Uploads a document buffer and returns the secure URL stored in the database.
+   * Uploads an onboarding document as authenticated delivery and returns a storage key
+   * (`public_id|resource_type`) for persistence. Public delivery URLs are not stored.
    */
   async uploadOnboardingDocument(
     buffer: Buffer,
@@ -42,18 +48,42 @@ export class CloudinaryService {
     const base64 = buffer.toString("base64");
     const dataUri = `data:${mimeType || "application/octet-stream"};base64,${base64}`;
 
-    // "auto" lets Cloudinary classify PDFs as image resources, which (unlike "raw")
-    // are delivered inline so HR can preview them in a browser/iframe instead of
-    // forcing a download.
+    // `auto` keeps PDFs previewable inline; `authenticated` blocks unsigned public URLs.
     const result = await cloudinary.uploader.upload(dataUri, {
       folder: "onboarding",
       resource_type: "auto",
+      type: "authenticated",
       use_filename: true,
       unique_filename: true,
       filename_override: originalName.replace(/[^\w.\-]+/g, "_"),
     });
 
-    return result.secure_url;
+    return formatOnboardingDocumentStorageKey(
+      result.public_id,
+      result.resource_type,
+    );
+  }
+
+  /**
+   * Mints a short-lived signed view URL for an onboarding submission.
+   * Legacy rows that still store a public HTTPS URL are returned unchanged.
+   */
+  resolveOnboardingDocumentViewUrl(storedValue: string): string {
+    if (isLegacyOnboardingDocumentUrl(storedValue)) {
+      return storedValue;
+    }
+
+    this.ensureConfigured();
+
+    const { publicId, resourceType } =
+      parseOnboardingDocumentStorageKey(storedValue);
+
+    return cloudinary.url(publicId, {
+      resource_type: resourceType,
+      type: "authenticated",
+      sign_url: true,
+      secure: true,
+    });
   }
 
   /**

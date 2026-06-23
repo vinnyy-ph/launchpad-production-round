@@ -18,6 +18,7 @@ import type {
   UpdateProfileResponseDto,
 } from "./dto";
 import { REQUIRED_PROFILE_FIELDS } from "./employee-onboarding.constants";
+import { validateOnboardingUploadFile } from "./onboarding-file-validation";
 import { EmployeeOnboardingRepository } from "./employee-onboarding.repository";
 import { NotificationsService } from "../../../notifications/notifications.service";
 
@@ -201,7 +202,7 @@ export class EmployeeOnboardingService {
       throw new Error("Document not found");
     }
 
-    this.validateFileExtension(file.originalname, document.allowedFileTypes);
+    validateOnboardingUploadFile(file, document.allowedFileTypes);
 
     const latestSubmission =
       await this.employeeOnboardingRepository.findLatestSubmission(
@@ -219,7 +220,7 @@ export class EmployeeOnboardingService {
       }
     }
 
-    const fileUrl = await this.cloudinaryService.uploadOnboardingDocument(
+    const storageKey = await this.cloudinaryService.uploadOnboardingDocument(
       file.buffer,
       file.originalname,
       file.mimetype,
@@ -228,7 +229,7 @@ export class EmployeeOnboardingService {
     const submission = await this.employeeOnboardingRepository.createDocumentSubmission(
       record.id,
       params.documentId,
-      fileUrl,
+      storageKey,
     );
 
     return {
@@ -238,7 +239,9 @@ export class EmployeeOnboardingService {
         id: submission.id,
         documentId: submission.documentId,
         documentName: submission.document.documentName,
-        fileUrl: submission.fileUrl,
+        fileUrl: this.cloudinaryService.resolveOnboardingDocumentViewUrl(
+          submission.fileUrl,
+        ),
         status: this.toDocumentStatusDto(submission.status),
         rejectionNote: submission.rejectionNote,
         submittedAt: submission.submittedAt.toISOString(),
@@ -369,31 +372,6 @@ export class EmployeeOnboardingService {
     }
   }
 
-  /** Validates the uploaded file extension against the document checklist. */
-  private validateFileExtension(filename: string, allowedFileTypes: string) {
-    const extension = this.extractExtensionFromFilename(filename);
-    const allowed = allowedFileTypes
-      .split(",")
-      .map((part) => part.trim().toLowerCase())
-      .filter(Boolean);
-
-    if (!extension || !allowed.includes(extension)) {
-      throw new Error("Invalid file type");
-    }
-  }
-
-  private extractExtensionFromFilename(filename: string): string | null {
-    const dot = filename.lastIndexOf(".");
-
-    if (dot < 0) {
-      return null;
-    }
-
-    const extension = filename.slice(dot + 1).toLowerCase();
-
-    return extension.length > 0 ? extension : null;
-  }
-
   private isInvitationExpired(expiresAt: Date): boolean {
     return expiresAt.getTime() < Date.now();
   }
@@ -480,7 +458,9 @@ export class EmployeeOnboardingService {
         latestSubmission: latestSubmission
           ? {
               id: latestSubmission.id,
-              fileUrl: latestSubmission.fileUrl,
+              fileUrl: this.cloudinaryService.resolveOnboardingDocumentViewUrl(
+                latestSubmission.fileUrl,
+              ),
               status: this.toDocumentStatusDto(latestSubmission.status),
               rejectionNote: latestSubmission.rejectionNote,
               submittedAt: latestSubmission.submittedAt.toISOString(),

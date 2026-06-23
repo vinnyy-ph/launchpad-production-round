@@ -1,5 +1,6 @@
 import type { DocumentStatus } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../../core/globals";
+import { CloudinaryService } from "../../../../core/cloudinary";
 import type {
   DocumentReviewDto,
   DocumentReviewResponseDto,
@@ -18,6 +19,7 @@ export class DocumentReviewsService {
   constructor(
     private readonly documentReviewsRepository = new DocumentReviewsRepository(),
     private readonly notificationsService = new NotificationsService(),
+    private readonly cloudinaryService = new CloudinaryService(),
   ) {}
 
   /**
@@ -142,7 +144,9 @@ export class DocumentReviewsService {
       recordId: submission.recordId,
       documentId: submission.documentId,
       documentName: submission.document.documentName,
-      fileUrl: submission.fileUrl,
+      fileUrl: this.cloudinaryService.resolveOnboardingDocumentViewUrl(
+        submission.fileUrl,
+      ),
       status: this.toStatusDto(submission.status),
       rejectionNote: submission.rejectionNote,
       reviewerId: submission.reviewerId,
