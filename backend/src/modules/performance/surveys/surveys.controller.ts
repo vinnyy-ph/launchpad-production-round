@@ -326,16 +326,20 @@ export class SurveysController {
   ): Promise<void> => {
     try {
       const { id } = req.params;
+      const MAX_LIMIT = 100;
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+      const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
 
-      if (isNaN(page) || page <= 0 || isNaN(limit) || limit <= 0) {
+      if (isNaN(page) || page <= 0 || isNaN(rawLimit) || rawLimit <= 0) {
         res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
           success: false,
           message: "Invalid pagination parameters",
         });
         return;
       }
+
+      // Clamp to an upper bound so a huge ?limit can't force an oversized query.
+      const limit = Math.min(rawLimit, MAX_LIMIT);
 
       const result = await this.surveysService.listOccurrences(id, { page, limit });
       res.status(HTTP_STATUS_CODES.OK).json(result);
@@ -428,7 +432,10 @@ export class SurveysController {
       msg.includes("isAnonymous") ||
       msg.includes("isActive") ||
       msg.includes("releaseDate") ||
-      msg.includes("deadline")
+      msg.includes("deadline") ||
+      msg.includes("options") ||
+      msg.includes("characters or fewer") ||
+      msg.includes("must not contain HTML")
     );
   }
 }

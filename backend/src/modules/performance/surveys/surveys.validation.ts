@@ -3,8 +3,9 @@ import type { AudiencePreviewInput } from "./dto";
 import type { CreateSurveyInput } from "./dto";
 import type { ListSurveysQuery } from "./dto";
 import type { UpdateSurveyInput } from "./dto";
-import { SURVEY_ERROR_MESSAGES } from "./surveys.constants";
+import { SURVEY_ERROR_MESSAGES, SURVEY_TEXT_LIMITS } from "./surveys.constants";
 import { validateSchedule } from "./rules/recurrence";
+import { assertSafeText } from "../../../core/validation/text-input";
 
 const VALID_RECURRING_TYPES = new Set<string>([
   "ONE_TIME",
@@ -61,6 +62,67 @@ function parseVisibilityConfigs(raw: unknown): { teamId: string }[] {
 }
 
 export class SurveysValidation {
+  /** Validates and normalizes a single question, including all free-text fields. */
+  private parseQuestion(q: unknown, idx: number) {
+    if (!q || typeof q !== "object") throw new Error(`questions[${idx}] must be an object`);
+    const qObj = q as Record<string, unknown>;
+
+    if (!qObj.type || typeof qObj.type !== "string" || !VALID_QUESTION_TYPES.has(qObj.type)) {
+      throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.INVALID_QUESTION_TYPE}`);
+    }
+    if (!qObj.questionText || typeof qObj.questionText !== "string") {
+      throw new Error(`questions[${idx}]: questionText is required`);
+    }
+    assertSafeText(qObj.questionText, `questions[${idx}].questionText`, SURVEY_TEXT_LIMITS.QUESTION_TEXT);
+    if (typeof qObj.orderIndex !== "number" || !Number.isInteger(qObj.orderIndex)) {
+      throw new Error(`questions[${idx}]: orderIndex must be an integer`);
+    }
+
+    const type = qObj.type as QuestionType;
+
+    // Type-specific rules
+    if (type === "LINEAR_SCALE") {
+      if (typeof qObj.scaleMin !== "number" || typeof qObj.scaleMax !== "number") {
+        throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.SCALE_BOUNDS_REQUIRED}`);
+      }
+    }
+    if (type === "MULTIPLE_CHOICE" || type === "CHECKBOX") {
+      if (!Array.isArray(qObj.options) || qObj.options.length === 0) {
+        throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.OPTIONS_REQUIRED}`);
+      }
+    }
+
+    let options: string[] | undefined;
+    if (Array.isArray(qObj.options)) {
+      options = qObj.options.map((opt: unknown, i: number) => {
+        if (typeof opt !== "string") {
+          throw new Error(`questions[${idx}].options[${i}] must be a string`);
+        }
+        assertSafeText(opt, `questions[${idx}].options[${i}]`, SURVEY_TEXT_LIMITS.OPTION);
+        return opt;
+      });
+    }
+
+    if (typeof qObj.scaleMinLabel === "string") {
+      assertSafeText(qObj.scaleMinLabel, `questions[${idx}].scaleMinLabel`, SURVEY_TEXT_LIMITS.SCALE_LABEL);
+    }
+    if (typeof qObj.scaleMaxLabel === "string") {
+      assertSafeText(qObj.scaleMaxLabel, `questions[${idx}].scaleMaxLabel`, SURVEY_TEXT_LIMITS.SCALE_LABEL);
+    }
+
+    return {
+      type,
+      questionText: qObj.questionText as string,
+      isRequired: typeof qObj.isRequired === "boolean" ? qObj.isRequired : true,
+      ...(options !== undefined && { options }),
+      ...(typeof qObj.scaleMin === "number" && { scaleMin: qObj.scaleMin }),
+      ...(typeof qObj.scaleMax === "number" && { scaleMax: qObj.scaleMax }),
+      ...(typeof qObj.scaleMinLabel === "string" && { scaleMinLabel: qObj.scaleMinLabel }),
+      ...(typeof qObj.scaleMaxLabel === "string" && { scaleMaxLabel: qObj.scaleMaxLabel }),
+      orderIndex: qObj.orderIndex as number,
+    };
+  }
+
   parseListQuery(query: Record<string, unknown>): ListSurveysQuery {
     const rawPage = query.page;
     const rawLimit = query.limit;
@@ -101,6 +163,7 @@ export class SurveysValidation {
     if (!b.name || typeof b.name !== "string") {
       throw new Error("name is required");
     }
+    assertSafeText(b.name, "name", SURVEY_TEXT_LIMITS.NAME);
 
     // --- releaseDate ---
     let releaseDate = new Date();
@@ -164,46 +227,7 @@ export class SurveysValidation {
       throw new Error(SURVEY_ERROR_MESSAGES.QUESTIONS_REQUIRED);
     }
 
-    const questions = b.questions.map((q: unknown, idx: number) => {
-      if (!q || typeof q !== "object") throw new Error(`questions[${idx}] must be an object`);
-      const qObj = q as Record<string, unknown>;
-
-      if (!qObj.type || typeof qObj.type !== "string" || !VALID_QUESTION_TYPES.has(qObj.type)) {
-        throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.INVALID_QUESTION_TYPE}`);
-      }
-      if (!qObj.questionText || typeof qObj.questionText !== "string") {
-        throw new Error(`questions[${idx}]: questionText is required`);
-      }
-      if (typeof qObj.orderIndex !== "number" || !Number.isInteger(qObj.orderIndex)) {
-        throw new Error(`questions[${idx}]: orderIndex must be an integer`);
-      }
-
-      const type = qObj.type as QuestionType;
-
-      // Type-specific rules
-      if (type === "LINEAR_SCALE") {
-        if (typeof qObj.scaleMin !== "number" || typeof qObj.scaleMax !== "number") {
-          throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.SCALE_BOUNDS_REQUIRED}`);
-        }
-      }
-      if (type === "MULTIPLE_CHOICE" || type === "CHECKBOX") {
-        if (!Array.isArray(qObj.options) || qObj.options.length === 0) {
-          throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.OPTIONS_REQUIRED}`);
-        }
-      }
-
-      return {
-        type,
-        questionText: qObj.questionText as string,
-        isRequired: typeof qObj.isRequired === "boolean" ? qObj.isRequired : true,
-        ...(Array.isArray(qObj.options) && { options: qObj.options }),
-        ...(typeof qObj.scaleMin === "number" && { scaleMin: qObj.scaleMin }),
-        ...(typeof qObj.scaleMax === "number" && { scaleMax: qObj.scaleMax }),
-        ...(typeof qObj.scaleMinLabel === "string" && { scaleMinLabel: qObj.scaleMinLabel }),
-        ...(typeof qObj.scaleMaxLabel === "string" && { scaleMaxLabel: qObj.scaleMaxLabel }),
-        orderIndex: qObj.orderIndex as number,
-      };
-    });
+    const questions = b.questions.map((q: unknown, idx: number) => this.parseQuestion(q, idx));
 
     // --- audienceConfigs ---
     const resolvedAudienceType = (b.audienceType ?? "EVERYONE") as AudienceType;
@@ -351,6 +375,7 @@ export class SurveysValidation {
       if (typeof b.name !== "string" || b.name.trim().length === 0) {
         throw new Error("name must be a non-empty string");
       }
+      assertSafeText(b.name, "name", SURVEY_TEXT_LIMITS.NAME);
       result.name = b.name;
     }
 
@@ -400,46 +425,7 @@ export class SurveysValidation {
         throw new Error(SURVEY_ERROR_MESSAGES.QUESTIONS_REQUIRED);
       }
 
-      result.questions = b.questions.map((q: unknown, idx: number) => {
-        if (!q || typeof q !== "object") throw new Error(`questions[${idx}] must be an object`);
-        const qObj = q as Record<string, unknown>;
-
-        if (!qObj.type || typeof qObj.type !== "string" || !VALID_QUESTION_TYPES.has(qObj.type)) {
-          throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.INVALID_QUESTION_TYPE}`);
-        }
-        if (!qObj.questionText || typeof qObj.questionText !== "string") {
-          throw new Error(`questions[${idx}]: questionText is required`);
-        }
-        if (typeof qObj.orderIndex !== "number" || !Number.isInteger(qObj.orderIndex)) {
-          throw new Error(`questions[${idx}]: orderIndex must be an integer`);
-        }
-
-        const type = qObj.type as QuestionType;
-
-        // Type-specific rules
-        if (type === "LINEAR_SCALE") {
-          if (typeof qObj.scaleMin !== "number" || typeof qObj.scaleMax !== "number") {
-            throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.SCALE_BOUNDS_REQUIRED}`);
-          }
-        }
-        if (type === "MULTIPLE_CHOICE" || type === "CHECKBOX") {
-          if (!Array.isArray(qObj.options) || qObj.options.length === 0) {
-            throw new Error(`questions[${idx}]: ${SURVEY_ERROR_MESSAGES.OPTIONS_REQUIRED}`);
-          }
-        }
-
-        return {
-          type,
-          questionText: qObj.questionText as string,
-          isRequired: typeof qObj.isRequired === "boolean" ? qObj.isRequired : true,
-          ...(Array.isArray(qObj.options) && { options: qObj.options }),
-          ...(typeof qObj.scaleMin === "number" && { scaleMin: qObj.scaleMin }),
-          ...(typeof qObj.scaleMax === "number" && { scaleMax: qObj.scaleMax }),
-          ...(typeof qObj.scaleMinLabel === "string" && { scaleMinLabel: qObj.scaleMinLabel }),
-          ...(typeof qObj.scaleMaxLabel === "string" && { scaleMaxLabel: qObj.scaleMaxLabel }),
-          orderIndex: qObj.orderIndex as number,
-        };
-      });
+      result.questions = b.questions.map((q: unknown, idx: number) => this.parseQuestion(q, idx));
     }
 
     // --- audienceConfigs ---

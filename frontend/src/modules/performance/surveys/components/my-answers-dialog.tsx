@@ -16,8 +16,9 @@ const NOT_ANSWERED = (
   <p className="text-sm italic text-[color:var(--text-quaternary)]">Not answered</p>
 );
 
-/** Renders the employee's own answer for one question, read-only, per type. */
-function AnswerValue({ a }: { a: MyAnswer }) {
+/** Renders one answer for a question, read-only, per type. Shared by the employee's own-answers
+ *  view and the authority-gated individual drill-down. */
+export function AnswerValue({ a }: { a: MyAnswer }) {
   switch (a.type) {
     case "SHORT_ANSWER":
     case "LONG_ANSWER":
@@ -138,17 +139,29 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
             </div>
           )}
 
-          {data && isAnonymous && (
+          {data && !data.submitted && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[13px] text-[color:var(--text-secondary)]">
+              <AlertCircle
+                size={17}
+                className="mt-0.5 flex-none text-[color:var(--text-tertiary)]"
+                aria-hidden="true"
+              />
+              <span>You haven&apos;t responded to this pulse yet.</span>
+            </div>
+          )}
+
+          {data && data.submitted && isAnonymous && (
             <div className="flex items-start gap-2.5 rounded-xl border border-[#C7D7FE] bg-[#EEF4FF] px-4 py-3 text-[13px] text-[#3538CD]">
               <ShieldCheck size={17} className="mt-0.5 flex-none" aria-hidden="true" />
               <span>
-                This survey was anonymous — your responses aren&apos;t linked to you, so they
-                can&apos;t be shown here.
+                This pulse was anonymous. To protect anonymity, your answers aren&apos;t linked
+                to you — so they can&apos;t be shown back here. Others only ever see aggregates.
               </span>
             </div>
           )}
 
           {data &&
+            data.submitted &&
             !isAnonymous &&
             data.answers.map((a) => (
               <div key={a.questionId}>

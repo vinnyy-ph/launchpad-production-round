@@ -32,7 +32,15 @@ import {
 
 export const app = express();
 
-const origins = (process.env.CORS_ORIGIN ?? "http://localhost:3000").split(",");
+if (process.env.NODE_ENV === "production") {
+  // Railway sits behind one reverse proxy; required so rate limits use the real client IP.
+  app.set("trust proxy", 1);
+}
+
+const origins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(cors({ origin: origins, credentials: true }));
 app.use(
@@ -52,7 +60,9 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "healthy" }));
 
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (process.env.NODE_ENV !== "production") {
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 app.use(globalLimiter);
 

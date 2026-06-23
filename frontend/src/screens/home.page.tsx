@@ -27,6 +27,7 @@ import { NotificationItem } from "@/modules/notifications/components/notificatio
 import { useAssignedClearances, AssignedClearancesSection } from "@/modules/people/offboarding";
 import { KpiCard, type KpiCardProps } from "@/shared/ui/patterns";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
+import { RedactedProfileSheet } from "@/modules/people/employees/components/redacted-profile-sheet";
 import { cn } from "@/shared/lib/utils";
 import { useMyTeams } from "@/modules/people/teams/hooks/use-my-teams";
 import type { Team } from "@/modules/people/teams/types/teams.types";
@@ -224,6 +225,10 @@ function PeopleSection({
   teams: Team[];
   loading: boolean;
 }) {
+  // The supervisor profile opens the same redacted drawer used on the profile page —
+  // teammates only ever see the work-context (non-PII) view of one another.
+  const [supervisorOpen, setSupervisorOpen] = useState(false);
+
   if (!loading && !supervisor && teams.length === 0) return null;
 
   return (
@@ -232,37 +237,58 @@ function PeopleSection({
         Your team
       </h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Who you report to (org-graph supervisor — distinct from any team's leader). */}
-        <div
-          className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        >
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-            Your supervisor
-          </p>
-          {loading ? (
-            <div className="mt-3 flex items-center gap-2.5">
-              <span className="h-9 w-9 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
-              <span className="h-3.5 w-28 rounded bg-[color:var(--bg-tertiary)]" />
-            </div>
-          ) : supervisor ? (
-            <div className="mt-3 flex items-center gap-2.5">
-              <Avatar name={supervisor.fullName} src={supervisor.avatarUrl} />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-                  {supervisor.fullName}
-                </p>
-                <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-                  {supervisor.jobTitle ?? "Supervisor"}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-[color:var(--text-tertiary)]">
-              You&apos;re at the top of the org chart.
+        {/* Who you report to (org-graph supervisor — distinct from any team's leader).
+            Clickable when present: opens the redacted profile drawer. */}
+        {!loading && supervisor ? (
+          <button
+            type="button"
+            onClick={() => setSupervisorOpen(true)}
+            aria-label={`View ${supervisor.fullName}'s profile`}
+            className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 text-left transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+              Your supervisor
             </p>
-          )}
-        </div>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Avatar name={supervisor.fullName} src={supervisor.avatarUrl} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+                    {supervisor.fullName}
+                  </p>
+                  <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                    {supervisor.jobTitle ?? "Supervisor"}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight
+                size={15}
+                className="flex-none text-[color:var(--text-quaternary)] transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </div>
+          </button>
+        ) : (
+          <div
+            className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+              Your supervisor
+            </p>
+            {loading ? (
+              <div className="mt-3 flex items-center gap-2.5">
+                <span className="h-9 w-9 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
+                <span className="h-3.5 w-28 rounded bg-[color:var(--bg-tertiary)]" />
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-[color:var(--text-tertiary)]">
+                You&apos;re at the top of the org chart.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Teams the caller belongs to — each links to its detail page. */}
         {teams.map((team) => (
@@ -292,6 +318,12 @@ function PeopleSection({
           </Link>
         ))}
       </div>
+
+      <RedactedProfileSheet
+        employeeId={supervisorOpen ? (supervisor?.id ?? null) : null}
+        open={supervisorOpen}
+        onOpenChange={setSupervisorOpen}
+      />
     </section>
   );
 }

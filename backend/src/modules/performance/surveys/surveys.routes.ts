@@ -3,11 +3,13 @@ import { requireRole } from "../../../core/middleware/roles.middleware";
 import { SurveysController } from "./surveys.controller";
 import { ResultsController } from "./results/results.controller";
 import { InsightsController } from "./insights/insights.controller";
+import { RespondentsController } from "./respondents";
 
 const router = Router();
 const controller = new SurveysController();
 const resultsController = new ResultsController();
 const insightsController = new InsightsController();
+const respondentsController = new RespondentsController();
 
 /** GET /api/v1/pulse/surveys/audience/options — HR only. Supervisors + teams for the audience picker. */
 router.get("/audience/options", requireRole("HR"), controller.getAudienceOptions);
@@ -17,6 +19,20 @@ router.post("/audience/preview", requireRole("HR"), controller.previewAudience);
 
 /** GET /api/v1/pulse/surveys/occurrences/:occurrenceId/results — Returns aggregated results for an occurrence. */
 router.get("/occurrences/:occurrenceId/results", resultsController.getOccurrenceResults);
+
+/** GET /api/v1/pulse/surveys/occurrences/:occurrenceId/respondents — Authorized drill-down name
+ *  list for a NAMED survey (HR/root → all; supervisor → downward chain; others → empty). */
+router.get(
+  "/occurrences/:occurrenceId/respondents",
+  respondentsController.getRoster,
+);
+
+/** GET /api/v1/pulse/surveys/occurrences/:occurrenceId/respondents/:employeeId — One named
+ *  respondent's answers. Named-only + per-target authority enforced server-side. */
+router.get(
+  "/occurrences/:occurrenceId/respondents/:employeeId",
+  respondentsController.getIndividualAnswers,
+);
 
 /** GET /api/v1/pulse/surveys/:id/results — Returns aggregated results for a survey. */
 router.get("/:id/results", resultsController.getSurveyResults);

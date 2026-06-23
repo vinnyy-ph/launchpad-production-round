@@ -171,13 +171,46 @@ export interface MyAnswer {
 }
 
 /** The employee's own submitted answers for one completed occurrence.
- *  `answers` is empty for anonymous surveys — content is unrecoverable by design. */
+ *  `answers` is empty for anonymous surveys — content is unrecoverable by design.
+ *  `submitted` is false when the caller is in the audience but hasn't responded yet. */
 export interface MyAnswers {
   occurrenceId: string;
   surveyId: string;
   surveyName: string;
   occurrenceNumber: number;
   isAnonymous: boolean;
+  submitted: boolean;
+  answers: MyAnswer[];
+}
+
+/** One audience member in the authority-gated drill-down name list (named surveys only). */
+export interface RespondentRosterMember {
+  employeeId: string;
+  name: string;
+  submitted: boolean;
+}
+
+/** The individuals this viewer may drill into for one occurrence. `respondents` is empty for
+ *  anonymous surveys (named-only) and for viewers without individual-view authority. */
+export interface RespondentRoster {
+  occurrenceId: string;
+  surveyId: string;
+  surveyName: string;
+  occurrenceNumber: number;
+  isAnonymous: boolean;
+  respondents: RespondentRosterMember[];
+}
+
+/** One named respondent's answers for an occurrence. `submitted` is false when the target is
+ *  in the audience but hasn't responded yet (answers empty). */
+export interface IndividualAnswers {
+  occurrenceId: string;
+  surveyId: string;
+  surveyName: string;
+  occurrenceNumber: number;
+  respondent: { employeeId: string; name: string };
+  submitted: boolean;
+  submittedAt: string | null;
   answers: MyAnswer[];
 }
 

@@ -604,7 +604,9 @@ export class EvaluationsController {
       error.message === "No fields provided to update" ||
       error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES ||
       error.message === EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE ||
-      error.message === EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE
+      error.message === EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE ||
+      error.message.includes("characters or fewer") ||
+      error.message.includes("must not contain HTML")
     );
   }
 }

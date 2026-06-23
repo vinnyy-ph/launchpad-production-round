@@ -73,6 +73,10 @@ import {
 } from "@/modules/performance/evaluations";
 import { useAutosave } from "@/modules/performance/shared/use-autosave";
 import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
+import {
+  evaluationTextSchema,
+  EVAL_TEXT_LIMITS,
+} from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
 import { formatPeriod } from "./evaluations.format";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -158,9 +162,11 @@ interface DynamicListProps {
   hintAbove?: boolean;
   addLabel?: string;
   readOnly?: boolean;
+  maxLength?: number;
+  error?: string;
 }
 
-function DynamicList({ label, htmlFor, items, onChange, placeholder, hint, optional, hintAbove, addLabel = "Add", readOnly }: DynamicListProps) {
+function DynamicList({ label, htmlFor, items, onChange, placeholder, hint, optional, hintAbove, addLabel = "Add", readOnly, maxLength, error }: DynamicListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
 
@@ -202,7 +208,7 @@ function DynamicList({ label, htmlFor, items, onChange, placeholder, hint, optio
   }
 
   return (
-    <FormField label={label} htmlFor={htmlFor} hint={hint} optional={optional} hintAbove={hintAbove}>
+    <FormField label={label} htmlFor={htmlFor} hint={hint} optional={optional} hintAbove={hintAbove} error={error}>
       <div ref={listRef} className="space-y-2">
         {items.map((val, idx) => (
           <div key={idx} className="flex items-center gap-2">
@@ -212,6 +218,7 @@ function DynamicList({ label, htmlFor, items, onChange, placeholder, hint, optio
               onChange={(e) => update(idx, e.target.value)}
               placeholder={placeholder}
               className="flex-1"
+              maxLength={maxLength}
               aria-label={`${label} ${idx + 1}`}
             />
             <button
@@ -533,8 +540,29 @@ function EvaluationEditorDialog({
   };
 
   /** Required to create/save a draft: reviewee, period, and rating. */
-  const validate = (): boolean => {
+  /** Length / no-HTML safety on the free-text fields (mirrors backend rules). */
+  const textErrors = (): Record<string, string> => {
     const errs: Record<string, string> = {};
+    const text = evaluationTextSchema.safeParse({
+      evaluation: evaluationText,
+      recommendation: recommendationText,
+      highlights,
+      lowlights,
+    });
+    if (!text.success) {
+      // The evaluation summary surfaces under the `summary` key in this form.
+      const keyFor: Record<string, string> = { evaluation: "summary" };
+      for (const issue of text.error.issues) {
+        const field = String(issue.path[0] ?? "");
+        const key = keyFor[field] ?? field;
+        if (!errs[key]) errs[key] = issue.message;
+      }
+    }
+    return errs;
+  };
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = { ...textErrors() };
     if (!revieweeId) errs.reviewee = "Select an employee.";
     if (!period?.from || !period?.to) errs.period = "Select an evaluation period.";
     if (!grade) errs.grade = "Pick an overall rating.";
@@ -582,7 +610,7 @@ function EvaluationEditorDialog({
    *  the exact missing field. Works for a brand-new evaluation too (the page creates then sends). */
   const handleSend = () => {
     if (isViewOnly) return;
-    const errs: Record<string, string> = {};
+    const errs: Record<string, string> = { ...textErrors() };
     if (!revieweeId) errs.reviewee = "Select an employee before sending.";
     if (!period?.from || !period?.to) errs.period = "Add the evaluation period before sending.";
     if (!grade) errs.grade = "Pick an overall rating before sending.";
@@ -866,12 +894,17 @@ function EvaluationEditorDialog({
                   label="Highlights"
                   htmlFor="ev-highlights"
                   items={highlights}
-                  onChange={setHighlights}
+                  onChange={(v) => {
+                    setHighlights(v);
+                    clearError("highlights");
+                  }}
                   placeholder="e.g. Shipped the billing revamp two weeks early."
                   hint="Key wins and strengths this period. Add one per line."
                   optional
                   hintAbove
                   addLabel="Add highlight"
+                  maxLength={EVAL_TEXT_LIMITS.ITEM}
+                  error={errors.highlights}
                 />
 
                 {/* Areas for improvement (formerly lowlights) */}
@@ -879,12 +912,17 @@ function EvaluationEditorDialog({
                   label="Areas for improvement"
                   htmlFor="ev-areas"
                   items={lowlights}
-                  onChange={setLowlights}
+                  onChange={(v) => {
+                    setLowlights(v);
+                    clearError("lowlights");
+                  }}
                   placeholder="e.g. Tickets often shipped without test coverage."
                   hint="Where there's room to grow. Keep it specific and constructive."
                   optional
                   hintAbove
                   addLabel="Add area"
+                  maxLength={EVAL_TEXT_LIMITS.ITEM}
+                  error={errors.lowlights}
                 />
 
                 {/* Overall summary (formerly Evaluation) */}
@@ -905,6 +943,7 @@ function EvaluationEditorDialog({
                       clearError("summary");
                     }}
                     rows={4}
+                    maxLength={EVAL_TEXT_LIMITS.EVALUATION}
                     aria-invalid={!!errors.summary}
                   />
                 </FormField>
@@ -977,6 +1016,7 @@ function EvaluationEditorDialog({
                   label="Recommendation"
                   htmlFor="ev-rec"
                   hint="What should happen next? e.g. promotion, a stretch project, a development plan."
+                  error={errors.recommendation}
                   optional
                   hintAbove
                 >
@@ -984,8 +1024,13 @@ function EvaluationEditorDialog({
                     id="ev-rec"
                     placeholder="What should happen next for this person?"
                     value={recommendationText}
-                    onChange={(e) => setRecommendationText(e.target.value)}
+                    onChange={(e) => {
+                      setRecommendationText(e.target.value);
+                      clearError("recommendation");
+                    }}
                     rows={3}
+                    maxLength={EVAL_TEXT_LIMITS.RECOMMENDATION}
+                    aria-invalid={!!errors.recommendation}
                   />
                 </FormField>
 

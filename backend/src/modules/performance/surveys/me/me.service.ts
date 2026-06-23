@@ -1,7 +1,32 @@
-import { MeRepository } from "./me.repository";
+import { MeRepository, type MyAnswersOccurrence } from "./me.repository";
 import type { AnsweredSurveyItem, MyAnswerItem, MyAnswersDetail, PendingSurveyItem } from "./me.types";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { advanceDueOccurrences } from "../occurrences/occurrence-scheduler";
+
+/**
+ * Shape an occurrence's ordered questions + an employee's stored answer rows into the
+ * per-question answer list. Subject-agnostic: reused by the self view (this module) and by
+ * the authority-gated individual drill-down (the respondents module), so both render answers
+ * identically and differ only in who is allowed to read them.
+ */
+export function buildAnswerItems(
+  questions: MyAnswersOccurrence["questions"],
+  rows: { questionId: string; answerText: string | null; answerData: unknown }[],
+): MyAnswerItem[] {
+  const byQuestion = new Map(rows.map((r) => [r.questionId, r]));
+  return questions.map((q) => ({
+    questionId: q.id,
+    questionText: q.questionText,
+    type: q.type,
+    options: q.options,
+    scaleMin: q.scaleMin,
+    scaleMax: q.scaleMax,
+    scaleMinLabel: q.scaleMinLabel,
+    scaleMaxLabel: q.scaleMaxLabel,
+    answerText: byQuestion.get(q.id)?.answerText ?? null,
+    answerData: byQuestion.get(q.id)?.answerData ?? null,
+  }));
+}
 
 export class MeService {
   constructor(private readonly repository = new MeRepository()) {}
@@ -45,42 +70,35 @@ export class MeService {
       throw new Error(SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND);
     }
 
-    // Proof the caller actually answered this occurrence. Tracked separately from the
-    // (possibly anonymized) response, so it holds for anonymous surveys too. Doubles as the
-    // ownership gate — identity comes from the session, never the request.
-    const completed = await this.repository.hasCompleted(occurrenceId, employeeId);
-    if (!completed) {
-      throw new Error(SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND);
-    }
-
     const base = {
       occurrenceId,
       surveyId: occurrence.surveyId,
       surveyName: occurrence.surveyName,
       occurrenceNumber: occurrence.occurrenceNumber,
+      isAnonymous: occurrence.isAnonymous,
     };
 
+    // Did the caller actually answer this occurrence? Completion is tracked separately from
+    // the (possibly anonymized) response, so it holds for anonymous surveys too. Identity
+    // comes from the session, never the request.
+    const completed = await this.repository.hasCompleted(occurrenceId, employeeId);
+    if (!completed) {
+      // In the audience but not yet responded → clean "no submission", not an error.
+      // Outside the audience → 404, so a non-recipient can't probe survey names by occurrence id.
+      const inAudience = await this.repository.isAudienceMember(occurrenceId, employeeId);
+      if (!inAudience) {
+        throw new Error(SURVEY_ERROR_MESSAGES.OCCURRENCE_NOT_FOUND);
+      }
+      return { ...base, submitted: false, answers: [] };
+    }
+
     // Anonymity firewall: an anonymous response has no employee link, so the content is
-    // unrecoverable by design. Return the flag with no answers — never re-identify.
+    // unrecoverable by design. Confirm submission, return no answers — never re-identify.
     if (occurrence.isAnonymous) {
-      return { ...base, isAnonymous: true, answers: [] };
+      return { ...base, submitted: true, answers: [] };
     }
 
     const rows = await this.repository.findMyAnswers(occurrenceId, employeeId);
-    const byQuestion = new Map(rows.map((r) => [r.questionId, r]));
-    const answers: MyAnswerItem[] = occurrence.questions.map((q) => ({
-      questionId: q.id,
-      questionText: q.questionText,
-      type: q.type,
-      options: q.options,
-      scaleMin: q.scaleMin,
-      scaleMax: q.scaleMax,
-      scaleMinLabel: q.scaleMinLabel,
-      scaleMaxLabel: q.scaleMaxLabel,
-      answerText: byQuestion.get(q.id)?.answerText ?? null,
-      answerData: byQuestion.get(q.id)?.answerData ?? null,
-    }));
-
-    return { ...base, isAnonymous: false, answers };
+    return { ...base, submitted: true, answers: buildAnswerItems(occurrence.questions, rows) };
   }
 }
