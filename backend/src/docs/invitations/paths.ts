@@ -120,8 +120,9 @@
  *     tags: [Invitations]
  *     summary: Resend an onboarding invitation
  *     description: |
- *       Resends an existing invitation email and refreshes the 30-day expiry window.
+ *       Resends an existing invitation email and refreshes the 24-hour expiry window.
  *       Cannot resend an invitation that has already been accepted.
+ *       Resend is available after 60 seconds and capped at 5 resends per hour.
  *       Requires HR role.
  *     security:
  *       - bearerAuth: []
@@ -152,6 +153,12 @@
  *               $ref: '#/components/schemas/ApiError'
  *       409:
  *         description: Invitation has already been accepted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       429:
+ *         description: Resend cooldown or hourly resend limit reached
  *         content:
  *           application/json:
  *             schema:
