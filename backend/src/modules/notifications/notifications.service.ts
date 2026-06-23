@@ -3,6 +3,7 @@ import { API_SUCCESS_MESSAGES } from "../../core/globals";
 import { InAppChannel } from "./channels/in-app.channel";
 import { EmailService } from "../../core/email/email.service";
 import { buildEvaluationReminderEmailHtml } from "../../core/email/templates/evaluation-reminder.template";
+import { buildOnboardingDocumentRejectedEmailHtml } from "../../core/email/templates/onboarding-document-rejected.template";
 import { buildPulseSurveyReminderEmailHtml } from "../../core/email/templates/pulse-survey-reminder.template";
 import { buildPulseResultsSharedEmailHtml } from "../../core/email/templates/pulse-results-shared.template";
 import type {
@@ -178,6 +179,18 @@ export class NotificationsService {
         employee.userId,
         this.toNotificationDto(notification),
       );
+
+      await this.emailService.sendEmail({
+        to: employee.companyEmail,
+        subject: "Document needs changes",
+        html: buildOnboardingDocumentRejectedEmailHtml({
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          documentName,
+          rejectionNote: note,
+          onboardingUrl: `${this.resolveAppUrl()}/employee/onboarding`,
+        }),
+      });
     } catch {
       // Fire-and-forget: the review action must succeed even if notification delivery fails.
     }
