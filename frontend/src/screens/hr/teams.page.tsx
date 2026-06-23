@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Network, Plus, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { Button, Input, Skeleton } from "@/shared/ui";
+import { Button, Input, Skeleton, UserAvatar } from "@/shared/ui";
 import {
   DataTable,
   EmptyState,
@@ -25,7 +25,7 @@ import {
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
 import { OrgChartCanvas } from "@/modules/people/employees/components/org-chart/org-chart-canvas";
 import { EmployeeProfileSheet } from "@/modules/people/employees/components/employee-profile-sheet";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees, useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
@@ -37,16 +37,17 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function Avatar({ name, size = 7 }: { name: string; size?: 7 | 9 }) {
-  const dim = size === 9 ? "h-9 w-9 text-[11px]" : "h-7 w-7 text-[10px]";
+function Avatar({ name, src, size = 7 }: { name: string; src?: string | null; size?: 7 | 9 }) {
+  const dim = size === 9 ? "h-9 w-9" : "h-7 w-7";
+  const textSize = size === 9 ? "text-[11px]" : "text-[10px]";
   return (
-    <span
-      className={`flex flex-shrink-0 items-center justify-center rounded-full font-bold text-white ${dim}`}
-      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
+    <UserAvatar
+      src={src}
+      fallback={initials(name)}
+      className={`flex-shrink-0 ${dim}`}
+      fallbackClassName={`${textSize} font-bold text-white`}
+      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+    />
   );
 }
 
@@ -64,7 +65,7 @@ export default function TeamsPage() {
     loading: orgLoading,
     error: orgError,
     reload: orgReload,
-  } = useEmployees({ limit: 500 });
+  } = useAllEmployees();
 
   const [createOpen, setCreateOpen] = useState(false);
   // Open on the Teams tab when navigated back to with ?tab=teams (e.g. from a team detail page).
@@ -119,7 +120,7 @@ export default function TeamsPage() {
   const columns: Column<Team>[] = [
     {
       header: "Team name",
-      className: "min-w-[150px]",
+      className: "min-w-[200px]",
       sortable: true,
       sortKey: "name",
       cell: (team) => (
@@ -128,12 +129,12 @@ export default function TeamsPage() {
     },
     {
       header: "Team leaders",
-      className: "min-w-[200px] text-center",
+      className: "min-w-[150px] text-start",
       sortable: true,
       sortKey: "leader",
       cell: (team) => (
-        <div className="flex items-center justify-center gap-2">
-          <Avatar name={team.leader.fullName} />
+        <div className="flex items-center justify-start gap-2">
+          <Avatar name={team.leader.fullName} src={team.leader.avatarUrl} />
           <span className="truncate text-sm text-[color:var(--text-secondary)]">
             {team.leader.fullName}
           </span>
@@ -142,7 +143,7 @@ export default function TeamsPage() {
     },
     {
       header: "Members",
-      className: "min-w-[200px] text-center",
+      className: "min-w-[150px] text-center",
       sortable: true,
       sortKey: "members",
       cell: (team) => (
@@ -360,6 +361,16 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
     [filteredEmployees, visibleDepartmentNames],
   );
 
+  // Employees whose name matches the current search — their cards get a gradient-pink outline.
+  // Empty when not searching, so nothing is highlighted by default.
+  const matchedIds = useMemo(() => {
+    const query = debouncedSearch.trim().toLowerCase();
+    if (!query) return new Set<string>();
+    return new Set(
+      employees.filter((e) => e.fullName.toLowerCase().includes(query)).map((e) => e.id),
+    );
+  }, [employees, debouncedSearch]);
+
   // Ids of nodes that actually have children — the only ones that can be toggled / expanded.
   const parentIds = useMemo(() => {
     const ids = new Set<string>();
@@ -499,6 +510,7 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
             nodes={roots}
             expanded={effectiveExpanded}
             onToggle={toggle}
+            matchedIds={matchedIds}
             onOpenProfile={(id) => {
               const employee = employees.find((candidate) => candidate.id === id);
               if (employee) setSelected(employee);

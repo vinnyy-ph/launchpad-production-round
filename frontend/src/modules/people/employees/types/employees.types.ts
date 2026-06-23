@@ -43,6 +43,8 @@ export interface EmployeeListItem {
   lastName: string;
   fullName: string;
   companyEmail: string;
+  /** Google profile picture URL; null when the account has no photo (UI falls back to initials). */
+  avatarUrl: string | null;
   jobTitle: string | null;
   department: string | null;
   address: EmployeeAddress | null;
@@ -116,6 +118,20 @@ export interface EmployeeUpdateInput {
   department?: string | null;
   supervisorId?: string | null;
   status?: EmployeeStatus;
+}
+
+/**
+ * Fields an employee may edit on their OWN profile (PATCH /api/v1/employees/me). Excludes
+ * HR-controlled fields (company email, job title, department, supervisor, status) by design.
+ */
+export interface MyProfileUpdateInput {
+  firstName?: string;
+  lastName?: string;
+  middleName?: string | null;
+  personalEmail?: string | null;
+  birthday?: string | null;
+  address?: EmployeeAddressInput | null;
+  emergencyContact?: EmployeeEmergencyContactInput | null;
 }
 
 export interface EmployeeFilters {

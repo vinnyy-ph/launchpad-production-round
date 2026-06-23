@@ -30,6 +30,11 @@ export class ClearanceValidation {
     return { note };
   }
 
+  /** Validates the replace-signatory body — the new signatory's employee id. */
+  parseReplaceBody(body: Record<string, unknown>): { newSignatoryId: string } {
+    return { newSignatoryId: this.requireString(body.newSignatoryId, "newSignatoryId") };
+  }
+
   /** Extracts a non-empty trimmed string or throws with the field name. */
   private requireString(value: unknown, field: string): string {
     if (typeof value !== "string" || value.trim().length === 0) {

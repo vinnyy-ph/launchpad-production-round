@@ -11,4 +11,7 @@ export interface AppUser {
   employeeStatus: EmployeeStatus;
   email: string;
   displayName: string | null;
+  // Google profile picture URL from the signed-in Firebase account; null when the
+  // account has no photo (the UI then falls back to the default initials avatar).
+  avatarUrl: string | null;
 }

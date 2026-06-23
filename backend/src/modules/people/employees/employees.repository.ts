@@ -17,6 +17,7 @@ const employeeProfileInclude = {
       email: true,
       role: true,
       isActive: true,
+      avatarUrl: true,
     },
   },
   supervisor: {
@@ -79,6 +80,60 @@ const employeeProfileInclude = {
 type EmployeeProfileRecord = Prisma.EmployeeGetPayload<{
   include: typeof employeeProfileInclude;
 }>;
+
+/**
+ * Relations selected for directory list items (the list table and the org chart).
+ * Shared between the paginated `findMany` and the non-paginated `findAllForDirectory`
+ * so both produce the exact same record shape the service maps from.
+ */
+const employeeListInclude = {
+  // The Google profile picture lives on the linked User; selected so list rows
+  // (directory table, org chart, onboarding cases) can render the avatar.
+  user: {
+    select: {
+      avatarUrl: true,
+    },
+  },
+  department: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  supervisor: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+    },
+  },
+  address: {
+    select: {
+      address: true,
+      city: true,
+      province: true,
+      country: true,
+    },
+  },
+  emergencyContact: {
+    select: {
+      emergencyContactName: true,
+      emergencyContactNumber: true,
+    },
+  },
+  teamMemberships: {
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.EmployeeInclude;
 
 /**
  * Handles employee persistence queries and keeps Prisma-specific filtering out of controllers.
@@ -151,52 +206,25 @@ export class EmployeesRepository {
         skip,
         take: filters.limit,
         orderBy,
-        include: {
-          department: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          supervisor: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              companyEmail: true,
-              jobTitle: true,
-            },
-          },
-          address: {
-            select: {
-              address: true,
-              city: true,
-              province: true,
-              country: true,
-            },
-          },
-          emergencyContact: {
-            select: {
-              emergencyContactName: true,
-              emergencyContactNumber: true,
-            },
-          },
-          teamMemberships: {
-            include: {
-              team: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-          },
-        },
+        include: employeeListInclude,
       }),
       prisma.employee.count({ where }),
     ]);
 
     return { employees, total };
+  }
+
+  /**
+   * Returns every directory employee (no pagination) with the list-item relations, ordered by
+   * name. Drives the org chart, which needs the whole supervisor hierarchy in one payload —
+   * paginating would drop intermediate supervisors and break the tree.
+   */
+  async findAllForDirectory() {
+    return prisma.employee.findMany({
+      where: { user: { role: { in: EMPLOYEE_DIRECTORY_ROLES } } },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      include: employeeListInclude,
+    });
   }
 
   /**
@@ -467,17 +495,23 @@ export class EmployeesRepository {
           : { in: filters.departmentIds };
     }
 
-    if (filters.search) {
-      // Search covers identity and work-profile fields users commonly scan in employee lists.
-      where.OR = [
-        { firstName: { contains: filters.search, mode: "insensitive" } },
-        { middleName: { contains: filters.search, mode: "insensitive" } },
-        { lastName: { contains: filters.search, mode: "insensitive" } },
-        { companyEmail: { contains: filters.search, mode: "insensitive" } },
-        { personalEmail: { contains: filters.search, mode: "insensitive" } },
-        { jobTitle: { contains: filters.search, mode: "insensitive" } },
-        { department: { name: { contains: filters.search, mode: "insensitive" } } },
-      ];
+    if (filters.search?.trim()) {
+      // Match each whitespace-separated term against any identity / work-profile field, then AND
+      // the terms together. This makes a full-name query like "Jane Smith" match firstName "Jane"
+      // AND lastName "Smith" — no single column contains the whole string — while a single-term
+      // query still matches a name part, email, job title, or department as before.
+      const terms = filters.search.trim().split(/\s+/);
+      where.AND = terms.map((term) => ({
+        OR: [
+          { firstName: { contains: term, mode: "insensitive" } },
+          { middleName: { contains: term, mode: "insensitive" } },
+          { lastName: { contains: term, mode: "insensitive" } },
+          { companyEmail: { contains: term, mode: "insensitive" } },
+          { personalEmail: { contains: term, mode: "insensitive" } },
+          { jobTitle: { contains: term, mode: "insensitive" } },
+          { department: { name: { contains: term, mode: "insensitive" } } },
+        ],
+      }));
     }
 
     if (filters.teamIds?.length || filters.teamId || filters.team) {
