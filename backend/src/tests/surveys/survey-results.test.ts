@@ -368,12 +368,20 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     });
   });
 
-  it("suppresses the TOP-LEVEL (unfiltered) view of an anonymous survey with fewer than 3 responses", async () => {
-    const s = mockSurvey({ isAnonymous: true });
+  it("suppresses the TOP-LEVEL (unfiltered) anonymous view with fewer than 3 responses for a non-HR/root viewer", async () => {
+    const s = mockSurvey({ isAnonymous: true, visibility: "EVERYONE" });
     surveyFindFirstMock.mockResolvedValue(s);
 
-    // 2 responses, NO filter — must still be suppressed; the min-group rule applies to every view,
-    // not only filtered ones. (Regression guard for the top-level anonymity leak.)
+    // A normal (non-HR, non-root) viewer: the min-group rule applies to every view, not only
+    // filtered ones. (Regression guard for the top-level anonymity leak.)
+    employeeFindMock.mockResolvedValue({
+      id: "emp-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [],
+    });
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+
     surveyResponseFindManyMock.mockResolvedValue([
       { id: "res-1", answers: [{ questionId: "q-1", answerText: "a", answerData: null }] },
       { id: "res-2", answers: [{ questionId: "q-1", answerText: "b", answerData: null }] },
@@ -400,16 +408,28 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     expect(response.body.data.questions.length).toBeGreaterThan(0);
   });
 
-  it("returns { suppressed: true, questions: [] } when filtered group has fewer than 3 responses", async () => {
-    const s = mockSurvey({ isAnonymous: true });
+  it("returns { suppressed: true, questions: [] } when a filtered group has fewer than 3 responses (non-HR/root viewer)", async () => {
+    const s = mockSurvey({ isAnonymous: true, visibility: "EVERYONE" });
     surveyFindFirstMock.mockResolvedValue(s);
 
     // Team is large enough that the small-team overlay does NOT fire — this asserts the
     // response-count (MIN_GROUP) suppression, not the team-size rule.
     (prisma.team.findUnique as jest.Mock).mockResolvedValue({
+      id: "team-1",
+      name: "Team One",
       leaderId: "leader-emp",
+      leader: { id: "leader-emp", firstName: "L", lastName: "X", status: "ACTIVE" },
       _count: { members: 5 },
     });
+
+    // Non-HR member of team-1 (the filter restriction allows their own team).
+    employeeFindMock.mockResolvedValue({
+      id: "emp-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [{ teamId: "team-1" }],
+    });
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
 
     // Only 2 responses match the filter
     const responses = [
@@ -642,7 +662,11 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       expect(res.body.data.questions.length).toBeGreaterThan(0);
     });
 
-    it("still suppresses the unfiltered view for HR when the audience is large but few responded", async () => {
+    it("lets HR see below-threshold results even with a large audience (data-controller exception)", async () => {
+      // Per Fix 3: HR (and root) always see the underlying results below the min-group threshold —
+      // they cannot re-identify an anonymous respondent, and the guard exists to stop peer/
+      // supervisor re-identification, not the data controller. (Deliberate reversal of the
+      // prior "suppress for HR too" behavior.)
       surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
       surveyResponseFindManyMock.mockResolvedValue(twoResponses);
       surveyAudienceFindManyMock.mockResolvedValue([]);
@@ -650,7 +674,25 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       (prisma.surveyResponse.count as jest.Mock).mockResolvedValue(2);
 
       const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
-      expect(res.body.data.suppressed).toBe(true);
+      expect(res.body.data.suppressed).toBe(false);
+      expect(res.body.data.questions.length).toBeGreaterThan(0);
+    });
+
+    it("lets the org root node see below-threshold results (controlled exception)", async () => {
+      surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true, visibility: "EVERYONE" }));
+      employeeFindMock.mockResolvedValue({
+        id: "ceo",
+        userId: "ceo-user",
+        supervisorId: null, // root node
+        teamMemberships: [],
+      });
+      setAuthUser({ id: "ceo-user", role: "EMPLOYEE" });
+      surveyResponseFindManyMock.mockResolvedValue(twoResponses);
+      surveyAudienceFindManyMock.mockResolvedValue([]);
+
+      const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
+      expect(res.body.data.suppressed).toBe(false);
+      expect(res.body.data.questions.length).toBeGreaterThan(0);
     });
   });
 
@@ -739,5 +781,51 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
 
     const whereArg = surveyResponseFindManyMock.mock.calls[0][0].where;
     expect(whereArg.AND).toBeUndefined();
+  });
+
+  it("auto-lifts suppression for a non-HR viewer once the group reaches 3 responses (Fix 2)", async () => {
+    const s = mockSurvey({ isAnonymous: true, visibility: "EVERYONE" });
+    surveyFindFirstMock.mockResolvedValue(s);
+    employeeFindMock.mockResolvedValue({
+      id: "emp-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [],
+    });
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+    surveyResponseFindManyMock.mockResolvedValue([
+      { id: "r1", answers: [{ questionId: "q-1", answerText: "a", answerData: null }] },
+      { id: "r2", answers: [{ questionId: "q-1", answerText: "b", answerData: null }] },
+      { id: "r3", answers: [{ questionId: "q-1", answerText: "c", answerData: null }] },
+    ]);
+    surveyAudienceFindManyMock.mockResolvedValue([]);
+
+    const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
+    expect(res.body.data.suppressed).toBe(false);
+  });
+
+  it("a supervisor below the audience anchor sees a supervisor-based survey scoped to their own subtree (Fix 4)", async () => {
+    const s = mockSurvey({ visibility: "SUPERVISOR_BASED", isAnonymous: false });
+    surveyFindFirstMock.mockResolvedValue(s);
+    // Mid-chain manager (NOT the issuing/anchor supervisor); their report r1 is in the audience.
+    employeeFindMock.mockResolvedValue({
+      id: "mid-mgr",
+      userId: "test-user-id",
+      supervisorId: "vp-id",
+      teamMemberships: [],
+    });
+    mockCreateOrgChains.mockReturnValue({
+      downwardChain: jest.fn().mockResolvedValue(["r1", "r2"]),
+    });
+    surveyAudienceFindManyMock.mockResolvedValue([{ employeeId: "r1" }]);
+    surveyResponseFindManyMock.mockResolvedValue([]);
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+
+    await request(app).get(`${URL}/survey-001/results`).expect(200);
+    // Access granted via downward-chain overlap, and data scoped to their OWN subtree.
+    const whereArg = surveyResponseFindManyMock.mock.calls[0][0].where;
+    expect(whereArg.AND).toEqual(
+      expect.arrayContaining([{ respondentSupervisorId: { in: ["mid-mgr", "r1", "r2"] } }]),
+    );
   });
 });
