@@ -135,7 +135,7 @@ Real-time notifications authenticate via Firebase token in the handshake (`backe
 | Transit encryption     | Neon connection strings require `sslmode=require` (`backend/.env.example`)                                                                      |
 | PII minimization       | Profile fields redacted based on viewer relationship (`employees.service.ts`)                                                                   |
 | Survey anonymity       | `response-firewall` removes employee identifiers from anonymous pulse responses before persistence                                              |
-| Sensitive file storage | Evaluation supporting documents: Cloudinary `type: "authenticated"`, signed download URLs (`backend/src/core/cloudinary/cloudinary.service.ts`) |
+| Sensitive file storage | Onboarding docs: Cloudinary `authenticated` + signed view URLs; evaluation PDFs: same pattern | `backend/src/core/cloudinary/cloudinary.service.ts` |
 | Error leakage          | Production 500 responses return generic message; stack traces logged only when `NODE_ENV !== "production"` (`backend/src/app.ts`)               |
 
 
@@ -360,7 +360,6 @@ Close with [Section 10](#10-known-limitations-and-remediation-tracker) — docum
 
 | Gap                                           | Risk                                 | Evidence                          | Remediation (planned)                                    | Owner | Priority |
 | --------------------------------------------- | ------------------------------------ | --------------------------------- | -------------------------------------------------------- | ----- | -------- |
-| Onboarding docs use public Cloudinary URLs    | URL leakage if shared                | `cloudinary.service.ts`           | Align sensitive docs with authenticated delivery pattern | TBD   | Medium   |
 | No `trust proxy` behind Railway               | Rate limit bypass / wrong client IP  | `rate-limit.middleware.ts`        | Set `app.set('trust proxy', 1)` in production            | TBD   | Low      |
 | Auth limiter same as global (100/15min)       | Brute-force auth attempts            | `rate-limit.middleware.ts`        | Stricter limit on `/api/auth`                            | TBD   | Low      |
 | No SAST/DAST/dependency scan in CI            | Undetected vulnerabilities           | `.github/workflows/ci.yaml`       | Add `npm audit`, CodeQL, or Dependabot                   | TBD   | Medium   |
@@ -383,6 +382,7 @@ Close with [Section 10](#10-known-limitations-and-remediation-tracker) — docum
 - `backend/src/modules/auth/auth.service.ts` — Session binding
 - `backend/src/core/socket/socket.service.ts` — Socket.IO auth
 - `backend/src/core/cloudinary/cloudinary.service.ts` — Upload delivery modes
+- `backend/src/core/cloudinary/onboarding-document-storage.ts` — Onboarding storage key format
 - `backend/src/core/email/email.service.ts` — SMTP (dev) / Resend (prod)
 - `backend/src/core/database/prisma.service.ts` — Database client
 - `frontend/src/shared/lib/api-client.ts` — Bearer token attachment

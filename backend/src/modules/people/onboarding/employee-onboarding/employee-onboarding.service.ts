@@ -220,7 +220,7 @@ export class EmployeeOnboardingService {
       }
     }
 
-    const fileUrl = await this.cloudinaryService.uploadOnboardingDocument(
+    const storageKey = await this.cloudinaryService.uploadOnboardingDocument(
       file.buffer,
       file.originalname,
       file.mimetype,
@@ -229,7 +229,7 @@ export class EmployeeOnboardingService {
     const submission = await this.employeeOnboardingRepository.createDocumentSubmission(
       record.id,
       params.documentId,
-      fileUrl,
+      storageKey,
     );
 
     return {
@@ -239,7 +239,9 @@ export class EmployeeOnboardingService {
         id: submission.id,
         documentId: submission.documentId,
         documentName: submission.document.documentName,
-        fileUrl: submission.fileUrl,
+        fileUrl: this.cloudinaryService.resolveOnboardingDocumentViewUrl(
+          submission.fileUrl,
+        ),
         status: this.toDocumentStatusDto(submission.status),
         rejectionNote: submission.rejectionNote,
         submittedAt: submission.submittedAt.toISOString(),
@@ -456,7 +458,9 @@ export class EmployeeOnboardingService {
         latestSubmission: latestSubmission
           ? {
               id: latestSubmission.id,
-              fileUrl: latestSubmission.fileUrl,
+              fileUrl: this.cloudinaryService.resolveOnboardingDocumentViewUrl(
+                latestSubmission.fileUrl,
+              ),
               status: this.toDocumentStatusDto(latestSubmission.status),
               rejectionNote: latestSubmission.rejectionNote,
               submittedAt: latestSubmission.submittedAt.toISOString(),

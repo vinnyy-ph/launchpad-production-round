@@ -20,6 +20,10 @@ jest.mock("../../../core/cloudinary", () => ({
   CloudinaryService: jest.fn().mockImplementation(() => ({
     uploadOnboardingDocument: (...args: unknown[]) =>
       uploadOnboardingDocumentMock(...args),
+    resolveOnboardingDocumentViewUrl: (stored: string) =>
+      stored.startsWith("http")
+        ? stored
+        : `https://signed.example.test/${stored}`,
   })),
 }));
 
@@ -47,9 +51,7 @@ describe("POST /api/v1/employee-onboarding/documents/:documentId/submit", () => 
   beforeEach(() => {
     resetEmployeeOnboardingMocks();
     uploadOnboardingDocumentMock.mockReset();
-    uploadOnboardingDocumentMock.mockResolvedValue(
-      "https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.pdf",
-    );
+    uploadOnboardingDocumentMock.mockResolvedValue("onboarding/nbi-clearance|image");
   });
 
   it("creates a pending document submission", async () => {

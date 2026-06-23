@@ -1,5 +1,6 @@
 import type { User } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
+import { CloudinaryService } from "../../../core/cloudinary";
 import { downwardChain, upwardChain } from "../../shared/org";
 import { NotificationsService } from "../../notifications/notifications.service";
 import type {
@@ -13,6 +14,16 @@ import type {
 } from "./dto";
 import { OffboardingRepository } from "./offboarding.repository";
 import type { OffboardingRecordWithRelations } from "./offboarding.types";
+
+const cloudinaryService = new CloudinaryService();
+
+function resolveAttachmentUrl(url: string | null | undefined): string | null {
+  if (!url) {
+    return null;
+  }
+
+  return cloudinaryService.resolveOnboardingDocumentViewUrl(url);
+}
 
 /** Maps a persisted offboarding record (with relations) to the detail DTO. */
 export function toOffboardingDetailDto(
@@ -36,7 +47,7 @@ export function toOffboardingDetailDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
-    attachmentUrl: record.attachmentUrl ?? null,
+    attachmentUrl: resolveAttachmentUrl(record.attachmentUrl),
     createdAt: record.createdAt.toISOString(),
     completedAt: record.completedAt?.toISOString() ?? null,
     signatureRequests: record.signatureRequests.map((request) => ({
@@ -76,7 +87,7 @@ function toOffboardingListItemDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
-    attachmentUrl: record.attachmentUrl ?? null,
+    attachmentUrl: resolveAttachmentUrl(record.attachmentUrl),
     signedCount,
     totalCount,
     createdAt: record.createdAt.toISOString(),
