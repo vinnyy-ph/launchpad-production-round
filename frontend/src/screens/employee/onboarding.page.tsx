@@ -33,8 +33,8 @@ import type {
 import { DocumentUploadRow } from "@/modules/people/onboarding/components/documents/document-upload";
 import {
   fileAcceptAttribute,
-  MAX_ONBOARDING_FILE_SIZE_BYTES,
   parseAllowedFileTypes,
+  validateOnboardingFile,
 } from "@/modules/people/onboarding/constants/allowed-file-types";
 
 import { queryKeys } from "@/shared/lib/query-keys";
@@ -128,17 +128,6 @@ function fileNameFromUrl(url?: string | null): string | null {
   } catch {
     return base;
   }
-}
-
-function fileExtension(name: string): string {
-  const dot = name.lastIndexOf(".");
-  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  const mb = bytes / (1024 * 1024);
-  return `${Number.isInteger(mb) ? mb : mb.toFixed(1)} MB`;
 }
 
 // ─── small presentational pieces ──────────────────────────────────────────────
@@ -268,17 +257,13 @@ function ReviewDocumentRow({
   const allowed = parseAllowedFileTypes(allowedFileTypes ?? "pdf,jpg,jpeg,png");
   const accept = fileAcceptAttribute(allowedFileTypes ?? "pdf,jpg,jpeg,png");
 
-  function handleFileChange(file: File | undefined) {
+  async function handleFileChange(file: File | undefined) {
     if (!file || !onReupload) return;
 
-    if (file.size > MAX_ONBOARDING_FILE_SIZE_BYTES) {
-      toast.error(`File is too large. Maximum size is ${formatFileSize(MAX_ONBOARDING_FILE_SIZE_BYTES)}.`);
-      return;
-    }
-
-    const ext = fileExtension(file.name);
-    if (!allowed.includes(ext as (typeof allowed)[number])) {
-      toast.error(`This file type is not allowed. Use: ${allowed.join(", ")}.`);
+    const validationError = await validateOnboardingFile(file, allowed);
+    if (validationError) {
+      toast.error(validationError);
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
 
@@ -318,7 +303,7 @@ function ReviewDocumentRow({
             accept={accept}
             className="sr-only"
             disabled={reuploading}
-            onChange={(event) => handleFileChange(event.target.files?.[0])}
+            onChange={(event) => void handleFileChange(event.target.files?.[0])}
           />
           <div className="ob-review-doc-reason">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.8} aria-hidden="true" />
