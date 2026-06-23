@@ -57,14 +57,14 @@ export default function TeamsPage() {
   const canManage = appUser?.role === "ADMIN" || appUser?.role === "HR";
 
   const { teams, loading, error, reload } = useTeams();
-  const { employees } = useEmployees({ status: "active", limit: 100 });
+  const { employees } = useEmployees({ status: "active", limit: 500 });
   // Whole-organization list (all statuses) for the supervisor-hierarchy org chart.
   const {
     employees: orgEmployees,
     loading: orgLoading,
     error: orgError,
     reload: orgReload,
-  } = useEmployees({ limit: 100 });
+  } = useEmployees({ limit: 500 });
 
   const [createOpen, setCreateOpen] = useState(false);
   // Open on the Teams tab when navigated back to with ?tab=teams (e.g. from a team detail page).
