@@ -9,6 +9,7 @@ import {
 } from "@/modules/people/offboarding";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { StatCard, DataTable, type Column, EmptyState, StatusBadge } from "@/shared/ui/patterns";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ interface TransitionRow {
   key: string;
   name: string;
   jobTitle: string;
+  avatarUrl: string | null;
   stage: "ONBOARDING" | "OFFBOARDING";
   detail: string;
 }
@@ -57,6 +59,7 @@ export default function HierarchyStatusPage() {
         key: `on-${e.employeeId}`,
         name: `${e.firstName} ${e.lastName}`.trim(),
         jobTitle: e.jobTitle ?? "—",
+        avatarUrl: e.avatarUrl,
         stage: "ONBOARDING",
         detail: `Docs ${ob.documentsSubmitted}/${ob.documentsRequired} · Fields ${ob.customFieldsFilled}/${ob.customFieldsRequired}`,
       });
@@ -69,6 +72,7 @@ export default function HierarchyStatusPage() {
         key: `off-${c.id}`,
         name: `${c.employee.firstName} ${c.employee.lastName}`.trim(),
         jobTitle: c.employee.jobTitle ?? "—",
+        avatarUrl: c.employee.avatarUrl,
         stage: "OFFBOARDING",
         detail: `Last day ${formatDate(c.effectiveDate)} · ${c.signedCount}/${c.totalCount} cleared`,
       });
@@ -90,13 +94,15 @@ export default function HierarchyStatusPage() {
       header: "Name",
       cell: (row) => (
         <div className="flex items-center gap-3">
-          <span
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-            style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-            aria-hidden="true"
-          >
-            {initials(row.name)}
-          </span>
+          <UserAvatar
+            src={row.avatarUrl}
+            fallback={initials(row.name)}
+            className="h-8 w-8"
+            fallbackClassName="text-xs font-bold text-white"
+            fallbackStyle={{
+              background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+            }}
+          />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{row.name}</p>
             <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.jobTitle}</p>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { RotateCcw, LogOut } from "lucide-react";
+import { RotateCcw, LogOut, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
@@ -15,12 +15,20 @@ import {
   ConfirmProvider,
   useConfirm,
   Combobox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   FormField,
   Skeleton,
+  UserAvatar,
 } from "@/shared/ui";
 import {
   useOffboarding,
   useReassignOffboarding,
+  useReplaceClearanceSignatory,
   useResetClearance,
 } from "@/modules/people/offboarding";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
@@ -94,6 +102,7 @@ function OffboardingDetailInner() {
   const { offboarding, loading, error, reload } = useOffboarding(id);
   const { reset, resetting } = useResetClearance();
   const confirm = useConfirm();
+  const [replaceTarget, setReplaceTarget] = useState<SignatureRequest | null>(null);
 
   // Topbar breadcrumb: Organization › People › Offboarding › {employee}.
   usePageBreadcrumb(offboarding ? [fullName(offboarding.employee)] : []);
@@ -157,12 +166,15 @@ function OffboardingDetailInner() {
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-4">
-          <span
-            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-[color:var(--text-primary)]"
-            style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-          >
-            {initials(employeeName)}
-          </span>
+          <UserAvatar
+            src={employee.avatarUrl}
+            fallback={initials(employeeName)}
+            className="h-12 w-12"
+            fallbackClassName="text-sm font-bold text-[color:var(--text-primary)]"
+            fallbackStyle={{
+              background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+            }}
+          />
           <div>
             <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
               {employeeName}
@@ -257,17 +269,27 @@ function OffboardingDetailInner() {
                     </p>
                   )}
                 </div>
-                {req.status !== "PENDING" && (
+                {offboarding.status === "IN_PROGRESS" && (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
                       variant="ghost"
                       size="sm"
-                      disabled={resetting}
-                      onClick={() => void handleReset(req)}
+                      onClick={() => setReplaceTarget(req)}
                     >
-                      <RotateCcw className="h-4 w-4" />
-                      Reset
+                      <UserCog className="h-4 w-4" />
+                      Replace
                     </Button>
+                    {req.status !== "PENDING" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={resetting}
+                        onClick={() => void handleReset(req)}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Reset
+                      </Button>
+                    )}
                   </div>
                 )}
               </li>
@@ -280,7 +302,95 @@ function OffboardingDetailInner() {
       {offboarding.status === "IN_PROGRESS" && (
         <ReassignSection offboarding={offboarding} />
       )}
+
+      <ReplaceSignatoryDialog
+        request={replaceTarget}
+        offboardeeId={employee.id}
+        onClose={() => setReplaceTarget(null)}
+      />
     </div>
+  );
+}
+
+// ─── replace-signatory dialog ─────────────────────────────────────────────────
+
+/**
+ * Swaps the signatory on an in-progress clearance item (e.g. the original signatory left).
+ * The item resets to pending and the new signatory is notified. Excludes the offboardee and
+ * the current signatory from the picker.
+ */
+function ReplaceSignatoryDialog({
+  request,
+  offboardeeId,
+  onClose,
+}: {
+  request: SignatureRequest | null;
+  offboardeeId: string;
+  onClose: () => void;
+}) {
+  const [newSignatoryId, setNewSignatoryId] = useState<string>("");
+  const { replace, replacing } = useReplaceClearanceSignatory();
+  const { employees } = useEmployees({ status: "active", limit: 200 });
+
+  const open = request !== null;
+
+  const options = employees
+    .filter((e) => e.id !== offboardeeId && e.id !== request?.signatory.id)
+    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+
+  async function handleReplace() {
+    if (!request || !newSignatoryId) return;
+    try {
+      await replace({ requestId: request.id, newSignatoryId });
+      toast.success("Signatory replaced. The new signatory has been notified.");
+      setNewSignatoryId("");
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not replace the signatory.");
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (replacing) return;
+        if (!next) {
+          setNewSignatoryId("");
+          onClose();
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Replace signatory</DialogTitle>
+          <DialogDescription>
+            {request ? `Reassign "${request.purpose}" to another employee. ` : ""}
+            This resets the item to pending and notifies the new signatory.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-2">
+          <FormField label="New signatory" required>
+            <Combobox
+              options={options}
+              value={newSignatoryId}
+              onChange={(v) => setNewSignatoryId(v)}
+              placeholder="Choose an employee…"
+              searchPlaceholder="Search employees…"
+              emptyText="No employees available."
+            />
+          </FormField>
+        </div>
+        <DialogFooter>
+          <Button variant="secondary" onClick={onClose} disabled={replacing}>
+            Cancel
+          </Button>
+          <Button onClick={() => void handleReplace()} disabled={!newSignatoryId || replacing}>
+            {replacing ? "Replacing…" : "Replace signatory"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

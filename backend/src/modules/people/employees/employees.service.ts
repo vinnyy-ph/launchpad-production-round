@@ -8,6 +8,7 @@ import type {
   EmployeeListItemResponseDto,
   EmployeeStatusDto,
   GetEmployeeProfileParamsDto,
+  ListAllEmployeesResponseDto,
   ListEmployeesQueryDto,
   ListEmployeesResponseDto,
   RedactedEmployeeProfileDto,
@@ -76,6 +77,26 @@ export class EmployeesService {
   }
 
   /**
+   * Returns the entire directory in one non-paginated payload for the org chart.
+   * Same redaction rules as the list: HR/Admin get full fields, everyone else a redacted item.
+   */
+  async listAllEmployees(
+    viewer: EmployeeViewerContext,
+  ): Promise<ListAllEmployeesResponseDto> {
+    const isPrivileged = PRIVILEGED_VIEWER_ROLES.includes(viewer.role);
+    const employees = await this.employeesRepository.findAllForDirectory();
+
+    return {
+      success: true,
+      data: employees.map((employee) =>
+        isPrivileged
+          ? this.toListItemResponse(employee)
+          : this.toRedactedListItemResponse(employee),
+      ),
+    };
+  }
+
+  /**
    * Returns an employee profile, redacted per the caller's relationship to the subject.
    * Full profile for Admin, HR, or the subject themselves; redacted profile for everyone
    * else (supervisors of the subject and any other authenticated peer). Redaction is applied
@@ -137,6 +158,24 @@ export class EmployeesService {
     }
 
     throw new Error("Profile not accessible");
+  }
+
+  /**
+   * Updates the caller's OWN profile (self-service). Resolves the employee from the auth user,
+   * then applies the already field-restricted update through the shared update path so the same
+   * validation and activity logging apply. The caller is recorded as the editor.
+   */
+  async updateMyProfile(
+    userId: string,
+    update: UpdateEmployeeProfileRequestDto,
+  ): Promise<UpdateEmployeeProfileResponseDto> {
+    const me = await this.employeesRepository.findIdentityByUserId(userId);
+
+    if (!me) {
+      throw new Error("Employee not found");
+    }
+
+    return this.updateEmployeeProfile({ employeeId: me.id }, update, userId);
   }
 
   /**
@@ -235,6 +274,7 @@ export class EmployeesService {
       lastName: employee.lastName,
       middleName: employee.middleName,
       fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
+      avatarUrl: employee.user?.avatarUrl ?? null,
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
       address: this.toAddressResponse(employee.address),
@@ -290,6 +330,7 @@ export class EmployeesService {
       lastName: employee.lastName,
       middleName: employee.middleName,
       fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
+      avatarUrl: employee.user.avatarUrl,
       personalEmail: employee.personalEmail,
       birthday: employee.birthday,
       address: this.toAddressResponse(employee.address),
@@ -350,6 +391,7 @@ export class EmployeesService {
       lastName: employee.lastName,
       middleName: employee.middleName,
       fullName: this.buildFullName(employee.firstName, employee.middleName, employee.lastName),
+      avatarUrl: employee.user.avatarUrl,
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
       status: this.toStatusDto(employee.status),

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { breadcrumbForPath, findNav, type NavIcon } from "./nav-config";
 import { useExtraBreadcrumbs } from "./breadcrumb-context";
@@ -270,12 +271,13 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             aria-haspopup="menu"
             aria-label="Account menu"
           >
-            <span
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9D7FF] text-[12px] font-bold tracking-[0.01em] text-white"
-              style={{ background: "linear-gradient(135deg, #1f2a5c 0%, #4f46e5 100%)" }}
-            >
-              {initials}
-            </span>
+            <UserAvatar
+              src={appUser?.avatarUrl}
+              fallback={initials}
+              className="h-9 w-9 border-2 border-[#C9D7FF]"
+              fallbackClassName="text-[12px] font-bold tracking-[0.01em] text-white"
+              fallbackStyle={{ background: "linear-gradient(135deg, #1f2a5c 0%, #4f46e5 100%)" }}
+            />
             <span className="hidden min-w-0 text-left md:block">
               <span className="block max-w-[180px] truncate text-[13px] font-semibold leading-4 text-[color:var(--text-primary)]">
                 {displayName}

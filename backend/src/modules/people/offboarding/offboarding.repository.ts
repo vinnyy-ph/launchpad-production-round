@@ -7,9 +7,12 @@ const detailInclude = {
     select: {
       id: true,
       firstName: true,
+      middleName: true,
       lastName: true,
+      companyEmail: true,
       jobTitle: true,
       department: { select: { name: true } },
+      user: { select: { avatarUrl: true } },
     },
   },
   initiatedBy: {

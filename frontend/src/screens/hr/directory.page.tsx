@@ -5,6 +5,7 @@ import { FileSpreadsheet, Plus, Settings2, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { Input } from "@/shared/ui/primitives/input";
 import {
   Tooltip,
@@ -192,12 +193,15 @@ export default function DirectoryPage() {
       sortKey: "employeeName",
       cell: (employee) => (
         <div className="flex items-center gap-3">
-          <span
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-[color:var(--text-primary)]"
-            style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-          >
-            {initials(employee)}
-          </span>
+          <UserAvatar
+            src={employee.avatarUrl}
+            fallback={initials(employee)}
+            className="h-8 w-8"
+            fallbackClassName="text-[11px] font-bold text-[color:var(--text-primary)]"
+            fallbackStyle={{
+              background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+            }}
+          />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
               {fullName(employee)}
@@ -272,7 +276,7 @@ export default function DirectoryPage() {
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/directory/onboarding/settings")}
+                  onClick={() => router.push("/hr/configurations?tab=onboarding")}
                 >
                   <Settings2 aria-hidden="true" /> Onboarding setup
                 </Button>
@@ -289,9 +293,18 @@ export default function DirectoryPage() {
               </>
             ) : null}
             {tab === "offboarding" ? (
-              <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
-                <Plus /> Initiate offboarding
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => router.push("/hr/configurations?tab=clearances")}
+                >
+                  <Settings2 aria-hidden="true" /> Clearance setup
+                </Button>
+                <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
+                  <Plus /> Initiate offboarding
+                </Button>
+              </>
             ) : null}
           </div>
         }

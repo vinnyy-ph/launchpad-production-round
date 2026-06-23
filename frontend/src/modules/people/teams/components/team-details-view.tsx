@@ -23,6 +23,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  UserAvatar,
   useConfirm,
 } from "@/shared/ui";
 import { EmptyState, ErrorState } from "@/shared/ui/patterns";
@@ -51,15 +52,15 @@ function initials(name: string): string {
   return (parts[0]?.slice(0, 2) ?? "?").toUpperCase();
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, src }: { name: string; src?: string | null }) {
   return (
-    <span
-      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-      style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
+    <UserAvatar
+      src={src}
+      fallback={initials(name)}
+      className="h-9 w-9"
+      fallbackClassName="text-[11px] font-bold text-white"
+      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+    />
   );
 }
 
@@ -80,7 +81,7 @@ function PersonRow({
       aria-label={`View ${person.fullName}'s profile`}
       className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[color:var(--bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Avatar name={person.fullName} />
+      <Avatar name={person.fullName} src={person.avatarUrl} />
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
           {person.fullName}

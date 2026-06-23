@@ -21,6 +21,8 @@ export interface EmployeeProfileDto {
   lastName: string;
   middleName: string | null;
   fullName: string;
+  /** Google profile picture URL; null when the account has no photo. */
+  avatarUrl: string | null;
   personalEmail: string | null;
   birthday: Date | null;
   address: EmployeeAddressResponseDto | null;
@@ -49,6 +51,8 @@ export interface RedactedEmployeeProfileDto {
   lastName: string;
   middleName: string | null;
   fullName: string;
+  /** Google profile picture URL; null when the account has no photo. */
+  avatarUrl: string | null;
   jobTitle: string | null;
   department: string | null;
   status: EmployeeStatusDto;
