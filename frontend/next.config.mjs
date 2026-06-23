@@ -21,6 +21,29 @@ const nextConfig = {
       { source: "/api/:path*", destination: `${API_PROXY_TARGET}/api/:path*` },
     ];
   },
+  async headers() {
+    // Baseline hardening. A full script-src CSP is intentionally omitted: Next's
+    // hydration relies on inline scripts, which would need a nonce-based CSP (middleware).
+    // These directives add clickjacking / base-tag / plugin protection without that work.
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

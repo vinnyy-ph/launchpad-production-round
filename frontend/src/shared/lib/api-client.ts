@@ -55,6 +55,21 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}): Promi
     },
   });
   if (!res.ok) {
+    // A revoked/expired credential won't recover on retry — sign out so the auth
+    // listener clears the session and routes back to /login instead of leaving stale UI.
+    if (res.status === 401 && typeof window !== "undefined") {
+      void (async () => {
+        try {
+          const [{ signOut }, { getFirebaseAuth }] = await Promise.all([
+            import("firebase/auth"),
+            import("./firebase"),
+          ]);
+          await signOut(getFirebaseAuth());
+        } catch {
+          // Already signed out or Firebase unavailable — nothing to clean up.
+        }
+      })();
+    }
     const body = (await res.json().catch(() => ({}))) as {
       message?: string;
       error?: string;

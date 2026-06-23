@@ -16,8 +16,9 @@ const NOT_ANSWERED = (
   <p className="text-sm italic text-[color:var(--text-quaternary)]">Not answered</p>
 );
 
-/** Renders the employee's own answer for one question, read-only, per type. */
-function AnswerValue({ a }: { a: MyAnswer }) {
+/** Renders one answer for a question, read-only, per type. Shared by the employee's own-answers
+ *  view and the authority-gated individual drill-down. */
+export function AnswerValue({ a }: { a: MyAnswer }) {
   switch (a.type) {
     case "SHORT_ANSWER":
     case "LONG_ANSWER":

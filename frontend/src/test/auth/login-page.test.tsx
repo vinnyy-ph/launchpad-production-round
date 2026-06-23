@@ -42,7 +42,7 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
     render(<LoginPage />);
 
-    await user.click(screen.getByRole("checkbox", { name: /remember me on this device/i }));
+    await user.click(screen.getByRole("checkbox", { name: /remember me/i }));
     await user.click(screen.getByRole("button", { name: /continue with google/i }));
 
     expect(signInWithGoogle).toHaveBeenCalledWith(true);

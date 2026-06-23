@@ -1078,6 +1078,7 @@ export function EmployeeDetailsModal({
               <iframe
                 src={viewingDocument.fileUrl}
                 title={viewingDocument.documentName}
+                sandbox="allow-same-origin"
                 className="h-full w-full border-0 bg-white"
               />
             )}
