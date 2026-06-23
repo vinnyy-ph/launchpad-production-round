@@ -43,6 +43,7 @@ import {
   deriveStatus,
 } from "../types/surveys.types";
 import { ResultsFilters } from "./results/results-filters";
+import { RespondentsDrilldown } from "./results/respondents-drilldown";
 import { AiInsightsPanel } from "./ai-insights-panel";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -603,6 +604,13 @@ export function SurveyResults({
               ))}
             </div>
           )}
+
+          {/* Authority-gated individual drill-down (named surveys only). Self-hides when the
+              viewer has no one to drill into — the server is the authority. */}
+          <RespondentsDrilldown
+            occurrenceId={currentOccurrenceId}
+            isAnonymous={results.isAnonymous}
+          />
         </>
       )}
     </div>
