@@ -31,6 +31,11 @@ import type {
   OnboardingProfile,
 } from "@/modules/people/onboarding/types/onboarding.types";
 import { DocumentUploadRow } from "@/modules/people/onboarding/components/documents/document-upload";
+import {
+  fileAcceptAttribute,
+  MAX_ONBOARDING_FILE_SIZE_BYTES,
+  parseAllowedFileTypes,
+} from "@/modules/people/onboarding/constants/allowed-file-types";
 
 import { queryKeys } from "@/shared/lib/query-keys";
 import { isStrictPhilippineMobile, toE164 } from "@/shared/lib/phone";
@@ -123,6 +128,17 @@ function fileNameFromUrl(url?: string | null): string | null {
   } catch {
     return base;
   }
+}
+
+function fileExtension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  const mb = bytes / (1024 * 1024);
+  return `${Number.isInteger(mb) ? mb : mb.toFixed(1)} MB`;
 }
 
 // ─── small presentational pieces ──────────────────────────────────────────────
@@ -226,22 +242,49 @@ function reviewDocumentBadge(
 }
 
 function ReviewDocumentRow({
+  documentId,
   documentName,
   filename,
+  allowedFileTypes,
   status,
   hasStagedFile,
   rejectionNote,
+  reuploading,
   onReupload,
 }: {
+  documentId: string;
   documentName: string;
   filename: string;
+  allowedFileTypes?: string;
   status: OnboardingDocStatus | null;
   hasStagedFile: boolean;
   rejectionNote?: string | null;
-  onReupload?: () => void;
+  reuploading?: boolean;
+  onReupload?: (file: File) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const badge = reviewDocumentBadge(status, hasStagedFile);
   const needsChanges = status === "rejected";
+  const allowed = parseAllowedFileTypes(allowedFileTypes ?? "pdf,jpg,jpeg,png");
+  const accept = fileAcceptAttribute(allowedFileTypes ?? "pdf,jpg,jpeg,png");
+
+  function handleFileChange(file: File | undefined) {
+    if (!file || !onReupload) return;
+
+    if (file.size > MAX_ONBOARDING_FILE_SIZE_BYTES) {
+      toast.error(`File is too large. Maximum size is ${formatFileSize(MAX_ONBOARDING_FILE_SIZE_BYTES)}.`);
+      return;
+    }
+
+    const ext = fileExtension(file.name);
+    if (!allowed.includes(ext as (typeof allowed)[number])) {
+      toast.error(`This file type is not allowed. Use: ${allowed.join(", ")}.`);
+      return;
+    }
+
+    onReupload(file);
+    if (inputRef.current) inputRef.current.value = "";
+  }
 
   return (
     <div className={needsChanges ? "ob-review-doc-row ob-review-doc-row--changes" : "ob-review-doc-row"}>
@@ -268,14 +311,23 @@ function ReviewDocumentRow({
       </div>
       {needsChanges ? (
         <div className="ob-review-doc-detail">
+          <input
+            ref={inputRef}
+            id={`review-doc-file-${documentId}`}
+            type="file"
+            accept={accept}
+            className="sr-only"
+            disabled={reuploading}
+            onChange={(event) => handleFileChange(event.target.files?.[0])}
+          />
           <div className="ob-review-doc-reason">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.8} aria-hidden="true" />
             <span>{rejectionNote ?? "HR asked for another upload before they can finish reviewing."}</span>
           </div>
           {onReupload ? (
-            <Button type="button" size="sm" onClick={onReupload}>
+            <Button type="button" size="sm" disabled={reuploading} onClick={() => inputRef.current?.click()}>
               <Upload className="h-4 w-4" strokeWidth={1.7} aria-hidden="true" />
-              Re-upload
+              {reuploading ? "Uploading..." : "Re-upload"}
             </Button>
           ) : null}
         </div>
@@ -381,11 +433,13 @@ function AccountUnderReviewStatus({
   documents,
   allDocsApproved,
   isComplete = false,
+  uploadingDocumentId,
   onReupload,
 }: {
   documents: Array<{
     id: string;
     documentName: string;
+    allowedFileTypes: string;
     latestSubmission: {
       fileUrl: string;
       status: OnboardingDocStatus;
@@ -396,7 +450,8 @@ function AccountUnderReviewStatus({
   }>;
   allDocsApproved: boolean;
   isComplete?: boolean;
-  onReupload?: () => void;
+  uploadingDocumentId?: string | null;
+  onReupload?: (documentId: string, file: File) => void;
 }) {
   const docsApproved = documents.filter((d) => d.latestSubmission?.status === "approved").length;
   const docsRejected = documents.filter((d) => d.latestSubmission?.status === "rejected").length;
@@ -504,12 +559,19 @@ function AccountUnderReviewStatus({
               {documents.map((doc) => (
                 <ReviewDocumentRow
                   key={doc.id}
+                  documentId={doc.id}
                   documentName={doc.documentName}
                   filename={fileNameFromUrl(doc.latestSubmission?.fileUrl) ?? "—"}
+                  allowedFileTypes={doc.allowedFileTypes}
                   status={doc.latestSubmission?.status ?? null}
                   hasStagedFile={false}
                   rejectionNote={doc.latestSubmission?.rejectionNote}
-                  onReupload={doc.latestSubmission?.status === "rejected" ? onReupload : undefined}
+                  reuploading={uploadingDocumentId === doc.id}
+                  onReupload={
+                    doc.latestSubmission?.status === "rejected"
+                      ? (file) => onReupload?.(doc.id, file)
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -551,15 +613,12 @@ export default function EmployeeOnboardingPage() {
   const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
   const [finishing, setFinishing] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [reviewActionDismissed, setReviewActionDismissed] = useState(false);
+  const [inlineUploadingDocumentId, setInlineUploadingDocumentId] = useState<string | null>(null);
 
   const didInitStep = useRef(false);
 
   useEffect(() => {
     if (!status) return;
-    if ((status.documents ?? []).every((d) => d.latestSubmission?.status !== "rejected")) {
-      setReviewActionDismissed(false);
-    }
 
     setFields(status.customFields ?? []);
     const profile = status.profile;
@@ -723,6 +782,20 @@ export default function EmployeeOnboardingPage() {
     }
   }
 
+  async function handleInlineDocumentReupload(documentId: string, file: File): Promise<void> {
+    setInlineUploadingDocumentId(documentId);
+    try {
+      await submitDocument(documentId, file);
+      toast.success("Document re-uploaded for review.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.mine });
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not re-upload this document.");
+    } finally {
+      setInlineUploadingDocumentId(null);
+    }
+  }
+
   // ── non-wizard states ──
   if (loading) {
     return (
@@ -794,8 +867,7 @@ export default function EmployeeOnboardingPage() {
   const docsToUpload = documents.length - docsUploaded;
   const docsDone = documents.length === 0 || documents.every((d) => documentIsReady(d.id));
   const allDocsApproved = documents.length > 0 && documents.every((d) => docStatus(d.id) === "approved");
-  const actionNeeded =
-    profileDone && docsRejected > 0 && stagedCount === 0 && !status.isComplete && !reviewActionDismissed;
+  const actionNeeded = profileDone && docsRejected > 0 && stagedCount === 0 && !status.isComplete;
 
   const awaitingHrReview =
     profileDone &&
@@ -851,10 +923,8 @@ export default function EmployeeOnboardingPage() {
         documents={documents}
         allDocsApproved={allDocsApproved}
         isComplete={status.isComplete}
-        onReupload={() => {
-          setReviewActionDismissed(true);
-          setStep(3);
-        }}
+        uploadingDocumentId={inlineUploadingDocumentId}
+        onReupload={(documentId, file) => void handleInlineDocumentReupload(documentId, file)}
       />
     );
   }
@@ -1274,12 +1344,13 @@ export default function EmployeeOnboardingPage() {
                     return (
                       <ReviewDocumentRow
                         key={doc.id}
+                        documentId={doc.id}
                         documentName={doc.documentName}
                         filename={filename}
+                        allowedFileTypes={doc.allowedFileTypes}
                         status={doc.latestSubmission?.status ?? null}
                         hasStagedFile={Boolean(selected)}
                         rejectionNote={doc.latestSubmission?.rejectionNote}
-                        onReupload={() => goStep(3)}
                       />
                     );
                   })}
