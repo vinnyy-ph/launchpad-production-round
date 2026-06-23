@@ -161,6 +161,24 @@ export class EmployeesService {
   }
 
   /**
+   * Updates the caller's OWN profile (self-service). Resolves the employee from the auth user,
+   * then applies the already field-restricted update through the shared update path so the same
+   * validation and activity logging apply. The caller is recorded as the editor.
+   */
+  async updateMyProfile(
+    userId: string,
+    update: UpdateEmployeeProfileRequestDto,
+  ): Promise<UpdateEmployeeProfileResponseDto> {
+    const me = await this.employeesRepository.findIdentityByUserId(userId);
+
+    if (!me) {
+      throw new Error("Employee not found");
+    }
+
+    return this.updateEmployeeProfile({ employeeId: me.id }, update, userId);
+  }
+
+  /**
    * Updates another employee profile for HR and returns the refreshed unredacted profile.
    */
   async updateEmployeeProfile(

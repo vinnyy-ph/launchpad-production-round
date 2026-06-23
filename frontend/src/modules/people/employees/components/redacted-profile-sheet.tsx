@@ -90,7 +90,7 @@ export function RedactedProfileSheet({ employeeId, open, onOpenChange }: Redacte
                 <Field label="Department" value={profile.department ?? "—"} />
                 <div className="flex flex-col gap-0.5">
                   <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Status</span>
-                  <StatusBadge status={profile.status} dot />
+                  <StatusBadge status={profile.status} dot className="w-fit" />
                 </div>
                 <Field label="Supervisor" value={profile.supervisor?.fullName ?? "—"} />
                 <Field
@@ -101,11 +101,6 @@ export function RedactedProfileSheet({ employeeId, open, onOpenChange }: Redacte
                   <Field label="Company email" value={profile.companyEmail} />
                 </div>
               </div>
-
-              <p className="text-xs text-[color:var(--text-tertiary)]">
-                Personal details (birthday, home address, emergency contact) are visible only to
-                HR, Admin, and the employee themselves.
-              </p>
             </div>
           </>
         ) : null}

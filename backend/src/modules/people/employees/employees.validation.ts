@@ -76,6 +76,30 @@ export class EmployeesValidation {
   }
 
   /**
+   * Normalizes the fields an employee may edit on their OWN profile: names, personal email,
+   * birthday, home address, and emergency contact. HR-controlled fields (company email, job
+   * title, department, supervisor, status) are intentionally NOT accepted here, so a self-edit
+   * can never change identity or org placement.
+   */
+  parseSelfUpdateProfileBody(body: Record<string, unknown>): UpdateEmployeeProfileRequestDto {
+    const update: Record<string, unknown> = {};
+
+    this.assignOptionalString(update, "firstName", body.firstName);
+    this.assignOptionalString(update, "lastName", body.lastName);
+    this.assignOptionalNullableString(update, "middleName", body.middleName);
+    this.assignOptionalNullableString(update, "personalEmail", body.personalEmail);
+    this.assignOptionalNullableDate(update, "birthday", body.birthday);
+    this.assignOptionalNullableAddress(update, "address", body.address);
+    this.assignOptionalNullableEmergencyContact(update, "emergencyContact", body.emergencyContact);
+
+    if (Object.keys(update).length === 0) {
+      throw new Error("Employee profile update body is required");
+    }
+
+    return update as UpdateEmployeeProfileRequestDto;
+  }
+
+  /**
    * Normalizes HR-editable employee profile fields.
    * Undefined fields are ignored, while nullable fields allow HR to clear existing values.
    */

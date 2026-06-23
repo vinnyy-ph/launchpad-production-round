@@ -24,6 +24,12 @@ employeesRouter.get("/", employeesController.listEmployees);
 employeesRouter.get("/all", employeesController.listAllEmployees);
 
 /**
+ * Updates the caller's OWN profile (self-service, any authenticated role). Only self-editable
+ * fields are accepted. Declared before `/:employeeId` so "me" isn't parsed as an employee id.
+ */
+employeesRouter.patch("/me", employeesController.updateMyProfile);
+
+/**
  * Gets one employee profile. HR/Admin and the subject get the full profile; any other
  * authenticated viewer (including supervisors of the subject) gets a redacted profile.
  * Redaction is enforced server-side in the service serializer.

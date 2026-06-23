@@ -5,6 +5,7 @@ import type {
   EmployeeListMeta,
   EmployeeProfile,
   EmployeeUpdateInput,
+  MyProfileUpdateInput,
 } from "../types/employees.types";
 
 export interface EmployeeListResult {
@@ -63,6 +64,16 @@ export async function updateEmployee(
   input: EmployeeUpdateInput,
 ): Promise<EmployeeProfileResult> {
   return apiFetch<EmployeeProfileResult>(`${BASE}/${employeeId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Updates the signed-in employee's OWN profile (self-service). Returns the refreshed profile. */
+export async function updateMyProfile(
+  input: MyProfileUpdateInput,
+): Promise<EmployeeProfileResult> {
+  return apiFetch<EmployeeProfileResult>(`${BASE}/me`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });

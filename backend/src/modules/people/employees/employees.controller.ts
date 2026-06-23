@@ -174,56 +174,91 @@ export class EmployeesController {
 
       return res.json(result);
     } catch (error) {
-      if (error instanceof Error && error.message === "Employee not found") {
-        const response: ApiErrorResponseDto = {
-          success: false,
-          message: API_ERROR_MESSAGES.EMPLOYEE_NOT_FOUND,
-          errorCode: API_ERROR_CODES.EMPLOYEE_NOT_FOUND,
-          errors: [
-            {
-              field: EMPLOYEE_QUERY_FIELDS.EMPLOYEE_ID,
-              message: API_ERROR_MESSAGES.EMPLOYEE_NOT_FOUND,
-              code: API_ERROR_CODES.EMPLOYEE_NOT_FOUND,
-            },
-          ],
-        };
-
-        return res.status(HTTP_STATUS_CODES.NOT_FOUND).json(response);
-      }
-
-      if (
-        error instanceof Error &&
-        [
-          "Employee profile update body is required",
-          "Employee cannot supervise themselves",
-          "Supervisor not found",
-          "Circular supervisory relationship detected",
-          "Another employee is already the root node",
-          "Supervisor must belong to the same department",
-          "Invalid employee birthday",
-          "Invalid employee profile update",
-          "Invalid employee status",
-        ].includes(error.message)
-      ) {
-        const response: ApiErrorResponseDto = {
-          success: false,
-          message: API_ERROR_MESSAGES.INVALID_EMPLOYEE_PROFILE_UPDATE,
-          errorCode: API_ERROR_CODES.INVALID_EMPLOYEE_PROFILE_UPDATE,
-          errors: [
-            {
-              field: this.resolveUpdateErrorField(error.message),
-              message: error.message,
-              code: API_ERROR_CODES.INVALID_EMPLOYEE_PROFILE_UPDATE,
-            },
-          ],
-        };
-
-        return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json(response);
-      }
-
-      return next(error);
+      return this.handleProfileUpdateError(error, res, next);
     }
   };
+
+  /**
+   * Handles PATCH /api/v1/employees/me — the caller editing their OWN profile (any role).
+   * Only self-editable fields are accepted (enforced by the validation layer).
+   */
+  updateMyProfile = async (
+    req: Request,
+    res: Response<UpdateEmployeeProfileResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+      }
+
+      const body = this.employeesValidation.parseSelfUpdateProfileBody(req.body);
+      const result = await this.employeesService.updateMyProfile(req.user.id, body);
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleProfileUpdateError(error, res, next);
+    }
+  };
+
+  /** Maps profile-update failures (not-found + validation) to consistent HTTP responses. */
+  private handleProfileUpdateError(
+    error: unknown,
+    res: Response<ApiErrorResponseDto>,
+    next: NextFunction,
+  ) {
+    if (error instanceof Error && error.message === "Employee not found") {
+      const response: ApiErrorResponseDto = {
+        success: false,
+        message: API_ERROR_MESSAGES.EMPLOYEE_NOT_FOUND,
+        errorCode: API_ERROR_CODES.EMPLOYEE_NOT_FOUND,
+        errors: [
+          {
+            field: EMPLOYEE_QUERY_FIELDS.EMPLOYEE_ID,
+            message: API_ERROR_MESSAGES.EMPLOYEE_NOT_FOUND,
+            code: API_ERROR_CODES.EMPLOYEE_NOT_FOUND,
+          },
+        ],
+      };
+
+      return res.status(HTTP_STATUS_CODES.NOT_FOUND).json(response);
+    }
+
+    if (
+      error instanceof Error &&
+      [
+        "Employee profile update body is required",
+        "Employee cannot supervise themselves",
+        "Supervisor not found",
+        "Circular supervisory relationship detected",
+        "Another employee is already the root node",
+        "Supervisor must belong to the same department",
+        "Invalid employee birthday",
+        "Invalid employee profile update",
+        "Invalid employee status",
+      ].includes(error.message)
+    ) {
+      const response: ApiErrorResponseDto = {
+        success: false,
+        message: API_ERROR_MESSAGES.INVALID_EMPLOYEE_PROFILE_UPDATE,
+        errorCode: API_ERROR_CODES.INVALID_EMPLOYEE_PROFILE_UPDATE,
+        errors: [
+          {
+            field: this.resolveUpdateErrorField(error.message),
+            message: error.message,
+            code: API_ERROR_CODES.INVALID_EMPLOYEE_PROFILE_UPDATE,
+          },
+        ],
+      };
+
+      return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json(response);
+    }
+
+    return next(error);
+  }
 
   /** Maps known employee update validation failures to the field clients can correct. */
   private resolveUpdateErrorField(message: string) {

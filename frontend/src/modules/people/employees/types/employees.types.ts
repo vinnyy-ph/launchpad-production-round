@@ -118,6 +118,20 @@ export interface EmployeeUpdateInput {
   status?: EmployeeStatus;
 }
 
+/**
+ * Fields an employee may edit on their OWN profile (PATCH /api/v1/employees/me). Excludes
+ * HR-controlled fields (company email, job title, department, supervisor, status) by design.
+ */
+export interface MyProfileUpdateInput {
+  firstName?: string;
+  lastName?: string;
+  middleName?: string | null;
+  personalEmail?: string | null;
+  birthday?: string | null;
+  address?: EmployeeAddressInput | null;
+  emergencyContact?: EmployeeEmergencyContactInput | null;
+}
+
 export interface EmployeeFilters {
   search?: string;
   status?: EmployeeStatus;
