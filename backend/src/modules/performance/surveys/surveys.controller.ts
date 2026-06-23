@@ -432,7 +432,10 @@ export class SurveysController {
       msg.includes("isAnonymous") ||
       msg.includes("isActive") ||
       msg.includes("releaseDate") ||
-      msg.includes("deadline")
+      msg.includes("deadline") ||
+      msg.includes("options") ||
+      msg.includes("characters or fewer") ||
+      msg.includes("must not contain HTML")
     );
   }
 }

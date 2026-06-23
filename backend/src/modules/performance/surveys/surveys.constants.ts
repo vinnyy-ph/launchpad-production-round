@@ -35,3 +35,11 @@ export const SURVEY_ERROR_MESSAGES = {
   SHARE_NO_SUPERVISOR: "This team has no supervisor to send results to",
   SHARE_ACTOR_NOT_EMPLOYEE: "Your account is not linked to an employee record",
 } as const;
+
+/** Max character lengths for user-supplied free-text survey fields. */
+export const SURVEY_TEXT_LIMITS = {
+  NAME: 200,
+  QUESTION_TEXT: 500,
+  SCALE_LABEL: 100,
+  OPTION: 200,
+} as const;

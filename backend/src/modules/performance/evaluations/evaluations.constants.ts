@@ -14,6 +14,13 @@ export const EVAL_ERROR_MESSAGES = {
 
 export const EVAL_ACK_DEADLINE_DAYS = 7;
 
+/** Max character lengths for user-supplied free-text evaluation fields. */
+export const EVAL_TEXT_LIMITS = {
+  EVALUATION: 5000,
+  RECOMMENDATION: 5000,
+  ITEM: 1000,
+} as const;
+
 export const EVAL_UPLOAD_ERROR_MESSAGES = {
   TOO_MANY_FILES: "Too many files — maximum 5 allowed",
   INVALID_FILE_TYPE: "Only PDF files are allowed",
