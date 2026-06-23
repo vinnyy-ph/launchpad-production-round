@@ -212,8 +212,8 @@ function buildSections(
 
   // Your work — the caller's own to-dos. Onboarding figures only matter while onboarding.
   const work: KpiCardProps[] = [
-    { icon: MessageSquare, label: "Unanswered surveys", value: num(stats?.unreadSurveys), href: "/employee/surveys" },
-    { icon: FileCheck2, label: "Evals to acknowledge", value: num(stats?.pendingAcknowledgements), href: "/employee/surveys" },
+    { icon: MessageSquare, label: "Surveys to answer", value: num(stats?.unreadSurveys), href: "/employee/surveys" },
+    { icon: FileCheck2, label: "Evaluations to acknowledge", value: num(stats?.pendingAcknowledgements), href: "/employee/surveys?tab=acknowledgements" },
   ];
   if (employeeStatus === "ONBOARDING") {
     work.push(
