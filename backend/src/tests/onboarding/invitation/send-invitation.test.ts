@@ -27,6 +27,7 @@ jest.mock("../../../core/database/prisma.service", () => ({
       create: jest.fn(),
       update: jest.fn(),
     },
+    onboardingInvitationResendAttempt: { count: jest.fn(), create: jest.fn() },
     user: { update: jest.fn() },
     employee: { update: jest.fn() },
     $transaction: jest.fn(),
@@ -80,9 +81,15 @@ describe("POST /api/v1/onboarding/invitations/:recordId/send", () => {
         data: expect.objectContaining({
           recordId: RECORD_ID,
           sentToEmail: "maria.santos@launchpad.ph",
+          expiresAt: expect.any(Date),
         }),
       }),
     );
+
+    const createData = onboardingInvitationCreateMock.mock.calls[0][0].data;
+    expect(
+      Math.abs(createData.expiresAt.getTime() - Date.now() - 24 * 60 * 60 * 1000),
+    ).toBeLessThan(1000);
   });
 
   it("returns 404 when the onboarding record does not exist", async () => {

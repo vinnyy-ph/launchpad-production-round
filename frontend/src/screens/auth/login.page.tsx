@@ -235,6 +235,12 @@ export default function LoginPage() {
 
           <GoogleSignInButton className="mt-8" onClick={handleSignIn} loading={loading} />
 
+          {authError && (
+            <p role="alert" className="mt-4 text-sm font-medium text-red-600">
+              {authError}
+            </p>
+          )}
+
           <p className="mt-8 text-[13px] leading-relaxed text-[color:var(--text-tertiary)]">
             By continuing you agree to Manage Jia&apos;s{" "}
             <button

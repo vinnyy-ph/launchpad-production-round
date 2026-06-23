@@ -51,10 +51,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     // Two distinct login blocks.
     if (!account.isActive) {
-      return res.status(403).json({ error: "Account deactivated" });
+      return res.status(403).json({ error: "Account deactivated. Please contact support." });
     }
     if (account.employee?.status === "INACTIVE") {
-      return res.status(403).json({ error: "Account is inactive" });
+      return res.status(403).json({ error: "Account is inactive. Please contact support." });
     }
 
     req.user = account;

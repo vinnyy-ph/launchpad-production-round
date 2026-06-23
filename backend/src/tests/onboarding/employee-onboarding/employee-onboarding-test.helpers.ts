@@ -90,8 +90,8 @@ export function buildHrUser() {
 }
 
 export function buildInvitationRecord(overrides: Record<string, unknown> = {}) {
-  const sentAt = new Date("2026-06-17T08:00:00.000Z");
-  const expiresAt = new Date("2026-07-17T08:00:00.000Z");
+  const sentAt = new Date(Date.now() - 60 * 60 * 1000);
+  const expiresAt = new Date(sentAt.getTime() + 24 * 60 * 60 * 1000);
 
   return {
     id: INVITATION_ID,

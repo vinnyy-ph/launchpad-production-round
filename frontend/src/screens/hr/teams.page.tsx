@@ -58,8 +58,8 @@ export default function TeamsPage() {
   const canManage = appUser?.role === "ADMIN" || appUser?.role === "HR";
 
   const { teams, loading, error, reload } = useTeams();
-  const { employees } = useEmployees({ status: "active", limit: 100 });
-  // Whole-organization list (all statuses, non-paginated) for the supervisor-hierarchy org chart.
+  const { employees } = useEmployees({ status: "active", limit: 500 });
+  // Whole-organization list (all statuses) for the supervisor-hierarchy org chart.
   const {
     employees: orgEmployees,
     loading: orgLoading,

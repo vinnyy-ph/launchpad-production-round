@@ -3,7 +3,9 @@ import { API_SUCCESS_MESSAGES } from "../../core/globals";
 import { InAppChannel } from "./channels/in-app.channel";
 import { EmailService } from "../../core/email/email.service";
 import { buildEvaluationReminderEmailHtml } from "../../core/email/templates/evaluation-reminder.template";
+import { buildOnboardingDocumentRejectedEmailHtml } from "../../core/email/templates/onboarding-document-rejected.template";
 import { buildPulseSurveyReminderEmailHtml } from "../../core/email/templates/pulse-survey-reminder.template";
+import { buildPulseResultsSharedEmailHtml } from "../../core/email/templates/pulse-results-shared.template";
 import type {
   ListNotificationsQueryDto,
   ListNotificationsResponseDto,
@@ -177,6 +179,18 @@ export class NotificationsService {
         employee.userId,
         this.toNotificationDto(notification),
       );
+
+      await this.emailService.sendEmail({
+        to: employee.companyEmail,
+        subject: "Document needs changes",
+        html: buildOnboardingDocumentRejectedEmailHtml({
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          documentName,
+          rejectionNote: note,
+          onboardingUrl: `${this.resolveAppUrl()}/employee/onboarding`,
+        }),
+      });
     } catch {
       // Fire-and-forget: the review action must succeed even if notification delivery fails.
     }
@@ -544,6 +558,61 @@ export class NotificationsService {
       }
     } catch {
       // Fire-and-forget: activation must succeed even if notification delivery fails.
+    }
+  }
+
+  /**
+   * Notifies a team's supervisor that HR has deliberately shared their small team's anonymous
+   * pulse results with them. Deep-links to the (now-granted) team-scoped results view. In-app +
+   * email, fire-and-forget so a delivery failure never fails the share action itself.
+   */
+  async notifySupervisorPulseResultsShared(
+    supervisorId: string,
+    surveyName: string,
+    teamName: string,
+    surveyId: string,
+    occurrenceId: string,
+    teamId: string,
+  ): Promise<void> {
+    try {
+      const supervisor =
+        await this.notificationsRepository.findEmployeeWithUserById(supervisorId);
+
+      if (!supervisor) {
+        return;
+      }
+
+      // Carries the team + round so the supervisor lands on the exact granted breakdown.
+      const linkUrl = `/surveys/${surveyId}/results?teamId=${teamId}&occurrenceId=${occurrenceId}`;
+
+      const notification = await this.notificationsRepository.create({
+        recipientId: supervisor.id,
+        type: "PULSE_RESULTS_SHARED",
+        subject: "Pulse results shared with you",
+        body: `HR shared the results of "${surveyName}" for your team ${teamName}. Because this is a small team, please treat the responses sensitively.`,
+        linkUrl,
+        sourceType: "PulseSurvey",
+        sourceId: surveyId,
+      });
+
+      this.inAppChannel.deliver(
+        supervisor.userId,
+        this.toNotificationDto(notification),
+      );
+
+      await this.emailService.sendEmail({
+        to: supervisor.companyEmail,
+        subject: "Pulse results shared with you",
+        html: buildPulseResultsSharedEmailHtml({
+          firstName: supervisor.firstName,
+          lastName: supervisor.lastName,
+          surveyName,
+          teamName,
+          resultsUrl: `${this.resolveAppUrl()}${linkUrl}`,
+        }),
+      });
+    } catch {
+      // Fire-and-forget: the share action must succeed even if notification delivery fails.
     }
   }
 

@@ -21,6 +21,15 @@ router.get("/occurrences/:occurrenceId/results", resultsController.getOccurrence
 /** GET /api/v1/pulse/surveys/:id/results — Returns aggregated results for a survey. */
 router.get("/:id/results", resultsController.getSurveyResults);
 
+/** POST /api/v1/pulse/surveys/:id/results/share — HR/ADMIN only (matches the results view's HR
+ *  predicate). Sends a small anonymous team's results to that team's supervisor (gated:
+ *  anonymous + small team + completed occurrence). */
+router.post(
+  "/:id/results/share",
+  requireRole("HR", "ADMIN"),
+  resultsController.shareSmallTeamResults,
+);
+
 /** GET /api/v1/pulse/surveys/:id/insights — AI summary of open-text responses. Visibility-gated (not role-gated). */
 router.get("/:id/insights", insightsController.getSurveyInsights);
 

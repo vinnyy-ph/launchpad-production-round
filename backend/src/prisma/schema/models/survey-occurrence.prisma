@@ -11,6 +11,7 @@ model SurveyOccurrence {
   responses       SurveyResponse[]
   completions     SurveyCompletion[]
   audienceMembers SurveyAudienceMember[]
+  resultShares    SurveyResultShare[]
 
   updatedAt DateTime @updatedAt
 

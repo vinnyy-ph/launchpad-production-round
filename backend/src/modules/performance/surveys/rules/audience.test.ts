@@ -21,23 +21,37 @@ describe("resolveAudience", () => {
     expect((await resolveAudience({ type: "EVERYONE" }, db)).sort()).toEqual(["a", "b", "c"]);
   });
 
-  it("SUPERVISOR_BASED includes the anchor plus the full downward chain", async () => {
+  it("SUPERVISOR_BASED returns the full downward subtree EXCLUDING the anchor itself", async () => {
+    // Brief: "Selected supervisor(s)' direct reports (and everyone below them)" → anchor excluded,
+    // intermediate manager m1 and its reports e1/e2 included (descendants, not just direct reports).
     const db = fakeDb({ active: ["vp", "m1", "e1", "e2"], children: { vp: ["m1"], m1: ["e1", "e2"] } });
     const ids = await resolveAudience({ type: "SUPERVISOR_BASED", supervisorIds: ["vp"] }, db);
-    expect(ids.sort()).toEqual(["e1", "e2", "m1", "vp"]);
+    expect(ids.sort()).toEqual(["e1", "e2", "m1"]);
+    expect(ids).not.toContain("vp");
   });
 
-  it("SUPERVISOR_BASED excludes inactive/deactivated employees", async () => {
+  it("SUPERVISOR_BASED excludes inactive/deactivated employees (and the anchor)", async () => {
     const db = fakeDb({ active: ["vp", "e1"], children: { vp: ["e1", "e2"] } });
     const ids = await resolveAudience({ type: "SUPERVISOR_BASED", supervisorIds: ["vp"] }, db);
-    expect(ids.sort()).toEqual(["e1", "vp"]);
-    expect(ids).not.toContain("e2");
+    expect(ids.sort()).toEqual(["e1"]);
+    expect(ids).not.toContain("e2"); // inactive
+    expect(ids).not.toContain("vp"); // anchor
   });
 
-  it("SUPERVISOR_BASED dedupes overlapping anchors", async () => {
+  it("SUPERVISOR_BASED: an anchor with no reports contributes nobody", async () => {
+    const db = fakeDb({ active: ["solo"], children: {} });
+    const ids = await resolveAudience({ type: "SUPERVISOR_BASED", supervisorIds: ["solo"] }, db);
+    expect(ids).toEqual([]);
+  });
+
+  it("SUPERVISOR_BASED: overlapping anchors exclude ALL selected anchors", async () => {
+    // vp and m1 both selected; m1 is below vp. Union of subtrees = {m1, e1}; both selected
+    // anchors removed → only e1 remains.
     const db = fakeDb({ active: ["vp", "m1", "e1"], children: { vp: ["m1"], m1: ["e1"] } });
     const ids = await resolveAudience({ type: "SUPERVISOR_BASED", supervisorIds: ["vp", "m1"] }, db);
-    expect(ids.sort()).toEqual(["e1", "m1", "vp"]);
+    expect(ids.sort()).toEqual(["e1"]);
+    expect(ids).not.toContain("vp");
+    expect(ids).not.toContain("m1");
   });
 
   it("SPECIFIC_TEAMS returns active members of the listed teams", async () => {

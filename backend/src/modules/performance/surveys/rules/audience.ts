@@ -27,7 +27,9 @@ export interface AudienceDb {
 /**
  * Resolve a survey's audience to a de-duplicated list of ACTIVE employee ids.
  * Re-run at each occurrence release (new hires in, inactive/deactivated out).
- * SUPERVISOR_BASED includes the anchoring supervisor AND their full downward chain.
+ * SUPERVISOR_BASED = each anchor's full downward subtree (direct reports and everyone
+ * below them), EXCLUDING the explicitly selected anchor(s) themselves — per the brief,
+ * "Selected supervisor(s)' direct reports (and everyone below them)".
  */
 export async function resolveAudience(spec: AudienceSpec, db: AudienceDb): Promise<string[]> {
   if (spec.type === "EVERYONE") {
@@ -36,9 +38,12 @@ export async function resolveAudience(spec: AudienceSpec, db: AudienceDb): Promi
   if (spec.type === "SUPERVISOR_BASED") {
     const ids = new Set<string>();
     for (const supervisorId of spec.supervisorIds) {
-      ids.add(supervisorId); // the anchoring supervisor is part of the audience
+      // walkDownward returns descendants only (never the anchor itself).
       for (const reportId of await walkDownward(supervisorId, db.childrenOf)) ids.add(reportId);
     }
+    // Exclude every explicitly selected anchor — even one that sits below another selected
+    // anchor (so a selected sub-manager is treated as an anchor, not a recipient).
+    for (const supervisorId of spec.supervisorIds) ids.delete(supervisorId);
     return db.activeAmong([...ids]);
   }
   return db.activeTeamMemberIds(spec.teamIds);

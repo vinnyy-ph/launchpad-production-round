@@ -243,6 +243,29 @@ export interface SurveyResults {
   /** true when the minimum-group-size rule fired — no breakdown is shown. */
   suppressed: boolean;
   questions: QuestionResult[]; // empty when suppressed
+  /** HR-only; present on an anonymous small-team filtered view. Drives the share-to-supervisor action. */
+  smallTeamShare?: SmallTeamShare;
+}
+
+/** HR-only hint for sharing a small anonymous team's results with its supervisor. */
+export interface SmallTeamShare {
+  occurrenceId: string;
+  teamId: string;
+  teamName: string;
+  supervisorId: string | null;
+  supervisorName: string | null;
+  /** The send action is only allowed once the occurrence is completed (closed or past deadline). */
+  occurrenceCompleted: boolean;
+  /** ISO timestamp of the last share, or null if never shared. */
+  alreadySharedAt: string | null;
+}
+
+/** Result of sharing small-team results with the supervisor. */
+export interface ShareResultsResponse {
+  sharedAt: string;
+  supervisorId: string;
+  supervisorName: string | null;
+  teamName: string;
 }
 
 /** One-of filter for the results view (server rejects both at once). */

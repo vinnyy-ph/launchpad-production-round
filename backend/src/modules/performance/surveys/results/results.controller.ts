@@ -2,9 +2,13 @@ import type { NextFunction, Request, Response } from "express";
 import { HTTP_STATUS_CODES, API_ERROR_MESSAGES } from "../../../../core/globals";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { ResultsService } from "./results.service";
+import { ShareService } from "./share.service";
 
 export class ResultsController {
-  constructor(private readonly service = new ResultsService()) {}
+  constructor(
+    private readonly service = new ResultsService(),
+    private readonly shareService = new ShareService(),
+  ) {}
 
   getSurveyResults = async (
     req: Request,
@@ -83,6 +87,52 @@ export class ResultsController {
     }
   };
 
+  /**
+   * POST /:id/results/share — HR-only. Sends a small anonymous team's results to its
+   * supervisor. All gates (anonymous, small team, completed occurrence, resolvable
+   * supervisor) are enforced server-side in ShareService.
+   */
+  shareSmallTeamResults = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+        return;
+      }
+
+      const { id } = req.params;
+      const body = (req.body ?? {}) as { teamId?: unknown; occurrenceId?: unknown };
+      const teamId = body.teamId ? String(body.teamId) : null;
+      const occurrenceId = body.occurrenceId ? String(body.occurrenceId) : null;
+
+      if (!teamId) {
+        res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: "teamId is required",
+          errorCode: "TEAM_ID_REQUIRED",
+        });
+        return;
+      }
+
+      const result = await this.shareService.shareSmallTeamResults(
+        id,
+        occurrenceId,
+        teamId,
+        req.user.id,
+      );
+
+      res.status(HTTP_STATUS_CODES.OK).json(result);
+    } catch (error) {
+      this.handleError(error, res, next);
+    }
+  };
+
   listViewableSurveys = async (
     req: Request,
     res: Response,
@@ -142,6 +192,52 @@ export class ResultsController {
           success: false,
           message: SURVEY_ERROR_MESSAGES.BOTH_FILTERS_PROVIDED,
           errorCode: "BOTH_FILTERS_PROVIDED",
+        });
+        return;
+      }
+      if (error.message === SURVEY_ERROR_MESSAGES.TEAM_NOT_FOUND) {
+        res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.TEAM_NOT_FOUND,
+          errorCode: "TEAM_NOT_FOUND",
+        });
+        return;
+      }
+      if (
+        error.message === SURVEY_ERROR_MESSAGES.SHARE_NOT_ANONYMOUS ||
+        error.message === SURVEY_ERROR_MESSAGES.SHARE_NOT_SMALL_TEAM
+      ) {
+        res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: error.message,
+          errorCode:
+            error.message === SURVEY_ERROR_MESSAGES.SHARE_NOT_ANONYMOUS
+              ? "SHARE_NOT_ANONYMOUS"
+              : "SHARE_NOT_SMALL_TEAM",
+        });
+        return;
+      }
+      if (error.message === SURVEY_ERROR_MESSAGES.SHARE_NOT_COMPLETED) {
+        res.status(HTTP_STATUS_CODES.CONFLICT).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.SHARE_NOT_COMPLETED,
+          errorCode: "SHARE_NOT_COMPLETED",
+        });
+        return;
+      }
+      if (error.message === SURVEY_ERROR_MESSAGES.SHARE_NO_SUPERVISOR) {
+        res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.SHARE_NO_SUPERVISOR,
+          errorCode: "SHARE_NO_SUPERVISOR",
+        });
+        return;
+      }
+      if (error.message === SURVEY_ERROR_MESSAGES.SHARE_ACTOR_NOT_EMPLOYEE) {
+        res.status(HTTP_STATUS_CODES.FORBIDDEN).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.SHARE_ACTOR_NOT_EMPLOYEE,
+          errorCode: "SHARE_ACTOR_NOT_EMPLOYEE",
         });
         return;
       }
