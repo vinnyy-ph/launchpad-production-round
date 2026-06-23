@@ -100,6 +100,7 @@ enum NotificationType {
   NEW_EVALUATION
   EVAL_ACK_REMINDER
   EVAL_DEEMED_ACK
+  PULSE_RESULTS_SHARED
 }
 
 // Delivery channel — how it is sent. Was previously (incorrectly) the NotificationType.

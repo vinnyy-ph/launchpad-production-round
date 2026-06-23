@@ -689,6 +689,18 @@ export function SurveyBuilderDialog({
 
   const audienceCount = previewQuery.data?.count ?? 0;
 
+  // Small-group advisory for DYNAMIC audiences (Supervisor-based / Everyone), keyed off the
+  // live preview count for the current org chart — a snapshot, since the audience is
+  // re-evaluated at each release. Specific Teams keeps its own membership-based heads-up +
+  // hard visibility lock above; here we only advise (the real guarantee is the server-side
+  // per-occurrence <3 suppression, which self-corrects as the group grows).
+  const smallDynamicAnonAudience =
+    form.isAnonymous &&
+    !noneSelected &&
+    previewQuery.data != null &&
+    audienceCount < 3 &&
+    (form.audienceType === "SUPERVISOR_BASED" || form.audienceType === "EVERYONE");
+
   // ── Validation (mirrors server rules; see computeBuilderErrors) ──
   const validate = (): boolean => {
     const errs = computeBuilderErrors(form);
@@ -1037,6 +1049,22 @@ export function SurveyBuilderDialog({
                         {smallTargetedTeams.length === 1 ? "has" : "have"} fewer than 3 people, so
                         their supervisor won&apos;t see the results. They&apos;ll stay with your HR
                         team.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Small-group advisory for dynamic audiences (snapshot — re-evaluated each release).
+                      Advisory only: visibility stays as chosen; the server's per-occurrence <3
+                      suppression is the real guarantee and lifts once 3+ people respond. */}
+                  {smallDynamicAnonAudience && (
+                    <div className="flex items-start gap-2 rounded-[10px] border border-[#FEDF89] bg-[color:var(--color-warning-50)] px-3 py-2.5 text-xs leading-relaxed text-[color:var(--color-warning-600)]">
+                      <Lock size={14} className="mt-0.5 flex-none" aria-hidden="true" />
+                      <span>
+                        Heads up: based on the current org chart, this audience is {audienceCount}{" "}
+                        {audienceCount === 1 ? "person" : "people"}. While it stays under 3,
+                        supervisors won&apos;t see the anonymous breakdown — results stay with HR and
+                        leadership until at least 3 people respond. This is rechecked each time the
+                        survey runs.
                       </span>
                     </div>
                   )}

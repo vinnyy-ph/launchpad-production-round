@@ -40,7 +40,7 @@ export function ProgressSteps({ items, className }: ProgressStepsProps) {
                 <div
                   aria-hidden="true"
                   className={cn(
-                    "absolute left-[calc(50%+18px)] right-[calc(-50%+18px)] top-4 hidden h-0.5 min-[640px]:block",
+                    "absolute left-1/2 top-4 z-0 hidden h-0.5 w-full min-[640px]:block",
                     connectorActive ? "bg-gradient-jia-45" : "bg-[color:var(--border-primary)]",
                   )}
                 />
