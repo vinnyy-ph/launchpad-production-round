@@ -2,7 +2,11 @@ import type { InviteStatus, OnboardingInvitation } from "@prisma/client";
 import { EmailService } from "../../../../core/email";
 import { buildOnboardingInvitationEmailHtml } from "../../../../core/email/templates/onboarding-invitation.template";
 import { API_SUCCESS_MESSAGES } from "../../../../core/globals";
-import { INVITATION_EXPIRY_DAYS } from "../onboarding.constants";
+import {
+  INVITATION_EXPIRY_HOURS,
+  INVITATION_RESEND_COOLDOWN_SECONDS,
+  INVITATION_RESEND_MAX_ATTEMPTS_PER_HOUR,
+} from "../onboarding.constants";
 import type {
   GetInvitationStatusParamsDto,
   InvitationDto,
@@ -41,14 +45,28 @@ export class InvitationService {
       throw new Error("Onboarding record not found");
     }
 
-    const expiresAt = this.buildExpiryDate();
+    const existingInvitation = record.invitations[0];
+
+    if (existingInvitation) {
+      const invitation = await this.resendInvitationEmail(
+        existingInvitation,
+        record.employee.firstName,
+        record.employee.lastName,
+      );
+
+      return {
+        success: true,
+        message: API_SUCCESS_MESSAGES.INVITATION_SENT,
+        data: this.toInvitationDto(invitation),
+      };
+    }
+
     let invitation =
-      record.invitations[0] ??
-      (await this.invitationRepository.create(
+      await this.invitationRepository.create(
         record.id,
         record.employee.companyEmail,
-        expiresAt,
-      ));
+        this.buildExpiryDate(),
+      );
 
     invitation = await this.deliverInvitationEmail(
       invitation,
@@ -81,14 +99,8 @@ export class InvitationService {
       throw new Error("Invitation already accepted");
     }
 
-    const expiresAt = this.buildExpiryDate();
-    let updatedInvitation = await this.invitationRepository.markResent(
-      invitation.id,
-      expiresAt,
-    );
-
-    updatedInvitation = await this.deliverInvitationEmail(
-      updatedInvitation,
+    const updatedInvitation = await this.resendInvitationEmail(
+      invitation,
       invitation.record.employee.firstName,
       invitation.record.employee.lastName,
     );
@@ -125,13 +137,14 @@ export class InvitationService {
       throw new Error("Account already created");
     }
 
+    await this.assertCanResend(invitation);
+
     await this.invitationRepository.updateEmployeeEmail(
       invitation.record.employee.id,
       user.id,
       body.email,
     );
 
-    const expiresAt = this.buildExpiryDate();
     let updatedInvitation = await this.invitationRepository.updateEmail(
       invitation.id,
       body.email,
@@ -139,7 +152,7 @@ export class InvitationService {
 
     updatedInvitation = await this.invitationRepository.markResent(
       updatedInvitation.id,
-      expiresAt,
+      this.buildExpiryDate(),
     );
 
     updatedInvitation = await this.deliverInvitationEmail(
@@ -148,11 +161,59 @@ export class InvitationService {
       invitation.record.employee.lastName,
     );
 
+    await this.invitationRepository.createResendAttempt(updatedInvitation.id);
+
     return {
       success: true,
       message: API_SUCCESS_MESSAGES.INVITATION_EMAIL_UPDATED,
       data: this.toInvitationDto(updatedInvitation),
     };
+  }
+
+  /** Applies resend policy, refreshes expiry, sends email, and records the resend. */
+  private async resendInvitationEmail(
+    invitation: InvitationRecord,
+    firstName: string,
+    lastName: string,
+  ): Promise<InvitationRecord> {
+    await this.assertCanResend(invitation);
+
+    let updatedInvitation = await this.invitationRepository.markResent(
+      invitation.id,
+      this.buildExpiryDate(),
+    );
+
+    updatedInvitation = await this.deliverInvitationEmail(
+      updatedInvitation,
+      firstName,
+      lastName,
+    );
+
+    await this.invitationRepository.createResendAttempt(updatedInvitation.id);
+
+    return updatedInvitation;
+  }
+
+  /** Enforces the 60-second cooldown and 5-per-hour resend cap. */
+  private async assertCanResend(invitation: InvitationRecord) {
+    const now = Date.now();
+    const cooldownMs = INVITATION_RESEND_COOLDOWN_SECONDS * 1000;
+    const elapsedSinceLastSend = now - invitation.sentAt.getTime();
+
+    if (elapsedSinceLastSend < cooldownMs) {
+      throw new Error("Invitation resend cooldown");
+    }
+
+    const oneHourAgo = new Date(now - 60 * 60 * 1000);
+    const attempts =
+      await this.invitationRepository.countResendAttemptsSince(
+        invitation.id,
+        oneHourAgo,
+      );
+
+    if (attempts >= INVITATION_RESEND_MAX_ATTEMPTS_PER_HOUR) {
+      throw new Error("Invitation resend rate limited");
+    }
   }
 
   /**
@@ -230,12 +291,9 @@ export class InvitationService {
     return invitation;
   }
 
-  /** Returns a date ${INVITATION_EXPIRY_DAYS} days from now. */
+  /** Returns a date 24 hours from now. */
   private buildExpiryDate(): Date {
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + INVITATION_EXPIRY_DAYS);
-
-    return expiresAt;
+    return new Date(Date.now() + INVITATION_EXPIRY_HOURS * 60 * 60 * 1000);
   }
 
   /** Maps a Prisma invitation record into the public API DTO. */

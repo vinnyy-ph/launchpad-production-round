@@ -218,7 +218,7 @@
  *       - A User account (role EMPLOYEE, invitation-gated sign-in)
  *       - An Employee profile (status ONBOARDING)
  *       - An OnboardingRecord linked to the default template
- *       - An OnboardingInvitation record (30-day expiry)
+ *       - An OnboardingInvitation record (24-hour expiry)
  *     security:
  *       - bearerAuth: []
  *     requestBody:

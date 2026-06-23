@@ -174,6 +174,36 @@ export class InvitationController {
       });
     }
 
+    if (error.message === "Invitation resend cooldown") {
+      return res.status(HTTP_STATUS_CODES.TOO_MANY_REQUESTS).json({
+        success: false,
+        message: API_ERROR_MESSAGES.INVITATION_RESEND_COOLDOWN,
+        errorCode: API_ERROR_CODES.INVITATION_RESEND_COOLDOWN,
+        errors: [
+          {
+            field: INVITATION_FIELDS.INVITATION_ID,
+            message: API_ERROR_MESSAGES.INVITATION_RESEND_COOLDOWN,
+            code: API_ERROR_CODES.INVITATION_RESEND_COOLDOWN,
+          },
+        ],
+      });
+    }
+
+    if (error.message === "Invitation resend rate limited") {
+      return res.status(HTTP_STATUS_CODES.TOO_MANY_REQUESTS).json({
+        success: false,
+        message: API_ERROR_MESSAGES.INVITATION_RESEND_RATE_LIMITED,
+        errorCode: API_ERROR_CODES.INVITATION_RESEND_RATE_LIMITED,
+        errors: [
+          {
+            field: INVITATION_FIELDS.INVITATION_ID,
+            message: API_ERROR_MESSAGES.INVITATION_RESEND_RATE_LIMITED,
+            code: API_ERROR_CODES.INVITATION_RESEND_RATE_LIMITED,
+          },
+        ],
+      });
+    }
+
     if (error.message === "Account already created") {
       return res.status(HTTP_STATUS_CODES.CONFLICT).json({
         success: false,

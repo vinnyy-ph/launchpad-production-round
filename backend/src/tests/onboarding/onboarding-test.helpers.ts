@@ -169,8 +169,8 @@ export function mockOnboardingTransaction(employeeOverrides: Record<string, unkn
           id: "invitation-id",
           sentToEmail: "new.hire@example.com",
           status: "PENDING",
-          sentAt: new Date("2026-06-17T00:00:00.000Z"),
-          expiresAt: new Date("2026-07-17T00:00:00.000Z"),
+          sentAt: new Date(Date.now() - 60 * 60 * 1000),
+          expiresAt: new Date(Date.now() + 23 * 60 * 60 * 1000),
         }),
       },
     };

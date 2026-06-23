@@ -7,6 +7,8 @@ model OnboardingInvitation {
   sentAt      DateTime         @default(now())
   expiresAt   DateTime
 
+  resendAttempts OnboardingInvitationResendAttempt[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

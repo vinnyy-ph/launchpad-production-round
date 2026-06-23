@@ -47,6 +47,15 @@ describe("canViewSurveyResults", () => {
     expect(canViewSurveyResults(caller({ supervisorId: null }), survey({ visibility: "HR_ROOT_ONLY" }), false)).toBe(true);
     expect(canViewSurveyResults(caller({ supervisorId: "boss" }), survey({ visibility: "HR_ROOT_ONLY" }), false)).toBe(false);
   });
+  it("root node (no supervisor) is on the access floor under every scope, never removed by it", () => {
+    // Root is allowed even when the scope's own predicate would deny: a team-less / overlap-less
+    // root still gets in. (Data is scoped to the root's chain downstream; this is access only.)
+    const root = caller({ supervisorId: null, teamIds: [] });
+    expect(canViewSurveyResults(root, survey({ visibility: "TEAM_BASED" }), false)).toBe(true);
+    expect(canViewSurveyResults(root, survey({ visibility: "SPECIFIC_TEAMS", visibilityConfigTeamIds: ["t9"] }), false)).toBe(true);
+    expect(canViewSurveyResults(root, survey({ visibility: "SUPERVISOR_BASED" }), false)).toBe(true);
+    expect(canViewSurveyResults(root, survey({ visibility: "EVERYONE" }), false)).toBe(true);
+  });
   it("unknown visibility denied", () => {
     expect(canViewSurveyResults(caller(), survey({ visibility: "WAT" }), true)).toBe(false);
   });

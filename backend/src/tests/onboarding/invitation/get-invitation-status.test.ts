@@ -26,6 +26,7 @@ jest.mock("../../../core/database/prisma.service", () => ({
       create: jest.fn(),
       update: jest.fn(),
     },
+    onboardingInvitationResendAttempt: { count: jest.fn(), create: jest.fn() },
     user: { update: jest.fn() },
     employee: { update: jest.fn() },
     $transaction: jest.fn(),

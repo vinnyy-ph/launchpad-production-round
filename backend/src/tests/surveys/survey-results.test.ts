@@ -828,4 +828,86 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       expect.arrayContaining([{ respondentSupervisorId: { in: ["mid-mgr", "r1", "r2"] } }]),
     );
   });
+
+  // ── Fix 1: HR access is not gated by survey state ──────────────────────────────
+  it("HR can view results after deactivation / past deadline (closed) — no state gate (Fix 1)", async () => {
+    // "Closed" = not active but occurrence-bearing. Deactivating stops future rounds; the
+    // responses already collected stay viewable. HR opens them in any state.
+    const s = mockSurvey({ isActive: false, _count: { occurrences: 1 } });
+    surveyFindFirstMock.mockResolvedValue(s);
+    surveyResponseFindManyMock.mockResolvedValue([
+      { id: "r1", answers: [{ questionId: "q-1", answerText: "kept", answerData: null }] },
+    ]);
+    surveyAudienceFindManyMock.mockResolvedValue([]);
+    (prisma.surveyResponse.count as jest.Mock).mockResolvedValue(1);
+    (prisma.surveyAudienceMember.count as jest.Mock).mockResolvedValue(3);
+    // caller is HR (default auth)
+
+    const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
+    expect(res.body.data.isActive).toBe(false);
+    expect(res.body.data.questions.length).toBeGreaterThan(0);
+  });
+
+  // ── Fix 2: root is on the access floor, but data stays scoped to its chain ──────
+  it("root (no supervisor) opens a SUPERVISOR_BASED survey with NO audience overlap — access floor, data scoped to chain (Fix 2)", async () => {
+    const s = mockSurvey({ visibility: "SUPERVISOR_BASED", isAnonymous: false });
+    surveyFindFirstMock.mockResolvedValue(s);
+    // Root node: no supervisor. Its downward chain (mocked) is the data boundary.
+    employeeFindMock.mockResolvedValue({
+      id: "ceo",
+      userId: "ceo-user",
+      supervisorId: null,
+      teamMemberships: [],
+    });
+    mockCreateOrgChains.mockReturnValue({
+      downwardChain: jest.fn().mockResolvedValue(["r1", "r2"]),
+    });
+    // The audience does NOT overlap the root's probe — so access here comes from the root
+    // floor, not the SUPERVISOR_BASED scope predicate. (Was a 403 before the floor fix.)
+    surveyAudienceFindManyMock.mockResolvedValue([{ employeeId: "outsider" }]);
+    surveyResponseFindManyMock.mockResolvedValue([]);
+    setAuthUser({ id: "ceo-user", role: "EMPLOYEE" });
+
+    await request(app).get(`${URL}/survey-001/results`).expect(200);
+    // Access-only, NOT full data-controller: the aggregate stays bounded to the root's own
+    // chain (no org-wide widening like HR gets).
+    const whereArg = surveyResponseFindManyMock.mock.calls[0][0].where;
+    expect(whereArg.AND).toEqual(
+      expect.arrayContaining([{ respondentSupervisorId: { in: ["ceo", "r1", "r2"] } }]),
+    );
+  });
+
+  // ── Fix 3: anonymity tiers from the very first answer ──────────────────────────
+  it("anonymous survey, a single response: HR sees it from the first answer (Fix 3 tier 3)", async () => {
+    const s = mockSurvey({ isAnonymous: true, visibility: "EVERYONE" });
+    surveyFindFirstMock.mockResolvedValue(s);
+    surveyResponseFindManyMock.mockResolvedValue([
+      { id: "r1", answers: [{ questionId: "q-2", answerText: null, answerData: 5 }] },
+    ]);
+    surveyAudienceFindManyMock.mockResolvedValue([]);
+    // caller is HR (default auth)
+
+    const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
+    expect(res.body.data.suppressed).toBe(false);
+    expect(res.body.data.questions.length).toBeGreaterThan(0);
+  });
+
+  it("anonymous survey, a single response: a non-HR/root in-scope viewer sees the suppressed state (Fix 3 tier 3)", async () => {
+    const s = mockSurvey({ isAnonymous: true, visibility: "EVERYONE" });
+    surveyFindFirstMock.mockResolvedValue(s);
+    employeeFindMock.mockResolvedValue({
+      id: "emp-1",
+      userId: "test-user-id",
+      supervisorId: "boss-id",
+      teamMemberships: [],
+    });
+    setAuthUser({ id: "test-user-id", role: "EMPLOYEE" });
+    surveyResponseFindManyMock.mockResolvedValue([
+      { id: "r1", answers: [{ questionId: "q-2", answerText: null, answerData: 5 }] },
+    ]);
+    surveyAudienceFindManyMock.mockResolvedValue([]);
+
+    const res = await request(app).get(`${URL}/survey-001/results`).expect(200);
+    expect(res.body.data).toMatchObject({ suppressed: true, questions: [] });
+  });
 });

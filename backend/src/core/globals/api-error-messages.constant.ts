@@ -38,6 +38,10 @@ export const API_ERROR_MESSAGES = {
   ONBOARDING_RECORD_NOT_FOUND: "Onboarding record not found",
   INVALID_EMAIL: "A valid email address is required",
   INVITATION_DELIVERY_FAILED: "Failed to deliver the invitation email",
+  INVITATION_RESEND_COOLDOWN:
+    "Please wait 60 seconds before resending this invitation",
+  INVITATION_RESEND_RATE_LIMITED:
+    "This invitation has reached the limit of 5 resends per hour",
   ONBOARDING_ALREADY_COMPLETE: "Onboarding has already been completed",
   INVITATION_EXPIRED: "The onboarding invitation has expired",
   ONBOARDING_INCOMPLETE:
