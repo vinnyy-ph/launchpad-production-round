@@ -14,6 +14,7 @@ import {
 import { DataTable, EmptyState, FilterBar, StatusBadge, type Column } from "@/shared/ui/patterns";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { useDebounce } from "@/shared/hooks/use-debounce";
+import { matchesSearchTerms } from "@/shared/lib/search";
 import { useOffboardings } from "../hooks/use-offboarding";
 import type { OffboardingListItem, OffboardingStatus } from "../types/offboarding.types";
 
@@ -62,10 +63,12 @@ export function OffboardingCasesTable() {
   const { offboardings, loading, error, reload } = useOffboardings();
 
   const filtered = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
     return offboardings.filter((r) => {
       const matchesStatus = statusFilter === ALL || r.status === statusFilter;
-      const matchesSearch = !q || fullName(r.employee).toLowerCase().includes(q);
+      // Match full name (first/middle/last) and email, term by term.
+      const e = r.employee;
+      const haystack = `${e.firstName} ${e.middleName ?? ""} ${e.lastName} ${e.companyEmail ?? ""}`;
+      const matchesSearch = matchesSearchTerms(debouncedSearch, haystack);
       return matchesStatus && matchesSearch;
     });
   }, [offboardings, debouncedSearch, statusFilter]);

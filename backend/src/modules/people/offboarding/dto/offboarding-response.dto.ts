@@ -4,7 +4,9 @@ import type { ApiSuccessResponseDto } from "../../../../core/dto";
 export interface OffboardingEmployeeSummaryDto {
   id: string;
   firstName: string;
+  middleName: string | null;
   lastName: string;
+  companyEmail: string;
   jobTitle: string | null;
   department: string | null;
   /** Google profile picture URL; null when the account has no photo. */

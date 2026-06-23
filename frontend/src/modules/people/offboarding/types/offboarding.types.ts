@@ -18,6 +18,10 @@ export interface OffboardingEmployee {
   department: string | null;
   /** Google profile picture URL; null when the account has no photo. */
   avatarUrl: string | null;
+  // Present on offboarding list/detail payloads (used for search); absent on the clearance
+  // "offboardee" context, hence optional.
+  middleName?: string | null;
+  companyEmail?: string;
 }
 
 export interface OffboardingPerson {

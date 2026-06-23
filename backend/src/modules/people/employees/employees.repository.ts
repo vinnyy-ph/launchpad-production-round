@@ -495,17 +495,23 @@ export class EmployeesRepository {
           : { in: filters.departmentIds };
     }
 
-    if (filters.search) {
-      // Search covers identity and work-profile fields users commonly scan in employee lists.
-      where.OR = [
-        { firstName: { contains: filters.search, mode: "insensitive" } },
-        { middleName: { contains: filters.search, mode: "insensitive" } },
-        { lastName: { contains: filters.search, mode: "insensitive" } },
-        { companyEmail: { contains: filters.search, mode: "insensitive" } },
-        { personalEmail: { contains: filters.search, mode: "insensitive" } },
-        { jobTitle: { contains: filters.search, mode: "insensitive" } },
-        { department: { name: { contains: filters.search, mode: "insensitive" } } },
-      ];
+    if (filters.search?.trim()) {
+      // Match each whitespace-separated term against any identity / work-profile field, then AND
+      // the terms together. This makes a full-name query like "Jane Smith" match firstName "Jane"
+      // AND lastName "Smith" — no single column contains the whole string — while a single-term
+      // query still matches a name part, email, job title, or department as before.
+      const terms = filters.search.trim().split(/\s+/);
+      where.AND = terms.map((term) => ({
+        OR: [
+          { firstName: { contains: term, mode: "insensitive" } },
+          { middleName: { contains: term, mode: "insensitive" } },
+          { lastName: { contains: term, mode: "insensitive" } },
+          { companyEmail: { contains: term, mode: "insensitive" } },
+          { personalEmail: { contains: term, mode: "insensitive" } },
+          { jobTitle: { contains: term, mode: "insensitive" } },
+          { department: { name: { contains: term, mode: "insensitive" } } },
+        ],
+      }));
     }
 
     if (filters.teamIds?.length || filters.teamId || filters.team) {

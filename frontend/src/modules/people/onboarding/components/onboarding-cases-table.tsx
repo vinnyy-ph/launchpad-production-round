@@ -22,6 +22,7 @@ import {
   type Column,
 } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
+import { matchesSearchTerms } from "@/shared/lib/search";
 import { InviteStatusBadge } from "./invite-status-badge";
 import { useOnboardingRecords } from "../hooks/use-onboarding-records";
 import type { DocumentReview, OnboardingInvitationStatus } from "../types/onboarding.types";
@@ -140,10 +141,9 @@ export function OnboardingCasesTable() {
   );
 
   const filtered = useMemo(() => {
-    const query = debouncedSearch.toLowerCase().trim();
     return rows.filter((row) => {
-      const matchesSearch =
-        !query || row.name.toLowerCase().includes(query) || row.email.toLowerCase().includes(query);
+      // Match full name (first/middle/last, already joined in `name`) and email, term by term.
+      const matchesSearch = matchesSearchTerms(debouncedSearch, `${row.name} ${row.email}`);
       const matchesStatus = statusFilter === ALL || row.invitationStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
