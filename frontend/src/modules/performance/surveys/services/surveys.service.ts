@@ -12,6 +12,7 @@ import type {
   AnsweredSurvey,
   AnswerInput,
   SurveyResults,
+  ShareResultsResponse,
   ResultsFilter,
   SurveyOccurrenceSummary,
   VisibleResultSurvey,
@@ -169,6 +170,21 @@ export async function fetchSurveyResults(
     ? `${BASE}/occurrences/${occurrenceId}/results${suffix}`
     : `${BASE}/${surveyId}/results${suffix}`;
   const res = await apiFetch<{ data: SurveyResults }>(path);
+  return res.data;
+}
+
+/**
+ * HR-only: share a small anonymous team's results with that team's supervisor. The server
+ * enforces every gate (anonymous, small team, completed occurrence, resolvable supervisor).
+ */
+export async function shareSmallTeamResults(
+  surveyId: string,
+  input: { teamId: string; occurrenceId?: string },
+): Promise<ShareResultsResponse> {
+  const res = await apiFetch<{ data: ShareResultsResponse }>(
+    `${BASE}/${surveyId}/results/share`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
   return res.data;
 }
 

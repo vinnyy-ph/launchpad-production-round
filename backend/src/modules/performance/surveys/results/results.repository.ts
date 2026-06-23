@@ -35,6 +35,49 @@ export class ResultsRepository {
     });
   }
 
+  /** The most recent occurrence (full row) for a survey, or null if never activated. */
+  async findLatestOccurrence(surveyId: string) {
+    return prisma.surveyOccurrence.findFirst({
+      where: { surveyId },
+      orderBy: { occurrenceNumber: "desc" },
+    });
+  }
+
+  /** Team + leader (supervisor) + member count, for the small-team share gate and DTO hint. */
+  async findTeamForShare(teamId: string) {
+    return prisma.team.findUnique({
+      where: { id: teamId },
+      select: {
+        id: true,
+        name: true,
+        leaderId: true,
+        leader: { select: { id: true, firstName: true, lastName: true, status: true, userId: true } },
+        _count: { select: { members: true } },
+      },
+    });
+  }
+
+  /** An existing HR share of one team's results for one occurrence (the supervisor's view-grant). */
+  async findResultShare(occurrenceId: string, teamId: string) {
+    return prisma.surveyResultShare.findUnique({
+      where: { occurrenceId_teamId: { occurrenceId, teamId } },
+    });
+  }
+
+  /** Idempotent upsert of a share — re-sending refreshes the actor + timestamp. */
+  async upsertResultShare(input: {
+    occurrenceId: string;
+    teamId: string;
+    supervisorId: string;
+    sharedById: string;
+  }) {
+    return prisma.surveyResultShare.upsert({
+      where: { occurrenceId_teamId: { occurrenceId: input.occurrenceId, teamId: input.teamId } },
+      create: input,
+      update: { supervisorId: input.supervisorId, sharedById: input.sharedById, sharedAt: new Date() },
+    });
+  }
+
   /** The most recent occurrence (highest occurrenceNumber) for a survey, or null if never activated. */
   async findLatestOccurrenceId(surveyId: string): Promise<string | null> {
     const occ = await prisma.surveyOccurrence.findFirst({
