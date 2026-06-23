@@ -150,7 +150,7 @@ Real-time notifications authenticate via Firebase token in the handshake (`backe
 | -------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | CORS                 | Comma-separated allowlist via `CORS_ORIGIN`                      | `backend/src/app.ts`                                                                       |
 | Security headers     | Helmet with CSP                                                  | `backend/src/app.ts`                                                                       |
-| Rate limiting        | 100 requests / 15 min (global + auth routes)                     | `backend/src/core/middleware/rate-limit.middleware.ts`                                     |
+| Rate limiting        | 100 requests / 15 min (global); production `/api/auth`: 20 / 15 min (failed attempts only); development `/api/auth`: 100 / 15 min | `backend/src/core/middleware/rate-limit.middleware.ts`                                     |
 | Input validation     | Per-module `*.validation.ts`; `VALIDATION_FAILED` + field errors | e.g. `backend/src/modules/people/onboarding/onboarding.validation.ts`                      |
 | Email HTML injection | `escapeHtml()` in all email templates                            | `backend/src/core/email/templates/`                                                        |
 | File upload limits   | Multer in-memory: onboarding 5 MB, evaluations/offboarding 10 MB | `*-upload.middleware.ts` modules                                                           |
@@ -361,7 +361,6 @@ Close with [Section 10](#10-known-limitations-and-remediation-tracker) — docum
 | Gap                                           | Risk                                 | Evidence                          | Remediation (planned)                                    | Owner | Priority |
 | --------------------------------------------- | ------------------------------------ | --------------------------------- | -------------------------------------------------------- | ----- | -------- |
 | No `trust proxy` behind Railway               | Rate limit bypass / wrong client IP  | `rate-limit.middleware.ts`        | Set `app.set('trust proxy', 1)` in production            | TBD   | Low      |
-| Auth limiter same as global (100/15min)       | Brute-force auth attempts            | `rate-limit.middleware.ts`        | Stricter limit on `/api/auth`                            | TBD   | Low      |
 | No SAST/DAST/dependency scan in CI            | Undetected vulnerabilities           | `.github/workflows/ci.yaml`       | Add `npm audit`, CodeQL, or Dependabot                   | TBD   | Medium   |
 | Frontend tests not in CI                      | UI regressions                       | `package.json` root `test` script | Add `npm test -w frontend` to CI                         | TBD   | Low      |
 | Auth middleware mocked in tests               | No integration test vs real Firebase | `*-authorization.test.ts` helpers | Add optional integration test job                        | TBD   | Low      |
