@@ -3,8 +3,15 @@ import userEvent from "@testing-library/user-event";
 import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
 
 const mockUseEmployees = jest.fn();
+const mockUseAllEmployees = jest.fn(() => ({
+  employees: [],
+  loading: false,
+  error: null,
+  reload: jest.fn(),
+}));
 jest.mock("@/modules/people/employees/hooks/use-employees", () => ({
   useEmployees: (filters: unknown) => mockUseEmployees(filters),
+  useAllEmployees: () => mockUseAllEmployees(),
 }));
 
 const mockUseEmployeeProfile = jest.fn();
