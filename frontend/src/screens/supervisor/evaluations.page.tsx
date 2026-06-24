@@ -78,6 +78,7 @@ import {
   EVAL_TEXT_LIMITS,
 } from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
 import { formatPeriod } from "./evaluations.format";
+import { partitionEvaluationsByScope } from "./evaluations.scope";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1127,6 +1128,9 @@ function EvaluationEditorDialog({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 type StatusFilter = "ALL" | "sent" | "draft";
+// Which slice of the visible set to show: evaluations I issued vs. ones I can see across my
+// reporting line but didn't issue (e.g. issued by a downward supervisor).
+type Scope = "mine" | "team";
 
 const PAGE_SIZE = 10;
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -1161,6 +1165,7 @@ export default function EvaluationsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
+  const [scope, setScope] = useState<Scope>("mine");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [sort, setSort] = useState<DataTableSort>({ key: "period", direction: "desc" });
   const [page, setPage] = useState(1);
@@ -1169,16 +1174,24 @@ export default function EvaluationsPage() {
   const revieweeName = (id: string) => revieweeList.find((r) => r.id === id)?.fullName ?? "—";
   const nameOf = (ev: Evaluation) => ev.reviewee?.fullName ?? revieweeName(ev.revieweeId);
 
-  // The supervisor's own issued evaluations (drafts + sent).
-  const evals = useMemo(() => {
-    const list = allEvals ?? [];
-    return appUser?.employeeId
-      ? list.filter((e) => e.reviewerId === appUser.employeeId)
-      : list;
-  }, [allEvals, appUser?.employeeId]);
+  // Split the visible set into evaluations I issued ("mine") vs. ones I can see across my
+  // reporting line but didn't issue ("team"). The active tab picks which one the table shows.
+  const { mine, team } = useMemo(
+    () => partitionEvaluationsByScope(allEvals ?? [], appUser?.employeeId),
+    [allEvals, appUser?.employeeId],
+  );
+  const evals = scope === "team" ? team : mine;
 
   const draftCount = evals.filter((e) => !e.isSent).length;
   const sentCount = evals.filter((e) => e.isSent).length;
+
+  // The "team" scope only ever holds sent evaluations, so its only status tab is "All" —
+  // reset any draft/sent filter when switching in so the indicator isn't stranded on a
+  // hidden tab.
+  const selectScope = (next: Scope) => {
+    setScope(next);
+    if (next === "team") setStatusFilter("ALL");
+  };
 
   // Search + status filter, then sort — all client-side over this supervisor's set.
   const filtered = useMemo(() => {
@@ -1221,7 +1234,7 @@ export default function EvaluationsPage() {
   // Reset to the first page whenever the result set changes underneath us.
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sort]);
+  }, [search, statusFilter, sort, scope]);
 
   const openCreate = () => {
     setEditing(null);
@@ -1348,6 +1361,21 @@ export default function EvaluationsPage() {
         </div>
       ),
     },
+    // Reviewer (who issued it) is only meaningful in the team scope — in "Issued by me" it's
+    // always the current user.
+    ...(scope === "team"
+      ? [
+          {
+            header: "Reviewer",
+            className: "min-w-[180px]",
+            cell: (ev: Evaluation) => (
+              <span className="text-sm text-[color:var(--text-secondary)]">
+                {ev.reviewer?.fullName ?? "—"}
+              </span>
+            ),
+          } satisfies Column<Evaluation>,
+        ]
+      : []),
     {
       header: "Period",
       className: "min-w-[150px] text-center whitespace-nowrap",
@@ -1411,10 +1439,16 @@ export default function EvaluationsPage() {
     },
   ];
 
-  const emptyTitle = hasFilters ? "No matching evaluations" : "No evaluations yet";
+  const emptyTitle = hasFilters
+    ? "No matching evaluations"
+    : scope === "team"
+      ? "No team evaluations yet"
+      : "No evaluations yet";
   const emptyBody = hasFilters
     ? "Try a different search or status filter."
-    : "Create your first evaluation for a direct report.";
+    : scope === "team"
+      ? "Evaluations issued by supervisors in your reporting line will appear here once sent."
+      : "Create your first evaluation for a direct report.";
 
   const sendingName = pendingSend?.name ?? "the employee";
 
@@ -1422,7 +1456,45 @@ export default function EvaluationsPage() {
     <div className="min-w-0">
       <ScreenHeader id="evaluations" level="page" />
 
-      {/* Status sub-tabs — double as the status filter, with a live count badge each */}
+      {/* Scope toggle — evaluations I issued vs. ones across my reporting line I can see */}
+      <div
+        role="tablist"
+        aria-label="Evaluation scope"
+        className="mb-4 inline-flex rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-0.5"
+      >
+        {(
+          [
+            { value: "mine", label: "Issued by me", count: mine.length },
+            { value: "team", label: "My team", count: team.length },
+          ] as { value: Scope; label: string; count: number }[]
+        ).map((s) => {
+          const active = scope === s.value;
+          return (
+            <button
+              key={s.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => selectScope(s.value)}
+              className={[
+                "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                active
+                  ? "bg-white text-[color:var(--text-primary)] shadow-[var(--shadow-xs)]"
+                  : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
+              ].join(" ")}
+            >
+              {s.label}
+              <span className="text-xs font-semibold tabular-nums text-[color:var(--text-tertiary)]">
+                {isLoading ? "–" : s.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Status sub-tabs — double as the status filter, with a live count badge each. Hidden
+          in the team scope, where every evaluation is sent so a status filter is moot. */}
+      {scope !== "team" && (
       <div
         role="tablist"
         aria-label="Filter by status"
@@ -1473,6 +1545,7 @@ export default function EvaluationsPage() {
           );
         })}
       </div>
+      )}
 
       <FilterBar aria-label="Filter evaluations" className="gap-3">
         <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -1547,7 +1620,11 @@ export default function EvaluationsPage() {
               icon={ClipboardCheck}
               title={emptyTitle}
               body={emptyBody}
-              action={hasFilters ? undefined : { label: "New evaluation", onClick: openCreate }}
+              action={
+                hasFilters || scope === "team"
+                  ? undefined
+                  : { label: "New evaluation", onClick: openCreate }
+              }
             />
           }
         />
