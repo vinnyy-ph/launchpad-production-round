@@ -5,13 +5,11 @@ import {
   BriefcaseBusiness,
   Check,
   Eye,
-  ExternalLink,
   FileText,
   History,
   LogOut,
   MapPin,
   Phone,
-  Mail,
   Send,
   UserRound,
   Users,
@@ -28,7 +26,7 @@ import {
 } from "@/shared/ui/primitives/dialog";
 import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { Input } from "@/shared/ui/primitives/input";
-import { PhoneInput, Skeleton } from "@/shared/ui";
+import { PhoneInput } from "@/shared/ui";
 import {
   Select,
   SelectContent,
@@ -393,13 +391,6 @@ function isImageUrl(url: string): boolean {
   return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(url.split("?")[0]);
 }
 
-function isPdfUrl(url: string): boolean {
-  try {
-    return decodeURIComponent(new URL(url).pathname).toLowerCase().includes(".pdf");
-  } catch {
-    return decodeURIComponent(url.split("?")[0]).toLowerCase().includes(".pdf");
-  }
-}
 
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
   return (
@@ -571,7 +562,6 @@ export function EmployeeDetailsModal({
   const [contactNumberError, setContactNumberError] = useState<string | null>(null);
   const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
-  const [documentImageFailed, setDocumentImageFailed] = useState(false);
   const unsavedToastIdRef = useRef<string | number | null>(null);
   // Scroll container + the section currently in view, so the sidebar can highlight the active tab.
   const scrollContainerRef = useRef<HTMLElement>(null);
@@ -656,9 +646,6 @@ export function EmployeeDetailsModal({
     // `open` is a dependency so the observer re-attaches to the freshly mounted section nodes
     // each time the modal reopens (the dialog content unmounts while closed).
   }, [profile, loading, error, open]);
-  useEffect(() => {
-    setDocumentImageFailed(false);
-  }, [viewingDocument?.fileUrl]);
 
   function scrollToSection(section: EmployeeDetailsSection) {
     sectionRefs.current[section]?.scrollIntoView({ behavior: "smooth", block: "start" });
