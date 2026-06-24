@@ -16,6 +16,10 @@ export const notificationFindFirstMock = mockedPrisma.notification.findFirst as 
 export const notificationCreateMock = mockedPrisma.notification.create as jest.Mock;
 export const notificationCreateManyMock = mockedPrisma.notification.createMany as jest.Mock;
 export const notificationUpdateMock = mockedPrisma.notification.update as jest.Mock;
+// Only defined for test files whose prisma mock includes notification.updateMany; left out of
+// resetNotificationMocks so files that don't mock it are unaffected.
+export const notificationUpdateManyMock = mockedPrisma.notification
+  .updateMany as jest.Mock;
 
 /** Clears notification Prisma mocks before each test. */
 export function resetNotificationMocks() {
@@ -55,6 +59,9 @@ export function buildNotification(overrides: Record<string, unknown> = {}) {
     sourceId: COMPLETED_EMPLOYEE_ID,
     isRead: false,
     readAt: null,
+    isPinned: false,
+    pinnedAt: null,
+    deletedAt: null,
     createdAt: new Date("2026-06-18T03:30:00.000Z"),
     updatedAt: new Date("2026-06-18T03:30:00.000Z"),
     ...overrides,
