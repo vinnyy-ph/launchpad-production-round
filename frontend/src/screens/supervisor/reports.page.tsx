@@ -206,11 +206,7 @@ function EvaluationBreakdown({
     return (
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {[0, 1].map((i) => (
-          <div
-            key={i}
-            className="h-[260px] rounded-xl border border-[color:var(--border-primary)] bg-white"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          />
+          <Skeleton key={i} className="h-[260px] rounded-xl" />
         ))}
       </div>
     );

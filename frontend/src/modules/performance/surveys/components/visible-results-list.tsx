@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { AlertCircle, BarChart3, ChevronRight, RefreshCw } from "lucide-react";
-import { Badge } from "@/shared/ui";
+import { Badge, Skeleton } from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
 import { STATUS_LABEL } from "../types/surveys.types";
 import { useVisibleResultSurveys } from "../hooks/use-visible-result-surveys";
@@ -17,11 +17,7 @@ export function VisibleResultsList() {
     return (
       <div className="space-y-2.5">
         {[0, 1].map((i) => (
-          <div
-            key={i}
-            className="h-[58px] rounded-xl border border-[color:var(--border-primary)] bg-white"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          />
+          <Skeleton key={i} className="h-[58px] rounded-xl" />
         ))}
       </div>
     );

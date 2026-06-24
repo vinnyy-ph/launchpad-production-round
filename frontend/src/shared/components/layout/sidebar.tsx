@@ -105,7 +105,9 @@ export function Sidebar({
       {/* Footer */}
       <div className="mt-auto px-4 pb-4 text-center">
         <p className="text-[12px] font-medium leading-[18px] text-[#717680]">
-          © 2026 White Cloak Technologies, Inc.
+          © 2026
+          <br />
+          White Cloak Technologies, Inc.
         </p>
       </div>
     </aside>

@@ -1,4 +1,5 @@
 import { Bell } from "lucide-react";
+import { Skeleton } from "@/shared/ui";
 import { NotificationItem } from "./notification-item";
 import type { Notification } from "../types/notifications.types";
 
@@ -24,10 +25,10 @@ export function NotificationDropdown({ notifications, loading, onRead }: Props) 
           <div>
             {[0, 1, 2].map((i) => (
               <div key={i} className="flex gap-3 px-4 py-3">
-                <div className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
+                <Skeleton className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-3/4 rounded bg-[color:var(--bg-tertiary)]" />
-                  <div className="h-2.5 w-1/2 rounded bg-[color:var(--bg-tertiary)]" />
+                  <Skeleton className="h-3 w-3/4" />
+                  <Skeleton className="h-2.5 w-1/2" />
                 </div>
               </div>
             ))}

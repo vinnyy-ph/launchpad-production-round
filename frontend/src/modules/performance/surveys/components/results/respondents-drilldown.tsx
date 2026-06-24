@@ -9,6 +9,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  Skeleton,
 } from "@/shared/ui";
 import { useOccurrenceRespondents } from "../../hooks/use-occurrence-respondents";
 import { useRespondentAnswers } from "../../hooks/use-respondent-answers";
@@ -63,8 +64,8 @@ function RespondentAnswersDialog({
             <div className="space-y-4">
               {[0, 1].map((i) => (
                 <div key={i}>
-                  <div className="h-3.5 w-48 rounded bg-[color:var(--bg-tertiary)]" />
-                  <div className="mt-2 h-3 w-32 rounded bg-[color:var(--bg-tertiary)]" />
+                  <Skeleton className="h-3.5 w-48" />
+                  <Skeleton className="mt-2 h-3 w-32" />
                 </div>
               ))}
             </div>
@@ -130,10 +131,39 @@ export function RespondentsDrilldown({
 }) {
   const [selected, setSelected] = useState<RespondentRosterMember | null>(null);
   // Never fetch (or render) for anonymous surveys — individuals are never exposed.
-  const { data } = useOccurrenceRespondents(isAnonymous || !occurrenceId ? null : occurrenceId);
+  const { data, isLoading } = useOccurrenceRespondents(
+    isAnonymous || !occurrenceId ? null : occurrenceId,
+  );
   const respondents = data?.respondents ?? [];
 
-  if (isAnonymous || !occurrenceId || respondents.length === 0) return null;
+  // Anonymous / no occurrence → never show. Loaded-but-empty (no authority) → also nothing.
+  if (isAnonymous || !occurrenceId) return null;
+
+  if (isLoading) {
+    return (
+      <div
+        className="mt-4 rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6"
+        aria-busy="true"
+      >
+        <div className="mb-4 flex items-center gap-2.5">
+          <Users size={16} className="text-[color:var(--text-tertiary)]" aria-hidden="true" />
+          <h3 className="text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
+            Individual responses
+          </h3>
+        </div>
+        <ul className="divide-y divide-[color:var(--border-secondary)]">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="flex items-center justify-between gap-3 py-2.5">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  if (respondents.length === 0) return null;
 
   const respondedCount = respondents.filter((r) => r.submitted).length;
 

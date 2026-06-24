@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
   Badge,
+  Skeleton,
 } from "@/shared/ui";
 import { useMyAnswers } from "../hooks/use-my-answers";
 import type { AnsweredSurvey, MyAnswer } from "../types/surveys.types";
@@ -114,8 +115,8 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
             <div className="space-y-4">
               {[0, 1].map((i) => (
                 <div key={i}>
-                  <div className="h-3.5 w-48 rounded bg-[color:var(--bg-tertiary)]" />
-                  <div className="mt-2 h-3 w-32 rounded bg-[color:var(--bg-tertiary)]" />
+                  <Skeleton className="h-3.5 w-48" />
+                  <Skeleton className="mt-2 h-3 w-32" />
                 </div>
               ))}
             </div>

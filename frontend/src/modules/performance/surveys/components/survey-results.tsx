@@ -21,6 +21,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Textarea,
   useConfirm,
 } from "@/shared/ui";
@@ -735,17 +736,11 @@ function ResultsSkeleton() {
     <div className="space-y-4">
       <div className="grid gap-3.5 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-[92px] rounded-2xl border border-[color:var(--border-primary)] bg-white"
-          />
+          <Skeleton key={i} className="h-[92px] rounded-2xl" />
         ))}
       </div>
       {[0, 1].map((i) => (
-        <div
-          key={i}
-          className="h-52 rounded-2xl border border-[color:var(--border-primary)] bg-white"
-        />
+        <Skeleton key={i} className="h-52 rounded-2xl" />
       ))}
     </div>
   );

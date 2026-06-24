@@ -22,6 +22,7 @@ import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
 import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { useAssignedClearances, AssignedClearancesSection } from "@/modules/people/offboarding";
 import { KpiCard } from "@/shared/ui/patterns";
+import { Skeleton } from "@/shared/ui";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { RedactedProfileSheet } from "@/modules/people/employees/components/redacted-profile-sheet";
 import { cn } from "@/shared/lib/utils";
@@ -185,10 +186,10 @@ export default function HomePage() {
             <div>
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex gap-3 px-4 py-3 border-b border-[color:var(--border-primary)] last:border-0">
-                  <div className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
+                  <Skeleton className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-3/4 rounded bg-[color:var(--bg-tertiary)]" />
-                    <div className="h-2.5 w-1/2 rounded bg-[color:var(--bg-tertiary)]" />
+                    <Skeleton className="h-3 w-3/4" />
+                    <Skeleton className="h-2.5 w-1/2" />
                   </div>
                 </div>
               ))}
@@ -370,8 +371,8 @@ function PeopleSection({
             </p>
             {loading ? (
               <div className="mt-3 flex items-center gap-2.5">
-                <span className="h-9 w-9 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
-                <span className="h-3.5 w-28 rounded bg-[color:var(--bg-tertiary)]" />
+                <Skeleton className="h-9 w-9 flex-shrink-0 rounded-full" />
+                <Skeleton className="h-3.5 w-28" />
               </div>
             ) : (
               <p className="mt-3 text-sm text-[color:var(--text-tertiary)]">

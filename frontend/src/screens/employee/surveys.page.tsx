@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { ClipboardList, AlertCircle, RefreshCw, CheckSquare, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { Button, Badge } from "@/shared/ui";
+import { Button, Badge, Skeleton } from "@/shared/ui";
 import { EmptyState, PageTabs } from "@/shared/ui/patterns";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEvaluations } from "@/modules/performance/evaluations/hooks/use-evaluations";
@@ -110,8 +110,8 @@ function SurveysTab({
             key={i}
             className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
           >
-            <div className="h-4 w-48 rounded bg-[color:var(--bg-tertiary)]" />
-            <div className="mt-2 h-3 w-64 rounded bg-[color:var(--bg-tertiary)]" />
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="mt-2 h-3 w-64" />
           </div>
         ))}
       </div>
@@ -265,8 +265,8 @@ function AcknowledgementsTab({
             key={i}
             className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
           >
-            <div className="h-3.5 w-40 rounded bg-[color:var(--bg-tertiary)]" />
-            <div className="mt-2 h-2.5 w-24 rounded bg-[color:var(--bg-tertiary)]" />
+            <Skeleton className="h-3.5 w-40" />
+            <Skeleton className="mt-2 h-2.5 w-24" />
           </div>
         ))}
       </div>

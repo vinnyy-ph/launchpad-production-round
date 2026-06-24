@@ -2,7 +2,7 @@
 
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { Badge, Button } from "@/shared/ui";
+import { Badge, Button, Skeleton } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import { useSurveyInsights } from "../hooks/use-survey-insights";
 import type { InsightSentiment } from "../types/surveys.types";
@@ -82,9 +82,9 @@ export function AiInsightsPanel({
       {/* Loading */}
       {enabled && (q.isLoading || regenerating) && (
         <div className="mt-4 space-y-3">
-          <div className="h-5 w-3/4 rounded-md bg-[color:var(--bg-secondary)]" />
-          <div className="h-16 rounded-xl bg-[color:var(--bg-secondary)]" />
-          <div className="h-16 rounded-xl bg-[color:var(--bg-secondary)]" />
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
         </div>
       )}
 
@@ -128,7 +128,7 @@ export function AiInsightsPanel({
             <span className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
               Sentiment
             </span>
-            <Badge variant={SENTIMENT_VARIANT[data.insight.sentiment.overall]} pill>
+            <Badge variant={SENTIMENT_VARIANT[data.insight.sentiment.overall]} pill animateIn>
               {SENTIMENT_LABEL[data.insight.sentiment.overall]}
             </Badge>
             <span className="text-[13px] text-[color:var(--text-tertiary)]">

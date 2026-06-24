@@ -7,6 +7,7 @@ import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
 import { Button } from "@/shared/ui/primitives/button";
+import { PageTransition } from "./page-transition";
 
 /**
  * Focused chrome for the onboarding wizard. A still-onboarding hire has no other
@@ -71,7 +72,9 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[880px] px-4 py-8 lg:px-6">{children}</div>
+        <div className="mx-auto w-full max-w-[880px] px-4 py-8 lg:px-6">
+          <PageTransition>{children}</PageTransition>
+        </div>
       </main>
     </div>
   );

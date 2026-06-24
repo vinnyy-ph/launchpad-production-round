@@ -41,11 +41,18 @@ function BadgeDot({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
 
 export interface BadgeProps
   extends HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  /** Play the DS pop-in entrance (scale + fade). Use only for badges that appear as a
+   *  result of an action — not static badges in tables/lists. */
+  animateIn?: boolean;
+}
 
-function Badge({ className, variant, size, pill, ...props }: BadgeProps) {
+function Badge({ className, variant, size, pill, animateIn, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant, size, pill }), className)} {...props} />
+    <div
+      className={cn(badgeVariants({ variant, size, pill }), animateIn && "badge-pop-in", className)}
+      {...props}
+    />
   );
 }
 

@@ -120,31 +120,43 @@
     box-sizing: border-box;
     width: 16px; height: 16px;
     border-radius: 4px;
-    border: 1.5px solid var(--gray-neutral-300);
+    border: 1px solid var(--gray-neutral-300);
     background: #fff;
-    position: relative;
+    color: #fff; /* the check SVG inherits this via currentColor */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
     padding: 0;
     cursor: pointer;
+    /* A control isn't text — stop the check/SVG from being selectable, which
+       was painting the browser's blue selection highlight behind the check. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
     transition: background 140ms var(--ease), border-color 140ms var(--ease), box-shadow 140ms var(--ease);
   }
   .jia-cb-root[data-state="checked"],
   .jia-cb-root[data-state="indeterminate"] {
     background: var(--gradient-jia);   /* 135° — matches book .jia-cb:checked */
     border-color: transparent;
-    box-shadow: 0 0 0 3px rgba(159, 202, 237, .22);
+    /* No persistent ring on checked — the gradient fill already signals "on".
+       The focus-visible ring below still shows for keyboard users. */
   }
-  .jia-cb-root[data-state="checked"]::after {
-    content: ""; position: absolute; left: 4px; top: 1.5px;
-    width: 5px; height: 8px;
-    border: 2px solid #fff; border-top: none; border-left: none;
-    transform: rotate(45deg);
+  .jia-cb-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .jia-cb-root[data-state="indeterminate"]::after {
-    content: ""; position: absolute; left: 3px; top: 6px;
-    width: 8px; height: 2px; background: #fff; border-radius: 1px;
+  /* DS rounded-cap SVG marks, 12px for the 16px (sm) box. */
+  .jia-cb-check, .jia-cb-dash { width: 12px; height: 12px; display: none; }
+  .jia-cb-root[data-state="checked"] .jia-cb-check { display: block; }
+  .jia-cb-root[data-state="indeterminate"] .jia-cb-dash { display: block; }
+  .jia-cb-root[data-state="unchecked"]:hover:not(:disabled) {
+    background: var(--gray-50);
+    border-color: var(--gray-neutral-400);
   }
-  .jia-cb-root:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(159, 202, 237, .38); }
+  .jia-cb-root:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(152, 162, 179, .35); }
   .jia-cb-root:disabled { opacity: .38; cursor: not-allowed; }
 
   /* ── Radio — ported from brandbook .jia-rb ── */
@@ -182,10 +194,11 @@
   .cp-val { font-weight: 700; color: var(--text-primary); }
   .cp-sub { color: var(--text-tertiary); font-weight: 500; }
 
-  /* Fade-in + scale-from-center for centered dialogs. `dialog-pop` is the reusable alias. */
+  /* Modal appear (DS "Live examples"): fade + slide up 10px, 300ms, ease-standard.
+     `dialog-pop` is the reusable alias shared by all centered dialogs. */
   .directory-profile-dialog[data-state="open"],
   .dialog-pop[data-state="open"] {
-    animation: directory-profile-dialog-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both !important;
+    animation: directory-profile-dialog-in 300ms cubic-bezier(0.2, 0, 0, 1) both !important;
   }
 
   .directory-profile-dialog[data-state="closed"],
@@ -290,22 +303,54 @@
 @keyframes directory-profile-dialog-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.96);
+    transform: translate(-50%, calc(-50% + 10px));
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%);
   }
 }
 
 @keyframes directory-profile-dialog-out {
   from {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%);
   }
   to {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.98);
+    transform: translate(-50%, calc(-50% + 6px));
+  }
+}
+
+/* Toast (sonner) — keep sonner's slide, but retune its timing + easing to Jia motion
+   (DS toast spec: ~300ms, ease-standard). Sonner owns the transform distance/stacking,
+   so we only touch duration + curve here. */
+[data-sonner-toast] {
+  transition:
+    transform 300ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 300ms cubic-bezier(0.2, 0, 0, 1),
+    height 300ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+/* Badge pop-in (DS "Live examples") — opt-in via <Badge animateIn>. Scale + fade with a
+   slight overshoot, 200ms. Use only for badges that appear from an action (not static ones). */
+@keyframes badge-pop-in {
+  0%   { opacity: 0; transform: scale(0); }
+  45%  { opacity: 1; transform: scale(1.13); }
+  75%  { transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@layer components {
+  .badge-pop-in {
+    animation: badge-pop-in 200ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-pop-in {
+    animation: none;
   }
 }
 
@@ -655,5 +700,45 @@
   .phone-input .PhoneInputInput {
     flex: 1;
     min-width: 0;
+  }
+}
+
+/* Skeleton shimmer — copied verbatim from the Jia brandbook "Live examples" demo:
+   90deg gray-cool sweep (gc-100 → gc-50 → gc-100 at 25/50/75), 1.4s linear loop.
+   gc-100 = --gray-100, gc-50 = --gray-50. */
+@keyframes skeleton-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+@layer components {
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--gray-100) 25%,
+      var(--gray-50) 50%,
+      var(--gray-100) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Smooth scroll for programmatic/anchor jumps (scroll-to-top, jump-to-section,
+   scrollIntoView). Wheel/trackpad scrolling is unchanged. Scoped behind the
+   reduced-motion guard since scroll-behavior doesn't honor it on its own. The app
+   scrolls inside <main> (the shells are h-screen/overflow-hidden), so target both. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+  main {
+    scroll-behavior: smooth;
   }
 }

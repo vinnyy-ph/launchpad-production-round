@@ -118,9 +118,12 @@ function hasFormData(form: FormSnapshot): boolean {
  * the new hire a step. On success it sends the invitation and reports the new employee id.
  */
 export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployeeDialogProps) {
-  const { employees: activeEmployees } = useEmployees({ status: "active", limit: 100 });
-  const { departments } = useDepartments();
-  const { documents: requiredDocuments } = useDocumentConfigs();
+  const { employees: activeEmployees, loading: employeesLoading } = useEmployees({
+    status: "active",
+    limit: 100,
+  });
+  const { departments, loading: departmentsLoading } = useDepartments();
+  const { documents: requiredDocuments, loading: docsLoading } = useDocumentConfigs();
   const onboard = useOnboardEmployee();
 
   const [firstName, setFirstName] = useState("");
@@ -167,8 +170,9 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     label: `${employee.fullName} · ${employee.companyEmail}`,
   }));
 
-  const requiredDocsNote =
-    requiredDocuments.length > 0
+  const requiredDocsNote = docsLoading
+    ? "loading…"
+    : requiredDocuments.length > 0
       ? requiredDocuments.map((document) => document.documentName).join(", ")
       : "none set yet";
 
@@ -554,9 +558,15 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
             </FormField>
             <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
               <FormField label="Department" required error={errors.department}>
-                <Select value={department} onValueChange={setDepartment}>
+                <Select
+                  value={department}
+                  onValueChange={setDepartment}
+                  disabled={departmentsLoading}
+                >
                   <SelectTrigger aria-label="Select department">
-                    <SelectValue placeholder="Select a department" />
+                    <SelectValue
+                      placeholder={departmentsLoading ? "Loading departments…" : "Select a department"}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((option) => (
@@ -572,9 +582,10 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   options={supervisorOptions}
                   value={supervisorId}
                   onChange={(value) => setSupervisorId(value || "")}
-                  placeholder="Select a supervisor…"
+                  placeholder={employeesLoading ? "Loading employees…" : "Select a supervisor…"}
                   searchPlaceholder="Search employees…"
-                  emptyText="No active employees found."
+                  emptyText={employeesLoading ? "Loading employees…" : "No active employees found."}
+                  disabled={employeesLoading}
                 />
               </FormField>
             </div>
