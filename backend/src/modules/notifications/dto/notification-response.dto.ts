@@ -8,5 +8,7 @@ export interface NotificationResponseDto {
   body: string;
   linkUrl: string | null;
   isRead: boolean;
+  isPinned: boolean;
+  pinnedAt: string | null;
   createdAt: string;
 }

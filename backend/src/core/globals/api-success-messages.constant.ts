@@ -43,6 +43,11 @@ export const API_SUCCESS_MESSAGES = {
   HR_ONBOARDING_COMPLETED: "Employee onboarding completed successfully",
   NOTIFICATIONS_RETRIEVED: "Notifications retrieved successfully",
   NOTIFICATION_MARKED_AS_READ: "Notification marked as read",
+  ALL_NOTIFICATIONS_MARKED_AS_READ: "All notifications marked as read",
+  NOTIFICATION_PINNED: "Notification pinned",
+  NOTIFICATION_UNPINNED: "Notification unpinned",
+  NOTIFICATION_CLEARED: "Notification cleared",
+  NOTIFICATIONS_CLEARED: "Notifications cleared",
   SUPERVISOR_ONBOARDING_STATUSES_RETRIEVED:
     "Supervisor onboarding statuses retrieved successfully",
   EVALUATION_CREATED: "Evaluation created successfully",

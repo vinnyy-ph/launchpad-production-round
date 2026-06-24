@@ -7,10 +7,13 @@ import { buildOnboardingDocumentRejectedEmailHtml } from "../../core/email/templ
 import { buildPulseSurveyReminderEmailHtml } from "../../core/email/templates/pulse-survey-reminder.template";
 import { buildPulseResultsSharedEmailHtml } from "../../core/email/templates/pulse-results-shared.template";
 import type {
+  BulkNotificationResponseDto,
   ListNotificationsQueryDto,
   ListNotificationsResponseDto,
   MarkAsReadResponseDto,
+  MessageResponseDto,
   NotificationResponseDto,
+  SingleNotificationResponseDto,
 } from "./dto";
 import { NotificationsRepository } from "./notifications.repository";
 
@@ -801,6 +804,104 @@ export class NotificationsService {
     };
   }
 
+  /** Marks all of the authenticated user's unread notifications as read. */
+  async markAllAsRead(user: User): Promise<BulkNotificationResponseDto> {
+    const employee = await this.notificationsRepository.findEmployeeByUserId(
+      user.id,
+    );
+
+    if (!employee) {
+      throw new Error("Employee profile not found");
+    }
+
+    const { count } = await this.notificationsRepository.markAllAsRead(
+      employee.id,
+    );
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.ALL_NOTIFICATIONS_MARKED_AS_READ,
+      data: { count },
+    };
+  }
+
+  /** Pins or unpins one notification owned by the authenticated user. */
+  async setPinned(
+    user: User,
+    notificationId: string,
+    pinned: boolean,
+  ): Promise<SingleNotificationResponseDto> {
+    const notification = await this.findOwnedNotification(user, notificationId);
+    const updated = await this.notificationsRepository.setPinned(
+      notification.id,
+      pinned,
+    );
+
+    return {
+      success: true,
+      message: pinned
+        ? API_SUCCESS_MESSAGES.NOTIFICATION_PINNED
+        : API_SUCCESS_MESSAGES.NOTIFICATION_UNPINNED,
+      data: this.toNotificationDto(updated),
+    };
+  }
+
+  /** Soft-deletes (clears) one notification owned by the authenticated user. */
+  async clearOne(
+    user: User,
+    notificationId: string,
+  ): Promise<MessageResponseDto> {
+    const notification = await this.findOwnedNotification(user, notificationId);
+    await this.notificationsRepository.softDelete(notification.id);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.NOTIFICATION_CLEARED,
+    };
+  }
+
+  /** Clears all of the authenticated user's notifications except pinned ones. */
+  async clearAll(user: User): Promise<BulkNotificationResponseDto> {
+    const employee = await this.notificationsRepository.findEmployeeByUserId(
+      user.id,
+    );
+
+    if (!employee) {
+      throw new Error("Employee profile not found");
+    }
+
+    const { count } =
+      await this.notificationsRepository.softDeleteAllForRecipient(employee.id);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.NOTIFICATIONS_CLEARED,
+      data: { count },
+    };
+  }
+
+  /** Resolves a notification owned by the user, throwing the standard not-found errors otherwise. */
+  private async findOwnedNotification(user: User, notificationId: string) {
+    const employee = await this.notificationsRepository.findEmployeeByUserId(
+      user.id,
+    );
+
+    if (!employee) {
+      throw new Error("Employee profile not found");
+    }
+
+    const notification = await this.notificationsRepository.findByIdForRecipient(
+      notificationId,
+      employee.id,
+    );
+
+    if (!notification) {
+      throw new Error("Notification not found");
+    }
+
+    return notification;
+  }
+
   /** Maps a Prisma notification row to the API response shape. */
   private toNotificationDto(notification: Notification): NotificationResponseDto {
     return {
@@ -810,6 +911,10 @@ export class NotificationsService {
       body: notification.body,
       linkUrl: notification.linkUrl,
       isRead: notification.isRead,
+      isPinned: notification.isPinned,
+      pinnedAt: notification.pinnedAt
+        ? notification.pinnedAt.toISOString()
+        : null,
       createdAt: notification.createdAt.toISOString(),
     };
   }
