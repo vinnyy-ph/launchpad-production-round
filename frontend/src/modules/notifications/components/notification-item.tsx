@@ -1,12 +1,28 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { Pin, X, Check } from "lucide-react";
+import { parseISO, isToday, isYesterday, format, differenceInMinutes } from "date-fns";
+import { cn } from "@/shared/lib/utils";
 import type { Notification } from "../types/notifications.types";
 
 interface Props {
   notification: Notification;
   onRead: (id: string) => void;
+  /** Provided by the notification center to enable the pin + clear row actions. */
+  onPin?: (id: string, pinned: boolean) => void;
+  onClear?: (id: string) => void;
+}
+
+/** Compact relative time: "Just now", "5m ago", "3h ago", "Yesterday", else "Jun 18". */
+function relativeTime(iso: string): string {
+  const d = parseISO(iso);
+  const mins = differenceInMinutes(new Date(), d);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (isToday(d)) return `${Math.round(mins / 60)}h ago`;
+  if (isYesterday(d)) return "Yesterday";
+  return format(d, "MMM d");
 }
 
 // The backend stamps `linkUrl`s that don't match the client routes (e.g.
@@ -62,8 +78,12 @@ function resolveRoute(n: Notification): string | null {
   }
 }
 
-export function NotificationItem({ notification, onRead }: Props) {
+const ACTION_BTN =
+  "rounded-md p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+export function NotificationItem({ notification, onRead, onPin, onClear }: Props) {
   const router = useRouter();
+  const showActions = Boolean(onPin && onClear);
 
   const handleClick = () => {
     if (!notification.isRead) onRead(notification.id);
@@ -72,27 +92,54 @@ export function NotificationItem({ notification, onRead }: Props) {
   };
 
   return (
-    <button
-      onClick={handleClick}
-      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[color:var(--bg-secondary)]"
-    >
-      <span
-        className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full"
-        style={{
-          background: notification.isRead
-            ? "var(--border-secondary)"
-            : "var(--gray-neutral-900)",
-        }}
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-          {notification.subject}
-        </p>
-        <p className="truncate text-xs text-[color:var(--text-tertiary)]">
-          {notification.body}
-        </p>
-      </div>
-      <ChevronRight size={16} className="mt-0.5 flex-shrink-0 text-[color:var(--text-quaternary)]" />
-    </button>
+    <div className="group relative flex items-start gap-1 pr-2 transition-colors hover:bg-[color:var(--bg-secondary)]">
+      <button
+        onClick={handleClick}
+        className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left"
+      >
+        <span
+          className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full"
+          style={{
+            background: notification.isRead
+              ? "var(--border-secondary)"
+              : "var(--gray-neutral-900)",
+          }}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-[color:var(--text-primary)]">
+            {notification.subject}
+          </p>
+          <p className="mt-0.5 text-xs leading-relaxed text-[color:var(--text-tertiary)]">
+            {notification.body}
+          </p>
+          <time
+            dateTime={notification.createdAt}
+            className="mt-1 block text-[11px] text-[color:var(--text-quaternary)]"
+          >
+            {relativeTime(notification.createdAt)}
+          </time>
+        </div>
+      </button>
+
+      {showActions && (
+        <div className="flex flex-shrink-0 items-center gap-0.5 self-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+          {!notification.isRead && (
+            <button onClick={() => onRead(notification.id)} aria-label="Mark as read" className={ACTION_BTN}>
+              <Check size={14} />
+            </button>
+          )}
+          <button
+            onClick={() => onPin!(notification.id, !notification.isPinned)}
+            aria-label={notification.isPinned ? "Unpin" : "Pin"}
+            className={cn(ACTION_BTN, notification.isPinned && "text-[color:var(--text-primary)]")}
+          >
+            <Pin size={14} fill={notification.isPinned ? "currentColor" : "none"} />
+          </button>
+          <button onClick={() => onClear!(notification.id)} aria-label="Clear" className={ACTION_BTN}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
