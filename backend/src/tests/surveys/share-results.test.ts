@@ -72,7 +72,7 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
     setRole({ id: "emp-user", role: "EMPLOYEE" });
     await request(app)
       .post(`${URL}/survey-1/results/share`)
-      .send({ teamId: "team-1" })
+      .send({ teamId: "team-1", message: "Nice work this week." })
       .expect(403);
     expect(upsertMock).not.toHaveBeenCalled();
   });
@@ -86,7 +86,7 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
     surveyMock.mockResolvedValue(null);
     const res = await request(app)
       .post(`${URL}/survey-1/results/share`)
-      .send({ teamId: "team-1" })
+      .send({ teamId: "team-1", message: "Nice work this week." })
       .expect(404);
     expect(res.body.errorCode).toBe("SURVEY_NOT_FOUND");
   });
@@ -95,7 +95,7 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
     surveyMock.mockResolvedValue({ id: "survey-1", name: "Q2 Pulse", isAnonymous: false });
     const res = await request(app)
       .post(`${URL}/survey-1/results/share`)
-      .send({ teamId: "team-1" })
+      .send({ teamId: "team-1", message: "Nice work this week." })
       .expect(400);
     expect(res.body.errorCode).toBe("SHARE_NOT_ANONYMOUS");
     expect(upsertMock).not.toHaveBeenCalled();
@@ -106,7 +106,7 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
     occFirstMock.mockResolvedValue({ ...completedOccurrence, isClosed: false, deadline: future });
     const res = await request(app)
       .post(`${URL}/survey-1/results/share`)
-      .send({ teamId: "team-1" })
+      .send({ teamId: "team-1", message: "Nice work this week." })
       .expect(409);
     expect(res.body.errorCode).toBe("SHARE_NOT_COMPLETED");
     expect(upsertMock).not.toHaveBeenCalled();
@@ -116,7 +116,7 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
     teamMock.mockResolvedValue({ ...smallTeam, _count: { members: 5 } });
     const res = await request(app)
       .post(`${URL}/survey-1/results/share`)
-      .send({ teamId: "team-1" })
+      .send({ teamId: "team-1", message: "Nice work this week." })
       .expect(400);
     expect(res.body.errorCode).toBe("SHARE_NOT_SMALL_TEAM");
     expect(upsertMock).not.toHaveBeenCalled();
@@ -126,7 +126,7 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
     teamMock.mockResolvedValue({ ...smallTeam, leaderId: null, leader: null });
     const res = await request(app)
       .post(`${URL}/survey-1/results/share`)
-      .send({ teamId: "team-1" })
+      .send({ teamId: "team-1", message: "Nice work this week." })
       .expect(422);
     expect(res.body.errorCode).toBe("SHARE_NO_SUPERVISOR");
     expect(upsertMock).not.toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
   it("shares results: upserts the grant and notifies the supervisor", async () => {
     const res = await request(app)
       .post(`${URL}/survey-1/results/share`)
-      .send({ teamId: "team-1" })
+      .send({ teamId: "team-1", message: "Nice work this week." })
       .expect(200);
 
     expect(res.body).toMatchObject({
@@ -145,6 +145,7 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
     expect(upsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { occurrenceId_teamId: { occurrenceId: "occ-1", teamId: "team-1" } },
+        create: expect.objectContaining({ message: "Nice work this week." }),
       }),
     );
     expect(notifyMock).toHaveBeenCalledWith(
@@ -154,14 +155,33 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
       "survey-1",
       "occ-1",
       "team-1",
+      "Nice work this week.",
     );
+  });
+
+  it("400s when the note is empty (message required)", async () => {
+    const res = await request(app)
+      .post(`${URL}/survey-1/results/share`)
+      .send({ teamId: "team-1", message: "   " })
+      .expect(400);
+    expect(res.body.errorCode).toBe("SHARE_MESSAGE_REQUIRED");
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+
+  it("400s when the note exceeds the max length", async () => {
+    const res = await request(app)
+      .post(`${URL}/survey-1/results/share`)
+      .send({ teamId: "team-1", message: "x".repeat(2001) })
+      .expect(400);
+    expect(res.body.errorCode).toBe("SHARE_MESSAGE_TOO_LONG");
+    expect(upsertMock).not.toHaveBeenCalled();
   });
 
   it("uses the explicit occurrenceId when provided", async () => {
     occUniqueMock.mockResolvedValue({ ...completedOccurrence, id: "occ-7" });
     await request(app)
       .post(`${URL}/survey-1/results/share`)
-      .send({ teamId: "team-1", occurrenceId: "occ-7" })
+      .send({ teamId: "team-1", occurrenceId: "occ-7", message: "Nice work this week." })
       .expect(200);
     expect(occUniqueMock).toHaveBeenCalledWith({ where: { id: "occ-7" } });
   });

@@ -6,8 +6,10 @@ import {
   BarChart3,
   Download,
   Lock,
+  MessageSquareText,
   RefreshCw,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -19,9 +21,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
   useConfirm,
 } from "@/shared/ui";
-import { EmptyState } from "@/shared/ui/patterns";
+import { EmptyState, Spinner } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
 import { ApiError } from "@/shared/lib/api-client";
 import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
@@ -29,9 +32,11 @@ import { useSurvey } from "../hooks/use-survey";
 import { useSurveyResults } from "../hooks/use-survey-results";
 import { useSurveyOccurrences } from "../hooks/use-survey-occurrences";
 import { useShareResults } from "../hooks/use-share-results";
+import { useNoteSuggestions } from "../hooks/use-note-suggestions";
 import type {
   QuestionResult,
   ResultsFilter,
+  SharedNote,
   SmallTeamShare,
   SurveyDetail,
   SurveyResults as SurveyResultsType,
@@ -292,10 +297,14 @@ function OpenTextBody({
   );
 }
 
+const NOTE_MAX = 2000;
+
 /**
- * HR-only action to deliberately share a small anonymous team's results with that team's
- * supervisor (who is otherwise blocked from the breakdown). Disabled with a clear reason until
- * the occurrence closes; requires an explicit confirm before sending the semi-identifiable data.
+ * HR-only: compose and send the team's supervisor an open-text NOTE about their small anonymous
+ * team's results. The supervisor sees this note instead of the breakdown (which stays hidden to
+ * preserve anonymity), so HR summarises the results in their own words — optionally starting from
+ * an AI-drafted suggestion. Sending is disabled with a clear reason until the occurrence closes
+ * and a note has been written, and confirmed before it goes out (in-app + email).
  */
 export function ShareToSupervisorCard({
   share,
@@ -308,32 +317,58 @@ export function ShareToSupervisorCard({
 }) {
   const confirm = useConfirm();
   const shareMutation = useShareResults(surveyId);
+  const suggestMutation = useNoteSuggestions(surveyId);
+  const [message, setMessage] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const hasSupervisor = !!share.supervisorId;
   const supervisorLabel = share.supervisorName ?? "the team's supervisor";
-  const canSend = hasSupervisor && share.occurrenceCompleted;
-  const reason = !hasSupervisor
-    ? "This team has no supervisor to send results to."
+  const trimmed = message.trim();
+  const canSend =
+    hasSupervisor && share.occurrenceCompleted && trimmed.length > 0 && trimmed.length <= NOTE_MAX;
+  const sendReason = !hasSupervisor
+    ? "This team has no supervisor to send a note to."
     : !share.occurrenceCompleted
-      ? "Available once this survey closes."
-      : null;
+      ? "You can send a note once this survey closes."
+      : trimmed.length === 0
+        ? "Write a note to send."
+        : null;
+
+  const handleSuggest = async () => {
+    try {
+      const out = await suggestMutation.mutateAsync({
+        teamId: share.teamId,
+        occurrenceId: share.occurrenceId,
+      });
+      setSuggestions(out);
+    } catch (e) {
+      toast.error(
+        e instanceof ApiError && e.errorCode === "AI_UNAVAILABLE"
+          ? "AI suggestions are unavailable right now — please write a note yourself."
+          : e instanceof ApiError
+            ? e.message
+            : "Couldn't draft suggestions. Please try again.",
+      );
+    }
+  };
 
   const handleSend = () => {
     void confirm({
-      title: `Send results to ${supervisorLabel}?`,
-      description: `Send ${surveyName} results for ${share.teamName} to ${supervisorLabel}? They will be able to see individual responses for this small team.`,
-      confirmLabel: "Send results",
+      title: `Send your note to ${supervisorLabel}?`,
+      description: `We'll send your note about ${surveyName} for ${share.teamName} to ${supervisorLabel} — in the app and by email. They'll see your note, not the individual anonymous responses.`,
+      confirmLabel: "Send to supervisor",
       confirmLoadingLabel: "Sending…",
       onConfirm: async () => {
         try {
           await shareMutation.mutateAsync({
             teamId: share.teamId,
             occurrenceId: share.occurrenceId,
+            message: trimmed,
           });
-          toast.success(`Results sent to ${supervisorLabel}.`);
+          toast.success(`Note sent to ${supervisorLabel}.`);
         } catch (e) {
           toast.error(
-            e instanceof ApiError ? e.message : "Couldn't send results. Please try again.",
+            e instanceof ApiError ? e.message : "Couldn't send your note. Please try again.",
           );
           throw e; // keep the dialog open so HR can retry
         }
@@ -342,29 +377,104 @@ export function ShareToSupervisorCard({
   };
 
   return (
-    <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-4">
       <div className="min-w-0">
         <p className="text-sm font-bold text-[color:var(--text-primary)]">
           Share with the team&apos;s supervisor
         </p>
         <p className="mt-1 text-[13px] text-[color:var(--text-tertiary)]">
           {share.alreadySharedAt
-            ? `Sent to ${supervisorLabel} on ${fmtDay(share.alreadySharedAt)}. They can now view this small team's results.`
-            : `${supervisorLabel} can't normally see this small team's anonymous results. ${
-                reason ?? "You can deliberately share them."
-              }`}
+            ? `Last sent to ${supervisorLabel} on ${fmtDay(share.alreadySharedAt)}. Sending again replaces your note.`
+            : `${supervisorLabel} can't see this small team's anonymous responses. Write them a short note about the results instead — they'll get it in the app and by email.`}
         </p>
       </div>
-      <Button
-        variant="secondary"
-        onClick={handleSend}
-        disabled={!canSend}
-        title={reason ?? undefined}
-        className="flex-none"
-      >
-        <Send size={15} />
-        {share.alreadySharedAt ? "Send again" : "Send to supervisor"}
-      </Button>
+
+      <div>
+        <Textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          maxLength={NOTE_MAX}
+          rows={4}
+          placeholder="Write a note about this team's results…"
+          className="bg-white"
+          aria-label="Note to the supervisor"
+        />
+        <div className="mt-1 text-right text-[11.5px] text-[color:var(--text-quaternary)]">
+          {trimmed.length}/{NOTE_MAX}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button
+          variant="secondary"
+          onClick={() => void handleSuggest()}
+          disabled={!hasSupervisor || suggestMutation.isPending}
+        >
+          {suggestMutation.isPending ? <Spinner size={15} /> : <Sparkles size={15} />}
+          {suggestMutation.isPending ? "Drafting…" : "Suggest messages"}
+        </Button>
+        <Button onClick={handleSend} disabled={!canSend} title={sendReason ?? undefined}>
+          <Send size={15} />
+          {share.alreadySharedAt ? "Send again" : "Send note"}
+        </Button>
+        {sendReason && (
+          <span className="text-[12.5px] text-[color:var(--text-quaternary)]">{sendReason}</span>
+        )}
+      </div>
+
+      {suggestions.length > 0 && (
+        <div>
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+            Tap a suggestion to use it
+          </p>
+          <div className="flex flex-col gap-2">
+            {suggestions.map((s, i) => {
+              const active = message === s;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setMessage(s)}
+                  aria-pressed={active}
+                  className={cn(
+                    "rounded-xl border px-4 py-2.5 text-left text-[13.5px] leading-relaxed transition-colors",
+                    active
+                      ? "border-[color:var(--text-primary)] bg-white text-[color:var(--text-primary)]"
+                      : "border-[color:var(--border-primary)] bg-white text-[color:var(--text-secondary)] hover:border-[color:var(--border-strong)]",
+                  )}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Shown to a small anonymous team's supervisor who reaches the results via an HR share: HR's
+ * open-text note in place of the breakdown (which stays hidden to preserve anonymity).
+ */
+function SharedNoteCard({ note }: { note: SharedNote }) {
+  return (
+    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
+      <div className="mb-3 flex items-center gap-2">
+        <MessageSquareText size={18} className="text-[color:var(--text-tertiary)]" />
+        <h3 className="text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
+          Message from HR
+        </h3>
+      </div>
+      <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-[color:var(--text-primary)]">
+        {note.message}
+      </p>
+      <p className="mt-4 border-t border-[color:var(--border-secondary)] pt-3 text-[12.5px] text-[color:var(--text-quaternary)]">
+        Shared by {note.sharedByName ?? "HR"} on {fmtDay(note.sharedAt)}. This team has fewer than 3
+        members, so its anonymous responses aren&apos;t shown individually — HR has summarised them
+        for you above.
+      </p>
     </div>
   );
 }
@@ -541,7 +651,10 @@ export function SurveyResults({
           </div>
         ))}
 
-      {results && (
+      {/* Small-team supervisor reading via an HR share: show HR's note, not the breakdown. */}
+      {results?.sharedNote && <SharedNoteCard note={results.sharedNote} />}
+
+      {results && !results.sharedNote && (
         <>
           {/* Stat cards */}
           <div className="mb-5 grid grid-cols-1 gap-3.5 sm:grid-cols-3">

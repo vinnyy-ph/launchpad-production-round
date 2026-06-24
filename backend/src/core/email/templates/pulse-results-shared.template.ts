@@ -19,6 +19,8 @@ export interface PulseResultsSharedEmailParams {
   lastName: string;
   surveyName: string;
   teamName: string;
+  /** HR's open-text note to the supervisor — the content they're meant to read. */
+  message: string;
   resultsUrl: string;
 }
 
@@ -47,6 +49,7 @@ export function buildPulseResultsSharedEmailHtml(
   const surveyName = escapeHtml(params.surveyName);
   const teamName = escapeHtml(params.teamName);
   const resultsUrl = escapeHtml(params.resultsUrl);
+  const messageHtml = escapeHtml(params.message).replace(/\r?\n/g, "<br />");
   const logoSrc = getJiaLogoSrc();
   const year = new Date().getFullYear();
 
@@ -73,17 +76,21 @@ export function buildPulseResultsSharedEmailHtml(
                 Hi, ${name}!
               </h1>
               <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:${BRAND.textSecondary};">
-                HR has shared the results of the anonymous pulse survey, <strong style="color:${BRAND.textPrimary};">${surveyName}</strong>, for your team <strong style="color:${BRAND.textPrimary};">${teamName}</strong>.
+                HR has shared a note about your team <strong style="color:${BRAND.textPrimary};">${teamName}</strong>'s responses to the anonymous pulse survey <strong style="color:${BRAND.textPrimary};">${surveyName}</strong>:
               </p>
-              <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:${BRAND.textSecondary};">
-                Because this is a small team, please treat these results sensitively — individual responses may be identifiable.
-              </p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+                <tr>
+                  <td style="border-left:3px solid ${BRAND.border};background-color:${BRAND.bgPage};border-radius:8px;padding:16px 18px;font-size:16px;line-height:24px;color:${BRAND.textPrimary};">
+                    ${messageHtml}
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
             <td style="padding:0 40px 32px;text-align:center;">
               <a href="${resultsUrl}" style="display:inline-block;background-color:${BRAND.buttonBg};color:${BRAND.buttonText};font-size:16px;font-weight:600;line-height:24px;text-decoration:none;padding:12px 20px;border-radius:8px;">
-                View results
+                Open in ${BRAND.appName}
               </a>
             </td>
           </tr>
