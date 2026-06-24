@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   BarChart3,
+  ChevronDown,
   Download,
+  EyeOff,
   Lock,
   MessageSquareText,
   RefreshCw,
@@ -16,6 +18,10 @@ import {
   Badge,
   BadgeDot,
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Select,
   SelectContent,
   SelectItem,
@@ -24,7 +30,7 @@ import {
   Textarea,
   useConfirm,
 } from "@/shared/ui";
-import { EmptyState, Spinner } from "@/shared/ui/patterns";
+import { EmptyState } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
 import { ApiError } from "@/shared/lib/api-client";
 import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
@@ -61,6 +67,14 @@ function fmtDay(iso?: string): string {
     : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function fmtFullDay(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? "—"
+    : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 function pct(count: number, total: number): number {
   return total > 0 ? Math.round((count / total) * 100) : 0;
 }
@@ -79,12 +93,13 @@ const QTYPE_LABEL: Record<QuestionResult["type"], string> = {
   CHECKBOX: "Checkbox",
 };
 
-// CSV export — fully client-side, no backend round-trip.
+// Result export — fully client-side, no backend round-trip. The same row matrix drives both
+// the CSV and the Excel (.xlsx) downloads.
 function csvCell(v: string): string {
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
-function buildCsv(survey: SurveyDetail | undefined, results: SurveyResultsType): string {
+function buildResultRows(results: SurveyResultsType): string[][] {
   const rows: string[][] = [["Question", "Type", "Answer", "Count", "Percent"]];
   for (const q of results.questions) {
     if (q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER") {
@@ -119,12 +134,15 @@ function buildCsv(survey: SurveyDetail | undefined, results: SurveyResultsType):
       );
     }
   }
-  const title = survey?.name ? `# ${survey.name} — results\r\n` : "";
-  return title + rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
+  return rows;
 }
 
-function downloadCsv(filename: string, csv: string) {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+function buildCsv(survey: SurveyDetail | undefined, results: SurveyResultsType): string {
+  const title = survey?.name ? `# ${survey.name} — results\r\n` : "";
+  return title + buildResultRows(results).map((r) => r.map(csvCell).join(",")).join("\r\n");
+}
+
+function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -135,6 +153,30 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
+function downloadCsv(filename: string, csv: string) {
+  triggerDownload(new Blob([csv], { type: "text/csv;charset=utf-8;" }), filename);
+}
+
+// Excel export. xlsx is loaded on demand so it never weighs down the initial bundle.
+async function downloadXlsx(
+  filename: string,
+  survey: SurveyDetail | undefined,
+  results: SurveyResultsType,
+) {
+  const XLSX = await import("xlsx");
+  const ws = XLSX.utils.aoa_to_sheet(buildResultRows(results));
+  const wb = XLSX.utils.book_new();
+  const sheetName = (survey?.name ?? "Results").slice(0, 31).replace(/[\\/?*[\]:]/g, " ");
+  XLSX.utils.book_append_sheet(wb, ws, sheetName || "Results");
+  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+  triggerDownload(
+    new Blob([out], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    filename,
+  );
+}
+
 // ─── presentational pieces ─────────────────────────────────────────────────────
 
 function StatCard({ value, label }: { value: string; label: string }) {
@@ -143,7 +185,7 @@ function StatCard({ value, label }: { value: string; label: string }) {
       <div className="text-[30px] font-bold leading-none tracking-tight text-[color:var(--text-primary)]">
         {value}
       </div>
-      <div className="mt-2.5 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+      <div className="mt-2.5 text-xs font-bold tracking-wide text-[color:var(--text-quaternary)]">
         {label}
       </div>
     </div>
@@ -193,7 +235,7 @@ function QuestionCard({
   return (
     <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-4">
-        <div className="text-[11.5px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+        <div className="text-[11.5px] font-bold tracking-wide text-[color:var(--text-quaternary)]">
           {QTYPE_LABEL[q.type]}
         </div>
         <h3 className="mt-1 text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
@@ -320,43 +362,50 @@ export function ShareToSupervisorCard({
   const suggestMutation = useNoteSuggestions(surveyId);
   const [message, setMessage] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestFailed, setSuggestFailed] = useState(false);
 
   const hasSupervisor = !!share.supervisorId;
   const supervisorLabel = share.supervisorName ?? "the team's supervisor";
+  const isLocked = !!share.alreadySharedAt;
   const trimmed = message.trim();
   const canSend =
     hasSupervisor && share.occurrenceCompleted && trimmed.length > 0 && trimmed.length <= NOTE_MAX;
+  // The empty-note case just disables the button (self-evident); only surface the non-obvious blocks.
   const sendReason = !hasSupervisor
     ? "This team has no supervisor to send a note to."
     : !share.occurrenceCompleted
       ? "You can send a note once this survey closes."
-      : trimmed.length === 0
-        ? "Write a note to send."
-        : null;
+      : null;
 
-  const handleSuggest = async () => {
+  // Suggestions are shown by default (no "suggest" button) — drafted once on mount from the team
+  // aggregate. Gated to occurrences with a supervisor and skipped once locked. Fire-once per
+  // occurrence so re-renders don't repeat the OpenAI call.
+  const requestedRef = useRef<string | null>(null);
+  const fetchSuggestions = async () => {
+    setSuggestFailed(false);
     try {
       const out = await suggestMutation.mutateAsync({
         teamId: share.teamId,
         occurrenceId: share.occurrenceId,
       });
       setSuggestions(out);
-    } catch (e) {
-      toast.error(
-        e instanceof ApiError && e.errorCode === "AI_UNAVAILABLE"
-          ? "AI suggestions are unavailable right now — please write a note yourself."
-          : e instanceof ApiError
-            ? e.message
-            : "Couldn't draft suggestions. Please try again.",
-      );
+    } catch {
+      setSuggestFailed(true);
     }
   };
+  useEffect(() => {
+    if (isLocked || !hasSupervisor) return;
+    if (requestedRef.current === share.occurrenceId) return;
+    requestedRef.current = share.occurrenceId;
+    void fetchSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocked, hasSupervisor, share.occurrenceId]);
 
   const handleSend = () => {
     void confirm({
       title: `Send your note to ${supervisorLabel}?`,
-      description: `We'll send your note about ${surveyName} for ${share.teamName} to ${supervisorLabel} — in the app and by email. They'll see your note, not the individual anonymous responses.`,
-      confirmLabel: "Send to supervisor",
+      description: `We'll send your note about ${surveyName} for ${share.teamName} to ${supervisorLabel} — in the app and by email. They'll see your note, not the individual anonymous responses. Once sent, it can't be changed.`,
+      confirmLabel: "Send note",
       confirmLoadingLabel: "Sending…",
       onConfirm: async () => {
         try {
@@ -376,6 +425,29 @@ export function ShareToSupervisorCard({
     });
   };
 
+  // ── Locked: a note was already sent. Immutable — show it read-only, no compose UI. ──
+  if (isLocked) {
+    return (
+      <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-4">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-[color:var(--text-primary)]">
+            Shared with the team&apos;s supervisor
+          </p>
+          <p className="mt-1 text-[13px] text-[color:var(--text-tertiary)]">
+            Sent to {supervisorLabel} on {fmtDay(share.alreadySharedAt)}. No further messages can be
+            sent.
+          </p>
+        </div>
+        {share.sharedMessage && (
+          <p className="whitespace-pre-wrap rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[13.5px] leading-relaxed text-[color:var(--text-primary)]">
+            {share.sharedMessage}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // ── Compose: write (or pick a suggested) note and send it once. ──
   return (
     <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-4">
       <div className="min-w-0">
@@ -383,9 +455,9 @@ export function ShareToSupervisorCard({
           Share with the team&apos;s supervisor
         </p>
         <p className="mt-1 text-[13px] text-[color:var(--text-tertiary)]">
-          {share.alreadySharedAt
-            ? `Last sent to ${supervisorLabel} on ${fmtDay(share.alreadySharedAt)}. Sending again replaces your note.`
-            : `${supervisorLabel} can't see this small team's anonymous responses. Write them a short note about the results instead — they'll get it in the app and by email.`}
+          This survey has fewer than 3 responses, so results aren&apos;t shared automatically. You
+          can write a note to the supervisor below.
+          {share.shareDeadline ? ` You have until ${fmtFullDay(share.shareDeadline)} to send it.` : ""}
         </p>
       </div>
 
@@ -395,7 +467,7 @@ export function ShareToSupervisorCard({
           onChange={(e) => setMessage(e.target.value)}
           maxLength={NOTE_MAX}
           rows={4}
-          placeholder="Write a note about this team's results…"
+          placeholder="What should the supervisor know about this team's feedback?"
           className="bg-white"
           aria-label="Note to the supervisor"
         />
@@ -404,52 +476,66 @@ export function ShareToSupervisorCard({
         </div>
       </div>
 
+      {hasSupervisor && (
+        <div>
+          <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-medium text-[color:var(--text-tertiary)]">
+            <Sparkles size={13} /> Tap a suggestion to use it
+          </div>
+          {suggestMutation.isPending && suggestions.length === 0 ? (
+            <div className="flex flex-col gap-2">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-[58px] animate-pulse rounded-xl border border-[color:var(--border-primary)] bg-white"
+                />
+              ))}
+            </div>
+          ) : suggestions.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {suggestions.map((s, i) => {
+                const active = message === s;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setMessage(s)}
+                    aria-pressed={active}
+                    className={cn(
+                      "cursor-pointer rounded-xl border px-4 py-2.5 text-left text-[13.5px] leading-relaxed transition-colors",
+                      active
+                        ? "border-[color:var(--text-primary)] bg-white text-[color:var(--text-primary)]"
+                        : "border-[color:var(--border-primary)] bg-white text-[color:var(--text-secondary)] hover:border-[color:var(--text-primary)]",
+                    )}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          ) : suggestFailed ? (
+            <p className="text-[12.5px] text-[color:var(--text-quaternary)]">
+              Couldn&apos;t draft suggestions right now.{" "}
+              <button
+                type="button"
+                onClick={() => void fetchSuggestions()}
+                className="font-medium text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
+              >
+                Try again
+              </button>
+            </p>
+          ) : null}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2.5">
-        <Button
-          variant="secondary"
-          onClick={() => void handleSuggest()}
-          disabled={!hasSupervisor || suggestMutation.isPending}
-        >
-          {suggestMutation.isPending ? <Spinner size={15} /> : <Sparkles size={15} />}
-          {suggestMutation.isPending ? "Drafting…" : "Suggest messages"}
-        </Button>
         <Button onClick={handleSend} disabled={!canSend} title={sendReason ?? undefined}>
           <Send size={15} />
-          {share.alreadySharedAt ? "Send again" : "Send note"}
+          Send to supervisor
         </Button>
         {sendReason && (
           <span className="text-[12.5px] text-[color:var(--text-quaternary)]">{sendReason}</span>
         )}
       </div>
-
-      {suggestions.length > 0 && (
-        <div>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-            Tap a suggestion to use it
-          </p>
-          <div className="flex flex-col gap-2">
-            {suggestions.map((s, i) => {
-              const active = message === s;
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setMessage(s)}
-                  aria-pressed={active}
-                  className={cn(
-                    "rounded-xl border px-4 py-2.5 text-left text-[13.5px] leading-relaxed transition-colors",
-                    active
-                      ? "border-[color:var(--text-primary)] bg-white text-[color:var(--text-primary)]"
-                      : "border-[color:var(--border-primary)] bg-white text-[color:var(--text-secondary)] hover:border-[color:var(--border-strong)]",
-                  )}
-                >
-                  {s}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -547,10 +633,14 @@ export function SurveyResults({
           ? "Due now"
           : `${daysLeft} ${daysLeft === 1 ? "day" : "days"}`;
 
-  const handleExport = () => {
+  const handleExport = async (format: "csv" | "xlsx") => {
     if (!results) return;
     const name = survey?.name?.replace(/[^a-z0-9]+/gi, "-").toLowerCase() ?? "survey";
-    downloadCsv(`${name}-results.csv`, buildCsv(survey, results));
+    if (format === "csv") {
+      downloadCsv(`${name}-results.csv`, buildCsv(survey, results));
+    } else {
+      await downloadXlsx(`${name}-results.xlsx`, survey, results);
+    }
     toast.success("Results exported.");
   };
 
@@ -564,37 +654,52 @@ export function SurveyResults({
 
   return (
     <div className="min-w-0">
-      {/* Header */}
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-[28px] font-bold tracking-tight text-[color:var(--text-primary)]">
-              {headerName || "Survey results"}
-            </h1>
-            {status && (
-              <Badge variant={STATUS_VARIANT[status]} pill>
-                <BadgeDot />
-                {STATUS_LABEL[status]}
-              </Badge>
-            )}
-            {(survey?.isAnonymous ?? results?.isAnonymous) && (
-              <Badge variant="brand" pill>
-                Anonymous
-              </Badge>
+      {/* Header — hidden on the supervisor's note-only view (the breadcrumb already names the
+          survey, and there's nothing to export there). */}
+      {!results?.sharedNote && (
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-[28px] font-bold tracking-tight text-[color:var(--text-primary)]">
+                {headerName || "Survey results"}
+              </h1>
+              {status && (
+                <Badge variant={STATUS_VARIANT[status]} pill>
+                  <BadgeDot />
+                  {STATUS_LABEL[status]}
+                </Badge>
+              )}
+              {(survey?.isAnonymous ?? results?.isAnonymous) && (
+                <Badge variant="warning" pill>
+                  <EyeOff size={12} />
+                  Anonymous
+                </Badge>
+              )}
+            </div>
+            {survey && (
+              <p className="mt-2 text-sm text-[color:var(--text-tertiary)]">
+                {AUDIENCE_TYPE_LABEL[survey.audienceType]} ·{" "}
+                {RECURRING_TYPE_LABEL[survey.recurringType]} · opened {fmtDay(survey.releaseDate)}
+              </p>
             )}
           </div>
-          {survey && (
-            <p className="mt-2 text-sm text-[color:var(--text-tertiary)]">
-              {AUDIENCE_TYPE_LABEL[survey.audienceType]} · {RECURRING_TYPE_LABEL[survey.recurringType]}{" "}
-              · opened {fmtDay(survey.releaseDate)}
-            </p>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" disabled={!canExport}>
+                <Download size={15} />
+                Export
+                <ChevronDown size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => void handleExport("csv")}>CSV (.csv)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleExport("xlsx")}>
+                Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <Button variant="secondary" onClick={handleExport} disabled={!canExport}>
-          <Download size={15} />
-          Export
-        </Button>
-      </div>
+      )}
 
       {/* Round picker — recurring surveys only. Each round has its own audience + responses;
           aggregating across rounds would double-count the recurring audience. Defaults to the
