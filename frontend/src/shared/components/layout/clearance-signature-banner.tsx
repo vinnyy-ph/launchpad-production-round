@@ -18,18 +18,18 @@ export function ClearanceSignatureBanner() {
   return (
     <div
       role="alert"
-      className="flex items-center gap-3 border-b border-[color:var(--border-primary)] bg-[color:var(--color-warning-50)] px-6 py-2.5"
+      className="flex items-center gap-3 border-b border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-100)] px-6 py-2.5"
     >
       <PenLine
         size={15}
         className="flex-shrink-0 text-[color:var(--color-warning-600)]"
         aria-hidden="true"
       />
-      <p className="flex-1 text-[13px] font-medium text-[color:var(--text-secondary)]">
+      <p className="flex-1 text-[13px] font-medium text-[color:var(--color-warning-700)]">
         You have {count} clearance{count > 1 ? "s" : ""} awaiting your signature.{" "}
         <Link
           href="/employee/clearance"
-          className="font-semibold text-[color:var(--text-primary)] underline-offset-2 hover:underline"
+          className="font-semibold text-[color:var(--color-warning-700)] underline-offset-2 hover:underline"
         >
           Review now
         </Link>
