@@ -13,43 +13,68 @@ export interface NoteSuggestionsResultDto {
   data: { suggestions: string[] };
 }
 
-/** LLM port — real impl calls OpenAI; tests inject a fake and assert call/no-call. */
-export interface NoteSuggestionGeneratorPort {
-  readonly model: string;
-  generate(input: {
-    surveyName: string;
-    teamName: string;
-    respondedCount: number;
-    recipientCount: number;
-    aggregate: string;
-  }): Promise<string[]>;
-}
-
-function buildSystemPrompt(): string {
-  return [
-    "You are an HR partner drafting a short, tactful note to a team's SUPERVISOR about that team's",
-    "ANONYMOUS pulse-survey results. The team is small (fewer than 3 people), so you must NEVER",
-    "reveal, quote, or guess any individual's response — speak only in high-level, aggregate terms.",
-    `Write exactly ${MAX_SUGGESTIONS} alternative notes the HR user can choose from, each a different style:`,
-    "(1) a concise factual summary, (2) a warm and supportive tone, (3) an action-oriented suggestion.",
-    "Each note is addressed to the supervisor, 2-4 sentences, under 600 characters, and must not",
-    "include names or anything that could identify a single respondent.",
-    'Return ONLY valid JSON, no prose, matching exactly: {"suggestions": [string, string, string]}',
-  ].join("\n");
-}
-
-function buildUserContent(input: {
+/** Identity-free context the model drafts from. Never carries raw individual responses. */
+export interface NoteSuggestionInput {
   surveyName: string;
   teamName: string;
   respondedCount: number;
   recipientCount: number;
   aggregate: string;
-}): string {
+  isAnonymous: boolean;
+  belowMinGroup: boolean;
+}
+
+/** LLM port — real impl calls OpenAI; tests inject a fake and assert call/no-call. */
+export interface NoteSuggestionGeneratorPort {
+  readonly model: string;
+  generate(input: NoteSuggestionInput): Promise<string[]>;
+}
+
+// Per PM/QA (SYS-005 board): the supervisor reads HR's plain note, so the suggestions must be
+// factual, calm, third-person about the team, never identifying, and sentence-cased. The output
+// envelope stays {"suggestions": [...]} (json_object response_format) rather than the board's
+// "bare JSON array" so the parser contract is unchanged.
+function buildSystemPrompt(): string {
   return [
-    `Survey: ${input.surveyName}`,
-    `Team: ${input.teamName}`,
-    `Responses: ${input.respondedCount} of ${input.recipientCount} team members answered.`,
-    "Aggregated results (no individual responses):",
+    "You are a helpful assistant for HR professionals using a people management platform. Your job is",
+    "to suggest short, professional messages they can send to a team's supervisor to share pulse",
+    "survey results.",
+    "",
+    "Rules you must follow:",
+    "- Never reveal how any individual responded or hint at who said what. Results are anonymous.",
+    '- Write in third person about the team, not first person about the HR user. Say "The team\'s',
+    '  results show..." not "I wanted to share...".',
+    "- Be factual and calm. No encouragement, no hype, no exclamation points. State what the data",
+    "  shows and leave the interpretation to the supervisor.",
+    "- Keep each suggestion under 3 sentences.",
+    '- Do not offer to do things the HR user cannot do from this screen (no "I can facilitate a',
+    '  discussion").',
+    "- Do not mention any platform or product name in the message itself.",
+    "- Write in sentence case. No all-caps.",
+    "- Vary the three suggestions in angle only: one factual summary, one that suggests a follow-up,",
+    "  one that notes positive or neutral tone without identifying specifics.",
+    "",
+    "Context you will receive:",
+    "- Team name",
+    "- Survey name",
+    "- Average score (if linear scale questions exist)",
+    "- Number of responses",
+    "- Whether the survey is anonymous",
+    "- Whether the team is under the minimum group size threshold",
+    "",
+    `Generate exactly ${MAX_SUGGESTIONS} suggestions based on this context.`,
+    'Return ONLY valid JSON, no prose, matching exactly: {"suggestions": [string, string, string]}',
+  ].join("\n");
+}
+
+function buildUserContent(input: NoteSuggestionInput): string {
+  return [
+    `Team name: ${input.teamName}`,
+    `Survey name: ${input.surveyName}`,
+    `Number of responses: ${input.respondedCount} of ${input.recipientCount} team members answered.`,
+    `Survey is anonymous: ${input.isAnonymous ? "yes" : "no"}`,
+    `Team is under the minimum group size threshold: ${input.belowMinGroup ? "yes" : "no"}`,
+    "Aggregated results (averages and distributions only — no individual responses):",
     input.aggregate || "(no quantitative breakdown available)",
   ].join("\n");
 }
@@ -58,7 +83,10 @@ function parseSuggestions(text: string): string[] {
   let arr: unknown = [];
   try {
     const parsed = JSON.parse(text);
-    if (parsed && typeof parsed === "object" && Array.isArray((parsed as any).suggestions)) {
+    if (Array.isArray(parsed)) {
+      // Tolerate a bare JSON array in case the model ignores the envelope.
+      arr = parsed;
+    } else if (parsed && typeof parsed === "object" && Array.isArray((parsed as any).suggestions)) {
       arr = (parsed as any).suggestions;
     }
   } catch {
@@ -75,13 +103,7 @@ function parseSuggestions(text: string): string[] {
 export class OpenAiNoteSuggestionGenerator implements NoteSuggestionGeneratorPort {
   readonly model = OPENAI_MODEL;
 
-  async generate(input: {
-    surveyName: string;
-    teamName: string;
-    respondedCount: number;
-    recipientCount: number;
-    aggregate: string;
-  }): Promise<string[]> {
+  async generate(input: NoteSuggestionInput): Promise<string[]> {
     const completion = await openai.chat.completions.create({
       model: OPENAI_MODEL,
       temperature: 0.6,
@@ -179,6 +201,8 @@ export class NoteSuggestionsService {
         respondedCount: results.data.respondedCount,
         recipientCount: results.data.recipientCount,
         aggregate: buildAggregate(results.data.questions),
+        isAnonymous: survey.isAnonymous,
+        belowMinGroup: team._count.members < MIN_TEAM_SIZE,
       });
     } catch {
       throw new Error(SURVEY_ERROR_MESSAGES.AI_UNAVAILABLE);

@@ -1,6 +1,6 @@
 import { prisma } from "../../../../core/database/prisma.service";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
-import { gate, MIN_TEAM_SIZE } from "../rules/results";
+import { gate, MIN_TEAM_SIZE, shareWindowEnd } from "../rules/results";
 import { createOrgChains } from "../../../shared/org/chains";
 import {
   canViewSurveyResults,
@@ -172,6 +172,8 @@ export class ResultsService {
             supervisorName: leaderName,
             occurrenceCompleted: completed,
             alreadySharedAt: existingShare ? existingShare.sharedAt.toISOString() : null,
+            sharedMessage: existingShare ? existingShare.message : null,
+            shareDeadline: occ ? shareWindowEnd(occ.deadline).toISOString() : null,
           };
         }
       }
