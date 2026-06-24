@@ -183,7 +183,7 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-6 pt-4">
               {/* Anonymity reassurance line */}
               <div
-                className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13px] ${
+                className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[14px] ${
                   isAnonymous
                     ? "border-[#C7D7FE] bg-[#EEF4FF] text-[#3538CD]"
                     : "border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)]"
@@ -221,7 +221,7 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border-primary)] px-6 py-3.5">
-              <span className="text-[13px] text-[color:var(--text-tertiary)]">
+              <span className="text-[14px] text-[color:var(--text-tertiary)]">
                 {requiredCount > 0
                   ? `${requiredCount} required ${requiredCount === 1 ? "question" : "questions"}`
                   : "All questions optional"}

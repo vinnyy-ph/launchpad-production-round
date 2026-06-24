@@ -47,6 +47,14 @@ export function formatPhilippineMobileDisplay(normalizedPhone: string): string {
 }
 
 /**
+ * Formats a normalized Philippine mobile number for storage.
+ * Example: 639171234567 -> +639171234567
+ */
+export function formatPhilippineMobileE164(normalizedPhone: string): string {
+  return `+${normalizedPhone}`;
+}
+
+/**
  * Parses an emergency contact string and validates the embedded Philippine mobile number.
  * Supports "Name - Phone", "Name, Phone", or phone-only values.
  */
@@ -82,8 +90,8 @@ export function parseEmergencyContact(value: string): ParsedEmergencyContact {
     throw new Error("Invalid emergency contact phone number");
   }
 
-  const formattedPhone = formatPhilippineMobileDisplay(normalizedPhone);
-  const displayValue = contactName ? `${contactName} - ${formattedPhone}` : formattedPhone;
+  const storagePhone = formatPhilippineMobileE164(normalizedPhone);
+  const displayValue = contactName ? `${contactName} - ${storagePhone}` : storagePhone;
 
   return {
     contactName,

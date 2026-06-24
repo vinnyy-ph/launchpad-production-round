@@ -71,7 +71,10 @@
   --color-error-600:    #d92d20;
   --color-error-500:    #f04438;
   --color-error-50:     #fef3f2;
+  --color-warning-700:  #b54708;
   --color-warning-600:  #dc6803;
+  --color-warning-200:  #fedf89;
+  --color-warning-100:  #fef0c7;
   --color-warning-50:   #fffaeb;
   --color-success-600:  #079455;
   --color-success-50:   #ecfdf3;

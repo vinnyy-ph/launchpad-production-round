@@ -241,7 +241,7 @@ function UsersPageInner() {
         return (
           <div className="flex items-center gap-3">
             <span
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
               style={{
                 background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
               }}
@@ -505,7 +505,7 @@ function SortableHeader({
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.8px] text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-primary)]"
+      className="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.8px] text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-primary)]"
       onClick={() => onSort(column)}
       aria-label={`Sort by ${label}`}
     >

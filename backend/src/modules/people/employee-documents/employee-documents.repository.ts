@@ -19,7 +19,10 @@ export class EmployeeDocumentsRepository {
    */
   async findByEmployeeId(employeeId: string) {
     return prisma.onboardingDocumentSubmission.findMany({
-      where: { record: { employeeId } },
+      where: {
+        record: { employeeId },
+        status: "APPROVED",
+      },
       orderBy: { submittedAt: "desc" },
       include: documentInclude,
     });

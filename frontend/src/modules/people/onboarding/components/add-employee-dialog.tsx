@@ -120,8 +120,8 @@ function hasFormData(form: FormSnapshot): boolean {
  */
 export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployeeDialogProps) {
   const { employees: activeEmployees } = useAllEmployees({ status: "active" });
-  const { departments } = useDepartments();
-  const { documents: requiredDocuments } = useDocumentConfigs();
+  const { departments, loading: departmentsLoading } = useDepartments();
+  const { documents: requiredDocuments, loading: docsLoading } = useDocumentConfigs();
   const onboard = useOnboardEmployee();
 
   const [firstName, setFirstName] = useState("");
@@ -169,8 +169,9 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     .filter((employee) => !employee.department || employee.department === department)
     .map(toEmployeeOption);
 
-  const requiredDocsNote =
-    requiredDocuments.length > 0
+  const requiredDocsNote = docsLoading
+    ? "loading…"
+    : requiredDocuments.length > 0
       ? requiredDocuments.map((document) => document.documentName).join(", ")
       : "none set yet";
 
@@ -566,7 +567,9 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   }}
                 >
                   <SelectTrigger aria-label="Select department">
-                    <SelectValue placeholder="Select a department" />
+                    <SelectValue
+                      placeholder={departmentsLoading ? "Loading departments…" : "Select a department"}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((option) => (

@@ -41,7 +41,7 @@ function initials(name: string): string {
 
 function Avatar({ name, src, size = 7 }: { name: string; src?: string | null; size?: 7 | 9 }) {
   const dim = size === 9 ? "h-9 w-9" : "h-7 w-7";
-  const textSize = size === 9 ? "text-[11px]" : "text-[10px]";
+  const textSize = size === 9 ? "text-[12px]" : "text-[12px]";
   return (
     <UserAvatar
       src={src}

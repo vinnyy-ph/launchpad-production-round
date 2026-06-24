@@ -8,6 +8,7 @@ import {
 } from "../../../core/globals";
 import { CloudinaryService } from "../../../core/cloudinary/cloudinary.service";
 import { EVAL_ERROR_MESSAGES, EVAL_UPLOAD_ERROR_MESSAGES } from "./evaluations.constants";
+import { validateEvaluationUploadFile } from "./evaluation-file-validation";
 import type { EvaluationResponseDto, ListEvaluationsResponseDto } from "./dto";
 import { EvaluationsService } from "./evaluations.service";
 import { EvaluationsValidation } from "./evaluations.validation";
@@ -122,6 +123,7 @@ export class EvaluationsController {
       }
 
       const files = (req.files as Express.Multer.File[]) ?? [];
+      files.forEach((f) => validateEvaluationUploadFile(f));
       let supportingDocUrls: string[] = [];
       try {
         supportingDocUrls = await Promise.all(
@@ -224,6 +226,7 @@ export class EvaluationsController {
       const files = (req.files as Express.Multer.File[]) ?? [];
       let supportingDocUrls: string[] | undefined;
       if (files.length > 0) {
+        files.forEach((f) => validateEvaluationUploadFile(f));
         try {
           supportingDocUrls = await Promise.all(
             files.map((f) => this.cloudinaryService.uploadSupportingDocument(f.buffer, f.originalname, f.mimetype)),
@@ -599,7 +602,8 @@ export class EvaluationsController {
       error.message.endsWith("must be a string") ||
       error.message.endsWith("must be a valid date") ||
       error.message.endsWith("must be an array of strings") ||
-      error.message === "periodEnd must be on or after periodStart" ||
+      error.message === "periodEnd must be after periodStart" ||
+      error.message.endsWith("cannot be in the future") ||
       error.message === "Request body is required" ||
       error.message === "No fields provided to update" ||
       error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES ||

@@ -64,7 +64,7 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
       src={src}
       fallback={initials(name)}
       className="h-9 w-9"
-      fallbackClassName="text-[11px] font-bold text-white"
+      fallbackClassName="text-[12px] font-bold text-white"
       fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
@@ -428,7 +428,7 @@ export function TeamDetailsView({
         className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
         style={{ boxShadow: "var(--shadow-xs)" }}
       >
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+        <p className="mb-2 text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
           Team lead
         </p>
         <PersonRow
@@ -441,7 +441,7 @@ export function TeamDetailsView({
       {/* Team members (excludes the leader, shown above) — a card grid, not a flat list. */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+          <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
             Team members ({otherMembers.length})
           </p>
           {canManageMembers && (

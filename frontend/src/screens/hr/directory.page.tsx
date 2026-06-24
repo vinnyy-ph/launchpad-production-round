@@ -262,7 +262,7 @@ export default function DirectoryPage() {
             src={employee.avatarUrl}
             fallback={initials(employee)}
             className="h-8 w-8"
-            fallbackClassName="text-[11px] font-bold text-[color:var(--text-primary)]"
+            fallbackClassName="text-[12px] font-bold text-[color:var(--text-primary)]"
             fallbackStyle={{
               background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
             }}

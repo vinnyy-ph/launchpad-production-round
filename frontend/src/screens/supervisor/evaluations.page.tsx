@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import {
     ClipboardCheck,
     Plus,
@@ -66,7 +66,7 @@ import {
     useUpdateEvaluation,
     useDeleteEvaluation,
     useSendEvaluation,
-    downloadSupportingDoc,
+    getSupportingDocUrl,
     GRADE_LABELS,
     type Evaluation,
     type EvaluationInput,
@@ -78,6 +78,7 @@ import {
     evaluationTextSchema,
     EVAL_TEXT_LIMITS,
 } from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
+import { DocumentViewerModal } from "@/modules/performance/evaluations/components/document-viewer-modal";
 import { partitionEvaluationsByScope } from "./evaluations.scope";
 import { formatPeriod, parseStatusFilter } from "./evaluations.format";
 
@@ -107,17 +108,6 @@ function extractFilename(value: string): string {
         return decodeURIComponent(last);
     } catch {
         return last;
-    }
-}
-
-async function handleDownload(
-    evaluationId: string,
-    docIndex: number,
-): Promise<void> {
-    try {
-        await downloadSupportingDoc(evaluationId, docIndex);
-    } catch {
-        toast.error("Couldn't download the document. Please try again.");
     }
 }
 
@@ -280,7 +270,7 @@ function DynamicList({
                         <button
                             type="button"
                             onClick={() => remove(idx)}
-                            className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label={`Remove ${label.toLowerCase()} ${idx + 1}`}
                         >
                             <Trash2 size={14} />
@@ -303,6 +293,14 @@ function DynamicList({
 
 // ─── PDF file picker ──────────────────────────────────────────────────────────
 
+// %PDF — verifies actual file content, not just the declared MIME type/extension.
+const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46];
+
+async function fileHasPdfSignature(file: File): Promise<boolean> {
+    const bytes = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    return PDF_MAGIC_BYTES.every((value, index) => bytes[index] === value);
+}
+
 interface PdfFilePickerProps {
     files: File[];
     existingUrls: string[];
@@ -318,7 +316,7 @@ function PdfFilePicker({
 }: PdfFilePickerProps) {
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selected = Array.from(e.target.files ?? []);
         // Reset so the same file can be re-selected after removal.
         e.target.value = "";
@@ -334,6 +332,10 @@ function PdfFilePicker({
             }
             if (file.size > 10 * 1024 * 1024) {
                 toast.error(`"${file.name}" exceeds the 10 MB limit.`);
+                continue;
+            }
+            if (!(await fileHasPdfSignature(file))) {
+                toast.error(`"${file.name}" does not appear to be a valid PDF.`);
                 continue;
             }
             validFiles.push(file);
@@ -498,6 +500,20 @@ function EvaluationEditorDialog({
     const [errors, setErrors] = useState<Record<string, string>>({});
     // Two-step flow: fill the form → review the preview → save or send.
     const [step, setStep] = useState<"form" | "preview">("form");
+    const [viewer, setViewer] = useState<{ url: string; name: string } | null>(
+        null,
+    );
+
+    /** Fetch the signed URL for a saved document, then preview it in the modal. */
+    async function previewDoc(docIndex: number, name: string): Promise<void> {
+        if (!initial) return;
+        try {
+            const url = await getSupportingDocUrl(initial.id, docIndex);
+            setViewer({ url, name });
+        } catch {
+            toast.error("Couldn't open the document. Please try again.");
+        }
+    }
 
     const isViewOnly = initial?.isSent ?? false;
     const isDraft = !!initial && !initial.isSent;
@@ -593,10 +609,10 @@ function EvaluationEditorDialog({
         } else {
             // Reviewee starts empty (placeholder "Select employee").
             setRevieweeId("");
-            // Smart default: prefill the current month as the evaluation period.
+            // Smart default: prefill month-to-date (the period can't extend past today).
             const now = new Date();
             const from = startOfMonth(now);
-            const to = endOfMonth(now);
+            const to = now;
             setPeriod({ from, to });
             setGrade(null);
             setHighlights([]);
@@ -659,11 +675,33 @@ function EvaluationEditorDialog({
         return errs;
     };
 
+    /** The period's own rules once both ends are picked: no future dates, end strictly after start.
+     *  Returns the message to show under the period field, or null when the range is valid (or still
+     *  incomplete — a missing end is handled by the required-field checks, not here). */
+    const periodError = (range?: DateRange): string | null => {
+        if (!range?.from || !range?.to) return null;
+        const now = new Date();
+        const endOfToday = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            23, 59, 59, 999,
+        );
+        if (range.from.getTime() > endOfToday.getTime() || range.to.getTime() > endOfToday.getTime())
+            return "The evaluation period can't be in the future.";
+        if (range.to.getTime() <= range.from.getTime())
+            return "The end date must be after the start date.";
+        return null;
+    };
+
     const validate = (): boolean => {
         const errs: Record<string, string> = { ...textErrors() };
         if (!revieweeId) errs.reviewee = "Select an employee.";
-        if (!period?.from || !period?.to)
-            errs.period = "Select an evaluation period.";
+        if (!period?.from || !period?.to) errs.period = "Select an evaluation period.";
+        else {
+            const pe = periodError(period);
+            if (pe) errs.period = pe;
+        }
         if (!grade) errs.grade = "Pick an overall rating.";
         setErrors(errs);
         return Object.keys(errs).length === 0;
@@ -713,6 +751,10 @@ function EvaluationEditorDialog({
         if (!revieweeId) errs.reviewee = "Select an employee before sending.";
         if (!period?.from || !period?.to)
             errs.period = "Add the evaluation period before sending.";
+        else {
+            const pe = periodError(period);
+            if (pe) errs.period = pe;
+        }
         if (!grade) errs.grade = "Pick an overall rating before sending.";
         if (!evaluationText.trim())
             errs.summary = "Add an overall summary before sending.";
@@ -793,7 +835,7 @@ function EvaluationEditorDialog({
                 </DialogHeader>
 
                 {!isViewOnly && autosave.recoverable != null && (
-                    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3.5 py-2.5 text-[13px] text-[color:var(--text-secondary)]">
+                    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3.5 py-2.5 text-[14px] text-[color:var(--text-secondary)]">
                         <span>
                             You have unsaved changes from a previous session.
                         </span>
@@ -955,10 +997,11 @@ function EvaluationEditorDialog({
                                                           key={publicId}
                                                           type="button"
                                                           onClick={() =>
-                                                              initial &&
-                                                              handleDownload(
-                                                                  initial.id,
+                                                              previewDoc(
                                                                   index,
+                                                                  extractFilename(
+                                                                      publicId,
+                                                                  ),
                                                               )
                                                           }
                                                           className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left"
@@ -1041,9 +1084,12 @@ function EvaluationEditorDialog({
                                     <div aria-invalid={!!errors.period}>
                                         <DateRangePicker
                                             value={period}
+                                            maxDate={new Date()}
                                             onChange={(v) => {
                                                 setPeriod(v);
-                                                clearError("period");
+                                                const pe = periodError(v);
+                                                if (pe) setErrors((e) => ({ ...e, period: pe }));
+                                                else clearError("period");
                                             }}
                                         />
                                     </div>
@@ -1143,7 +1189,7 @@ function EvaluationEditorDialog({
                                                             clearError("grade");
                                                         }}
                                                         className={[
-                                                            "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                                            "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                                             selected
                                                                 ? "border-transparent bg-[color:hsl(var(--primary))] text-white"
                                                                 : "border-[color:var(--border-primary)] hover:bg-[color:var(--bg-secondary)]",
@@ -1161,7 +1207,7 @@ function EvaluationEditorDialog({
                                                         </span>
                                                         <span
                                                             className={[
-                                                                "text-[11px] font-medium leading-tight",
+                                                                "text-[12px] font-medium leading-tight",
                                                                 selected
                                                                     ? "text-white/90"
                                                                     : "text-[color:var(--text-tertiary)]",
@@ -1278,9 +1324,9 @@ function EvaluationEditorDialog({
                                     <Button
                                         variant="secondary"
                                         type="button"
-                                        onClick={handleClose}
+                                        onClick={handleSubmit}
                                     >
-                                        Cancel
+                                        Save as draft
                                     </Button>
                                     <TooltipProvider delayDuration={0}>
                                         <Tooltip>
@@ -1316,8 +1362,7 @@ function EvaluationEditorDialog({
                                     </TooltipProvider>
                                 </>
                             ) : (
-                                // Preview step. No explicit "Save as draft" — the draft autosaves; Back, Cancel
-                                // and Send sit together as one action group.
+                                // Preview step. Back, Save as draft and Send sit together as one action group.
                                 <>
                                     <Button
                                         variant="ghost"
@@ -1333,9 +1378,9 @@ function EvaluationEditorDialog({
                                     <Button
                                         variant="secondary"
                                         type="button"
-                                        onClick={handleClose}
+                                        onClick={handleSubmit}
                                     >
-                                        Cancel
+                                        Save as draft
                                     </Button>
                                     <Button type="button" onClick={handleSend}>
                                         <Send size={14} className="mr-1" /> Send
@@ -1346,6 +1391,12 @@ function EvaluationEditorDialog({
                     </div>
                 </form>
             </DialogContent>
+            <DocumentViewerModal
+                open={!!viewer}
+                onClose={() => setViewer(null)}
+                fileUrl={viewer?.url ?? null}
+                documentName={viewer?.name}
+            />
         </Dialog>
     );
 }
@@ -1605,7 +1656,7 @@ export default function EvaluationsPage() {
             cell: (ev) => (
                 <div className="flex items-center gap-3">
                     <span
-                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-[color:var(--text-primary)]"
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-[color:var(--text-primary)]"
                         style={{
                             background:
                                 "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
@@ -1802,7 +1853,7 @@ export default function EvaluationsPage() {
                                 aria-selected={active}
                                 onClick={() => setStatusFilter(t.value)}
                                 className={[
-                                    "relative flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                    "relative flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                     active
                                         ? "text-[color:var(--text-primary)]"
                                         : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",

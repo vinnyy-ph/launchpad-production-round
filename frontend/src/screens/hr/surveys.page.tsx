@@ -289,10 +289,10 @@ export default function HRSurveysPage() {
       className: "min-w-[240px]",
       cell: (s) => (
         <div className="min-w-0 py-1">
-          <p className="truncate text-[15px] font-semibold text-[color:var(--text-primary)]">
+          <p className="truncate text-[16px] font-semibold text-[color:var(--text-primary)]">
             {s.name}
           </p>
-          <p className="truncate text-[12.5px] text-[color:var(--text-tertiary)]">
+          <p className="truncate text-[12px] text-[color:var(--text-tertiary)]">
             {audienceSummary(s)}
           </p>
         </div>

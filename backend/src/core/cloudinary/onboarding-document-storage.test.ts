@@ -1,6 +1,7 @@
 import {
   formatOnboardingDocumentStorageKey,
   isLegacyOnboardingDocumentUrl,
+  parseLegacyCloudinaryDocumentUrl,
   parseOnboardingDocumentStorageKey,
 } from "./onboarding-document-storage";
 
@@ -31,5 +32,35 @@ describe("onboarding-document-storage", () => {
       publicId: "onboarding/legacy-id",
       resourceType: "image",
     });
+  });
+
+  it("parses legacy Cloudinary image delivery URLs", () => {
+    expect(
+      parseLegacyCloudinaryDocumentUrl(
+        "https://res.cloudinary.com/demo/image/upload/v1710000000/onboarding/id-card.jpg",
+      ),
+    ).toEqual({
+      publicId: "onboarding/id-card",
+      resourceType: "image",
+    });
+  });
+
+  it("parses legacy Cloudinary raw delivery URLs", () => {
+    expect(
+      parseLegacyCloudinaryDocumentUrl(
+        "https://res.cloudinary.com/demo/raw/upload/v1710000000/onboarding/nbi-clearance.pdf",
+      ),
+    ).toEqual({
+      publicId: "onboarding/nbi-clearance.pdf",
+      resourceType: "raw",
+    });
+  });
+
+  it("returns null for non-Cloudinary legacy URLs", () => {
+    expect(
+      parseLegacyCloudinaryDocumentUrl(
+        "https://storage.example.com/onboarding/nbi-clearance.pdf",
+      ),
+    ).toBeNull();
   });
 });

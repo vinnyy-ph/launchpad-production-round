@@ -54,3 +54,18 @@ export function toPhilippineE164(value: string): string {
   if (trimmed.startsWith("+") && digits) return `+${digits}`;
   return trimmed;
 }
+
+/** Formats PH mobile values for read-only display while storage remains E.164. */
+export function formatPhilippinePhoneDisplay(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+
+  const e164 = toPhilippineE164(value);
+  const digits = e164.replace(/\D/g, "");
+
+  if (!/^639\d{9}$/.test(digits)) {
+    return value;
+  }
+
+  const localPart = digits.slice(2);
+  return `+63 ${localPart.slice(0, 3)} ${localPart.slice(3, 6)} ${localPart.slice(6)}`;
+}

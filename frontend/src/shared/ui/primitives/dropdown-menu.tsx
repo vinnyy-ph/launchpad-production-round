@@ -87,7 +87,7 @@ const DropdownMenuItem = React.forwardRef<
     ref={ref}
     className={cn(
       // Brandbook .dd-item: 9/12 padding, 13.5px weight 500, gap 8px, hover gc-50, no radius.
-      "relative flex cursor-default select-none items-center gap-2 px-3 py-[9px] text-[13.5px] font-medium outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-[color:var(--text-tertiary)]",
+      "relative flex cursor-default select-none items-center gap-2 px-3 py-[9px] text-[14px] font-medium outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-[color:var(--text-tertiary)]",
       // default hover
       variant === "default" && "text-[color:var(--text-primary)] focus:bg-gray-50 focus:text-[color:var(--text-primary)]",
       // destructive: red text + light-red hover bg; icon inherits via currentColor

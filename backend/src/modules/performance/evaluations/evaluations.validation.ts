@@ -44,8 +44,10 @@ export class EvaluationsValidation {
 
     const periodStart = this.parseDate(b.periodStart, "periodStart", true);
     const periodEnd = this.parseDate(b.periodEnd, "periodEnd", true);
-    if (periodEnd.getTime() < periodStart.getTime()) {
-      throw new Error("periodEnd must be on or after periodStart");
+    this.assertNotFuture(periodStart, "periodStart");
+    this.assertNotFuture(periodEnd, "periodEnd");
+    if (periodEnd.getTime() <= periodStart.getTime()) {
+      throw new Error("periodEnd must be after periodStart");
     }
 
     const grade = typeof b.grade === "string" ? Number(b.grade) : b.grade;
@@ -95,16 +97,18 @@ export class EvaluationsValidation {
     }
     if (b.periodStart !== undefined) {
       result.periodStart = this.parseDate(b.periodStart, "periodStart", false);
+      this.assertNotFuture(result.periodStart, "periodStart");
     }
     if (b.periodEnd !== undefined) {
       result.periodEnd = this.parseDate(b.periodEnd, "periodEnd", false);
+      this.assertNotFuture(result.periodEnd, "periodEnd");
     }
     if (
       result.periodStart &&
       result.periodEnd &&
-      result.periodEnd.getTime() < result.periodStart.getTime()
+      result.periodEnd.getTime() <= result.periodStart.getTime()
     ) {
-      throw new Error("periodEnd must be on or after periodStart");
+      throw new Error("periodEnd must be after periodStart");
     }
     if (b.grade !== undefined) {
       const grade = typeof b.grade === "string" ? Number(b.grade) : b.grade;
@@ -153,6 +157,23 @@ export class EvaluationsValidation {
       throw new Error(`${field} must be a valid date`);
     }
     return date;
+  }
+
+  /** Rejects dates beyond today — an evaluation period cannot extend into the future. */
+  private assertNotFuture(date: Date, field: string): void {
+    const now = new Date();
+    const endOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999,
+    );
+    if (date.getTime() > endOfToday.getTime()) {
+      throw new Error(`${field} cannot be in the future`);
+    }
   }
 
   /** Itemized text → trimmed, non-empty string list, each validated for length and content. */

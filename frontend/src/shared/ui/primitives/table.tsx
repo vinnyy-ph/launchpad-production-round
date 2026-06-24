@@ -64,7 +64,7 @@ const TableHead = React.forwardRef<
     className={cn(
       "px-3 py-[9px] text-left align-middle whitespace-nowrap",
       "border-b border-[color:var(--gray-neutral-200)] bg-[color:var(--gray-50)]",
-      "text-[10.5px] font-bold uppercase tracking-[0.8px] text-[color:var(--text-tertiary)]",
+      "text-[12px] font-bold uppercase tracking-[0.8px] text-[color:var(--text-tertiary)]",
       "[&:has([role=checkbox])]:pr-0",
       className
     )}
