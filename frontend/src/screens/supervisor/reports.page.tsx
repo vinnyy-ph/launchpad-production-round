@@ -1,60 +1,209 @@
-import { AlertCircle, RefreshCw, ClipboardList } from "lucide-react";
+"use client";
+
+import Link from "next/link";
+import {
+  AlertCircle,
+  RefreshCw,
+  ClipboardList,
+  ClipboardCheck,
+  Users,
+  Send,
+  CheckCircle2,
+  ArrowUpRight,
+} from "lucide-react";
 import { VisibleResultsList } from "@/modules/performance/surveys/components/visible-results-list";
+import { useVisibleResultSurveys } from "@/modules/performance/surveys/hooks/use-visible-result-surveys";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
-import {
-  useEvaluations,
-  GRADE_LABELS,
-  type Evaluation,
-} from "@/modules/performance/evaluations";
+import { useEvaluations, useMyDirectReports } from "@/modules/performance/evaluations";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
-import { StatCard, EmptyState } from "@/shared/ui/patterns";
-import { BarChart, DonutChart } from "@/shared/ui";
+import { KpiCard, EmptyState } from "@/shared/ui/patterns";
+import { DonutChart, Skeleton } from "@/shared/ui";
+import { CHART_COLORS } from "@/shared/ui/charts/palette";
+import {
+  summarizeEvaluations,
+  computeCoverage,
+  notEvaluatedCount,
+  buildAttentionItems,
+  type AttentionItem,
+  type EvalSummary,
+} from "./overview.logic";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Needs-your-attention band ──────────────────────────────────────────────
 
-/** Acknowledgement status for a SENT evaluation. */
-type AckStatus = "ACKNOWLEDGED" | "DEEMED_ACKNOWLEDGED" | "PENDING";
-function ackStatus(ev: Evaluation): AckStatus {
-  if (ev.acknowledgement?.acknowledgedAt) return "ACKNOWLEDGED";
-  if (ev.acknowledgement?.isDeemedAck) return "DEEMED_ACKNOWLEDGED";
-  return "PENDING";
-}
-
-/** Count of SENT evals per grade (1–5), labelled via GRADE_LABELS. */
-function buildGradeDistribution(evals: Evaluation[]): { label: string; count: number }[] {
-  const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  for (const ev of evals) {
-    if (ev.grade >= 1 && ev.grade <= 5) counts[ev.grade] = (counts[ev.grade] ?? 0) + 1;
+function AttentionBand({ items, loading }: { items: AttentionItem[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <div
+        className="h-[112px] rounded-xl border border-[color:var(--border-primary)] bg-white"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      />
+    );
   }
-  return [1, 2, 3, 4, 5].map((g) => ({ label: GRADE_LABELS[g] ?? `Grade ${g}`, count: counts[g] ?? 0 }));
+
+  if (items.length === 0) {
+    return (
+      <div
+        className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      >
+        <span
+          className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
+          style={{ background: "var(--color-success-50)" }}
+        >
+          <CheckCircle2 size={18} style={{ color: "var(--color-success-600)" }} />
+        </span>
+        <div>
+          <p className="text-sm font-semibold text-[color:var(--text-primary)]">You&apos;re all caught up</p>
+          <p className="text-xs text-[color:var(--text-tertiary)]">
+            Nothing needs your attention right now.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
+      style={{ boxShadow: "var(--shadow-xs)" }}
+    >
+      <div className="flex items-center gap-2 border-b border-[color:var(--border-secondary)] px-5 py-3">
+        <AlertCircle size={15} style={{ color: "var(--color-warning-600)" }} />
+        <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+          Needs your attention
+        </p>
+      </div>
+      <div className="divide-y divide-[color:var(--border-secondary)]">
+        {items.map((item) => (
+          <Link
+            key={item.id}
+            href={item.href}
+            className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[color:var(--bg-secondary)]"
+          >
+            <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-[color:var(--bg-tertiary)] px-1.5 text-xs font-bold tabular-nums text-[color:var(--text-secondary)]">
+              {item.count}
+            </span>
+            <span className="flex-1 text-sm text-[color:var(--text-primary)]">{item.label}</span>
+            <ArrowUpRight
+              size={15}
+              className="flex-shrink-0 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
+            />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-// ─── Team performance analytics ───────────────────────────────────────────────
+// ─── Team composition KPI card (clickable → roster) ─────────────────────────
 
-function TeamPerformancePanel({
-  appUserEmployeeId,
+function TeamCard({
+  total,
+  active,
+  onboarding,
+  offboarding,
+  loading,
 }: {
-  appUserEmployeeId: string | undefined;
+  total: number;
+  active: number;
+  onboarding: number;
+  offboarding: number;
+  loading: boolean;
 }) {
-  const { data, isLoading, isError, refetch } = useEvaluations();
+  const breakdown = [
+    { label: "Active", count: active, color: "var(--color-success-600)" },
+    { label: "Onboarding", count: onboarding, color: "var(--color-warning-600)" },
+    { label: "Offboarding", count: offboarding, color: "var(--color-error-600)" },
+  ];
+  return (
+    <Link
+      href="/supervisor/roster"
+      className="group relative block overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-[18px] transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      style={{ boxShadow: "var(--shadow-xs)" }}
+    >
+      <ArrowUpRight
+        aria-hidden="true"
+        className="absolute right-4 top-4 h-4 w-4 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
+      />
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
+          <Users size={12} className="text-[color:var(--text-secondary)]" />
+        </span>
+        <span className="text-[13.5px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
+          Team
+        </span>
+      </div>
+      {loading ? (
+        <Skeleton className="mt-3.5 h-10 w-16" />
+      ) : (
+        <p className="mt-3.5 text-[40px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
+          {total}
+        </p>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {breakdown.map((b) => (
+          <span
+            key={b.label}
+            className="inline-flex items-center gap-1.5 text-[12px] text-[color:var(--text-tertiary)]"
+          >
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: b.color }} aria-hidden="true" />
+            <span className="font-semibold tabular-nums text-[color:var(--text-secondary)]">{b.count}</span>{" "}
+            {b.label}
+          </span>
+        ))}
+      </div>
+    </Link>
+  );
+}
 
+// ─── Grade distribution (labeled horizontal bars — reads cleanly at small n) ──
+
+function GradeDistribution({ data }: { data: EvalSummary["gradeDistribution"] }) {
+  const max = Math.max(1, ...data.map((d) => d.count));
+  return (
+    <div className="space-y-2.5">
+      {data.map((d) => (
+        <div key={d.grade} className="flex items-center gap-3">
+          <span className="w-[116px] flex-none text-xs text-[color:var(--text-secondary)]">{d.label}</span>
+          <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-[color:var(--bg-tertiary)]">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full"
+              style={{ width: `${(d.count / max) * 100}%`, background: "hsl(var(--chart-1))" }}
+            />
+          </div>
+          <span className="w-5 flex-none text-right text-xs font-semibold tabular-nums text-[color:var(--text-primary)]">
+            {d.count}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Evaluation breakdown (ack donut + grade bars) ───────────────────────────
+
+function EvaluationBreakdown({
+  summary,
+  isLoading,
+  isError,
+  refetch,
+}: {
+  summary: EvalSummary;
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
+}) {
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="h-[68px] rounded-xl border border-[color:var(--border-primary)] bg-white"
-              style={{ boxShadow: "var(--shadow-xs)" }}
-            />
-          ))}
-        </div>
-        <div
-          className="h-[260px] rounded-xl border border-[color:var(--border-primary)] bg-white"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        />
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="h-[260px] rounded-xl border border-[color:var(--border-primary)] bg-white"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          />
+        ))}
       </div>
     );
   }
@@ -67,7 +216,7 @@ function TeamPerformancePanel({
           Could not load your evaluations.
         </span>
         <button
-          onClick={() => void refetch()}
+          onClick={refetch}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
         >
           <RefreshCw size={12} /> Retry
@@ -76,93 +225,51 @@ function TeamPerformancePanel({
     );
   }
 
-  // Only evaluations THIS supervisor issued.
-  const mine = appUserEmployeeId
-    ? (data ?? []).filter((ev) => ev.reviewerId === appUserEmployeeId)
-    : [];
-  const sent = mine.filter((ev) => ev.isSent);
-  const drafts = mine.filter((ev) => !ev.isSent);
-
-  if (mine.length === 0) {
+  if (summary.sent === 0) {
     return (
       <EmptyState
         icon={ClipboardList}
-        title="No evaluations issued yet"
-        body="Evaluations you write for your direct reports will be summarised here."
+        title="No evaluations sent yet"
+        body="Once you send an evaluation to a direct report, its grade and acknowledgement breakdown appear here."
       />
     );
   }
 
-  const acknowledged = sent.filter((ev) => ackStatus(ev) === "ACKNOWLEDGED").length;
-  const deemedAck = sent.filter((ev) => ackStatus(ev) === "DEEMED_ACKNOWLEDGED").length;
-  const pending = sent.filter((ev) => ackStatus(ev) === "PENDING").length;
-
-  const gradeDistribution = buildGradeDistribution(sent);
-  const hasGrades = gradeDistribution.some((d) => d.count > 0);
-
   const ackBreakdown = [
-    { name: "Pending", value: pending },
-    { name: "Acknowledged", value: acknowledged },
-    { name: "Deemed acknowledged", value: deemedAck },
+    { name: "Acknowledged", value: summary.acknowledged },
+    { name: "Auto-acknowledged", value: summary.autoAcknowledged },
+    { name: "Pending acknowledgement", value: summary.pending },
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="space-y-4">
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <StatCard label="Issued" value={sent.length} variant="brand" />
-        <StatCard label="Drafts" value={drafts.length} variant={drafts.length > 0 ? "warn" : "default"} />
-        <StatCard
-          label="Pending ack"
-          value={pending}
-          variant={pending > 0 ? "alert" : "default"}
-          hint="Sent evaluations the employee hasn't acknowledged yet — the acknowledgement deadline hasn't passed."
-        />
-        <StatCard
-          label="Acknowledged"
-          value={acknowledged}
-          hint="The employee explicitly acknowledged receiving the evaluation."
-        />
-        <StatCard
-          label="Deemed ack"
-          value={deemedAck}
-          hint="The acknowledgement deadline passed without a response, so the system auto-marks it acknowledged for compliance."
-        />
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div
+        className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      >
+        <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">Acknowledgement status</p>
+        <DonutChart data={ackBreakdown} height={200} />
+        <div className="mt-3 flex flex-col gap-1.5">
+          {ackBreakdown.map((d, i) => (
+            <div key={d.name} className="flex items-center gap-2 text-xs">
+              <span
+                className="h-2 w-2 flex-none rounded-full"
+                style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                aria-hidden="true"
+              />
+              <span className="flex-1 text-[color:var(--text-secondary)]">{d.name}</span>
+              <span className="font-semibold tabular-nums text-[color:var(--text-primary)]">{d.value}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Clear next action */}
-      {pending > 0 && (
-        <p className="flex items-center gap-1.5 text-sm text-[color:var(--text-secondary)]">
-          <AlertCircle size={14} className="flex-shrink-0 text-[color:var(--color-warning-600)]" />
-          {pending} {pending === 1 ? "evaluation is" : "evaluations are"} awaiting acknowledgement.
-        </p>
-      )}
-
-      {/* Charts — stack on narrow screens, side-by-side on wide */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {hasGrades && (
-          <div
-            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          >
-            <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">
-              Grade distribution
-            </p>
-            <BarChart data={gradeDistribution} categoryKey="label" valueKey="count" height={220} />
-          </div>
-        )}
-
-        {ackBreakdown.length > 0 && (
-          <div
-            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          >
-            <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">
-              Acknowledgement status
-            </p>
-            <DonutChart data={ackBreakdown} height={220} />
-          </div>
-        )}
+      <div
+        className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      >
+        <p className="mb-4 text-sm font-semibold text-[color:var(--text-primary)]">Grade distribution</p>
+        <GradeDistribution data={summary.gradeDistribution} />
       </div>
     </div>
   );
@@ -176,53 +283,101 @@ export default function ReportsPage() {
 
   // Supervisors are EMPLOYEE-role callers, so the API returns the REDACTED list (no PII).
   // The server-side `supervisorId` filter scopes it to this supervisor's direct reports.
-  const { employees, loading } = useEmployees({
+  const { employees, loading: reportsLoading } = useEmployees({
     supervisorIds: employeeId ? [employeeId] : undefined,
     page: 1,
     limit: 100,
   });
   const reports = employeeId ? employees : [];
 
-  const stats = {
+  const {
+    data: evals,
+    isLoading: evalsLoading,
+    isError: evalsError,
+    refetch: refetchEvals,
+  } = useEvaluations();
+  const { data: reviewees, isLoading: revieweesLoading } = useMyDirectReports();
+  const { data: results } = useVisibleResultSurveys();
+
+  const composition = {
     total: reports.length,
     active: reports.filter((r) => r.status === "active").length,
     onboarding: reports.filter((r) => r.status === "onboarding").length,
     offboarding: reports.filter((r) => r.status === "offboarding").length,
   };
 
+  const summary = summarizeEvaluations(evals ?? [], employeeId);
+  const coverage = computeCoverage(reviewees ?? [], evals ?? [], employeeId);
+  const notEvaluated = notEvaluatedCount(reviewees ?? [], evals ?? [], employeeId);
+  const attentionItems = buildAttentionItems({
+    drafts: summary.drafts,
+    pending: summary.pending,
+    notEvaluated,
+  });
+
+  const analyticsLoading = evalsLoading || revieweesLoading;
+  const resultsCount = results?.length ?? 0;
+
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 space-y-6">
       <ScreenHeader id="overview" level="page" />
 
-      {/* Stat cards */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Headcount" value={stats.total} loading={loading} variant="brand" />
-        <StatCard label="Active" value={stats.active} loading={loading} />
-        <StatCard
-          label="Onboarding"
-          value={stats.onboarding}
-          loading={loading}
-          variant={stats.onboarding > 0 ? "warn" : "default"}
+      {/* What needs the supervisor's attention now */}
+      <AttentionBand items={attentionItems} loading={analyticsLoading || reportsLoading} />
+
+      {/* At a glance — clickable headline KPIs */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <TeamCard
+          total={composition.total}
+          active={composition.active}
+          onboarding={composition.onboarding}
+          offboarding={composition.offboarding}
+          loading={reportsLoading}
         />
-        <StatCard
-          label="Offboarding"
-          value={stats.offboarding}
-          loading={loading}
-          variant={stats.offboarding > 0 ? "alert" : "default"}
+        <KpiCard
+          label="Coverage"
+          value={`${coverage.evaluated}/${coverage.total}`}
+          icon={ClipboardCheck}
+          period="team members evaluated"
+          hint="How many of your direct reports have at least one sent evaluation."
+          loading={analyticsLoading}
+          href="/supervisor/evaluations"
+        />
+        <KpiCard
+          label="Evaluations sent"
+          value={summary.sent}
+          icon={Send}
+          hint="Evaluations you have sent to your direct reports. Sent evaluations are final and read-only."
+          loading={analyticsLoading}
+          href="/supervisor/evaluations?status=sent"
+        />
+        <KpiCard
+          label="Acknowledged"
+          value={summary.acknowledged}
+          icon={CheckCircle2}
+          hint="Sent evaluations a direct report has explicitly acknowledged receiving."
+          loading={analyticsLoading}
+          href="/supervisor/evaluations?status=sent"
         />
       </div>
 
-      {/* Team performance — analytics for evaluations THIS supervisor has issued */}
+      {/* Evaluation analytics */}
       <section>
         <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          Team performance
+          Evaluation breakdown
         </h2>
-        <TeamPerformancePanel appUserEmployeeId={employeeId} />
+        <EvaluationBreakdown
+          summary={summary}
+          isLoading={analyticsLoading}
+          isError={evalsError}
+          refetch={() => void refetchEvals()}
+        />
       </section>
 
-      <section className="mt-6">
+      {/* Pulse results the supervisor may view */}
+      <section>
         <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          Pulse results
+          Pulse results{resultsCount > 0 ? ` (${resultsCount})` : ""}
         </h2>
         <VisibleResultsList />
       </section>
