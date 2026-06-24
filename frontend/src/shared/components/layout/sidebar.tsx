@@ -90,7 +90,7 @@ export function Sidebar({
                     </span>
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.badge != null && item.badge > 0 && (
-                      <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[#D5D7DA] bg-white px-1.5 text-[11px] font-medium leading-none text-[#414651]">
+                      <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[#D5D7DA] bg-white px-1.5 text-[12px] font-medium leading-none text-[#414651]">
                         {item.badge}
                       </span>
                     )}

@@ -22,9 +22,9 @@ const badgeVariants = cva(
         outline:     "text-foreground",
       },
       size: {
-        sm: "px-2 py-[2px] text-[11px]",                 // ~22px / 6r
+        sm: "px-2 py-[2px] text-[12px]",                 // ~22px / 6r
         md: "px-2 py-[3px] text-xs",                      // 24px / 6r (= base)
-        lg: "px-2.5 py-[5px] text-[13px] rounded-md",     // 28px / 8r
+        lg: "px-2.5 py-[5px] text-[14px] rounded-md",     // 28px / 8r
       },
       pill: {
         true: "rounded-full",

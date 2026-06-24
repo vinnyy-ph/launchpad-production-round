@@ -23,7 +23,7 @@ export function DocumentConfigBuilder({
       <div className="flex items-center justify-between gap-3 px-6 py-4">
         <div>
           <h2 className="text-sm font-bold text-[color:var(--text-primary)]">Required documents</h2>
-          <p className="mt-1 text-[13px] text-[color:var(--text-secondary)]">
+          <p className="mt-1 text-[14px] text-[color:var(--text-secondary)]">
             Documents new hires must submit during onboarding.
           </p>
         </div>

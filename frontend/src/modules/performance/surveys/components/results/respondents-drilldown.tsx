@@ -90,7 +90,7 @@ function RespondentAnswersDialog({
           )}
 
           {data && !data.submitted && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[13px] text-[color:var(--text-secondary)]">
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[14px] text-[color:var(--text-secondary)]">
               <AlertCircle
                 size={17}
                 className="mt-0.5 flex-none text-[color:var(--text-tertiary)]"
@@ -147,7 +147,7 @@ export function RespondentsDrilldown({
       >
         <div className="mb-4 flex items-center gap-2.5">
           <Users size={16} className="text-[color:var(--text-tertiary)]" aria-hidden="true" />
-          <h3 className="text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
+          <h3 className="text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">
             Individual responses
           </h3>
         </div>
@@ -171,10 +171,10 @@ export function RespondentsDrilldown({
     <div className="mt-4 rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-4 flex items-center gap-2.5">
         <Users size={16} className="text-[color:var(--text-tertiary)]" aria-hidden="true" />
-        <h3 className="text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
+        <h3 className="text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">
           Individual responses
         </h3>
-        <span className="text-[12.5px] text-[color:var(--text-quaternary)]">
+        <span className="text-[12px] text-[color:var(--text-quaternary)]">
           {respondedCount} of {respondents.length} responded
         </span>
       </div>

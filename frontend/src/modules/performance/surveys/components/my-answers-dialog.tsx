@@ -141,7 +141,7 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
           )}
 
           {data && !data.submitted && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[13px] text-[color:var(--text-secondary)]">
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[14px] text-[color:var(--text-secondary)]">
               <AlertCircle
                 size={17}
                 className="mt-0.5 flex-none text-[color:var(--text-tertiary)]"
@@ -152,7 +152,7 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
           )}
 
           {data && data.submitted && isAnonymous && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-[#C7D7FE] bg-[#EEF4FF] px-4 py-3 text-[13px] text-[#3538CD]">
+            <div className="flex items-start gap-2.5 rounded-xl border border-[#C7D7FE] bg-[#EEF4FF] px-4 py-3 text-[14px] text-[#3538CD]">
               <ShieldCheck size={17} className="mt-0.5 flex-none" aria-hidden="true" />
               <span>
                 This pulse was anonymous. To protect anonymity, your answers aren&apos;t linked

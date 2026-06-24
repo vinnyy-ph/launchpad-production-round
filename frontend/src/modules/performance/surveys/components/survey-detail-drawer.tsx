@@ -74,7 +74,7 @@ export function SurveyDetailDrawer({
               {q.isLoading ? (
                 <Skeleton className="h-5 w-5/6" />
               ) : (
-                <p className="text-[14.5px] leading-snug text-[color:var(--text-primary)]">
+                <p className="text-[14px] leading-snug text-[color:var(--text-primary)]">
                   {oneLine()}
                 </p>
               )}

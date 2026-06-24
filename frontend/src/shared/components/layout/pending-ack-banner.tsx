@@ -41,7 +41,7 @@ export function PendingAckBanner() {
         className="flex-shrink-0 text-[color:var(--color-warning-600)]"
         aria-hidden="true"
       />
-      <p className="flex-1 text-[13px] font-medium text-[color:var(--color-warning-700)]">
+      <p className="flex-1 text-[14px] font-medium text-[color:var(--color-warning-700)]">
         You have {count} performance evaluation{count > 1 ? "s" : ""} waiting for your acknowledgement.{" "}
         <Link
           href="/employee/surveys?tab=acknowledgements"

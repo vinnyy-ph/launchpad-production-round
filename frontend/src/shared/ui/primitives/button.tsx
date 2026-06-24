@@ -18,7 +18,7 @@ const buttonVariants = cva(
       },
       size: {
         xs:      "h-8 px-2.5 text-xs gap-1.5",
-        sm:      "h-9 px-3 text-[13px] gap-1.5",
+        sm:      "h-9 px-3 text-[13px] gap-1.5", /* --btn-fs-sm: buttons use their own size scale */
         default: "h-10 px-3.5",
         lg:      "h-11 px-4",
         xl:      "h-12 px-[18px] text-base gap-2",

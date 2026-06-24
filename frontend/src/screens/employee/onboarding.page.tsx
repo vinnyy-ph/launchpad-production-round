@@ -318,7 +318,7 @@ function ReviewField({
 
 function HrSetBadge() {
   return (
-    <span className="inline-flex items-center rounded-full border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-2 py-0.5 text-[10px] font-semibold leading-none text-[color:var(--text-tertiary)]">
+    <span className="inline-flex items-center rounded-full border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-2 py-0.5 text-[12px] font-semibold leading-none text-[color:var(--text-tertiary)]">
       Set by HR
     </span>
   );

@@ -118,7 +118,7 @@ export default function HrEvaluationsPage() {
       cell: (ev) => (
         <div className="flex items-center gap-3">
           <span
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-[color:var(--text-primary)]"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-[color:var(--text-primary)]"
             style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
           >
             {initials(revieweeName(ev))}

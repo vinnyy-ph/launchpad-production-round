@@ -85,7 +85,7 @@ export default function HomePage() {
         style={{ background: "var(--gradient-jia)", boxShadow: "var(--shadow-inset-brand)" }}
       >
         <span className="text-base font-bold text-[color:var(--text-secondary)]" aria-hidden="true">✦</span>
-        <h1 className="mt-2 text-[26px] font-bold leading-tight tracking-[-0.02em] text-[color:var(--text-primary)] sm:text-[32px]">
+        <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-[-0.02em] text-[color:var(--text-primary)] sm:text-[30px]">
           {greeting}
           {firstName ? `, ${firstName}` : ""}
         </h1>
@@ -93,7 +93,7 @@ export default function HomePage() {
         {primary && !statsLoading && (
           <Link
             href={primary.href}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[color:hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[color:hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {primary.cta}
             <ArrowRight size={15} aria-hidden="true" />
@@ -248,7 +248,7 @@ function Avatar({ name, src, className }: { name: string; src?: string | null; c
       src={src}
       fallback={initials(name)}
       className={cn("h-9 w-9", className)}
-      fallbackClassName="text-[11px] font-bold text-white"
+      fallbackClassName="text-[12px] font-bold text-white"
       fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
@@ -285,7 +285,7 @@ function PeopleSection({
             className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 text-left transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
               Your supervisor
             </p>
             <div className="mt-3 flex items-center justify-between gap-2">
@@ -312,7 +312,7 @@ function PeopleSection({
             className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
               Your supervisor
             </p>
             {loading ? (
@@ -335,7 +335,7 @@ function PeopleSection({
             className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
               Team
             </p>
             <div className="mt-3 flex items-center justify-between gap-2">

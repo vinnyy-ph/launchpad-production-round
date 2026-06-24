@@ -53,7 +53,7 @@ export function AiInsightsPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-[color:var(--brand-blue)]" />
-          <h2 className="text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
+          <h2 className="text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">
             AI insights
           </h2>
         </div>
@@ -68,7 +68,7 @@ export function AiInsightsPanel({
       {/* Initial CTA */}
       {!enabled && (
         <div className="mt-4 flex flex-col items-start gap-3">
-          <p className="text-[13.5px] text-[color:var(--text-tertiary)]">
+          <p className="text-[14px] text-[color:var(--text-tertiary)]">
             Summarize the written responses into key themes, overall sentiment
             {isAnonymous ? "" : ", and notable quotes"}.
           </p>
@@ -106,7 +106,7 @@ export function AiInsightsPanel({
 
       {/* Unavailable / suppressed */}
       {data && !data.insight && (
-        <p className="mt-4 rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[13.5px] text-[color:var(--text-tertiary)]">
+        <p className="mt-4 rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[14px] text-[color:var(--text-tertiary)]">
           {data.reason === "no_responses"
             ? "No written responses yet — the summary will appear once people answer."
             : data.suppressed
@@ -131,7 +131,7 @@ export function AiInsightsPanel({
             <Badge variant={SENTIMENT_VARIANT[data.insight.sentiment.overall]} pill animateIn>
               {SENTIMENT_LABEL[data.insight.sentiment.overall]}
             </Badge>
-            <span className="text-[13px] text-[color:var(--text-tertiary)]">
+            <span className="text-[14px] text-[color:var(--text-tertiary)]">
               {data.insight.sentiment.rationale}
             </span>
           </div>
@@ -144,7 +144,7 @@ export function AiInsightsPanel({
               {data.insight.themes.map((t, i) => (
                 <div key={i} className="rounded-xl border border-[color:var(--border-primary)] px-4 py-3">
                   <div className="text-[14px] font-semibold text-[color:var(--text-primary)]">{t.label}</div>
-                  <div className="mt-0.5 text-[13.5px] text-[color:var(--text-tertiary)]">{t.description}</div>
+                  <div className="mt-0.5 text-[14px] text-[color:var(--text-tertiary)]">{t.description}</div>
                 </div>
               ))}
             </div>

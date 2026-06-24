@@ -221,7 +221,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             {breadcrumb.map((crumb, i) => {
               const isLast = i === breadcrumb.length - 1;
               const className = isLast
-                ? "min-w-0 truncate rounded-lg bg-[color:var(--bg-secondary)] px-3 py-2 text-[13px] font-semibold text-[color:var(--text-primary)]"
+                ? "min-w-0 truncate rounded-lg bg-[color:var(--bg-secondary)] px-3 py-2 text-[14px] font-semibold text-[color:var(--text-primary)]"
                 : "hidden text-[14px] font-semibold text-[color:var(--text-tertiary)] sm:inline";
 
               return (
@@ -256,7 +256,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       <div className="flex flex-shrink-0 items-center gap-3">
         <span
           aria-hidden="true"
-          className="hidden whitespace-nowrap text-[13px] font-medium tabular-nums text-[color:var(--text-secondary)] select-none xl:block"
+          className="hidden whitespace-nowrap text-[14px] font-medium tabular-nums text-[color:var(--text-secondary)] select-none xl:block"
         >
           <span className="text-[color:var(--text-primary)] mr-2">{clock.time}</span> {clock.date}
         </span>
@@ -279,7 +279,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
               fallbackStyle={{ background: "linear-gradient(135deg, #1f2a5c 0%, #4f46e5 100%)" }}
             />
             <span className="hidden min-w-0 text-left md:block">
-              <span className="block max-w-[180px] truncate text-[13px] font-semibold leading-4 text-[color:var(--text-primary)]">
+              <span className="block max-w-[180px] truncate text-[14px] font-semibold leading-4 text-[color:var(--text-primary)]">
                 {displayName}
               </span>
               {roleLabel && (

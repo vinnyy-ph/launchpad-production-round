@@ -25,7 +25,7 @@ export function ClearanceSignatureBanner() {
         className="flex-shrink-0 text-[color:var(--color-warning-600)]"
         aria-hidden="true"
       />
-      <p className="flex-1 text-[13px] font-medium text-[color:var(--color-warning-700)]">
+      <p className="flex-1 text-[14px] font-medium text-[color:var(--color-warning-700)]">
         You have {count} clearance{count > 1 ? "s" : ""} awaiting your signature.{" "}
         <Link
           href="/employee/clearance"

@@ -149,7 +149,7 @@ export function DocumentUploadRow({
             ) : (
               <div className="flex flex-col items-center gap-0.5 text-[color:var(--text-tertiary)]">
                 <FileText className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
-                <span className="rounded-sm bg-[#F04438] px-1 py-0.5 text-[9px] font-bold leading-none text-white">
+                <span className="rounded-sm bg-[#F04438] px-1 py-0.5 text-[12px] font-bold leading-none text-white">
                   {fileExtension(selectedFile.name).toUpperCase() || "FILE"}
                 </span>
               </div>

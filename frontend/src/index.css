@@ -30,7 +30,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 220 7% 92%;               /* #E9EAEB — neutral-200 */
     --input: 220 5% 84%;                /* #D5D7DA — neutral-300 */
-    --ring: 228 27% 9%;                 /* #181D27 */
+    --ring: 230 33% 10%;                /* #111322 — DS focus color (matches --primary) */
     --radius: 0.5rem;                   /* 8px base */
 
     /* Chart categorical palette — cool neutrals + one brand accent. */
@@ -52,14 +52,16 @@
 }
 
 @layer base {
-  /* Brandbook interaction: focus-visible ring (2px #111322, 2px offset). */
+  /* Brandbook focus: ONE 2px #111322 ring everywhere. A box-shadow ring (not an
+     outline) so it hugs rounded corners and matches the shadcn `ring-2 ring-ring`
+     components 1:1 — all now resolve to --ring = #111322. */
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: 2px solid hsl(var(--primary));
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--ring));
   }
   /* On gradient surfaces, switch the ring to white. */
   .on-gradient :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline-color: #ffffff;
+    box-shadow: 0 0 0 2px #ffffff;
   }
 
   /* Disabled baseline (brandbook: 38% opacity, not-allowed). */
@@ -703,12 +705,12 @@
   }
 }
 
-/* Skeleton shimmer — copied verbatim from the Jia brandbook "Live examples" demo:
-   90deg gray-cool sweep (gc-100 → gc-50 → gc-100 at 25/50/75), 1.4s linear loop.
-   gc-100 = --gray-100, gc-50 = --gray-50. */
+/* Skeleton shimmer — Jia brandbook "Live examples" demo: 90deg gray-cool sweep
+   (gc-100 → gc-50 → gc-100 at 25/50/75 = --gray-100/--gray-50), 1.4s linear loop.
+   Direction flipped to left-to-right (the conventional sweep) vs the DS's R-to-L. */
 @keyframes skeleton-shimmer {
-  from { background-position: -200% 0; }
-  to   { background-position: 200% 0; }
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
 }
 
 @layer components {

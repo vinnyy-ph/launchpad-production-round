@@ -114,7 +114,7 @@ export function NotificationItem({ notification, onRead, onPin, onClear }: Props
           </p>
           <time
             dateTime={notification.createdAt}
-            className="mt-1 block text-[11px] text-[color:var(--text-quaternary)]"
+            className="mt-1 block text-[12px] text-[color:var(--text-quaternary)]"
           >
             {relativeTime(notification.createdAt)}
           </time>
