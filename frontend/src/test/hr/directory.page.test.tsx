@@ -42,6 +42,21 @@ jest.mock("@/modules/people/onboarding/hooks/use-document-configs", () => ({
   useDocumentConfigs: () => ({ documents: [], loading: false, error: null, reload: jest.fn() }),
 }));
 
+// Offboarding hooks used by the InitiateOffboardingDialog (always mounted) and the
+// OffboardingCasesTable (rendered on the Offboarding tab). They hit react-query directly,
+// so mock them like the other data hooks.
+jest.mock("@/modules/people/offboarding/hooks/use-offboarding", () => ({
+  useOffboardings: () => ({ offboardings: [], loading: false, error: null, reload: jest.fn() }),
+}));
+
+jest.mock("@/modules/people/offboarding/hooks/use-create-offboarding", () => ({
+  useCreateOffboarding: () => ({ create: jest.fn(), creating: false, error: null }),
+}));
+
+jest.mock("@/modules/people/offboarding/hooks/use-clearance-templates", () => ({
+  useClearanceTemplateOptions: () => ({ templates: [], loading: false, error: null, reload: jest.fn() }),
+}));
+
 const mockUpdateEmployee = jest.fn();
 jest.mock("@/modules/people/employees/hooks/use-update-employee", () => ({
   useUpdateEmployee: () => ({
@@ -213,7 +228,7 @@ describe("DirectoryPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Personal Information" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Employment Details" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Teams" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Teams 3" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Documents" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Activity History" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Process offboarding" })).toBeInTheDocument();
@@ -238,7 +253,7 @@ describe("DirectoryPage", () => {
     expect(screen.queryByText("Created")).not.toBeInTheDocument();
     expect(screen.queryByText("Last Updated")).not.toBeInTheDocument();
     expect(screen.getAllByText("Supervisor").length).toBeGreaterThan(0);
-    expect(screen.getByText("Assign supervisor")).toBeInTheDocument();
+    expect(screen.getByText("No supervisor (root node)")).toBeInTheDocument();
     expect(screen.getByText("Mathematics")).toBeInTheDocument();
     expect(screen.getByText("No documents yet")).toBeInTheDocument();
     expect(screen.getByText("Profile Field Changes")).toBeInTheDocument();
@@ -265,9 +280,12 @@ describe("DirectoryPage", () => {
     renderPage();
 
     await userEvent.type(screen.getByLabelText("Search employees"), "ada");
-    await userEvent.click(screen.getByLabelText("Filter by team"));
+    // Filters live behind a single "Filter" dropdown: open it, drill into a category, pick options.
+    await userEvent.click(screen.getByRole("button", { name: "Filter employees" }));
+    await userEvent.click(screen.getByText("Filter by teams"));
     await userEvent.click(screen.getByRole("option", { name: "Platform" }));
-    await userEvent.click(screen.getByLabelText("Filter by status"));
+    await userEvent.click(screen.getByText("Filter by teams")); // back to the category list
+    await userEvent.click(screen.getByText("Filter by status"));
     await userEvent.click(screen.getByRole("option", { name: "Active" }));
 
     expect(mockUseEmployees).toHaveBeenCalledWith({
@@ -281,12 +299,16 @@ describe("DirectoryPage", () => {
     });
   });
 
-  it("loads team options for the team filter", () => {
+  it("loads team options for the team filter", async () => {
     mockUseEmployees.mockReturnValue(employeeHookResult());
     renderPage();
 
     expect(mockUseTeams).toHaveBeenCalledWith({ page: 1, limit: 100 });
-    expect(screen.getByLabelText("Filter by team")).toHaveTextContent("All teams");
+
+    await userEvent.click(screen.getByRole("button", { name: "Filter employees" }));
+    await userEvent.click(screen.getByText("Filter by teams"));
+    expect(screen.getByRole("option", { name: "Platform" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Research" })).toBeInTheDocument();
   });
 
   it("requests the next page from the pagination footer", async () => {
