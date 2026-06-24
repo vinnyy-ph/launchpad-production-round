@@ -1,5 +1,5 @@
 import { prisma } from "../../../../core/database/prisma.service";
-import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
+import { SURVEY_ERROR_MESSAGES, SURVEY_TEXT_LIMITS } from "../surveys.constants";
 import { MIN_TEAM_SIZE } from "../rules/results";
 import { NotificationsService } from "../../../notifications/notifications.service";
 import { ResultsRepository } from "./results.repository";
@@ -31,7 +31,17 @@ export class ShareService {
     occurrenceIdParam: string | null,
     teamId: string,
     userId: string,
+    message: string,
   ): Promise<ShareResultsResultDto> {
+    // HR's note is what the supervisor reads (the breakdown is never exposed to them).
+    const note = (message ?? "").trim();
+    if (note.length === 0) {
+      throw new Error(SURVEY_ERROR_MESSAGES.SHARE_MESSAGE_REQUIRED);
+    }
+    if (note.length > SURVEY_TEXT_LIMITS.SHARE_MESSAGE) {
+      throw new Error(SURVEY_ERROR_MESSAGES.SHARE_MESSAGE_TOO_LONG);
+    }
+
     // The HR actor (route is HR-gated; we still resolve their employee row to record sharedBy).
     const actor = await prisma.employee.findUnique({
       where: { userId },
@@ -86,12 +96,13 @@ export class ShareService {
       teamId: team.id,
       supervisorId: team.leaderId,
       sharedById: actor.id,
+      message: note,
     });
 
     const supervisorName =
       [team.leader.firstName, team.leader.lastName].filter(Boolean).join(" ").trim() || null;
 
-    // In-app + email notification with a deep link to the (now-granted) team-scoped results.
+    // In-app + email notification carrying HR's note + a deep link to read it.
     // Fire-and-forget inside the service: a delivery failure must not fail the share itself.
     await this.notificationsService.notifySupervisorPulseResultsShared(
       team.leaderId,
@@ -100,6 +111,7 @@ export class ShareService {
       survey.id,
       occurrence.id,
       team.id,
+      note,
     );
 
     return {

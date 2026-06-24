@@ -57,24 +57,34 @@ export class ResultsRepository {
     });
   }
 
-  /** An existing HR share of one team's results for one occurrence (the supervisor's view-grant). */
+  /** An existing HR share of one team's results for one occurrence (the supervisor's view-grant),
+   *  including HR's note + the sharer's name for the supervisor's "Message from HR" card. */
   async findResultShare(occurrenceId: string, teamId: string) {
     return prisma.surveyResultShare.findUnique({
       where: { occurrenceId_teamId: { occurrenceId, teamId } },
+      include: {
+        sharedBy: { select: { firstName: true, lastName: true } },
+      },
     });
   }
 
-  /** Idempotent upsert of a share — re-sending refreshes the actor + timestamp. */
+  /** Idempotent upsert of a share — re-sending refreshes the note, actor + timestamp. */
   async upsertResultShare(input: {
     occurrenceId: string;
     teamId: string;
     supervisorId: string;
     sharedById: string;
+    message: string;
   }) {
     return prisma.surveyResultShare.upsert({
       where: { occurrenceId_teamId: { occurrenceId: input.occurrenceId, teamId: input.teamId } },
       create: input,
-      update: { supervisorId: input.supervisorId, sharedById: input.sharedById, sharedAt: new Date() },
+      update: {
+        supervisorId: input.supervisorId,
+        sharedById: input.sharedById,
+        message: input.message,
+        sharedAt: new Date(),
+      },
     });
   }
 

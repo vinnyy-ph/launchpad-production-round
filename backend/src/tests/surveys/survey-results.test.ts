@@ -489,7 +489,7 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       });
     });
 
-    it("lets the small team's supervisor (leader) see results once HR has shared them", async () => {
+    it("gives the small team's supervisor HR's note (not the breakdown) once HR has shared", async () => {
       surveyFindFirstMock.mockResolvedValue(mockSurvey({ isAnonymous: true }));
       teamFindMock.mockResolvedValue({
         id: "team-small",
@@ -508,13 +508,16 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
         supervisorId: "boss-emp",
         teamMemberships: [{ teamId: "team-small" }],
       });
-      // A share grant exists for this occurrence + team → the leader is let through.
+      // A share grant (with HR's note) exists for this occurrence + team → the leader is let
+      // through, but sees the NOTE, never the raw anonymous breakdown.
       (prisma.surveyResultShare.findUnique as jest.Mock).mockResolvedValue({
         id: "share-1",
         occurrenceId: "occ-default",
         teamId: "team-small",
         supervisorId: "leader-emp",
-        sharedAt: new Date(),
+        message: "Morale is steady; keep supporting the team.",
+        sharedAt: new Date("2026-06-23T00:00:00.000Z"),
+        sharedBy: { firstName: "Holly", lastName: "Ar" },
       });
       surveyResponseFindManyMock.mockResolvedValue(twoResponses);
       surveyAudienceFindManyMock.mockResolvedValue([]);
@@ -523,8 +526,14 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
       const res = await request(app)
         .get(`${URL}/survey-001/results?teamId=team-small`)
         .expect(200);
-      expect(res.body.data.suppressed).toBe(false);
-      expect(res.body.data.questions.length).toBeGreaterThan(0);
+      // Breakdown stays hidden; the supervisor reads HR's note instead.
+      expect(res.body.data.suppressed).toBe(true);
+      expect(res.body.data.questions).toHaveLength(0);
+      expect(res.body.data.sharedNote).toEqual({
+        message: "Morale is steady; keep supporting the team.",
+        sharedAt: "2026-06-23T00:00:00.000Z",
+        sharedByName: "Holly Ar",
+      });
     });
 
     it("attaches a smallTeamShare hint for HR on an anonymous small-team filtered view", async () => {
