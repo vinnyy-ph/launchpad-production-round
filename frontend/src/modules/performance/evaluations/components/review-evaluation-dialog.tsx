@@ -17,7 +17,8 @@ import {
 } from "@/shared/ui";
 import { StatusBadge } from "@/shared/ui/patterns";
 import type { Evaluation } from "../types/evaluations.types";
-import { downloadSupportingDoc } from "../services/evaluations.service";
+import { downloadSupportingDoc, getSupportingDocUrl } from "../services/evaluations.service";
+import { DocumentViewerModal } from "./document-viewer-modal";
 
 // Sentence case (Jia), not the Title Case shared map.
 const GRADE_LABELS: Record<number, string> = {
@@ -130,12 +131,23 @@ export function ReviewEvaluationDialog({
   readOnly = false,
 }: ReviewEvaluationDialogProps) {
   const [justAcked, setJustAcked] = useState(false);
+  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     if (open) setJustAcked(false);
   }, [open, ev?.id]);
 
   if (!ev) return null;
+
+  /** Fetch the signed URL for a document, then preview it in the modal. */
+  async function previewDoc(docIndex: number, name: string): Promise<void> {
+    try {
+      const url = await getSupportingDocUrl(ev!.id, docIndex);
+      setViewer({ url, name });
+    } catch {
+      toast.error("Couldn't open the document. Please try again.");
+    }
+  }
 
   const ack = ev.acknowledgement;
   const isAcknowledged = (!!ack?.acknowledgedAt && !ack.isDeemedAck) || justAcked;
@@ -315,7 +327,7 @@ export function ReviewEvaluationDialog({
                     <div className="flex flex-none items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => openDoc(ev.id, index)}
+                        onClick={() => previewDoc(index, extractFilename(publicId))}
                         aria-label={`Preview ${extractFilename(publicId)}`}
                         className="flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border-secondary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
@@ -358,6 +370,12 @@ export function ReviewEvaluationDialog({
           </div>
         )}
       </DialogContent>
+      <DocumentViewerModal
+        open={!!viewer}
+        onClose={() => setViewer(null)}
+        fileUrl={viewer?.url ?? null}
+        documentName={viewer?.name}
+      />
     </Dialog>
   );
 }

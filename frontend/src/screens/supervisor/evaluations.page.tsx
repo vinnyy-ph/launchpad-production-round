@@ -66,7 +66,7 @@ import {
     useUpdateEvaluation,
     useDeleteEvaluation,
     useSendEvaluation,
-    downloadSupportingDoc,
+    getSupportingDocUrl,
     GRADE_LABELS,
     type Evaluation,
     type EvaluationInput,
@@ -78,6 +78,7 @@ import {
     evaluationTextSchema,
     EVAL_TEXT_LIMITS,
 } from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
+import { DocumentViewerModal } from "@/modules/performance/evaluations/components/document-viewer-modal";
 import { partitionEvaluationsByScope } from "./evaluations.scope";
 import { formatPeriod, parseStatusFilter } from "./evaluations.format";
 
@@ -107,17 +108,6 @@ function extractFilename(value: string): string {
         return decodeURIComponent(last);
     } catch {
         return last;
-    }
-}
-
-async function handleDownload(
-    evaluationId: string,
-    docIndex: number,
-): Promise<void> {
-    try {
-        await downloadSupportingDoc(evaluationId, docIndex);
-    } catch {
-        toast.error("Couldn't download the document. Please try again.");
     }
 }
 
@@ -303,6 +293,14 @@ function DynamicList({
 
 // ─── PDF file picker ──────────────────────────────────────────────────────────
 
+// %PDF — verifies actual file content, not just the declared MIME type/extension.
+const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46];
+
+async function fileHasPdfSignature(file: File): Promise<boolean> {
+    const bytes = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    return PDF_MAGIC_BYTES.every((value, index) => bytes[index] === value);
+}
+
 interface PdfFilePickerProps {
     files: File[];
     existingUrls: string[];
@@ -318,7 +316,7 @@ function PdfFilePicker({
 }: PdfFilePickerProps) {
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selected = Array.from(e.target.files ?? []);
         // Reset so the same file can be re-selected after removal.
         e.target.value = "";
@@ -334,6 +332,10 @@ function PdfFilePicker({
             }
             if (file.size > 10 * 1024 * 1024) {
                 toast.error(`"${file.name}" exceeds the 10 MB limit.`);
+                continue;
+            }
+            if (!(await fileHasPdfSignature(file))) {
+                toast.error(`"${file.name}" does not appear to be a valid PDF.`);
                 continue;
             }
             validFiles.push(file);
@@ -498,6 +500,20 @@ function EvaluationEditorDialog({
     const [errors, setErrors] = useState<Record<string, string>>({});
     // Two-step flow: fill the form → review the preview → save or send.
     const [step, setStep] = useState<"form" | "preview">("form");
+    const [viewer, setViewer] = useState<{ url: string; name: string } | null>(
+        null,
+    );
+
+    /** Fetch the signed URL for a saved document, then preview it in the modal. */
+    async function previewDoc(docIndex: number, name: string): Promise<void> {
+        if (!initial) return;
+        try {
+            const url = await getSupportingDocUrl(initial.id, docIndex);
+            setViewer({ url, name });
+        } catch {
+            toast.error("Couldn't open the document. Please try again.");
+        }
+    }
 
     const isViewOnly = initial?.isSent ?? false;
     const isDraft = !!initial && !initial.isSent;
@@ -981,10 +997,11 @@ function EvaluationEditorDialog({
                                                           key={publicId}
                                                           type="button"
                                                           onClick={() =>
-                                                              initial &&
-                                                              handleDownload(
-                                                                  initial.id,
+                                                              previewDoc(
                                                                   index,
+                                                                  extractFilename(
+                                                                      publicId,
+                                                                  ),
                                                               )
                                                           }
                                                           className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left"
@@ -1374,6 +1391,12 @@ function EvaluationEditorDialog({
                     </div>
                 </form>
             </DialogContent>
+            <DocumentViewerModal
+                open={!!viewer}
+                onClose={() => setViewer(null)}
+                fileUrl={viewer?.url ?? null}
+                documentName={viewer?.name}
+            />
         </Dialog>
     );
 }
