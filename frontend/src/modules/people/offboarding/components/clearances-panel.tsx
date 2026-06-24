@@ -200,7 +200,7 @@ export function ClearancesPanel() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-[#FECDCA] text-[#B42318] hover:bg-[#FEF3F2]"
+                    className="border-[color:var(--color-error-200)] text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]"
                     onClick={() => void handleDelete(template)}
                     disabled={remove.isPending || template.inUseCount > 0}
                     title={

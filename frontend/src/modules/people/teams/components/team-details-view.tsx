@@ -81,7 +81,7 @@ function PersonRow({
       type="button"
       onClick={onOpen}
       aria-label={`View ${person.fullName}'s profile`}
-      className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[color:var(--bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[color:var(--bg-secondary)]"
     >
       <Avatar name={person.fullName} src={person.avatarUrl} />
       <span className="min-w-0">
@@ -145,7 +145,7 @@ function AddMembersDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="dialog-pop grid max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-lg">
+      <DialogContent className="dialog-pop grid max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-lg">
         <DialogDescription className="sr-only">
           Add members to {team.name}.
         </DialogDescription>
@@ -443,9 +443,9 @@ export function TeamDetailsView({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          variant="ghost"
+                          variant="destructive-ghost"
                           size="icon-sm"
-                          className="flex-shrink-0 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+                          className="flex-shrink-0"
                           onClick={() => void handleRemoveMember(member)}
                           aria-label="Remove Member"
                         >

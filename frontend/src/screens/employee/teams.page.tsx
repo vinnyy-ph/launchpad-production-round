@@ -38,7 +38,7 @@ function TeamCard({ team }: { team: Team }) {
   return (
     <Link
       href={`/employee/teams/${team.id}`}
-      className="group flex flex-col rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-all hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex flex-col rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-all hover:border-[color:var(--border-secondary)]"
       style={{ boxShadow: "var(--shadow-xs)" }}
     >
       <div className="flex items-start justify-between gap-3">

@@ -19,19 +19,21 @@ function isPdf(fileUrl: string): boolean {
 }
 
 /**
- * Previews an onboarding document submission inline: PDFs render in an iframe,
- * images as an <img>. Replaces opening the file in a new browser tab.
+ * Previews a document inline: PDFs render in an iframe, images as an <img>.
+ * Replaces opening the file in a new browser tab.
  */
 export function DocumentViewerModal({
   open,
   onClose,
   fileUrl,
   documentName,
+  description = "Document preview.",
 }: {
   open: boolean;
   onClose: () => void;
   fileUrl: string | null;
   documentName: string | undefined;
+  description?: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const shouldRenderPdf = Boolean(fileUrl && (isPdf(fileUrl) || imageFailed));
@@ -45,9 +47,7 @@ export function DocumentViewerModal({
       <DialogContent className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-3">
         <DialogHeader>
           <DialogTitle className="truncate">{documentName ?? "Document"}</DialogTitle>
-          <DialogDescription className="sr-only">
-            Preview of the submitted document.
-          </DialogDescription>
+          <DialogDescription className="sr-only">{description}</DialogDescription>
         </DialogHeader>
 
         {fileUrl ? (

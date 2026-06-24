@@ -355,8 +355,8 @@ export default function HRSurveysPage() {
             )}
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
+              size="icon-xs"
+              className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
               onClick={(e) => {
                 e.stopPropagation();
                 openEdit(s);
@@ -368,9 +368,8 @@ export default function HRSurveysPage() {
             </Button>
             {status === "draft" && (
               <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+                variant="destructive-ghost"
+                size="icon-xs"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeletingId(s.id);

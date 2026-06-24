@@ -25,4 +25,5 @@ export {
 export * from "./page-section";
 export * from "./stat-card";
 export { KpiCard, type KpiCardProps } from "./kpi-card";
+export { DocumentViewerModal } from "./document-viewer-modal";
 export * from "./filter-bar";

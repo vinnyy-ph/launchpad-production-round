@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { AlertTriangle, X } from "lucide-react";
+import { Button } from "@/shared/ui";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEvaluations } from "@/modules/performance/evaluations/hooks/use-evaluations";
 
@@ -50,13 +51,15 @@ export function PendingAckBanner() {
           Review now
         </Link>
       </p>
-      <button
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
-        className="flex-shrink-0 rounded p-0.5 text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
+        className="flex-shrink-0 text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
       >
-        <X size={14} />
-      </button>
+        <X />
+      </Button>
     </div>
   );
 }

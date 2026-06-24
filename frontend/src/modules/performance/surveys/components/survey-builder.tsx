@@ -840,20 +840,17 @@ export function SurveyBuilderDialog({
           <div className="flex items-center justify-between gap-3 border-b border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-6 py-2.5 text-sm text-[color:var(--text-secondary)]">
             <span>You have unsaved changes from a previous session.</span>
             <span className="flex flex-none gap-2">
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={() => restoreFromBuffer(autosave.recoverable as BuilderSnapshot)}
-                className="font-semibold text-[color:var(--text-primary)] underline underline-offset-2"
               >
                 Restore
-              </button>
-              <button
-                type="button"
-                onClick={autosave.discardRecovery}
-                className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
-              >
+              </Button>
+              <Button type="button" variant="link" size="xs" onClick={autosave.discardRecovery}>
                 Discard
-              </button>
+              </Button>
             </span>
           </div>
         )}
@@ -1066,7 +1063,7 @@ export function SurveyBuilderDialog({
 
                   {/* Small-team anonymity reminder (UI only — enforced server-side at view time) */}
                   {smallTargetedTeams.length > 0 && (
-                    <div className="flex items-start gap-2 rounded-[10px] border border-[#FEDF89] bg-[color:var(--color-warning-50)] px-3 py-2.5 text-xs leading-relaxed text-[color:var(--color-warning-600)]">
+                    <div className="flex items-start gap-2 rounded-[10px] border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] px-3 py-2.5 text-xs leading-relaxed text-[color:var(--color-warning-600)]">
                       <Lock size={14} className="mt-0.5 flex-none" aria-hidden="true" />
                       <span>
                         Heads up: {smallTargetedTeams.map((t) => t.name).join(", ")}{" "}
@@ -1081,7 +1078,7 @@ export function SurveyBuilderDialog({
                       Advisory only: visibility stays as chosen; the server's per-occurrence <3
                       suppression is the real guarantee and lifts once 3+ people respond. */}
                   {smallDynamicAnonAudience && (
-                    <div className="flex items-start gap-2 rounded-[10px] border border-[#FEDF89] bg-[color:var(--color-warning-50)] px-3 py-2.5 text-xs leading-relaxed text-[color:var(--color-warning-600)]">
+                    <div className="flex items-start gap-2 rounded-[10px] border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] px-3 py-2.5 text-xs leading-relaxed text-[color:var(--color-warning-600)]">
                       <Lock size={14} className="mt-0.5 flex-none" aria-hidden="true" />
                       <span>
                         Heads up: based on the current org chart, this audience is {audienceCount}{" "}
@@ -1327,32 +1324,35 @@ export function SurveyBuilderDialog({
                         </Select>
                         {!isLocked && (
                           <>
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="icon-sm"
                               onClick={() => moveQuestion(q.id, -1)}
                               disabled={idx === 0}
-                              className="rounded-lg border border-[color:var(--border-primary)] p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-secondary)] disabled:opacity-30"
                               aria-label="Move up"
                             >
-                              <ChevronUp size={15} />
-                            </button>
-                            <button
+                              <ChevronUp />
+                            </Button>
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="icon-sm"
                               onClick={() => moveQuestion(q.id, 1)}
                               disabled={idx === form.questions.length - 1}
-                              className="rounded-lg border border-[color:var(--border-primary)] p-1.5 text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-secondary)] disabled:opacity-30"
                               aria-label="Move down"
                             >
-                              <ChevronDown size={15} />
-                            </button>
-                            <button
+                              <ChevronDown />
+                            </Button>
+                            <Button
                               type="button"
+                              variant="destructive-ghost"
+                              size="icon-sm"
                               onClick={() => setDeleteQId(q.id)}
-                              className="rounded-lg border border-[color:var(--border-primary)] p-1.5 text-[color:var(--text-quaternary)] hover:border-[color:var(--color-error-200)] hover:bg-[color:var(--color-error-50)] hover:text-[color:var(--color-error-500)]"
                               aria-label="Delete"
                             >
-                              <Trash2 size={15} />
-                            </button>
+                              <Trash2 />
+                            </Button>
                           </>
                         )}
                       </div>
@@ -1482,14 +1482,15 @@ export function SurveyBuilderDialog({
                                 disabled={isLocked}
                               />
                               {!isLocked && (
-                                <button
+                                <Button
                                   type="button"
+                                  variant="destructive-ghost"
+                                  size="icon-xs"
                                   onClick={() => removeOption(q.id, oi)}
-                                  className="rounded p-1 text-[color:var(--text-quaternary)] hover:text-[color:var(--color-error-500)]"
                                   aria-label="Remove option"
                                 >
-                                  <X size={14} />
-                                </button>
+                                  <X />
+                                </Button>
                               )}
                             </div>
                           ))}
@@ -1534,12 +1535,14 @@ export function SurveyBuilderDialog({
                 {!isLocked && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button
+                      <Button
                         type="button"
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[color:var(--border-strong)] bg-white py-3.5 text-sm font-semibold text-[color:var(--text-primary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
+                        variant="outline"
+                        size="lg"
+                        className="w-full rounded-xl border-dashed border-[color:var(--border-strong)] bg-white py-3.5 font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--bg-secondary)]"
                       >
-                        <Plus size={17} /> Add question
-                      </button>
+                        <Plus /> Add question
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="center" className="w-[300px]">
                       {QUESTION_MENU.map((item) => (

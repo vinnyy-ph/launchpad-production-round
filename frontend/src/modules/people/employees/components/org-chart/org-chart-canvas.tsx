@@ -208,7 +208,7 @@ function CanvasButton({ label, onClick, children, className = "", bare = false }
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`flex h-9 w-9 items-center justify-center rounded-full text-[color:var(--text-secondary)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${chrome} ${className}`}
+      className={`flex h-9 w-9 items-center justify-center rounded-full text-[color:var(--text-secondary)] transition-colors ${chrome} ${className}`}
       style={bare ? undefined : { boxShadow: "var(--shadow-sm)" }}
     >
       {children}

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Search, X } from "lucide-react";
+import { Button } from "@/shared/ui";
 import { Input } from "@/shared/ui/primitives/input";
 import { cn } from "@/shared/lib/utils";
 
@@ -53,14 +54,16 @@ export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
           {...props}
         />
         {value ? (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => onValueChange("")}
             aria-label={clearLabel}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[color:var(--text-tertiary)] hover:text-[color:var(--text-primary)]"
           >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+            <X aria-hidden="true" />
+          </Button>
         ) : null}
       </div>
     );

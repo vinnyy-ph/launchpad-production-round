@@ -59,7 +59,7 @@ const LOCATION_RE = /^[A-Za-z\s]+$/;
 const STEP_LABELS = ["Your details", "Quick questions", "Documents", "Review"] as const;
 const CARD_SHADOW = "inset 0 0 2px 0 rgba(0,16,53,.16), 0 1px 2px 0 rgba(14,16,27,.05)";
 const DISABLED_FIELD_INPUT =
-  "bg-[#FAFAFA] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
+  "bg-[color:var(--gray-neutral-50)] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
 const DISABLED_FIELD_ICON =
   "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]";
 

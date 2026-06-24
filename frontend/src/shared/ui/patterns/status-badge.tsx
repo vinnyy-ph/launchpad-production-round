@@ -5,10 +5,10 @@ type Shape = "default" | "pill" | "modern";
 
 // Exact brandbook .badge colorways (match Badge primitive 1:1).
 const TONE_CLASS: Record<Tone, string> = {
-  neutral: "bg-[#FAFAFA] text-[color:var(--text-secondary)] border-[#E9EAEB]",
-  success: "bg-[#ECFDF3] text-[#067647] border-[#ABEFC6]",
-  warning: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]",
-  error: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]",
+  neutral: "bg-[color:var(--gray-neutral-50)] text-[color:var(--text-secondary)] border-[color:var(--gray-neutral-200)]",
+  success: "bg-[color:var(--color-success-50)] text-[color:var(--color-success-700)] border-[color:var(--color-success-200)]",
+  warning: "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]",
+  error: "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]",
   brand: "bg-[#EEF4FF] text-[#3538CD] border-[#C7D7FE]",
   // "info" is an alias kept for back-compat — maps to the brand colorway.
   info: "bg-[#EEF4FF] text-[#3538CD] border-[#C7D7FE]",
@@ -17,7 +17,7 @@ const TONE_CLASS: Record<Tone, string> = {
 const SHAPE_CLASS: Record<Shape, string> = {
   default: "rounded-sm",
   pill: "rounded-full",
-  modern: "rounded-full bg-white text-[color:var(--text-secondary)] border-[#D5D7DA]",
+  modern: "rounded-full bg-white text-[color:var(--text-secondary)] border-[color:var(--gray-neutral-300)]",
 };
 
 // Enum-backed literals (authoritative) + derived literals (no producer yet).

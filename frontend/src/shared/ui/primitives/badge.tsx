@@ -9,12 +9,12 @@ const badgeVariants = cva(
     variants: {
       variant: {
         // New brandbook status variants
-        neutral: "bg-[#FAFAFA] border-[#E9EAEB] text-[color:var(--text-secondary)]",
-        success: "bg-[#ECFDF3] border-[#ABEFC6] text-[#067647]",
-        warning: "bg-[#FFFAEB] border-[#FEDF89] text-[#B54708]",
-        error:   "bg-[#FEF3F2] border-[#FECDCA] text-[#B42318]",
+        neutral: "bg-[color:var(--gray-neutral-50)] border-[color:var(--gray-neutral-200)] text-[color:var(--text-secondary)]",
+        success: "bg-[color:var(--color-success-50)] border-[color:var(--color-success-200)] text-[color:var(--color-success-700)]",
+        warning: "bg-[color:var(--color-warning-50)] border-[color:var(--color-warning-200)] text-[color:var(--color-warning-700)]",
+        error:   "bg-[color:var(--color-error-50)] border-[color:var(--color-error-200)] text-[color:var(--color-error-700)]",
         brand:   "bg-[#EEF4FF] border-[#C7D7FE] text-[#3538CD]",
-        modern:  "bg-white border-[#D5D7DA] text-[color:var(--text-secondary)]",
+        modern:  "bg-white border-[color:var(--gray-neutral-300)] text-[color:var(--text-secondary)]",
         // Deprecated aliases — keep so existing kit/page call-sites still compile
         default:     "border-transparent bg-primary text-primary-foreground",
         secondary:   "border-transparent bg-secondary text-secondary-foreground",

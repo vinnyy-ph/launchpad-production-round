@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -19,6 +19,7 @@ import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
 import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
 import { useUpdateMyProfile } from "../hooks/use-update-my-profile";
 import type { EmployeeProfile, MyProfileUpdateInput } from "../types/employees.types";
 
@@ -165,6 +166,18 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
     }
   }, [open, profile]);
 
+  // The saved snapshot is the profile-derived draft; dirty when the live draft diverges from it.
+  const savedDraft = useMemo(() => draftFromProfile(profile), [profile]);
+  const hasUnsavedChanges = open && JSON.stringify(draft) !== JSON.stringify(savedDraft);
+
+  const guard = useUnsavedGuard({
+    hasUnsavedChanges,
+    onOpenChange: (next) => {
+      if (saving) return;
+      onOpenChange(next);
+    },
+  });
+
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
     setErrors((current) => {
@@ -220,14 +233,13 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (saving) return;
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-[640px]">
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
+      <DialogContent
+        className={`max-h-[90vh] overflow-y-auto sm:max-w-2xl ${guard.shakeClass}`}
+        onAnimationEnd={guard.onAnimationEnd}
+        onEscapeKeyDown={guard.onEscapeKeyDown}
+        onInteractOutside={guard.onInteractOutside}
+      >
         <DialogHeader>
           <DialogTitle>Edit profile</DialogTitle>
           <DialogDescription>
@@ -349,7 +361,7 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="secondary" onClick={() => guard.handleOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={() => void handleSave()} disabled={saving}>

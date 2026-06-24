@@ -78,7 +78,7 @@ import {
     evaluationTextSchema,
     EVAL_TEXT_LIMITS,
 } from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
-import { DocumentViewerModal } from "@/modules/performance/evaluations/components/document-viewer-modal";
+import { DocumentViewerModal } from "@/shared/ui/patterns";
 import { partitionEvaluationsByScope } from "./evaluations.scope";
 import { formatPeriod, parseStatusFilter } from "./evaluations.format";
 
@@ -267,14 +267,15 @@ function DynamicList({
                             maxLength={maxLength}
                             aria-label={`${label} ${idx + 1}`}
                         />
-                        <button
+                        <Button
+                            variant="destructive-ghost"
+                            size="icon-sm"
                             type="button"
                             onClick={() => remove(idx)}
-                            className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label={`Remove ${label.toLowerCase()} ${idx + 1}`}
                         >
-                            <Trash2 size={14} />
-                        </button>
+                            <Trash2 />
+                        </Button>
                     </div>
                 ))}
                 <Button
@@ -410,14 +411,15 @@ function PdfFilePicker({
                             <span className="shrink-0 text-xs text-[color:var(--text-tertiary)]">
                                 {formatFileSize(file.size)}
                             </span>
-                            <button
+                            <Button
+                                variant="destructive-ghost"
+                                size="icon-sm"
                                 type="button"
                                 onClick={() => remove(idx)}
-                                className="rounded p-0.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 aria-label={`Remove ${file.name}`}
                             >
-                                <X size={13} />
-                            </button>
+                                <X />
+                            </Button>
                         </div>
                     ))}
                 </div>
@@ -840,24 +842,26 @@ function EvaluationEditorDialog({
                             You have unsaved changes from a previous session.
                         </span>
                         <span className="flex flex-none gap-2">
-                            <button
+                            <Button
+                                variant="link"
+                                size="xs"
                                 type="button"
                                 onClick={() =>
                                     restoreFromBuffer(
                                         autosave.recoverable as EvalSnapshot,
                                     )
                                 }
-                                className="font-semibold text-[color:var(--text-primary)] underline underline-offset-2"
                             >
                                 Restore
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                variant="link"
+                                size="xs"
                                 type="button"
                                 onClick={autosave.discardRecovery}
-                                className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
                             >
                                 Discard
-                            </button>
+                            </Button>
                         </span>
                     </div>
                 )}
@@ -993,8 +997,10 @@ function EvaluationEditorDialog({
                                               ))
                                             : existingDocUrls.map(
                                                   (publicId, index) => (
-                                                      <button
+                                                      <Button
                                                           key={publicId}
+                                                          variant="link"
+                                                          size="xs"
                                                           type="button"
                                                           onClick={() =>
                                                               previewDoc(
@@ -1004,16 +1010,12 @@ function EvaluationEditorDialog({
                                                                   ),
                                                               )
                                                           }
-                                                          className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left"
                                                       >
-                                                          <FileText
-                                                              size={13}
-                                                              className="flex-none"
-                                                          />
+                                                          <FileText className="flex-none" />
                                                           {extractFilename(
                                                               publicId,
                                                           )}
-                                                      </button>
+                                                      </Button>
                                                   ),
                                               )}
                                     </div>
@@ -1066,7 +1068,7 @@ function EvaluationEditorDialog({
                                         emptyText="No direct reports found."
                                         className={
                                             errors.reviewee
-                                                ? "border-[#D92D20]"
+                                                ? "border-[color:var(--color-error-600)]"
                                                 : undefined
                                         }
                                     />
@@ -1189,13 +1191,13 @@ function EvaluationEditorDialog({
                                                             clearError("grade");
                                                         }}
                                                         className={[
-                                                            "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                                            "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors",
                                                             selected
                                                                 ? "border-transparent bg-[color:hsl(var(--primary))] text-white"
                                                                 : "border-[color:var(--border-primary)] hover:bg-[color:var(--bg-secondary)]",
                                                             errors.grade &&
                                                             !selected
-                                                                ? "border-[#D92D20]"
+                                                                ? "border-[color:var(--color-error-600)]"
                                                                 : "",
                                                         ]
                                                             .filter(Boolean)
@@ -1301,13 +1303,11 @@ function EvaluationEditorDialog({
                         )}
                         {isDraft && onRequestDelete && (
                             <Button
-                                variant="ghost"
+                                variant="destructive-ghost"
                                 type="button"
                                 onClick={onRequestDelete}
-                                className="text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
                             >
-                                <Trash2 size={14} className="mr-1" /> Delete
-                                draft
+                                <Trash2 /> Delete draft
                             </Button>
                         )}
                         <div className="ml-auto flex gap-2">
@@ -1806,7 +1806,7 @@ export default function EvaluationsPage() {
                             aria-selected={active}
                             onClick={() => selectScope(s.value)}
                             className={[
-                                "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition-colors",
                                 active
                                     ? "bg-white text-[color:var(--text-primary)] shadow-[var(--shadow-xs)]"
                                     : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
@@ -1853,7 +1853,7 @@ export default function EvaluationsPage() {
                                 aria-selected={active}
                                 onClick={() => setStatusFilter(t.value)}
                                 className={[
-                                    "relative flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                    "relative flex items-center gap-2 whitespace-nowrap rounded-sm px-1 pb-3 pt-1 text-sm font-semibold transition-colors",
                                     active
                                         ? "text-[color:var(--text-primary)]"
                                         : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",

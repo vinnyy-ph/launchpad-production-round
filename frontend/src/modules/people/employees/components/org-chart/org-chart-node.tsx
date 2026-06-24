@@ -75,7 +75,7 @@ export function ReportingTreeNode({
                     ? `Collapse reports of ${employee.fullName}`
                     : `Expand reports of ${employee.fullName}`
                 }
-                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-[color:var(--text-tertiary)] hover:bg-[var(--gray-50)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-[color:var(--text-tertiary)] hover:bg-[var(--gray-50)]"
               >
                 {isOpen ? (
                   <ChevronDown className="h-4 w-4" />
@@ -89,7 +89,7 @@ export function ReportingTreeNode({
             <button
               type="button"
               onClick={() => onOpenProfile(employee.id)}
-              className="flex min-w-0 items-center gap-2 rounded-md text-left hover:bg-[var(--gray-50)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-w-0 items-center gap-2 rounded-md text-left hover:bg-[var(--gray-50)]"
             >
               <Avatar name={employee.fullName} src={employee.avatarUrl} size={9} />
               <span className="min-w-0">

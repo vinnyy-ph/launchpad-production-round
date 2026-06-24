@@ -100,7 +100,7 @@ export default function ProfilePage() {
           className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
           style={{ boxShadow: "var(--shadow-xs)" }}
         >
-          <AlertCircle size={16} className="flex-shrink-0 text-[#D92D20]" />
+          <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-600)]" />
           <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
             No employee record is linked to this account.
           </span>
@@ -116,7 +116,7 @@ export default function ProfilePage() {
           className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4"
           style={{ boxShadow: "var(--shadow-xs)" }}
         >
-          <AlertCircle size={16} className="flex-shrink-0 text-[#D92D20]" />
+          <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-600)]" />
           <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{error}</span>
           <Button variant="secondary" size="sm" onClick={() => void reload()}>
             Retry
@@ -215,7 +215,7 @@ export default function ProfilePage() {
                   onClick={() => setSupervisorOpen(true)}
                   aria-label={`View ${profile.supervisor.fullName}'s profile`}
                   title="View supervisor's profile"
-                  className="group inline-flex w-fit items-center gap-1 rounded text-left text-sm font-medium text-[color:var(--text-primary)] underline decoration-dotted decoration-[color:var(--text-quaternary)] underline-offset-4 transition-colors hover:decoration-solid hover:decoration-[color:var(--brand-pink)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group inline-flex w-fit items-center gap-1 rounded text-left text-sm font-medium text-[color:var(--text-primary)] underline decoration-dotted decoration-[color:var(--text-quaternary)] underline-offset-4 transition-colors hover:decoration-solid hover:decoration-[color:var(--brand-pink)]"
                 >
                   {profile.supervisor.fullName}
                   <ChevronRight

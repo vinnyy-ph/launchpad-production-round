@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/shared/ui";
 import { isValidPhilippinePhone } from "@/shared/lib/phone";
+import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
@@ -144,8 +145,6 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   const [emergencyContact, setEmergencyContact] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSending, setIsSending] = useState(false);
-  const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
-  const unsavedToastIdRef = useRef<string | number | null>(null);
 
   const hasUnsavedChanges = hasFormData({
     firstName,
@@ -163,6 +162,16 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     country,
     emergencyContactName,
     emergencyContact,
+  });
+
+  // This dialog is always mounted and doesn't reset on open, so clear the form whenever it closes
+  // (the success path resets separately).
+  const guard = useUnsavedGuard({
+    hasUnsavedChanges,
+    onOpenChange: (next) => {
+      if (!next) reset();
+      onOpenChange(next);
+    },
   });
 
   const supervisorOptions = activeEmployees.map((employee) => ({
@@ -193,42 +202,6 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     setEmergencyContactName("");
     setEmergencyContact("");
     setErrors({});
-  }
-
-  function alertUnsavedChanges() {
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate(90);
-    }
-
-    if (unsavedToastIdRef.current) {
-      toast.dismiss(unsavedToastIdRef.current);
-    }
-
-    const toastId = `add-employee-unsaved-changes-${Date.now()}`;
-    unsavedToastIdRef.current = toastId;
-    window.requestAnimationFrame(() => {
-      toast.error("There are unsaved changes. Send the invite or discard them before closing.", {
-        id: toastId,
-        position: "top-center",
-        classNames: {
-          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
-          title: "!text-[#7A271A]",
-        },
-      });
-    });
-
-    setShakeUnsavedAlert(false);
-    window.requestAnimationFrame(() => setShakeUnsavedAlert(true));
-  }
-
-  function handleOpenChange(next: boolean) {
-    if (isSending) return;
-    if (!next && hasUnsavedChanges) {
-      alertUnsavedChanges();
-      return;
-    }
-    if (!next) reset();
-    onOpenChange(next);
   }
 
   function validate(): FieldErrors {
@@ -473,11 +446,12 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent
-        className={`flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl [&>button]:z-20 ${
-          shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
-        }`}
+        className={`flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl [&>button]:z-20 ${guard.shakeClass}`}
+        onAnimationEnd={guard.onAnimationEnd}
+        onEscapeKeyDown={guard.onEscapeKeyDown}
+        onInteractOutside={guard.onInteractOutside}
       >
         {/* Pinned header so it stays visible while the form body scrolls. */}
         <DialogHeader className="border-b border-[color:var(--border-primary)] px-6 pb-4 pt-6">
@@ -703,10 +677,10 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
         <DialogFooter className="border-t border-[color:var(--border-primary)] px-6 pb-6 pt-4">
           {hasUnsavedChanges ? (
             <Button type="button" variant="secondary" disabled={isSending} onClick={reset}>
-              Discard
+              Reset
             </Button>
           ) : (
-            <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)}>
+            <Button type="button" variant="secondary" onClick={() => guard.handleOpenChange(false)}>
               Cancel
             </Button>
           )}

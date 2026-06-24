@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
+import { Button } from "@/shared/ui";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { breadcrumbForPath, findNav, type NavIcon } from "./nav-config";
@@ -179,33 +180,39 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   return (
     <header className="flex h-16 flex-shrink-0 items-center justify-between gap-4 border-b border-[color:var(--border-primary)] bg-white px-5">
       <div className="flex min-w-0 flex-shrink items-center gap-3">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onMenuClick}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)] lg:hidden"
+          className="rounded-lg text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)] lg:hidden"
           aria-label="Open menu"
         >
-          <Menu size={20} />
-        </button>
+          <Menu />
+        </Button>
 
         <div className="hidden items-center gap-1 lg:flex">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => router.back()}
             disabled={!canGoBack}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[color:var(--text-tertiary)]"
+            className="h-8 w-8 rounded-full text-[color:var(--text-tertiary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[color:var(--text-tertiary)]"
             aria-label="Go back"
           >
-            <ChevronLeft size={18} strokeWidth={1.8} />
-          </button>
-          <button
+            <ChevronLeft strokeWidth={1.8} />
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => router.forward()}
             disabled={!canGoForward}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[color:var(--text-tertiary)]"
+            className="h-8 w-8 rounded-full text-[color:var(--text-tertiary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[color:var(--text-tertiary)]"
             aria-label="Go forward"
           >
-            <ChevronRight size={18} strokeWidth={1.8} />
-          </button>
+            <ChevronRight strokeWidth={1.8} />
+          </Button>
         </div>
 
         <span className="hidden h-6 w-px bg-[color:var(--border-primary)] lg:block" aria-hidden="true" />
@@ -239,7 +246,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                       type="button"
                       onClick={() => router.push(crumb.href!)}
                       aria-current={isLast ? "page" : undefined}
-                      className={`${className} cursor-pointer rounded-lg transition-colors hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                      className={`${className} cursor-pointer rounded-lg transition-colors hover:text-[color:var(--text-primary)]`}
                     >
                       {crumb.label}
                     </button>

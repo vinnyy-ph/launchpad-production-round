@@ -95,12 +95,9 @@ export function AiInsightsPanel({
           <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
             Couldn&apos;t generate the summary.
           </span>
-          <button
-            onClick={() => void q.refetch()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-          >
-            <RefreshCw size={12} /> Retry
-          </button>
+          <Button variant="ghost" size="sm" onClick={() => void q.refetch()}>
+            <RefreshCw /> Retry
+          </Button>
         </div>
       )}
 

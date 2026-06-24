@@ -343,7 +343,7 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
           />
 
           {parseError ? (
-            <p className="rounded-lg border border-[#FECDCA] bg-[#FEF3F2] px-3 py-2 text-sm text-[#B42318]">
+            <p className="rounded-lg border border-[color:var(--color-error-200)] bg-[color:var(--color-error-50)] px-3 py-2 text-sm text-[color:var(--color-error-700)]">
               {parseError}
             </p>
           ) : null}
@@ -398,10 +398,10 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                               </span>
                             ) : row.supervisorEmail ? (
                               <span className="flex flex-col">
-                                <span className="font-medium text-[#B42318]">
+                                <span className="font-medium text-[color:var(--color-error-700)]">
                                   Supervisor not found
                                 </span>
-                                <span className="text-xs text-[#7A271A]">
+                                <span className="text-xs text-[color:var(--color-error-900)]">
                                   {row.supervisorEmail}
                                 </span>
                               </span>
@@ -413,8 +413,8 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                             <span
                               className={`rounded-full px-2 py-1 text-xs font-semibold ${
                                 errors > 0
-                                  ? "bg-[#FEF3F2] text-[#B42318]"
-                                  : "bg-[#ECFDF3] text-[#027A48]"
+                                  ? "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)]"
+                                  : "bg-[color:var(--color-success-50)] text-[#027A48]"
                               }`}
                             >
                               {errors > 0 ? `${errors} error${errors === 1 ? "" : "s"}` : "Valid"}
@@ -435,21 +435,21 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
           ) : null}
 
           {groupedErrors.length > 0 && preview ? (
-            <div className="min-w-0 rounded-lg border border-[#FECDCA] bg-[#FFFBFA]">
-              <div className="flex flex-col gap-2 border-b border-[#FECDCA] bg-[#FEF3F2] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 rounded-lg border border-[color:var(--color-error-200)] bg-[#FFFBFA]">
+              <div className="flex flex-col gap-2 border-b border-[color:var(--color-error-200)] bg-[color:var(--color-error-50)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-2">
-                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B42318]" />
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--color-error-700)]" />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[#B42318]">
+                    <p className="text-sm font-semibold text-[color:var(--color-error-700)]">
                       Fix {preview.invalidRows} row{preview.invalidRows === 1 ? "" : "s"} before
                       commit
                     </p>
-                    <p className="mt-1 text-xs text-[#7A271A]">
+                    <p className="mt-1 text-xs text-[color:var(--color-error-900)]">
                       Update the spreadsheet, then upload it again for a fresh validation pass.
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#B42318]">
+                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[color:var(--color-error-700)]">
                   {preview.errors.length} issue{preview.errors.length === 1 ? "" : "s"}
                 </span>
               </div>
@@ -458,13 +458,13 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                 {groupedErrors.map((group) => (
                   <div
                     key={group.rowNumber}
-                    className="rounded-md border border-[#FECDCA] bg-white p-3"
+                    className="rounded-md border border-[color:var(--color-error-200)] bg-white p-3"
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-[color:var(--text-primary)]">
                         Row {group.rowNumber}
                       </p>
-                      <span className="rounded-full bg-[#FEF3F2] px-2 py-0.5 text-xs font-semibold text-[#B42318]">
+                      <span className="rounded-full bg-[color:var(--color-error-50)] px-2 py-0.5 text-xs font-semibold text-[color:var(--color-error-700)]">
                         {group.errors.length} issue{group.errors.length === 1 ? "" : "s"}
                       </span>
                     </div>
@@ -474,10 +474,10 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                           key={`${error.rowNumber}-${error.field}-${index}`}
                           className="flex flex-col gap-1 text-xs sm:flex-row sm:items-start"
                         >
-                          <span className="inline-flex w-fit rounded-full bg-[#FEF3F2] px-2 py-0.5 font-semibold text-[#B42318]">
+                          <span className="inline-flex w-fit rounded-full bg-[color:var(--color-error-50)] px-2 py-0.5 font-semibold text-[color:var(--color-error-700)]">
                             {fieldLabel(error.field)}
                           </span>
-                          <span className="min-w-0 break-words text-[#7A271A]">
+                          <span className="min-w-0 break-words text-[color:var(--color-error-900)]">
                             {error.message}
                           </span>
                         </div>
@@ -488,7 +488,7 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
               </div>
 
               {preview.invalidRows > groupedErrors.length ? (
-                <p className="border-t border-[#FECDCA] bg-white px-3 py-2 text-xs text-[#7A271A]">
+                <p className="border-t border-[color:var(--color-error-200)] bg-white px-3 py-2 text-xs text-[color:var(--color-error-900)]">
                   Showing first {groupedErrors.length} rows with issues. The full file has{" "}
                   {preview.invalidRows} invalid rows.
                 </p>

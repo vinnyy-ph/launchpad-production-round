@@ -267,13 +267,13 @@ export function InitiateOffboardingDialog({
             </div>
           </FormField>
 
-          <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] p-3">
+          <div className="rounded-lg border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] p-3">
             <div className="flex items-start gap-2">
               <AlertCircle
-                className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B54708]"
+                className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--color-warning-700)]"
                 aria-hidden="true"
               />
-              <p className="text-xs text-[#B54708]">
+              <p className="text-xs text-[color:var(--color-warning-700)]">
                 {empId
                   ? profileLoading
                     ? "Checking whether this employee has reports or led teams..."

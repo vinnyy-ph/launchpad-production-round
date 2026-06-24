@@ -37,6 +37,7 @@ import {
 import { StatusBadge } from "@/shared/ui/patterns";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { ApiError } from "@/shared/lib/api-client";
+import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
 import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
 import type { EmployeeDocument, EmployeeDocumentStatus } from "../services/employees.service";
 import { ProfileActivityHistory } from "./profile-activity-history";
@@ -111,7 +112,7 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string }[] = [
 const GENERIC_SAVE_ERROR =
   "We couldn't save these changes. Please review the highlighted fields and try again.";
 const DISABLED_FIELD_INPUT =
-  "bg-[#FAFAFA] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
+  "bg-[color:var(--gray-neutral-50)] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
 const DISABLED_FIELD_ICON =
   "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]";
 
@@ -307,7 +308,7 @@ function sidebarActionStyles(status: EmployeeStatus): string {
     return "border-[#B2DDFF] bg-[#EFF8FF] text-[#175CD3] hover:bg-[#D1E9FF]";
   }
 
-  return "border-[#FECDCA] bg-white text-[#B42318] hover:bg-[#FEF3F2]";
+  return "border-[color:var(--color-error-200)] bg-white text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]";
 }
 
 function blankDraft(): EditDraft {
@@ -379,9 +380,9 @@ function formatActivityDate(timestamp: string): string {
 }
 
 const DOCUMENT_STATUS_STYLES: Record<EmployeeDocumentStatus, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]" },
-  approved: { label: "Approved", className: "bg-[#ECFDF3] text-[#027A48] border-[#6CE9A6]" },
-  rejected: { label: "Rejected", className: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]" },
+  pending: { label: "Pending", className: "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]" },
+  approved: { label: "Approved", className: "bg-[color:var(--color-success-50)] text-[#027A48] border-[#6CE9A6]" },
+  rejected: { label: "Rejected", className: "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]" },
 };
 
 /** Detects whether a stored document URL points to an image (vs a PDF/other file). */
@@ -472,7 +473,7 @@ function EditableField({
         maxLength={maxLength}
         className="min-w-0 truncate"
       />
-      {error ? <span className="mt-1 block text-xs text-[#D92D20]">{error}</span> : null}
+      {error ? <span className="mt-1 block text-xs text-[color:var(--color-error-600)]">{error}</span> : null}
     </label>
   );
 }
@@ -544,14 +545,13 @@ export function EmployeeDetailsModal({
   const [draft, setDraft] = useState<EditDraft>(blankDraft);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof EditDraft, string>>>({});
   const [contactNumberError, setContactNumberError] = useState<string | null>(null);
-  const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
   const [documentImageFailed, setDocumentImageFailed] = useState(false);
-  const unsavedToastIdRef = useRef<string | number | null>(null);
   const sidebarAction = profile ? sidebarActionLabel(profile.status) : null;
 
   const savedDraft = useMemo(() => (profile ? draftFromProfile(profile) : blankDraft()), [profile]);
   const hasUnsavedChanges = profile ? !draftsMatch(draft, savedDraft) : false;
+  const guard = useUnsavedGuard({ hasUnsavedChanges, onOpenChange });
 
   const departmentOptions = useMemo(() => {
     const names = new Set(departments.map((department) => department.name));
@@ -612,41 +612,6 @@ export function EmployeeDetailsModal({
       else delete next[field];
       return next;
     });
-  }
-
-  function alertUnsavedChanges() {
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate(90);
-    }
-
-    if (unsavedToastIdRef.current) {
-      toast.dismiss(unsavedToastIdRef.current);
-    }
-
-    const toastId = `employee-details-unsaved-changes-${Date.now()}`;
-    unsavedToastIdRef.current = toastId;
-    window.requestAnimationFrame(() => {
-      toast.error("There are unsaved changes. Save or discard them before closing.", {
-        id: toastId,
-        position: "top-center",
-        classNames: {
-          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
-          title: "!text-[#7A271A]",
-        },
-      });
-    });
-
-    setShakeUnsavedAlert(false);
-    window.requestAnimationFrame(() => setShakeUnsavedAlert(true));
-  }
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && hasUnsavedChanges) {
-      alertUnsavedChanges();
-      return;
-    }
-
-    onOpenChange(nextOpen);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -715,13 +680,12 @@ export function EmployeeDetailsModal({
 
   return (
     <>
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent
-        className={`directory-profile-dialog h-[88vh] w-[90vw] max-w-[90vw] origin-center gap-0 overflow-hidden p-0 sm:rounded-xl [&>button]:z-30 [&>button]:p-1 [&>button]:text-[color:var(--text-secondary)] ${
-          shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
-        }`}
-        onAnimationEnd={() => setShakeUnsavedAlert(false)}
-        onInteractOutside={(event) => event.preventDefault()}
+        className={`directory-profile-dialog h-[90vh] w-[90vw] max-w-[90vw] origin-center gap-0 overflow-hidden p-0 sm:rounded-2xl [&>button]:z-30 [&>button]:p-1 [&>button]:text-[color:var(--text-secondary)] ${guard.shakeClass}`}
+        onAnimationEnd={guard.onAnimationEnd}
+        onEscapeKeyDown={guard.onEscapeKeyDown}
+        onInteractOutside={guard.onInteractOutside}
       >
         <DialogTitle className="sr-only">
           Employee details
@@ -768,7 +732,7 @@ export function EmployeeDetailsModal({
                       <button
                         key={section.value}
                         type="button"
-                        className="inline-flex items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-bold transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="inline-flex items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-bold transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)]"
                         onClick={() => scrollToSection(section.value)}
                       >
                         <Icon className="h-4 w-4" aria-hidden="true" />
@@ -951,7 +915,7 @@ export function EmployeeDetailsModal({
                                   error={Boolean(contactNumberError || fieldErrors.emergencyContactNumber)}
                                 />
                                 {contactNumberError || fieldErrors.emergencyContactNumber ? (
-                                  <span className="mt-1 block text-xs text-[#D92D20]">
+                                  <span className="mt-1 block text-xs text-[color:var(--color-error-600)]">
                                     {contactNumberError ?? fieldErrors.emergencyContactNumber}
                                   </span>
                                 ) : null}
@@ -1085,7 +1049,7 @@ export function EmployeeDetailsModal({
                                     key={team.id}
                                     variant="outline"
                                     pill
-                                    className="max-w-[110px] truncate rounded-full border-[#ABEFC6] bg-[#ECFDF3] font-semibold text-[#067647]"
+                                    className="max-w-[110px] truncate rounded-full border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] font-semibold text-[color:var(--color-success-700)]"
                                   >
                                     {team.name}
                                   </Badge>
@@ -1186,7 +1150,7 @@ export function EmployeeDetailsModal({
                     setFieldErrors({});
                   }}
                 >
-                  Discard
+                  Revert
                 </Button>
                 <Button type="submit" size="sm" disabled={saving}>
                   <Check /> {saving ? "Saving..." : "Save changes"}
@@ -1205,7 +1169,7 @@ export function EmployeeDetailsModal({
         if (!nextOpen) setViewingDocument(null);
       }}
     >
-      <DialogContent className="grid h-[88vh] w-[90vw] max-w-[90vw] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:rounded-xl">
+      <DialogContent className="grid h-[90vh] w-[90vw] max-w-[90vw] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:rounded-2xl">
         <DialogTitle className="border-b border-[color:var(--border-primary)] px-6 py-4 pr-12 text-base font-bold text-[color:var(--text-primary)]">
           {viewingDocument?.documentName ?? "Document"}
         </DialogTitle>

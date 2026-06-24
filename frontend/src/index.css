@@ -56,12 +56,12 @@
      outline) so it hugs rounded corners and matches the shadcn `ring-2 ring-ring`
      components 1:1 — all now resolve to --ring = #111322. */
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px hsl(var(--ring));
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
   /* On gradient surfaces, switch the ring to white. */
   .on-gradient :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    box-shadow: 0 0 0 2px #ffffff;
+    outline-color: #ffffff;
   }
 
   /* Disabled baseline (brandbook: 38% opacity, not-allowed). */

@@ -83,7 +83,7 @@ export function MultiSelectFilter({
           className={cn(
             "relative flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none sm:w-[220px]",
             showFilterIcon ? "pl-9 pr-3.5" : "px-3.5",
-            count === 0 && "text-[#a4a7ae]",
+            count === 0 && "text-[color:var(--gray-neutral-400)]",
             className,
           )}
         >

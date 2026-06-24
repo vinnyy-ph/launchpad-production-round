@@ -549,8 +549,8 @@ function UserRowActions({
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
+            size="icon-xs"
+            className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
             disabled={roleLocked || isUpdating}
             aria-label={`Change role for ${name}`}
             title={
@@ -591,9 +591,8 @@ function UserRowActions({
       </DropdownMenu>
 
       <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+        variant="destructive-ghost"
+        size="icon-xs"
         disabled={deactivateLocked || isDeactivating}
         onClick={() => void onDeactivate(user)}
         aria-label={`Deactivate ${name}`}

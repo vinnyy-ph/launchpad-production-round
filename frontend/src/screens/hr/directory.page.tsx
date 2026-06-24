@@ -104,7 +104,7 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex rounded-full"
                 aria-label={`${overflowCount} more teams`}
                 onClick={(event) => event.stopPropagation()}
               >
