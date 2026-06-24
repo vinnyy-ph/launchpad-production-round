@@ -177,6 +177,29 @@ async function downloadXlsx(
   );
 }
 
+// PDF export. jsPDF + autotable are loaded on demand (kept out of the initial bundle).
+async function downloadPdf(
+  filename: string,
+  survey: SurveyDetail | undefined,
+  results: SurveyResultsType,
+) {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+  const rows = buildResultRows(results);
+  const doc = new jsPDF();
+  const title = survey?.name ? `${survey.name} — results` : "Survey results";
+  doc.setFontSize(13);
+  doc.text(title, 14, 16);
+  autoTable(doc, {
+    head: [rows[0]],
+    body: rows.slice(1),
+    startY: 22,
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [16, 18, 24] },
+  });
+  doc.save(filename);
+}
+
 // ─── presentational pieces ─────────────────────────────────────────────────────
 
 function StatCard({ value, label }: { value: string; label: string }) {
@@ -434,8 +457,8 @@ export function ShareToSupervisorCard({
             Shared with the team&apos;s supervisor
           </p>
           <p className="mt-1 text-[13px] text-[color:var(--text-tertiary)]">
-            Sent to {supervisorLabel} on {fmtDay(share.alreadySharedAt)}. No further messages can be
-            sent.
+            Sent to {supervisorLabel} on {fmtDay(share.alreadySharedAt ?? undefined)}. No further
+            messages can be sent.
           </p>
         </div>
         {share.sharedMessage && (
@@ -503,8 +526,8 @@ export function ShareToSupervisorCard({
                     className={cn(
                       "cursor-pointer rounded-xl border px-4 py-2.5 text-left text-[13.5px] leading-relaxed transition-colors",
                       active
-                        ? "border-[color:var(--text-primary)] bg-white text-[color:var(--text-primary)]"
-                        : "border-[color:var(--border-primary)] bg-white text-[color:var(--text-secondary)] hover:border-[color:var(--text-primary)]",
+                        ? "border-[#B54708] bg-[#FEF0C7] text-[#93370D]"
+                        : "border-[#FEDF89] bg-[#FFFAEB] text-[#854A0E] hover:border-[#F79009] hover:bg-[#FEF0C7]",
                     )}
                   >
                     {s}
@@ -633,13 +656,15 @@ export function SurveyResults({
           ? "Due now"
           : `${daysLeft} ${daysLeft === 1 ? "day" : "days"}`;
 
-  const handleExport = async (format: "csv" | "xlsx") => {
+  const handleExport = async (format: "csv" | "xlsx" | "pdf") => {
     if (!results) return;
     const name = survey?.name?.replace(/[^a-z0-9]+/gi, "-").toLowerCase() ?? "survey";
     if (format === "csv") {
       downloadCsv(`${name}-results.csv`, buildCsv(survey, results));
-    } else {
+    } else if (format === "xlsx") {
       await downloadXlsx(`${name}-results.xlsx`, survey, results);
+    } else {
+      await downloadPdf(`${name}-results.pdf`, survey, results);
     }
     toast.success("Results exported.");
   };
@@ -670,7 +695,7 @@ export function SurveyResults({
                 </Badge>
               )}
               {(survey?.isAnonymous ?? results?.isAnonymous) && (
-                <Badge variant="warning" pill>
+                <Badge variant="brand" pill>
                   <EyeOff size={12} />
                   Anonymous
                 </Badge>
@@ -696,6 +721,7 @@ export function SurveyResults({
               <DropdownMenuItem onClick={() => void handleExport("xlsx")}>
                 Excel (.xlsx)
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleExport("pdf")}>PDF (.pdf)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
