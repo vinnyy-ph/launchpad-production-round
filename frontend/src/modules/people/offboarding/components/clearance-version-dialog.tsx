@@ -16,7 +16,8 @@ import {
   Input,
   Textarea,
 } from "@/shared/ui";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import type {
   ClearanceSignatoryInput,
@@ -80,9 +81,10 @@ export function ClearanceVersionDialog({
   onSubmit,
 }: ClearanceVersionDialogProps) {
   const isEdit = Boolean(template);
-  const { employees, loading: employeesLoading } = useEmployees(
-    open ? { status: "active", limit: 200 } : {},
-  );
+  const { employees, loading: employeesLoading } = useAllEmployees({
+    status: "active",
+    enabled: open,
+  });
 
   const [name, setName] = useState("");
   const [isDefault, setIsDefault] = useState(false);
@@ -113,10 +115,7 @@ export function ClearanceVersionDialog({
     setRowErrors({});
   }, [open, template]);
 
-  const employeeOptions = employees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.fullName}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
-  }));
+  const employeeOptions = employees.map(toEmployeeOption);
 
   function updateRow(key: string, patch: Partial<ClearanceSignatoryInput>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));

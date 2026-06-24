@@ -83,6 +83,7 @@ export function buildOffboardingRecord(overrides: Record<string, unknown> = {}) 
         signatory: { id: "kurt-id", firstName: "Kurt", lastName: "Exec" },
       },
     ],
+    attachments: [],
     ...overrides,
   };
 }

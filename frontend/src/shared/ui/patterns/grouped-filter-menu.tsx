@@ -15,11 +15,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { cn } from "@/shared/lib/utils";
 
 export interface FilterGroupOption {
   id: string;
   name: string;
+  /**
+   * Optional leading avatar (employee filters). When `avatarFallback` is set, a small avatar is
+   * shown before the name — `avatarUrl` is the photo and `avatarFallback` the initials.
+   */
+  avatarUrl?: string | null;
+  avatarFallback?: string;
 }
 
 export interface FilterGroup {
@@ -139,6 +146,18 @@ export function GroupedFilterMenu({
                       tabIndex={-1}
                       className="pointer-events-none"
                     />
+                    {option.avatarFallback !== undefined && (
+                      <UserAvatar
+                        src={option.avatarUrl ?? null}
+                        fallback={option.avatarFallback}
+                        className="h-6 w-6 shrink-0"
+                        fallbackClassName="text-[10px] font-semibold text-[color:var(--text-primary)]"
+                        fallbackStyle={{
+                          background:
+                            "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                        }}
+                      />
+                    )}
                     <span className="truncate">{option.name}</span>
                   </CommandItem>
                 ))}
