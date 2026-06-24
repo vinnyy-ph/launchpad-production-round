@@ -24,6 +24,10 @@ const detailInclude = {
       signatory: { select: { id: true, firstName: true, lastName: true } },
     },
   },
+  attachments: {
+    orderBy: { createdAt: "asc" as const },
+    select: { id: true, url: true, fileName: true },
+  },
 } as const;
 
 /**
@@ -117,10 +121,19 @@ export class OffboardingRepository {
           initiatedById,
           tenderDate: new Date(dto.tenderDate),
           effectiveDate: new Date(dto.effectiveDate),
-          attachmentUrl: dto.attachmentUrl,
           status: "IN_PROGRESS",
         },
       });
+
+      if (dto.attachments && dto.attachments.length > 0) {
+        await tx.offboardingAttachment.createMany({
+          data: dto.attachments.map((attachment) => ({
+            offboardingId: record.id,
+            url: attachment.url,
+            fileName: attachment.fileName,
+          })),
+        });
+      }
 
       for (const signatory of signatories) {
         await tx.clearanceSignatureRequest.create({

@@ -47,8 +47,9 @@ export async function getOffboarding(id: string): Promise<OffboardingDetail> {
 export async function initiateOffboarding(
   input: InitiateOffboardingInput,
 ): Promise<OffboardingDetail> {
-  const { attachment, ...jsonInput } = input;
-  const body = attachment ? buildOffboardingFormData(input) : JSON.stringify(jsonInput);
+  const { attachments, ...jsonInput } = input;
+  const hasAttachments = Boolean(attachments && attachments.length > 0);
+  const body = hasAttachments ? buildOffboardingFormData(input) : JSON.stringify(jsonInput);
   const res = await apiFetch<Envelope<OffboardingDetail>>(OFFBOARDING_BASE, {
     method: "POST",
     body,
@@ -70,8 +71,8 @@ function buildOffboardingFormData(input: InitiateOffboardingInput): FormData {
   if (input.newTeamLeaderId) {
     formData.append("newTeamLeaderId", input.newTeamLeaderId);
   }
-  if (input.attachment) {
-    formData.append("attachment", input.attachment);
+  for (const file of input.attachments ?? []) {
+    formData.append("attachments", file);
   }
   return formData;
 }

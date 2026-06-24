@@ -34,13 +34,18 @@ export class OffboardingController {
   ) => {
     try {
       const body = this.offboardingValidation.parseInitiateBody(req.body);
-      if (req.file) {
-        body.attachmentUrl =
-          await this.cloudinaryService.uploadOnboardingDocument(
-            req.file.buffer,
-            req.file.originalname,
-            req.file.mimetype,
-          );
+      const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+      if (files.length > 0) {
+        body.attachments = await Promise.all(
+          files.map(async (file) => ({
+            url: await this.cloudinaryService.uploadOnboardingDocument(
+              file.buffer,
+              file.originalname,
+              file.mimetype,
+            ),
+            fileName: file.originalname,
+          })),
+        );
       }
       const result = await this.offboardingService.initiateOffboarding(
         req.user!,

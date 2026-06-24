@@ -17,12 +17,15 @@ import type { OffboardingRecordWithRelations } from "./offboarding.types";
 
 const cloudinaryService = new CloudinaryService();
 
-function resolveAttachmentUrl(url: string | null | undefined): string | null {
-  if (!url) {
-    return null;
-  }
-
-  return cloudinaryService.resolveOnboardingDocumentViewUrl(url);
+/** Resolves stored attachment storage keys into short-lived signed view URLs. */
+function toAttachmentDtos(
+  attachments: ReadonlyArray<{ id: string; url: string; fileName: string }>,
+): OffboardingDetailDto["attachments"] {
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    url: cloudinaryService.resolveOnboardingDocumentViewUrl(attachment.url),
+    fileName: attachment.fileName,
+  }));
 }
 
 /** Maps a persisted offboarding record (with relations) to the detail DTO. */
@@ -50,7 +53,7 @@ export function toOffboardingDetailDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
-    attachmentUrl: resolveAttachmentUrl(record.attachmentUrl),
+    attachments: toAttachmentDtos(record.attachments),
     createdAt: record.createdAt.toISOString(),
     completedAt: record.completedAt?.toISOString() ?? null,
     signatureRequests: record.signatureRequests.map((request) => ({
@@ -93,7 +96,7 @@ function toOffboardingListItemDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
-    attachmentUrl: resolveAttachmentUrl(record.attachmentUrl),
+    attachments: toAttachmentDtos(record.attachments),
     signedCount,
     totalCount,
     createdAt: record.createdAt.toISOString(),
