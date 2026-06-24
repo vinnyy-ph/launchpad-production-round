@@ -1,7 +1,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Settings2, Users } from "lucide-react";
+import { FileSpreadsheet, Plus, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -331,16 +331,14 @@ export default function DirectoryPage() {
         subtitle="Everyone at DG Technologies, from new hires to active staff."
         action={
           <div className="flex flex-col gap-2 sm:flex-row">
+            {tab === "all" ? (
+              <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
+                <Plus /> Initiate offboarding
+              </Button>
+            ) : null}
             {/* Adding a person always starts an onboarding case, so the action lives on that tab. */}
             {tab === "onboarding" ? (
               <>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/configurations?tab=onboarding")}
-                >
-                  <Settings2 aria-hidden="true" /> Onboarding setup
-                </Button>
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto"
@@ -350,20 +348,6 @@ export default function DirectoryPage() {
                 </Button>
                 <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
                   <Plus /> Onboard new employee
-                </Button>
-              </>
-            ) : null}
-            {tab === "offboarding" ? (
-              <>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/configurations?tab=clearances")}
-                >
-                  <Settings2 aria-hidden="true" /> Clearance setup
-                </Button>
-                <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
-                  <Plus /> Initiate offboarding
                 </Button>
               </>
             ) : null}
@@ -455,7 +439,7 @@ export default function DirectoryPage() {
 
       {bulkOpen ? <BulkUploadDropzone open={bulkOpen} onOpenChange={setBulkOpen} /> : null}
 
-      {tab === "offboarding" ? (
+      {tab === "all" ? (
         <InitiateOffboardingDialog
           open={initiateOpen}
           onOpenChange={setInitiateOpen}
