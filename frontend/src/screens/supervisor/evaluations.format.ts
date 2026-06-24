@@ -25,3 +25,8 @@ export function formatPeriod(startIso: string, endIso: string): string {
   // Cross-month, same year — "Jan 1 - Mar 31".
   return `${format(from, "LLL d")} - ${format(to, "LLL d")}${yearTail}`;
 }
+
+/** Map a `?status=` query value to the evaluations status filter. Unknown / missing → "ALL". */
+export function parseStatusFilter(raw: string | null | undefined): "ALL" | "sent" | "draft" {
+  return raw === "sent" || raw === "draft" ? raw : "ALL";
+}
