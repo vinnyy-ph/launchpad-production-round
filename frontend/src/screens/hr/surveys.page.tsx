@@ -40,7 +40,6 @@ import {
   SearchInput,
 } from "@/shared/ui/patterns";
 import { SurveyBuilderDialog } from "@/modules/performance/surveys/components/survey-builder";
-import { SurveyDetailDrawer } from "@/modules/performance/surveys/components/survey-detail-drawer";
 import { useSurveys } from "@/modules/performance/surveys/hooks/use-surveys";
 import { useSurvey } from "@/modules/performance/surveys/hooks/use-survey";
 import { useCreateSurvey } from "@/modules/performance/surveys/hooks/use-create-survey";
@@ -129,7 +128,6 @@ export default function HRSurveysPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activatingId, setActivatingId] = useState<string | null>(null);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
-  const [drawerSurvey, setDrawerSurvey] = useState<SurveyListItem | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<SurveyStatus | "ALL">("ALL");
@@ -185,7 +183,7 @@ export default function HRSurveysPage() {
   // that's been sent (active/closed), the editor for an unsent draft.
   const openRow = (s: SurveyListItem) => {
     if (deriveStatus(s) === "draft") openEdit(s);
-    else setDrawerSurvey(s);
+    else router.push(`/hr/surveys/${s.id}/results`);
   };
 
   // Activation is a separate endpoint that snapshots the audience and sets the survey live.
@@ -534,13 +532,6 @@ export default function HRSurveysPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <SurveyDetailDrawer
-        survey={drawerSurvey}
-        open={!!drawerSurvey}
-        onOpenChange={(o) => !o && setDrawerSurvey(null)}
-        onViewResults={(id) => router.push(`/hr/surveys/${id}/results`)}
-      />
     </div>
   );
 }

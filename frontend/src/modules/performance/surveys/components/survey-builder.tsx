@@ -61,6 +61,13 @@ import { usePreviewAudience } from "../hooks/use-preview-audience";
 import { useTeams } from "@/modules/people/teams";
 import { useAutosave } from "@/modules/performance/shared/use-autosave";
 import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
+import {
+  surveyNameSchema,
+  questionTextSchema,
+  optionSchema,
+  scaleLabelSchema,
+  SURVEY_TEXT_LIMITS,
+} from "../schemas/survey-form.schema";
 import type {
   SurveyDetail,
   QuestionType,
@@ -229,7 +236,12 @@ function buildVisibilityConfigs(state: BuilderState): VisibilityConfigInput[] {
 // the backend create requirements (name, future deadline, ≥1 valid question, named audience).
 function computeBuilderErrors(form: BuilderState): Record<string, string> {
   const errs: Record<string, string> = {};
-  if (!form.name.trim()) errs.name = "Name is required.";
+  if (!form.name.trim()) {
+    errs.name = "Name is required.";
+  } else {
+    const nameCheck = surveyNameSchema.safeParse(form.name);
+    if (!nameCheck.success) errs.name = nameCheck.error.issues[0].message;
+  }
   if (!form.deadline) {
     errs.deadline = "Deadline is required.";
   } else if (form.releaseDate && form.deadline <= form.releaseDate) {
@@ -246,12 +258,30 @@ function computeBuilderErrors(form: BuilderState): Record<string, string> {
     errs.visibility = "Select at least one team that can see results.";
   }
   form.questions.forEach((q, i) => {
-    if (!q.questionText.trim()) errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
+    if (!q.questionText.trim()) {
+      errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
+    } else {
+      const textCheck = questionTextSchema.safeParse(q.questionText);
+      if (!textCheck.success) errs[`q_${q.id}`] = `Question ${i + 1}: ${textCheck.error.issues[0].message}`;
+    }
     if (
       (q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") &&
       q.options.filter((o) => o.trim()).length < 1
     ) {
       errs[`q_opts_${q.id}`] = `Question ${i + 1} needs at least one option.`;
+    } else {
+      const badOption = q.options.find((o) => !optionSchema.safeParse(o).success);
+      if (badOption !== undefined) {
+        errs[`q_opts_${q.id}`] =
+          `Question ${i + 1}: ${optionSchema.safeParse(badOption).error!.issues[0].message}`;
+      }
+    }
+    for (const labelValue of [q.scaleMinLabel, q.scaleMaxLabel]) {
+      if (labelValue && !scaleLabelSchema.safeParse(labelValue).success) {
+        errs[`q_scale_${q.id}`] =
+          `Question ${i + 1}: ${scaleLabelSchema.safeParse(labelValue).error!.issues[0].message}`;
+        break;
+      }
     }
     if (q.type === "LINEAR_SCALE" && q.scaleMax <= q.scaleMin) {
       errs[`q_scale_${q.id}`] = `Question ${i + 1} max must be greater than min.`;
@@ -896,6 +926,7 @@ export function SurveyBuilderDialog({
                       placeholder="e.g. Q3 engagement pulse"
                       value={form.name}
                       onChange={(e) => set("name", e.target.value)}
+                      maxLength={SURVEY_TEXT_LIMITS.NAME}
                       error={!!errors.name}
                     />
                   </FormField>
@@ -1330,6 +1361,7 @@ export function SurveyBuilderDialog({
                       placeholder="Type your question"
                       value={q.questionText}
                       onChange={(e) => updateQuestion(q.id, { questionText: e.target.value })}
+                      maxLength={SURVEY_TEXT_LIMITS.QUESTION_TEXT}
                       error={!!errors[`q_${q.id}`]}
                       disabled={isLocked}
                     />
@@ -1403,6 +1435,7 @@ export function SurveyBuilderDialog({
                                 onChange={(e) =>
                                   updateQuestion(q.id, { scaleMinLabel: e.target.value })
                                 }
+                                maxLength={SURVEY_TEXT_LIMITS.SCALE_LABEL}
                                 disabled={isLocked}
                               />
                             </FormField>
@@ -1414,6 +1447,7 @@ export function SurveyBuilderDialog({
                                 onChange={(e) =>
                                   updateQuestion(q.id, { scaleMaxLabel: e.target.value })
                                 }
+                                maxLength={SURVEY_TEXT_LIMITS.SCALE_LABEL}
                                 disabled={isLocked}
                               />
                             </FormField>
@@ -1443,6 +1477,7 @@ export function SurveyBuilderDialog({
                                 value={opt}
                                 onChange={(e) => updateOption(q.id, oi, e.target.value)}
                                 className="flex-1"
+                                maxLength={SURVEY_TEXT_LIMITS.OPTION}
                                 disabled={isLocked}
                               />
                               {!isLocked && (

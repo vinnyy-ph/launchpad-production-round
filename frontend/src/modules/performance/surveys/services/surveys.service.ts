@@ -17,6 +17,8 @@ import type {
   SurveyOccurrenceSummary,
   VisibleResultSurvey,
   MyAnswers,
+  RespondentRoster,
+  IndividualAnswers,
   SurveyInsight,
 } from "../types/surveys.types";
 import { normalizeQuestionOptions } from "../types/surveys.types";
@@ -129,6 +131,35 @@ export async function fetchAnsweredSurveys(): Promise<AnsweredSurvey[]> {
 export async function fetchMyAnswers(occurrenceId: string): Promise<MyAnswers> {
   const res = await apiFetch<{ data: MyAnswers }>(
     `${PULSE}/me/surveys/answered/${occurrenceId}`,
+  );
+  return {
+    ...res.data,
+    answers: res.data.answers.map((a) => ({
+      ...a,
+      options: a.options == null ? null : normalizeQuestionOptions(a.options),
+    })),
+  };
+}
+
+/** Authorized drill-down name list for a named occurrence (HR/root → all; supervisor → their
+ *  downward chain; others → empty). Empty for anonymous surveys. Authority enforced server-side. */
+export async function fetchOccurrenceRespondents(
+  occurrenceId: string,
+): Promise<RespondentRoster> {
+  const res = await apiFetch<{ data: RespondentRoster }>(
+    `${BASE}/occurrences/${occurrenceId}/respondents`,
+  );
+  return res.data;
+}
+
+/** One named respondent's answers for an occurrence. Named-only + per-target authority are
+ *  enforced server-side (403 if the viewer isn't authorized for this person). */
+export async function fetchRespondentAnswers(
+  occurrenceId: string,
+  employeeId: string,
+): Promise<IndividualAnswers> {
+  const res = await apiFetch<{ data: IndividualAnswers }>(
+    `${BASE}/occurrences/${occurrenceId}/respondents/${employeeId}`,
   );
   return {
     ...res.data,

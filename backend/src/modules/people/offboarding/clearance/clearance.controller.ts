@@ -155,8 +155,8 @@ export class ClearanceController {
       return next(error);
     }
 
-    if (error.message.endsWith("is required")) {
-      const field = error.message.replace(" is required", "");
+    if (error.message.endsWith("is required") || this.isTextValidationError(error.message)) {
+      const field = error.message.replace(" is required", "").replace(/ must .*/, "");
 
       return this.fail(res, HTTP_STATUS_CODES.BAD_REQUEST, {
         field,
@@ -248,6 +248,11 @@ export class ClearanceController {
     }
 
     return next(error);
+  }
+
+  /** Identifies shared free-text validation failures. */
+  private isTextValidationError(message: string): boolean {
+    return message.includes(" must be ") || message.includes(" must not contain ");
   }
 
   /** Sends a standard error envelope. */

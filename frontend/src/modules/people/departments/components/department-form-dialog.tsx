@@ -14,6 +14,7 @@ import {
   Input,
 } from "@/shared/ui";
 import { ApiError } from "@/shared/lib/api-client";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useDepartmentMutations } from "../hooks/use-department-mutations";
 import type { DepartmentListItem } from "../types/departments.types";
 
@@ -52,6 +53,15 @@ export function DepartmentFormDialog({
     const trimmed = name.trim();
     if (!trimmed) {
       setError("Department name is required.");
+      return;
+    }
+    const textError = validatePeopleText(
+      trimmed,
+      "Department name",
+      PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME,
+    );
+    if (textError) {
+      setError(textError);
       return;
     }
     if (isEdit && trimmed === department!.name) {

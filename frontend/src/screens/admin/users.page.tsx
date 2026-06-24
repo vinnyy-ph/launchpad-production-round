@@ -2,9 +2,12 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { Users, Plus, ArrowLeftRight, Ban, Check, Filter } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
+import { ApiError } from "@/shared/lib/api-client";
 import { cn } from "@/shared/lib/utils";
 import { useAuth } from "@/modules/auth";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import {
   useUsers,
   useAddUser,
@@ -75,6 +78,19 @@ function statusFilters(status: (typeof STATUS_OPTIONS)[number]["value"]) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
+
+const ADD_USER_FIELD_MESSAGES = {
+  firstName: "Please enter a valid first name using letters only.",
+  lastName: "Please enter a valid last name using letters only.",
+  email: "Please enter a valid company email address.",
+} as const;
+
+type InviteFieldErrors = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+};
 
 function displayName(user: UserListItem): string {
   return (
@@ -636,9 +652,7 @@ function InviteUserDialog({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AddUserRole>("EMPLOYEE");
-  const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; email?: string }>(
-    {},
-  );
+  const [errors, setErrors] = useState<InviteFieldErrors>({});
 
   function reset() {
     setFirstName("");
@@ -654,25 +668,127 @@ function InviteUserDialog({
     onOpenChange(next);
   }
 
+  function validate(): InviteFieldErrors {
+    const next: InviteFieldErrors = {};
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const trimmedEmail = email.trim();
+
+    if (
+      !trimmedFirstName ||
+      !LETTERS_ONLY_RE.test(trimmedFirstName) ||
+      validatePeopleText(trimmedFirstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.firstName = ADD_USER_FIELD_MESSAGES.firstName;
+    }
+    if (
+      !trimmedLastName ||
+      !LETTERS_ONLY_RE.test(trimmedLastName) ||
+      validatePeopleText(trimmedLastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.lastName = ADD_USER_FIELD_MESSAGES.lastName;
+    }
+    if (
+      !EMAIL_RE.test(trimmedEmail) ||
+      validatePeopleText(trimmedEmail, "Email", PEOPLE_TEXT_LIMITS.EMAIL)
+    ) {
+      next.email = ADD_USER_FIELD_MESSAGES.email;
+    }
+
+    return next;
+  }
+
+  function validateField(field: keyof InviteFieldErrors, value: string): string | undefined {
+    const trimmed = value.trim();
+
+    if (field === "firstName") {
+      return !trimmed ||
+        !LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
+        ? ADD_USER_FIELD_MESSAGES.firstName
+        : undefined;
+    }
+
+    if (field === "lastName") {
+      return !trimmed ||
+        !LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+        ? ADD_USER_FIELD_MESSAGES.lastName
+        : undefined;
+    }
+
+    if (field === "email") {
+      return !EMAIL_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Email", PEOPLE_TEXT_LIMITS.EMAIL)
+        ? ADD_USER_FIELD_MESSAGES.email
+        : undefined;
+    }
+
+    return undefined;
+  }
+
+  function setFieldError(field: keyof InviteFieldErrors, message: string | undefined) {
+    setErrors((current) => {
+      const next = { ...current };
+      if (message) {
+        next[field] = message;
+      } else {
+        delete next[field];
+      }
+      return next;
+    });
+  }
+
+  function updateTextField(
+    field: keyof InviteFieldErrors,
+    value: string,
+    setter: (value: string) => void,
+  ) {
+    setter(value);
+    setFieldError(field, validateField(field, value));
+  }
+
+  function applyApiFieldErrors(err: ApiError) {
+    const next: InviteFieldErrors = {};
+    for (const fieldError of err.fieldErrors) {
+      if (fieldError.field === "firstName" && fieldError.message) {
+        next.firstName = fieldError.message;
+      }
+      if (fieldError.field === "lastName" && fieldError.message) {
+        next.lastName = fieldError.message;
+      }
+      if (fieldError.field === "email" && fieldError.message) {
+        next.email = fieldError.message;
+      }
+    }
+    if (Object.keys(next).length > 0) {
+      setErrors(next);
+      return true;
+    }
+    return false;
+  }
+
   async function handleSubmit() {
-    const next: { firstName?: string; lastName?: string; email?: string } = {};
-    if (!firstName.trim()) next.firstName = "First name is required.";
-    if (!lastName.trim()) next.lastName = "Last name is required.";
-    if (!EMAIL_RE.test(email.trim())) next.email = "Enter a valid email address.";
+    const next = validate();
     setErrors(next);
-    if (next.firstName || next.lastName || next.email) return;
+    if (Object.keys(next).length > 0) return;
+
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const trimmedEmail = email.trim();
 
     try {
       await onInvite({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim(),
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        email: trimmedEmail,
         role,
       });
       reset();
       onOpenChange(false);
-    } catch {
-      // Error toast handled by mutation hook.
+    } catch (err) {
+      if (err instanceof ApiError && applyApiFieldErrors(err)) return;
+      toast.error(err instanceof Error ? err.message : "Could not add the user.");
     }
   }
 
@@ -692,26 +808,35 @@ function InviteUserDialog({
             <Input
               id="invite-first-name"
               value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
+              onChange={(e) => updateTextField("firstName", e.target.value, setFirstName)}
               placeholder="e.g. Jordan"
               autoFocus
+              maxLength={PEOPLE_TEXT_LIMITS.NAME}
             />
           </FormField>
           <FormField label="Last name" htmlFor="invite-last-name" required error={errors.lastName}>
             <Input
               id="invite-last-name"
               value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
+              onChange={(e) => updateTextField("lastName", e.target.value, setLastName)}
               placeholder="e.g. Park"
+              maxLength={PEOPLE_TEXT_LIMITS.NAME}
             />
           </FormField>
-          <FormField label="Company Email" htmlFor="invite-email" required error={errors.email}>
+          <FormField
+            label="Company email"
+            htmlFor="invite-email"
+            required
+            error={errors.email}
+            hint="This becomes their sign-in email when they connect Google."
+          >
             <Input
               id="invite-email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => updateTextField("email", e.target.value, setEmail)}
               placeholder="name@company.com"
+              maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
             />
           </FormField>
           <FormField label="Role" htmlFor="invite-role">

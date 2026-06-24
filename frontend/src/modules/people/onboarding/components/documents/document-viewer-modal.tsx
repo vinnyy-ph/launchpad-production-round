@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import {
   Dialog,
@@ -10,7 +11,11 @@ import {
 } from "@/shared/ui";
 
 function isPdf(fileUrl: string): boolean {
-  return /\.pdf(\?|$)/i.test(fileUrl);
+  try {
+    return decodeURIComponent(new URL(fileUrl).pathname).toLowerCase().includes(".pdf");
+  } catch {
+    return decodeURIComponent(fileUrl.split("?")[0]).toLowerCase().includes(".pdf");
+  }
 }
 
 /**
@@ -28,6 +33,13 @@ export function DocumentViewerModal({
   fileUrl: string | null;
   documentName: string | undefined;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const shouldRenderPdf = Boolean(fileUrl && (isPdf(fileUrl) || imageFailed));
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [fileUrl, open]);
+
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-3">
@@ -41,11 +53,10 @@ export function DocumentViewerModal({
         {fileUrl ? (
           <>
             <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)]">
-              {isPdf(fileUrl) ? (
+              {shouldRenderPdf ? (
                 <iframe
                   src={fileUrl}
                   title={documentName ?? "Document preview"}
-                  sandbox="allow-same-origin"
                   className="h-[70vh] w-full"
                 />
               ) : (
@@ -55,6 +66,7 @@ export function DocumentViewerModal({
                     src={fileUrl}
                     alt={documentName ?? "Document preview"}
                     className="max-h-full max-w-full object-contain"
+                    onError={() => setImageFailed(true)}
                   />
                 </div>
               )}

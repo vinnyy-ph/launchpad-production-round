@@ -18,6 +18,7 @@ import {
 import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
 import { isStrictPhilippineMobile } from "@/shared/lib/phone";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useUpdateMyProfile } from "../hooks/use-update-my-profile";
 import type { EmployeeProfile, MyProfileUpdateInput } from "../types/employees.types";
 
@@ -30,6 +31,21 @@ interface EditMyProfileDialogProps {
 
 /** PH-only deployment: the address country is fixed to the Philippines. */
 const PH_COUNTRY = "Philippines";
+const LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
+const STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'’/&()-]+$/;
+
+const PROFILE_FIELD_MESSAGES: Partial<Record<keyof Draft | "contact", string>> = {
+  firstName: "Please enter a valid first name using letters only.",
+  middleName: "Please enter a valid middle name using letters only.",
+  lastName: "Please enter a valid last name using letters only.",
+  personalEmail: "Please enter a valid personal email address.",
+  address:
+    "Please enter a valid street address using letters, numbers, and standard address characters only.",
+  emergencyContactName: "Please enter a valid contact name using letters only.",
+  contact: "Enter an 11-digit mobile number starting with 09.",
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface Draft {
   firstName: string;
@@ -66,6 +82,71 @@ function nullableTrim(value: string): string | null {
   return value.trim() || null;
 }
 
+function validateProfileField(field: keyof Draft | "contact", value: string): string | undefined {
+  const trimmed = value.trim();
+
+  if (field === "firstName") {
+    return !trimmed ||
+      !LETTERS_ONLY_RE.test(trimmed) ||
+      validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
+      ? PROFILE_FIELD_MESSAGES.firstName
+      : undefined;
+  }
+
+  if (field === "middleName") {
+    return trimmed &&
+      (!LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
+      ? PROFILE_FIELD_MESSAGES.middleName
+      : undefined;
+  }
+
+  if (field === "lastName") {
+    return !trimmed ||
+      !LETTERS_ONLY_RE.test(trimmed) ||
+      validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+      ? PROFILE_FIELD_MESSAGES.lastName
+      : undefined;
+  }
+
+  if (field === "personalEmail") {
+    return trimmed &&
+      (!EMAIL_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL))
+      ? PROFILE_FIELD_MESSAGES.personalEmail
+      : undefined;
+  }
+
+  if (field === "address") {
+    return trimmed &&
+      (!STREET_ADDRESS_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE))
+      ? PROFILE_FIELD_MESSAGES.address
+      : undefined;
+  }
+
+  if (field === "emergencyContactName") {
+    return trimmed &&
+      (!LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Emergency contact name", PEOPLE_TEXT_LIMITS.NAME))
+      ? PROFILE_FIELD_MESSAGES.emergencyContactName
+      : undefined;
+  }
+
+  if (field === "country" || field === "province" || field === "city") {
+    const label = field[0].toUpperCase() + field.slice(1);
+    return trimmed ? validatePeopleText(trimmed, label, PEOPLE_TEXT_LIMITS.LOCATION) : undefined;
+  }
+
+  if (field === "emergencyContactNumber") {
+    return trimmed
+      ? validatePeopleText(trimmed, "Emergency contact number", PEOPLE_TEXT_LIMITS.PHONE_DISPLAY)
+      : undefined;
+  }
+
+  return undefined;
+}
+
 /**
  * Self-service edit dialog for the employee's own profile. Edits names, personal email, birthday,
  * home address, and emergency contact only — work fields (company email, job title, department,
@@ -74,9 +155,7 @@ function nullableTrim(value: string): string | null {
 export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfileDialogProps) {
   const { update, saving } = useUpdateMyProfile(profile.id);
   const [draft, setDraft] = useState<Draft>(() => draftFromProfile(profile));
-  const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; contact?: string }>(
-    {},
-  );
+  const [errors, setErrors] = useState<Partial<Record<keyof Draft | "contact", string>>>({});
 
   // Re-seed the form each time it opens so a cancelled edit never leaks into the next open.
   useEffect(() => {
@@ -88,15 +167,27 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
+    setErrors((current) => {
+      const next = { ...current };
+      const error = validateProfileField(key, String(value));
+      if (error) next[key] = error;
+      else delete next[key];
+      if (key === "emergencyContactNumber") {
+        delete next.contact;
+      }
+      return next;
+    });
   }
 
   async function handleSave() {
     const next: typeof errors = {};
-    if (!draft.firstName.trim()) next.firstName = "First name is required.";
-    if (!draft.lastName.trim()) next.lastName = "Last name is required.";
+    for (const field of Object.keys(draft) as (keyof Draft)[]) {
+      const error = validateProfileField(field, draft[field]);
+      if (error) next[field] = error;
+    }
     const contact = draft.emergencyContactNumber.trim();
     if (contact && !isStrictPhilippineMobile(contact)) {
-      next.contact = "Enter an 11-digit mobile number starting with 09.";
+      next.contact = PROFILE_FIELD_MESSAGES.contact;
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -153,14 +244,16 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
                 id="mp-first"
                 value={draft.firstName}
                 onChange={(e) => set("firstName", e.target.value)}
+                maxLength={PEOPLE_TEXT_LIMITS.NAME}
               />
             </FormField>
-            <FormField label="Middle name" htmlFor="mp-middle">
+            <FormField label="Middle name" htmlFor="mp-middle" error={errors.middleName}>
               <Input
                 id="mp-middle"
                 value={draft.middleName}
                 onChange={(e) => set("middleName", e.target.value)}
                 placeholder="Optional"
+                maxLength={PEOPLE_TEXT_LIMITS.NAME}
               />
             </FormField>
             <FormField label="Last name" htmlFor="mp-last" required error={errors.lastName}>
@@ -168,18 +261,20 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
                 id="mp-last"
                 value={draft.lastName}
                 onChange={(e) => set("lastName", e.target.value)}
+                maxLength={PEOPLE_TEXT_LIMITS.NAME}
               />
             </FormField>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Personal email" htmlFor="mp-personal-email">
+            <FormField label="Personal email" htmlFor="mp-personal-email" error={errors.personalEmail}>
               <Input
                 id="mp-personal-email"
                 type="email"
                 value={draft.personalEmail}
                 onChange={(e) => set("personalEmail", e.target.value)}
                 placeholder="you@example.com"
+                maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
               />
             </FormField>
             <FormField label="Date of birth">
@@ -203,7 +298,26 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
                 city: draft.city,
                 address: draft.address,
               }}
-              onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
+              errors={{
+                country: errors.country,
+                province: errors.province,
+                city: errors.city,
+                address: errors.address,
+              }}
+              onChange={(patch) => {
+                setDraft((current) => ({ ...current, ...patch }));
+                setErrors((current) => {
+                  const next = { ...current };
+                  for (const key of Object.keys(patch) as Array<
+                    Extract<keyof Draft, "country" | "province" | "city" | "address">
+                  >) {
+                    const error = validateProfileField(key, patch[key] ?? "");
+                    if (error) next[key] = error;
+                    else delete next[key];
+                  }
+                  return next;
+                });
+              }}
             />
           </div>
 
@@ -213,21 +327,21 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
               Emergency contact
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Contact name" htmlFor="mp-ec-name">
+              <FormField label="Contact name" htmlFor="mp-ec-name" error={errors.emergencyContactName}>
                 <Input
                   id="mp-ec-name"
                   value={draft.emergencyContactName}
                   onChange={(e) => set("emergencyContactName", e.target.value)}
+                  maxLength={PEOPLE_TEXT_LIMITS.NAME}
                 />
               </FormField>
-              <FormField label="Contact number" error={errors.contact}>
+              <FormField label="Contact number" error={errors.contact ?? errors.emergencyContactNumber}>
                 <PhoneInput
                   value={draft.emergencyContactNumber}
                   onChange={(value) => {
                     set("emergencyContactNumber", value);
-                    if (errors.contact) setErrors((c) => ({ ...c, contact: undefined }));
                   }}
-                  error={Boolean(errors.contact)}
+                  error={Boolean(errors.contact || errors.emergencyContactNumber)}
                 />
               </FormField>
             </div>

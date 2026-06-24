@@ -111,8 +111,14 @@ export interface ReviewEvaluationDialogProps {
   open: boolean;
   evaluation: Evaluation | null;
   onClose: () => void;
-  onAcknowledge: (evaluationId: string) => void;
+  /** Acknowledge handler. Omitted (or with `readOnly`) for viewers who aren't the reviewee. */
+  onAcknowledge?: (evaluationId: string) => void;
   acknowledging?: boolean;
+  /**
+   * Read-only view for someone who isn't the reviewee (HR, an upward supervisor): hides the
+   * Acknowledge action and uses neutral, third-person status copy.
+   */
+  readOnly?: boolean;
 }
 
 export function ReviewEvaluationDialog({
@@ -121,6 +127,7 @@ export function ReviewEvaluationDialog({
   onClose,
   onAcknowledge,
   acknowledging,
+  readOnly = false,
 }: ReviewEvaluationDialogProps) {
   const [justAcked, setJustAcked] = useState(false);
 
@@ -147,7 +154,9 @@ export function ReviewEvaluationDialog({
       : `Acknowledged on ${fmtDate(ack?.acknowledgedAt)}.`
     : isAutoAck
       ? `Auto-acknowledged on ${fmtDate(ev.ackDeadline)}.`
-      : `Confirm you've read this evaluation by ${fmtDate(ev.ackDeadline)}.`;
+      : readOnly
+        ? `Awaiting acknowledgement — due ${fmtDate(ev.ackDeadline)}.`
+        : `Confirm you've read this evaluation by ${fmtDate(ev.ackDeadline)}.`;
 
   const revieweeName = ev.reviewee?.fullName ?? "you";
 
@@ -328,8 +337,9 @@ export function ReviewEvaluationDialog({
           )}
         </div>
 
-        {/* Footer — Acknowledge action (pending only). Acknowledged / auto-acknowledged close via the X. */}
-        {isPending && (
+        {/* Footer — Acknowledge action (pending only). Acknowledged / auto-acknowledged close via the X.
+            Hidden for read-only viewers (HR / upward supervisors) who can't acknowledge. */}
+        {isPending && !readOnly && (
           <div className="flex flex-none items-center justify-end gap-3 border-t border-[color:var(--border-primary)] px-8 py-[18px]">
             <Button variant="secondary" type="button" onClick={onClose}>
               Close
@@ -337,7 +347,7 @@ export function ReviewEvaluationDialog({
             <Button
               type="button"
               onClick={() => {
-                onAcknowledge(ev.id);
+                onAcknowledge?.(ev.id);
                 setJustAcked(true);
               }}
               disabled={acknowledging}

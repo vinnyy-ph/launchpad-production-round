@@ -9,6 +9,8 @@ import type {
   UpdateTeamNameRequestDto,
   UpdateTeamMembersRequestDto,
 } from "./dto";
+import { assertSafeText } from "../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../people-text-limits";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 25;
@@ -52,7 +54,7 @@ export class TeamsValidation {
    */
   parseCreateTeamBody(body: Record<string, unknown>): CreateTeamRequestDto {
     return {
-      name: this.parseRequiredString(body.name, "Team name is required"),
+      name: this.parseRequiredText(body.name, "name", "Team name is required", PEOPLE_TEXT_LIMITS.TEAM_NAME),
       leaderId: this.parseRequiredString(body.leaderId, "Team leader is required"),
       memberIds: this.parseStringArray(body.memberIds),
     };
@@ -63,7 +65,7 @@ export class TeamsValidation {
    */
   parseUpdateTeamNameBody(body: Record<string, unknown>): UpdateTeamNameRequestDto {
     return {
-      name: this.parseRequiredString(body.name, "Team name is required"),
+      name: this.parseRequiredText(body.name, "name", "Team name is required", PEOPLE_TEXT_LIMITS.TEAM_NAME),
     };
   }
 
@@ -115,6 +117,18 @@ export class TeamsValidation {
     }
 
     return trimmed;
+  }
+
+  /** Reads a non-empty free-text field and applies stored-text safety checks. */
+  private parseRequiredText(
+    value: unknown,
+    field: string,
+    message: string,
+    maxLen: number,
+  ): string {
+    const parsed = this.parseRequiredString(value, message);
+    assertSafeText(parsed, field, maxLen);
+    return parsed;
   }
 
   /** Parses a positive integer query parameter with a safe fallback. */

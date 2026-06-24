@@ -242,7 +242,7 @@ export class SurveysService {
     );
 
     await this.notificationsService.notifyNewPulse(audienceIds, survey.id, survey.name, occurrenceId);
-    await this.sendSurveyInvitationEmails(audienceIds, survey.name);
+    await this.sendSurveyInvitationEmails(audienceIds, survey.name, occurrenceId);
 
     return {
       success: true,
@@ -259,6 +259,7 @@ export class SurveysService {
   private async sendSurveyInvitationEmails(
     audienceEmployeeIds: string[],
     surveyName: string,
+    occurrenceId: string,
   ): Promise<void> {
     try {
       if (audienceEmployeeIds.length === 0) {
@@ -270,8 +271,9 @@ export class SurveysService {
         select: { companyEmail: true, firstName: true, lastName: true },
       });
 
-      // Surveys open in a modal rather than a dedicated page, so link to the list view.
-      const surveyUrl = `${this.resolveAppUrl()}/employee/surveys`;
+      // Deep-link by occurrence id so the survey page opens the exact pulse, matching
+      // the in-app notification link (`?tab=survey&pulse=<occurrenceId>`).
+      const surveyUrl = `${this.resolveAppUrl()}/employee/surveys?tab=survey&pulse=${occurrenceId}`;
 
       for (const recipient of recipients) {
         try {

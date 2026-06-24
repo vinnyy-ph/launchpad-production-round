@@ -1,4 +1,6 @@
 import type { CreateEvaluationInput, ListEvaluationsQuery, UpdateEvaluationInput } from "./dto";
+import { EVAL_TEXT_LIMITS } from "./evaluations.constants";
+import { assertSafeText } from "../../../core/validation/text-input";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -57,6 +59,12 @@ export class EvaluationsValidation {
     }
     if (b.send !== undefined && typeof b.send !== "boolean") {
       throw new Error("send must be a boolean");
+    }
+    if (typeof b.evaluation === "string") {
+      assertSafeText(b.evaluation, "evaluation", EVAL_TEXT_LIMITS.EVALUATION);
+    }
+    if (typeof b.recommendation === "string") {
+      assertSafeText(b.recommendation, "recommendation", EVAL_TEXT_LIMITS.RECOMMENDATION);
     }
 
     return {
@@ -118,6 +126,9 @@ export class EvaluationsValidation {
     for (const field of ["evaluation", "recommendation"] as const) {
       if (b[field] !== undefined) {
         if (typeof b[field] !== "string") throw new Error(`${field} must be a string`);
+        const maxLen =
+          field === "evaluation" ? EVAL_TEXT_LIMITS.EVALUATION : EVAL_TEXT_LIMITS.RECOMMENDATION;
+        assertSafeText(b[field] as string, field, maxLen);
         result[field] = b[field] as string;
       }
     }
@@ -144,12 +155,14 @@ export class EvaluationsValidation {
     return date;
   }
 
-  /** Itemized text → trimmed, non-empty string list. */
+  /** Itemized text → trimmed, non-empty string list, each validated for length and content. */
   private parseItemArray(value: unknown, field: string): string[] {
     const arr = Array.isArray(value) ? value : (typeof value === "string" ? [value] : value);
     if (!Array.isArray(arr) || !arr.every((item) => typeof item === "string")) {
       throw new Error(`${field} must be an array of strings`);
     }
-    return (arr as string[]).map((item) => item.trim()).filter((item) => item.length > 0);
+    const items = (arr as string[]).map((item) => item.trim()).filter((item) => item.length > 0);
+    items.forEach((item, i) => assertSafeText(item, `${field}[${i}]`, EVAL_TEXT_LIMITS.ITEM));
+    return items;
   }
 }

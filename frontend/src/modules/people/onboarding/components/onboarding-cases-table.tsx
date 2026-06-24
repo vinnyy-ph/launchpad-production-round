@@ -86,7 +86,7 @@ function deriveStuckAt(row: {
   if (row.invitationStatus === "pending") return "Awaiting invite acceptance";
   if (row.documentsApproved < row.documentsRequired) return "Documents pending";
   if (row.customFieldsFilled < row.customFieldsRequired) return "Profile fields pending";
-  return "Ready for HR review";
+  return "Onboarded";
 }
 
 /**
@@ -155,7 +155,7 @@ export function OnboardingCasesTable() {
     (row) => row.invitationStatus === "expired" || row.invitationStatus === "failed_delivery",
   ).length;
   const inProgress = rows.filter((row) => row.invitationStatus === "accepted").length;
-  const readyForReview = rows.filter((row) => row.stuckAt === "Ready for HR review").length;
+  const onboarded = rows.filter((row) => row.stuckAt === "Onboarded").length;
 
   const columns: Column<CaseRow>[] = [
     {
@@ -227,7 +227,7 @@ export function OnboardingCasesTable() {
         <StatCard label="Pending invites" value={pendingInvites} loading={loading} variant="warn" />
         <StatCard label="Invite issues" value={inviteIssues} loading={loading} variant={inviteIssues > 0 ? "alert" : "default"} />
         <StatCard label="In progress" value={inProgress} loading={loading} variant="brand" />
-        <StatCard label="Ready for review" value={readyForReview} loading={loading} />
+        <StatCard label="Onboarded" value={onboarded} loading={loading} />
       </div>
 
       <FilterBar aria-label="Filter onboarding cases">
