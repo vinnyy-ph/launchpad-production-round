@@ -4,12 +4,14 @@ import { useState } from "react";
 import { AlertCircle, ChevronRight, Users } from "lucide-react";
 import {
   Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   Skeleton,
+  SearchInput,
 } from "@/shared/ui";
 import { useOccurrenceRespondents } from "../../hooks/use-occurrence-respondents";
 import { useRespondentAnswers } from "../../hooks/use-respondent-answers";
@@ -122,6 +124,8 @@ function RespondentAnswersDialog({
  * nothing unless the viewer (HR/root → everyone; supervisor → their downward chain) actually
  * has people to drill into.
  */
+const PAGE_SIZE = 10;
+
 export function RespondentsDrilldown({
   occurrenceId,
   isAnonymous,
@@ -130,6 +134,8 @@ export function RespondentsDrilldown({
   isAnonymous: boolean;
 }) {
   const [selected, setSelected] = useState<RespondentRosterMember | null>(null);
+  const [query, setQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   // Never fetch (or render) for anonymous surveys — individuals are never exposed.
   const { data, isLoading } = useOccurrenceRespondents(
     isAnonymous || !occurrenceId ? null : occurrenceId,
@@ -167,6 +173,18 @@ export function RespondentsDrilldown({
 
   const respondedCount = respondents.filter((r) => r.submitted).length;
 
+  const trimmed = query.trim().toLowerCase();
+  const filtered = trimmed
+    ? respondents.filter((r) => (r.name || "").toLowerCase().includes(trimmed))
+    : respondents;
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visible.length;
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setVisibleCount(PAGE_SIZE);
+  };
+
   return (
     <div className="mt-4 rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-4 flex items-center gap-2.5">
@@ -179,40 +197,73 @@ export function RespondentsDrilldown({
         </span>
       </div>
 
-      <ul className="divide-y divide-[color:var(--border-secondary)]">
-        {respondents.map((r) => (
-          <li key={r.employeeId}>
-            <button
-              type="button"
-              onClick={() => r.submitted && setSelected(r)}
-              disabled={!r.submitted}
-              className="flex w-full items-center justify-between gap-3 py-2.5 text-left enabled:hover:opacity-80 disabled:cursor-default"
+      <div className="mb-3">
+        <SearchInput
+          value={query}
+          onValueChange={handleQueryChange}
+          placeholder="Search by name"
+          aria-label="Search respondents by name"
+        />
+      </div>
+
+      {trimmed && (
+        <p className="mb-2.5 text-[12px] text-[color:var(--text-quaternary)]">
+          Showing {filtered.length} of {respondents.length}
+        </p>
+      )}
+
+      {filtered.length === 0 ? (
+        <p className="text-[14px] text-[color:var(--text-tertiary)]">
+          No one matches &ldquo;{query.trim()}&rdquo;.
+        </p>
+      ) : (
+        <>
+          <ul className="divide-y divide-[color:var(--border-secondary)]">
+            {visible.map((r) => (
+              <li key={r.employeeId}>
+                <button
+                  type="button"
+                  onClick={() => r.submitted && setSelected(r)}
+                  disabled={!r.submitted}
+                  className="flex w-full items-center justify-between gap-3 py-2.5 text-left enabled:hover:opacity-80 disabled:cursor-default"
+                >
+                  <span className="truncate text-[14px] text-[color:var(--text-primary)]">
+                    {r.name || "Unnamed"}
+                  </span>
+                  <span className="flex flex-none items-center gap-2">
+                    {r.submitted ? (
+                      <>
+                        <Badge variant="success" pill>
+                          Responded
+                        </Badge>
+                        <ChevronRight
+                          size={16}
+                          className="text-[color:var(--text-quaternary)]"
+                          aria-hidden="true"
+                        />
+                      </>
+                    ) : (
+                      <Badge variant="neutral" pill>
+                        No response
+                      </Badge>
+                    )}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-3 w-full"
+              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
             >
-              <span className="truncate text-[14px] text-[color:var(--text-primary)]">
-                {r.name || "Unnamed"}
-              </span>
-              <span className="flex flex-none items-center gap-2">
-                {r.submitted ? (
-                  <>
-                    <Badge variant="success" pill>
-                      Responded
-                    </Badge>
-                    <ChevronRight
-                      size={16}
-                      className="text-[color:var(--text-quaternary)]"
-                      aria-hidden="true"
-                    />
-                  </>
-                ) : (
-                  <Badge variant="neutral" pill>
-                    No response
-                  </Badge>
-                )}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+              Load more
+            </Button>
+          )}
+        </>
+      )}
 
       <RespondentAnswersDialog
         occurrenceId={occurrenceId}

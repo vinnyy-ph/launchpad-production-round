@@ -22,6 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  SearchInput,
   Select,
   SelectContent,
   SelectItem,
@@ -323,6 +324,8 @@ function ScaleBody({ q }: { q: Extract<QuestionResult, { type: "LINEAR_SCALE" }>
   );
 }
 
+const OPEN_TEXT_PAGE_SIZE = 10;
+
 function OpenTextBody({
   q,
   isAnonymous,
@@ -330,7 +333,25 @@ function OpenTextBody({
   q: Extract<QuestionResult, { type: "SHORT_ANSWER" | "LONG_ANSWER" }>;
   isAnonymous: boolean;
 }) {
+  const [query, setQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(OPEN_TEXT_PAGE_SIZE);
+
   const hidden = isAnonymous || q.responses.length === 0;
+
+  // Keep each response's original 1-based number stable even while filtered.
+  const indexed = q.responses.map((text, i) => ({ text, number: i + 1 }));
+  const trimmed = query.trim().toLowerCase();
+  const filtered = trimmed
+    ? indexed.filter((r) => r.text.toLowerCase().includes(trimmed))
+    : indexed;
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visible.length;
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setVisibleCount(OPEN_TEXT_PAGE_SIZE);
+  };
+
   return (
     <div>
       <div className="mb-3.5">
@@ -345,19 +366,54 @@ function OpenTextBody({
       ) : hidden ? (
         <p className="text-[14px] text-[color:var(--text-tertiary)]">No responses yet.</p>
       ) : (
-        <div className="space-y-2.5">
-          {q.responses.map((text, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-[color:var(--border-primary)] px-4 py-3"
-            >
-              <div className="mb-1 text-[12px] font-semibold text-[color:var(--text-quaternary)]">
-                Response {i + 1}
+        <>
+          <div className="mb-3">
+            <SearchInput
+              value={query}
+              onValueChange={handleQueryChange}
+              placeholder="Search answers"
+              aria-label="Search written answers"
+            />
+          </div>
+
+          {trimmed && (
+            <p className="mb-2.5 text-[12px] text-[color:var(--text-quaternary)]">
+              Showing {filtered.length} of {q.responses.length}
+            </p>
+          )}
+
+          {filtered.length === 0 ? (
+            <p className="text-[14px] text-[color:var(--text-tertiary)]">
+              No answers match &ldquo;{query.trim()}&rdquo;.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2.5">
+                {visible.map((r) => (
+                  <div
+                    key={r.number}
+                    className="rounded-xl border border-[color:var(--border-primary)] px-4 py-3"
+                  >
+                    <div className="mb-1 text-[12px] font-semibold text-[color:var(--text-quaternary)]">
+                      Response {r.number}
+                    </div>
+                    <div className="text-[14px] text-[color:var(--text-primary)]">{r.text}</div>
+                  </div>
+                ))}
               </div>
-              <div className="text-[14px] text-[color:var(--text-primary)]">{text}</div>
-            </div>
-          ))}
-        </div>
+              {hasMore && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3 w-full"
+                  onClick={() => setVisibleCount((c) => c + OPEN_TEXT_PAGE_SIZE)}
+                >
+                  Load more
+                </Button>
+              )}
+            </>
+          )}
+        </>
       )}
     </div>
   );
