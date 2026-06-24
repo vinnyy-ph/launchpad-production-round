@@ -45,8 +45,12 @@ export interface SmallTeamShareDto {
   supervisorName: string | null;
   /** The send action is only allowed once the occurrence is completed (closed or past deadline). */
   occurrenceCompleted: boolean;
-  /** ISO timestamp of the last share, or null if never shared. */
+  /** ISO timestamp of the share, or null if never shared. Once set, the note is locked (immutable). */
   alreadySharedAt: string | null;
+  /** The note HR already sent, shown read-only in the locked state. Null until shared. */
+  sharedMessage: string | null;
+  /** ISO deadline to send the note (occurrence close + SHARE_WINDOW_DAYS). Null if unknown. */
+  shareDeadline: string | null;
 }
 
 /**

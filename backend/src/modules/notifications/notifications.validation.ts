@@ -1,6 +1,7 @@
 import type {
   ListNotificationsQueryDto,
   MarkAsReadParamsDto,
+  SetPinBodyDto,
 } from "./dto";
 import {
   DEFAULT_NOTIFICATIONS_LIMIT,
@@ -29,8 +30,8 @@ export class NotificationsValidation {
     return { limit: Math.min(limit, MAX_NOTIFICATIONS_LIMIT) };
   }
 
-  /** Parses the notificationId route param. */
-  parseMarkAsReadParams(params: Record<string, unknown>): MarkAsReadParamsDto {
+  /** Parses the notificationId route param (read / pin / clear). */
+  parseNotificationIdParams(params: Record<string, unknown>): MarkAsReadParamsDto {
     const notificationId = params[NOTIFICATION_FIELDS.NOTIFICATION_ID];
 
     if (typeof notificationId !== "string" || !notificationId.trim()) {
@@ -38,5 +39,16 @@ export class NotificationsValidation {
     }
 
     return { notificationId: notificationId.trim() };
+  }
+
+  /** Parses the pin toggle body `{ pinned: boolean }`. */
+  parsePinBody(body: Record<string, unknown>): SetPinBodyDto {
+    const pinned = body?.[NOTIFICATION_FIELDS.PINNED];
+
+    if (typeof pinned !== "boolean") {
+      throw new Error(`${NOTIFICATION_FIELDS.PINNED} is required`);
+    }
+
+    return { pinned };
   }
 }

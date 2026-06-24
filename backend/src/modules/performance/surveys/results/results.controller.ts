@@ -281,6 +281,22 @@ export class ResultsController {
         });
         return;
       }
+      if (error.message === SURVEY_ERROR_MESSAGES.SHARE_ALREADY_SENT) {
+        res.status(HTTP_STATUS_CODES.CONFLICT).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.SHARE_ALREADY_SENT,
+          errorCode: "SHARE_ALREADY_SENT",
+        });
+        return;
+      }
+      if (error.message === SURVEY_ERROR_MESSAGES.SHARE_WINDOW_CLOSED) {
+        res.status(HTTP_STATUS_CODES.CONFLICT).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.SHARE_WINDOW_CLOSED,
+          errorCode: "SHARE_WINDOW_CLOSED",
+        });
+        return;
+      }
       if (error.message === SURVEY_ERROR_MESSAGES.SHARE_NO_SUPERVISOR) {
         res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
           success: false,
