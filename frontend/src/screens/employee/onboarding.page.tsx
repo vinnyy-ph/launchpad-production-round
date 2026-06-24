@@ -36,6 +36,7 @@ import {
   parseAllowedFileTypes,
   validateOnboardingFile,
 } from "@/modules/people/onboarding/constants/allowed-file-types";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 
 import { queryKeys } from "@/shared/lib/query-keys";
 import { isStrictPhilippineMobile, toE164 } from "@/shared/lib/phone";
@@ -51,6 +52,9 @@ import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { PhoneInput } from "@/shared/ui";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
+const STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'&/()-]+$/;
+const LOCATION_RE = /^[A-Za-z\s]+$/;
 
 const STEP_LABELS = ["Your details", "Quick questions", "Documents", "Review"] as const;
 const CARD_SHADOW = "inset 0 0 2px 0 rgba(0,16,53,.16), 0 1px 2px 0 rgba(14,16,27,.05)";
@@ -63,6 +67,7 @@ type MarkerState = "done" | "current" | "upcoming";
 
 type ProfileDraft = {
   firstName: string;
+  middleName: string;
   lastName: string;
   personalEmail: string;
   birthday?: Date;
@@ -73,6 +78,20 @@ type ProfileDraft = {
   emergencyContactName: string;
   emergencyContact: string;
 };
+
+const ONBOARDING_PROFILE_FIELD_MESSAGES = {
+  firstName: "Please enter a valid first name using letters only.",
+  middleName: "Please enter a valid middle name using letters only.",
+  lastName: "Please enter a valid last name using letters only.",
+  personalEmail: "Please enter a valid personal email address.",
+  address:
+    "Please enter a valid street address using letters, numbers, and standard address characters only.",
+  city: "Please select a valid city.",
+  province: "Please select a valid province.",
+  country: "Please select a valid country.",
+  emergencyContactName: "Please enter a valid contact name using letters only.",
+  emergencyContact: "Please enter a valid emergency contact number.",
+} as const;
 
 // ─── pure helpers ─────────────────────────────────────────────────────────────
 
@@ -93,14 +112,99 @@ function profileComplete(p: OnboardingProfile): boolean {
 }
 
 function fieldsComplete(fields: OnboardingCustomFieldStatus[]): boolean {
-  return fields.length === 0 || fields.every((f) => !f.isRequired || (f.value ?? "").trim() !== "");
+  return (
+    fields.length === 0 ||
+    fields.every((f) => {
+      const value = (f.value ?? "").trim();
+      if (f.isRequired && value === "") return false;
+      return !customFieldValueError(value);
+    })
+  );
 }
 
 function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
   const next: Record<string, string> = {};
-  if (!draft.firstName.trim()) next.firstName = "First name is required.";
-  if (!draft.lastName.trim()) next.lastName = "Last name is required.";
-  if (!EMAIL_RE.test(draft.personalEmail.trim())) next.personalEmail = "Enter a valid personal email.";
+  const firstName = draft.firstName.trim();
+  const middleName = draft.middleName.trim();
+  const lastName = draft.lastName.trim();
+  const personalEmail = draft.personalEmail.trim();
+  const address = draft.address.trim();
+  const city = draft.city.trim();
+  const province = draft.province.trim();
+  const country = draft.country.trim();
+  const emergencyContactName = draft.emergencyContactName.trim();
+  const emergencyContact = draft.emergencyContact.trim();
+
+  if (
+    !firstName ||
+    !LETTERS_ONLY_RE.test(firstName) ||
+    validatePeopleText(firstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
+  ) {
+    next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstName;
+  }
+  if (
+    middleName &&
+    (!LETTERS_ONLY_RE.test(middleName) ||
+      validatePeopleText(middleName, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
+  ) {
+    next.middleName = ONBOARDING_PROFILE_FIELD_MESSAGES.middleName;
+  }
+  if (
+    !lastName ||
+    !LETTERS_ONLY_RE.test(lastName) ||
+    validatePeopleText(lastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+  ) {
+    next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastName;
+  }
+  if (
+    !personalEmail ||
+    !EMAIL_RE.test(personalEmail) ||
+    validatePeopleText(personalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL)
+  ) {
+    next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmail;
+  }
+  if (
+    !address ||
+    !STREET_ADDRESS_RE.test(address) ||
+    validatePeopleText(address, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE)
+  ) {
+    next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.address;
+  }
+  if (
+    !city ||
+    !LOCATION_RE.test(city) ||
+    validatePeopleText(city, "City", PEOPLE_TEXT_LIMITS.LOCATION)
+  ) {
+    next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.city;
+  }
+  if (
+    !province ||
+    !LOCATION_RE.test(province) ||
+    validatePeopleText(province, "Province", PEOPLE_TEXT_LIMITS.LOCATION)
+  ) {
+    next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.province;
+  }
+  if (
+    !country ||
+    !LOCATION_RE.test(country) ||
+    validatePeopleText(country, "Country", PEOPLE_TEXT_LIMITS.LOCATION)
+  ) {
+    next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.country;
+  }
+  if (
+    !emergencyContactName ||
+    !LETTERS_ONLY_RE.test(emergencyContactName) ||
+    validatePeopleText(emergencyContactName, "Contact name", PEOPLE_TEXT_LIMITS.NAME)
+  ) {
+    next.emergencyContactName = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactName;
+  }
+  if (
+    !emergencyContact ||
+    !isStrictPhilippineMobile(emergencyContact) ||
+    validatePeopleText(emergencyContact, "Contact number", PEOPLE_TEXT_LIMITS.PHONE_DISPLAY)
+  ) {
+    next.emergencyContact = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContact;
+  }
   if (!draft.birthday) next.birthday = "Birthday is required.";
   else {
     const today = new Date();
@@ -109,13 +213,14 @@ function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
     selected.setHours(0, 0, 0, 0);
     if (selected > today) next.birthday = "Birthday cannot be in the future.";
   }
-  if (!draft.address.trim()) next.address = "Street address is required.";
-  if (!draft.city.trim()) next.city = "City is required.";
-  if (!draft.province.trim()) next.province = "Province is required.";
-  if (!draft.country.trim()) next.country = "Country is required.";
-  if (!draft.emergencyContactName.trim()) next.emergencyContactName = "Contact name is required.";
-  if (!draft.emergencyContact.trim()) next.emergencyContact = "Contact number is required.";
   return next;
+}
+
+function customFieldValueError(value: string): string | undefined {
+  if (!value) return undefined;
+  return validatePeopleText(value, "Answer", PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_VALUE)
+    ? "Please enter a valid answer without HTML or special characters."
+    : undefined;
 }
 
 function fileNameFromUrl(url?: string | null): string | null {
@@ -643,6 +748,7 @@ export default function EmployeeOnboardingPage() {
 
   const profileDraft: ProfileDraft = {
     firstName,
+    middleName,
     lastName,
     personalEmail,
     birthday,
@@ -688,9 +794,6 @@ export default function EmployeeOnboardingPage() {
 
   function handleContinueFromProfile(): void {
     const next = profileDraftErrors(profileDraft);
-    if (Object.keys(next).length === 0 && !isStrictPhilippineMobile(emergencyContact)) {
-      next.emergencyContact = "Enter an 11-digit mobile number starting with 09.";
-    }
     setProfileErrors(next);
     if (Object.keys(next).length > 0) return;
     setStep(2);
@@ -710,7 +813,22 @@ export default function EmployeeOnboardingPage() {
     return;
   }
 
-  function handleSelectDocument(documentId: string, file: File): void {
+  function allowedTypesForDocument(documentId: string) {
+    const doc = documents.find((item) => item.id === documentId);
+    return parseAllowedFileTypes(doc?.allowedFileTypes ?? "pdf,jpg,jpeg,png");
+  }
+
+  async function validateDocumentFile(documentId: string, file: File): Promise<boolean> {
+    const validationError = await validateOnboardingFile(file, allowedTypesForDocument(documentId));
+    if (validationError) {
+      toast.error(validationError);
+      return false;
+    }
+    return true;
+  }
+
+  async function handleSelectDocument(documentId: string, file: File): Promise<void> {
+    if (!(await validateDocumentFile(documentId, file))) return;
     setPendingFiles((prev) => ({ ...prev, [documentId]: file }));
   }
 
@@ -731,7 +849,7 @@ export default function EmployeeOnboardingPage() {
       return;
     }
     if (!isStrictPhilippineMobile(emergencyContact)) {
-      setProfileErrors({ emergencyContact: "Enter an 11-digit mobile number starting with 09." });
+      setProfileErrors({ emergencyContact: ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContact });
       toast.error("Enter a valid emergency contact number before submitting.");
       setStep(1);
       return;
@@ -754,6 +872,10 @@ export default function EmployeeOnboardingPage() {
       }
 
       for (const [documentId, file] of Object.entries(pendingFiles)) {
+        if (!(await validateDocumentFile(documentId, file))) {
+          setStep(3);
+          return;
+        }
         await submitDocument(documentId, file);
       }
       await submitForReview.mutateAsync();
@@ -768,6 +890,8 @@ export default function EmployeeOnboardingPage() {
   }
 
   async function handleInlineDocumentReupload(documentId: string, file: File): Promise<void> {
+    if (!(await validateDocumentFile(documentId, file))) return;
+
     setInlineUploadingDocumentId(documentId);
     try {
       await submitDocument(documentId, file);
@@ -955,10 +1079,20 @@ export default function EmployeeOnboardingPage() {
                         touchProfileField("firstName");
                         setFirstName(e.target.value);
                       }}
+                      maxLength={PEOPLE_TEXT_LIMITS.NAME}
                     />
                   </FormField>
-                  <FormField label="Middle name" htmlFor="ob-middle">
-                    <Input id="ob-middle" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
+                  <FormField label="Middle name" htmlFor="ob-middle" error={visibleProfileErrors.middleName}>
+                    <Input
+                      id="ob-middle"
+                      value={middleName}
+                      error={Boolean(visibleProfileErrors.middleName)}
+                      onChange={(e) => {
+                        touchProfileField("middleName");
+                        setMiddleName(e.target.value);
+                      }}
+                      maxLength={PEOPLE_TEXT_LIMITS.NAME}
+                    />
                   </FormField>
                   <FormField label="Last name" required htmlFor="ob-last" error={visibleProfileErrors.lastName}>
                     <Input
@@ -969,6 +1103,7 @@ export default function EmployeeOnboardingPage() {
                         touchProfileField("lastName");
                         setLastName(e.target.value);
                       }}
+                      maxLength={PEOPLE_TEXT_LIMITS.NAME}
                     />
                   </FormField>
                 </div>
@@ -1005,6 +1140,7 @@ export default function EmployeeOnboardingPage() {
                       touchProfileField("personalEmail");
                       setPersonalEmail(e.target.value);
                     }}
+                    maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
                   />
                 </FormField>
               </div>
@@ -1056,6 +1192,7 @@ export default function EmployeeOnboardingPage() {
                       setEmergencyContactName(e.target.value);
                     }}
                     placeholder="e.g. Juan Santos"
+                    maxLength={PEOPLE_TEXT_LIMITS.NAME}
                   />
                 </FormField>
                 <FormField
@@ -1173,7 +1310,7 @@ export default function EmployeeOnboardingPage() {
                 const fieldError =
                   touchedCustomFields[field.id] && field.isRequired && !(field.value ?? "").trim()
                     ? "This question is required."
-                    : undefined;
+                    : customFieldValueError((field.value ?? "").trim());
                 return (
                   <FormField
                     key={field.id}
@@ -1194,6 +1331,7 @@ export default function EmployeeOnboardingPage() {
                         nextFields[idx] = { ...nextFields[idx], value: e.target.value };
                         setFields(nextFields);
                       }}
+                      maxLength={PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_VALUE}
                     />
                   </FormField>
                 );

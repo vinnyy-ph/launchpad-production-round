@@ -3,6 +3,8 @@ import type {
   CreateClearanceTemplateRequestDto,
   UpdateClearanceTemplateRequestDto,
 } from "./dto";
+import { assertSafeText } from "../../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 
 /**
  * Parses and validates clearance-version request bodies and route params.
@@ -14,7 +16,7 @@ export class ClearanceTemplatesValidation {
     body: Record<string, unknown>,
   ): CreateClearanceTemplateRequestDto {
     return {
-      name: this.requireString(body.name, "name"),
+      name: this.requireText(body.name, "name", PEOPLE_TEXT_LIMITS.CLEARANCE_TEMPLATE_NAME),
       isDefault: this.optionalBoolean(body.isDefault) ?? false,
       signatories: this.parseSignatories(body.signatories),
     };
@@ -25,7 +27,7 @@ export class ClearanceTemplatesValidation {
     body: Record<string, unknown>,
   ): UpdateClearanceTemplateRequestDto {
     return {
-      name: this.requireString(body.name, "name"),
+      name: this.requireText(body.name, "name", PEOPLE_TEXT_LIMITS.CLEARANCE_TEMPLATE_NAME),
       signatories: this.parseSignatories(body.signatories),
     };
   }
@@ -55,13 +57,15 @@ export class ClearanceTemplatesValidation {
           entry.employeeId,
           `signatories[${index}].employeeId`,
         ),
-        purpose: this.requireString(
+        purpose: this.requireText(
           entry.purpose,
           `signatories[${index}].purpose`,
+          PEOPLE_TEXT_LIMITS.CLEARANCE_PURPOSE,
         ),
-        requirements: this.requireString(
+        requirements: this.requireText(
           entry.requirements,
           `signatories[${index}].requirements`,
+          PEOPLE_TEXT_LIMITS.CLEARANCE_REQUIREMENTS,
         ),
       };
     });
@@ -81,6 +85,13 @@ export class ClearanceTemplatesValidation {
     }
 
     return value.trim();
+  }
+
+  /** Extracts required free text and applies stored-text safety checks. */
+  private requireText(value: unknown, field: string, maxLen: number): string {
+    const parsed = this.requireString(value, field);
+    assertSafeText(parsed, field, maxLen);
+    return parsed;
   }
 
   /** Coerces an optional boolean (accepts the "true"/"false" strings forms too). */

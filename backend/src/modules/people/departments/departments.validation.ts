@@ -11,6 +11,7 @@ import type {
   SortDirection,
   UpdateDepartmentRequestDto,
 } from "./dto";
+import { assertSafeText } from "../../../core/validation/text-input";
 
 /**
  * Parses and normalizes raw Express input for the department endpoints.
@@ -66,6 +67,7 @@ export class DepartmentsValidation {
     if (name.length > DEPARTMENT_NAME_MAX_LENGTH) {
       throw new Error("Department name is too long");
     }
+    assertSafeText(name, "Department name", DEPARTMENT_NAME_MAX_LENGTH);
 
     return name;
   }
