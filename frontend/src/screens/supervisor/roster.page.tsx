@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Users, Filter, ArrowUpDown, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { ArrowUpDown, ChevronsDownUp, ChevronsUpDown, Filter, List, Network, Users } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import type {
@@ -252,8 +252,8 @@ export default function RosterPage() {
         value={activeTab}
         onChange={setActiveTab}
         items={[
-          { value: "list", label: "List" },
-          { value: "org-chart", label: "Org Chart" },
+          { value: "list", label: "List", icon: List },
+          { value: "org-chart", label: "Org Chart", icon: Network },
         ]}
       />
 

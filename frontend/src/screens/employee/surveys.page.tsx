@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { ClipboardList, AlertCircle, RefreshCw, CheckSquare, ChevronRight } from "lucide-react";
+import { Activity, AlertCircle, BarChart3, CheckSquare, ChevronRight, ClipboardCheck, ClipboardList, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Badge, Skeleton } from "@/shared/ui";
@@ -435,9 +435,9 @@ export default function EmployeeSurveysPage() {
         value={tab}
         onChange={(v) => changeTab(v as "survey" | "acknowledgements" | "results")}
         items={[
-          { value: "survey", label: "Pulse surveys", count: unansweredCount },
-          { value: "acknowledgements", label: "Evaluations", count: pendingAcks },
-          { value: "results", label: "Results" },
+          { value: "survey", label: "Pulse surveys", count: unansweredCount, icon: Activity },
+          { value: "acknowledgements", label: "Evaluations", count: pendingAcks, icon: ClipboardCheck },
+          { value: "results", label: "Results", icon: BarChart3 },
         ]}
       />
 

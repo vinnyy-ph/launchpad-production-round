@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Network, Plus, Workflow } from "lucide-react";
+import { Network, Plus, Users, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Skeleton, UserAvatar } from "@/shared/ui";
 import {
@@ -174,8 +174,8 @@ export default function TeamsPage() {
         value={activeTab}
         onChange={setActiveTab}
         items={[
-          { value: "org-chart", label: "Org Chart" },
-          { value: "teams", label: "Teams" },
+          { value: "org-chart", label: "Org Chart", icon: Network },
+          { value: "teams", label: "Teams", icon: Users },
         ]}
       />
 

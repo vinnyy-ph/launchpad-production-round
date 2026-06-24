@@ -1,7 +1,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Settings2, Users } from "lucide-react";
+import { FileSpreadsheet, Plus, Settings2, UserRoundMinus, UserRoundPlus, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -379,9 +379,9 @@ export default function DirectoryPage() {
           setPage(1);
         }}
         items={[
-          { value: "all", label: "All", count: counts.all },
-          { value: "onboarding", label: "Onboarding", count: counts.onboarding },
-          { value: "offboarding", label: "Offboarding", count: counts.offboarding },
+          { value: "all", label: "All", count: counts.all, icon: Users },
+          { value: "onboarding", label: "Onboarding", count: counts.onboarding, icon: UserRoundPlus },
+          { value: "offboarding", label: "Offboarding", count: counts.offboarding, icon: UserRoundMinus },
         ]}
       />
 

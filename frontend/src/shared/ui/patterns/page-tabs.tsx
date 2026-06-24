@@ -1,3 +1,6 @@
+import { useId } from "react";
+import { motion } from "framer-motion";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 export interface PageTabItem {
@@ -5,6 +8,8 @@ export interface PageTabItem {
   label: string;
   /** Optional count badge shown beside the label. */
   count?: number;
+  /** Optional leading icon (lucide) — for distinct section/view tabs. */
+  icon?: LucideIcon;
 }
 
 interface PageTabsProps {
@@ -15,10 +20,14 @@ interface PageTabsProps {
 }
 
 /**
- * Underlined page-level tabs with an optional count badge and a --gradient-jia active indicator.
- * Matches the evaluations status tabs; shared across list-master screens so segmentation is consistent.
+ * Underlined page-level tabs with an optional leading icon + count badge and a --gradient-jia
+ * active indicator that slides between tabs (framer-motion shared layout, DS ease-standard, no
+ * bounce; honours reduced-motion via the app's MotionConfig). Shared across list-master screens
+ * so segmentation stays consistent.
  */
 export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
+  // Unique per instance so multiple tab bars on a page don't share one sliding indicator.
+  const indicatorId = useId();
   return (
     <div
       role="tablist"
@@ -27,6 +36,7 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
     >
       {items.map((item) => {
         const isActive = item.value === value;
+        const Icon = item.icon;
         return (
           <button
             key={item.value}
@@ -41,6 +51,7 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
                 : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
             )}
           >
+            {Icon && <Icon size={16} aria-hidden="true" className="shrink-0" />}
             {item.label}
             {item.count !== undefined && (
               <span
@@ -55,10 +66,12 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
               </span>
             )}
             {isActive && (
-              <span
+              <motion.span
+                layoutId={indicatorId}
                 aria-hidden="true"
                 className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
                 style={{ background: "var(--gradient-jia)" }}
+                transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }}
               />
             )}
           </button>
