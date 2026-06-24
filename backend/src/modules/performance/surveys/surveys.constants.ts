@@ -36,6 +36,8 @@ export const SURVEY_ERROR_MESSAGES = {
   SHARE_ACTOR_NOT_EMPLOYEE: "Your account is not linked to an employee record",
   SHARE_MESSAGE_REQUIRED: "A note for the supervisor is required",
   SHARE_MESSAGE_TOO_LONG: "The note is too long",
+  SHARE_ALREADY_SENT: "A note has already been sent to this team's supervisor — it can't be changed",
+  SHARE_WINDOW_CLOSED: "The 30-day window to send a note to this team's supervisor has closed",
   AI_UNAVAILABLE: "AI assistance is unavailable right now",
 } as const;
 
