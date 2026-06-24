@@ -12,7 +12,6 @@ import {
     ChevronLeft,
     ArrowUpDown,
     FileText,
-    Search,
     X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -49,6 +48,7 @@ import {
     FormField,
     StatusBadge,
     FilterBar,
+    SearchInput,
     type Column,
     type DataTableSort,
 } from "@/shared/ui/patterns";
@@ -1837,20 +1837,13 @@ export default function EvaluationsPage() {
 
             <FilterBar aria-label="Filter evaluations" className="gap-3">
                 <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                    <div className="relative w-full sm:max-w-[320px]">
-                        <Search
-                            aria-hidden="true"
-                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
-                        />
-                        <Input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search by employee"
-                            aria-label="Search evaluations"
-                            className="w-full pl-9"
-                        />
-                    </div>
+                    <SearchInput
+                        value={search}
+                        onValueChange={setSearch}
+                        placeholder="Search by employee"
+                        aria-label="Search evaluations"
+                        containerClassName="sm:max-w-[320px]"
+                    />
                     <div className="flex w-full gap-2 md:hidden">
                         <Select
                             value={sort.key}

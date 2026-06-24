@@ -5,7 +5,9 @@ import { AlertCircle, ChevronRight, Pencil } from "lucide-react";
 
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
+import { useMyActivityLogs } from "@/modules/people/employees/hooks/use-employee-activity-logs";
 import { EditMyProfileDialog } from "@/modules/people/employees/components/edit-my-profile-dialog";
+import { ProfileActivityHistory } from "@/modules/people/employees/components/profile-activity-history";
 import { RedactedProfileSheet } from "@/modules/people/employees/components/redacted-profile-sheet";
 import type { EmployeeProfile } from "@/modules/people/employees/types/employees.types";
 
@@ -76,15 +78,6 @@ function formatAddress(profile: EmployeeProfile) {
   return parts.length ? parts.join(", ") : "—";
 }
 
-function formatEmergencyContact(profile: EmployeeProfile) {
-  const c = profile.emergencyContact;
-  if (!c) return "—";
-  const parts = [c.emergencyContactName, c.emergencyContactNumber]
-    .map((p) => p?.trim())
-    .filter(Boolean);
-  return parts.length ? parts.join(" · ") : "—";
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
@@ -92,6 +85,7 @@ export default function ProfilePage() {
   const employeeId = appUser?.employeeId || null;
   const { employee, loading, error, reload } = useEmployeeProfile(employeeId);
   const profile = employee as EmployeeProfile | null;
+  const { logs: activityLogs, loading: activityLoading } = useMyActivityLogs(!!employeeId);
 
   const [editOpen, setEditOpen] = useState(false);
   // Supervisor id whose redacted profile drawer is open (null = closed).
@@ -177,7 +171,6 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FieldRow label="Date of birth" value={formatDate(profile.birthday)} />
             <FieldRow label="Home address" value={formatAddress(profile)} />
-            <FieldRow label="Emergency contact" value={formatEmergencyContact(profile)} />
           </div>
         </div>
       </PageSection>
@@ -191,6 +184,14 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FieldRow label="Company email" value={profile.companyEmail} />
             <FieldRow label="Personal email" value={profile.personalEmail || "—"} />
+            <FieldRow
+              label="Emergency contact name"
+              value={profile.emergencyContact?.emergencyContactName || "—"}
+            />
+            <FieldRow
+              label="Emergency contact number"
+              value={profile.emergencyContact?.emergencyContactNumber || "—"}
+            />
           </div>
         </div>
       </PageSection>
@@ -232,6 +233,11 @@ export default function ProfilePage() {
             />
           </div>
         </div>
+      </PageSection>
+
+      {/* Activity history — same timeline used in the HR employee details modal */}
+      <PageSection title="Activity history">
+        <ProfileActivityHistory logs={activityLogs} loading={activityLoading} />
       </PageSection>
 
       <EditMyProfileDialog profile={profile} open={editOpen} onOpenChange={setEditOpen} />

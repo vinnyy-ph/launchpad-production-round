@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Network, Plus, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
-import { Button, Input, Skeleton, UserAvatar } from "@/shared/ui";
+import { Button, Skeleton, UserAvatar } from "@/shared/ui";
 import {
   DataTable,
   EmptyState,
@@ -12,6 +12,7 @@ import {
   FilterBar,
   MultiSelectFilter,
   PageTabs,
+  SearchInput,
   type Column,
   type DataTableSort,
 } from "@/shared/ui/patterns";
@@ -188,13 +189,12 @@ export default function TeamsPage() {
       ) : (
         <>
           <FilterBar aria-label="Filter teams">
-            <Input
-              type="text"
+            <SearchInput
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onValueChange={setSearch}
               placeholder="Search by team or leader…"
               aria-label="Search teams"
-              className="sm:max-w-[320px]"
+              containerClassName="sm:max-w-[320px]"
             />
             <MultiSelectFilter
               options={leaderOptions}
@@ -461,13 +461,12 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Input
-          type="search"
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onValueChange={setSearch}
           placeholder="Search by name…"
           aria-label="Search org chart by name"
-          className="sm:max-w-[260px]"
+          containerClassName="sm:max-w-[260px]"
         />
         <MultiSelectFilter
           options={departments.map((department) => ({ id: department.id, name: department.name }))}
