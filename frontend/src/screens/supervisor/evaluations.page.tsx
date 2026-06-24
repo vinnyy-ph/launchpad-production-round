@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import {
   ClipboardCheck,
@@ -77,7 +78,7 @@ import {
   evaluationTextSchema,
   EVAL_TEXT_LIMITS,
 } from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
-import { formatPeriod } from "./evaluations.format";
+import { formatPeriod, parseStatusFilter } from "./evaluations.format";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1139,6 +1140,7 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
 
 export default function EvaluationsPage() {
   const { appUser } = useAuth();
+  const searchParams = useSearchParams();
 
   const { data: allEvals, isLoading, isError, refetch } = useEvaluations();
   const { data: reviewees } = useMyDirectReports();
@@ -1161,7 +1163,9 @@ export default function EvaluationsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    parseStatusFilter(searchParams.get("status")),
+  );
   const [sort, setSort] = useState<DataTableSort>({ key: "period", direction: "desc" });
   const [page, setPage] = useState(1);
 
