@@ -7,6 +7,7 @@ import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
 import { Button } from "@/shared/ui/primitives/button";
+import { PageTransition } from "./page-transition";
 
 /**
  * Focused chrome for the onboarding wizard. A still-onboarding hire has no other
@@ -35,7 +36,7 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
       <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-[color:var(--border-primary)] bg-white px-4 lg:px-6">
         <div className="flex items-center gap-2.5">
           <ManageJiaLogo size={30} />
-          <span className="hidden rounded-full bg-[color:var(--bg-secondary)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-[color:var(--text-tertiary)] sm:inline">
+          <span className="hidden rounded-full bg-[color:var(--bg-secondary)] px-2.5 py-1 text-[12px] font-bold uppercase tracking-[0.06em] text-[color:var(--text-tertiary)] sm:inline">
             Getting started
           </span>
         </div>
@@ -53,7 +54,7 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
             </span>
           )}
           {appUser?.displayName && (
-            <span className="hidden text-[13px] font-medium text-[color:var(--text-primary)] sm:inline">
+            <span className="hidden text-[14px] font-medium text-[color:var(--text-primary)] sm:inline">
               {appUser.displayName}
             </span>
           )}
@@ -71,7 +72,9 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[880px] px-4 py-8 lg:px-6">{children}</div>
+        <div className="mx-auto w-full max-w-[880px] px-4 py-8 lg:px-6">
+          <PageTransition>{children}</PageTransition>
+        </div>
       </main>
     </div>
   );

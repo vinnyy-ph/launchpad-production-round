@@ -52,6 +52,7 @@ import {
   TabsTrigger,
   Checkbox,
   DatePicker,
+  Skeleton,
 } from "@/shared/ui";
 import { FormField, SearchInput } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
@@ -860,7 +861,7 @@ export function SurveyBuilderDialog({
         {loading && !hydratedRef.current ? (
           <div className="space-y-3 p-6">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-10 w-full rounded-lg bg-[color:var(--bg-tertiary)]" />
+              <Skeleton key={i} className="h-10 w-full rounded-lg" />
             ))}
           </div>
         ) : (

@@ -26,7 +26,7 @@ import {
 } from "@/shared/ui/primitives/dialog";
 import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { Input } from "@/shared/ui/primitives/input";
-import { PhoneInput } from "@/shared/ui";
+import { PhoneInput, Skeleton } from "@/shared/ui";
 import {
   Select,
   SelectContent,
@@ -805,10 +805,7 @@ export function EmployeeDetailsModal({
               {loading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 8 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="h-10 rounded-lg bg-[color:var(--bg-secondary)]"
-                    />
+                    <Skeleton key={index} className="h-10 rounded-lg" />
                   ))}
                 </div>
               ) : error ? (
@@ -1110,10 +1107,7 @@ export function EmployeeDetailsModal({
                       {documentsLoading ? (
                         <div className="space-y-3">
                           {Array.from({ length: 3 }).map((_, index) => (
-                            <div
-                              key={index}
-                              className="h-16 rounded-lg bg-[color:var(--bg-secondary)]"
-                            />
+                            <Skeleton key={index} className="h-16 rounded-lg" />
                           ))}
                         </div>
                       ) : documents.length === 0 ? (

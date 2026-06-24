@@ -10,24 +10,32 @@ import {
   Send,
   CheckCircle2,
   ArrowUpRight,
+  TrendingUp,
+  Star,
 } from "lucide-react";
-import { VisibleResultsList } from "@/modules/performance/surveys/components/visible-results-list";
-import { useVisibleResultSurveys } from "@/modules/performance/surveys/hooks/use-visible-result-surveys";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEvaluations, useMyDirectReports } from "@/modules/performance/evaluations";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import { KpiCard, EmptyState } from "@/shared/ui/patterns";
-import { DonutChart, Skeleton } from "@/shared/ui";
+import { DonutChart, LineChart, Skeleton } from "@/shared/ui";
 import { CHART_COLORS } from "@/shared/ui/charts/palette";
 import {
   summarizeEvaluations,
   computeCoverage,
   notEvaluatedCount,
   buildAttentionItems,
+  averageGrade,
+  gradeTrend,
+  gradeDelta,
+  acknowledgedRate,
+  buildReportSnapshots,
   type AttentionItem,
   type EvalSummary,
+  type TrendPoint,
 } from "./overview.logic";
+import { ReportSnapshot } from "./components/report-snapshot";
+import { PulseResultCards } from "./components/pulse-result-cards";
 
 // ─── Needs-your-attention band ──────────────────────────────────────────────
 
@@ -130,14 +138,14 @@ function TeamCard({
         <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
           <Users size={12} className="text-[color:var(--text-secondary)]" />
         </span>
-        <span className="text-[13.5px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
+        <span className="text-[14px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
           Team
         </span>
       </div>
       {loading ? (
         <Skeleton className="mt-3.5 h-10 w-16" />
       ) : (
-        <p className="mt-3.5 text-[40px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
+        <p className="mt-3.5 text-[36px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
           {total}
         </p>
       )}
@@ -198,11 +206,7 @@ function EvaluationBreakdown({
     return (
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {[0, 1].map((i) => (
-          <div
-            key={i}
-            className="h-[260px] rounded-xl border border-[color:var(--border-primary)] bg-white"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          />
+          <Skeleton key={i} className="h-[260px] rounded-xl" />
         ))}
       </div>
     );
@@ -275,6 +279,33 @@ function EvaluationBreakdown({
   );
 }
 
+// ─── Performance trend (avg grade per month) ─────────────────────────────────
+
+function PerformanceTrend({ trend, loading }: { trend: TrendPoint[]; loading: boolean }) {
+  return (
+    <div
+      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+      style={{ boxShadow: "var(--shadow-xs)" }}
+    >
+      <div className="mb-4 flex items-center gap-2">
+        <TrendingUp size={15} className="text-[color:var(--text-secondary)]" />
+        <p className="text-sm font-semibold text-[color:var(--text-primary)]">Performance trend</p>
+      </div>
+      {loading ? (
+        <Skeleton className="h-[200px] w-full rounded-lg" />
+      ) : trend.length < 2 ? (
+        <div className="flex h-[200px] items-center justify-center text-center">
+          <p className="max-w-[280px] text-sm text-[color:var(--text-tertiary)]">
+            A trend appears once you&apos;ve sent evaluations across two or more months.
+          </p>
+        </div>
+      ) : (
+        <LineChart data={trend} categoryKey="period" valueKey="avg" height={200} />
+      )}
+    </div>
+  );
+}
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
@@ -297,7 +328,6 @@ export default function ReportsPage() {
     refetch: refetchEvals,
   } = useEvaluations();
   const { data: reviewees, isLoading: revieweesLoading } = useMyDirectReports();
-  const { data: results } = useVisibleResultSurveys();
 
   const composition = {
     total: reports.length,
@@ -316,7 +346,12 @@ export default function ReportsPage() {
   });
 
   const analyticsLoading = evalsLoading || revieweesLoading;
-  const resultsCount = results?.length ?? 0;
+
+  const avgGrade = averageGrade(evals ?? [], employeeId);
+  const trend = gradeTrend(evals ?? [], employeeId);
+  const avgDelta = gradeDelta(trend) ?? undefined;
+  const ackRate = acknowledgedRate(summary);
+  const snapshots = buildReportSnapshots(reviewees ?? [], evals ?? [], employeeId);
 
   return (
     <div className="min-w-0 space-y-6">
@@ -326,13 +361,22 @@ export default function ReportsPage() {
       <AttentionBand items={attentionItems} loading={analyticsLoading || reportsLoading} />
 
       {/* At a glance — clickable headline KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <TeamCard
           total={composition.total}
           active={composition.active}
           onboarding={composition.onboarding}
           offboarding={composition.offboarding}
           loading={reportsLoading}
+        />
+        <KpiCard
+          label="Avg. grade"
+          value={avgGrade != null ? `${avgGrade.toFixed(1)} / 5` : "—"}
+          icon={Star}
+          delta={avgDelta}
+          hint="Mean overall rating across the evaluations you've sent. The pill compares the latest month to the one before."
+          loading={analyticsLoading}
+          href="/supervisor/evaluations?status=sent"
         />
         <KpiCard
           label="Coverage"
@@ -352,20 +396,29 @@ export default function ReportsPage() {
           href="/supervisor/evaluations?status=sent"
         />
         <KpiCard
-          label="Acknowledged"
-          value={summary.acknowledged}
+          label="Acknowledgement rate"
+          value={ackRate != null ? `${ackRate}%` : "—"}
           icon={CheckCircle2}
-          hint="Sent evaluations a direct report has explicitly acknowledged receiving."
+          hint="Share of your sent evaluations a report has explicitly acknowledged. Auto-acknowledged evaluations are not counted."
           loading={analyticsLoading}
           href="/supervisor/evaluations?status=sent"
         />
       </div>
 
-      {/* Evaluation analytics */}
+      {/* The people behind the numbers — latest performance state per direct report */}
       <section>
         <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+          Team performance
+        </h2>
+        <ReportSnapshot snapshots={snapshots} loading={analyticsLoading || reportsLoading} />
+      </section>
+
+      {/* Evaluation analytics */}
+      <section className="space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
           Evaluation breakdown
         </h2>
+        <PerformanceTrend trend={trend} loading={analyticsLoading} />
         <EvaluationBreakdown
           summary={summary}
           isLoading={analyticsLoading}
@@ -374,13 +427,8 @@ export default function ReportsPage() {
         />
       </section>
 
-      {/* Pulse results the supervisor may view */}
-      <section>
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          Pulse results{resultsCount > 0 ? ` (${resultsCount})` : ""}
-        </h2>
-        <VisibleResultsList />
-      </section>
+      {/* Pulse results the supervisor may view — enriched with participation + sentiment */}
+      <PulseResultCards />
     </div>
   );
 }

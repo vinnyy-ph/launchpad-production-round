@@ -533,7 +533,7 @@ function OnboardingDetailInner() {
             {complete.isPending ? "Completing…" : "Mark complete"}
           </Button>
           {!allRequiredDocsApproved && documentConfigs.some((d) => d.isRequired) && (
-            <p className="text-[11px] text-[color:var(--text-tertiary)] sm:text-right">
+            <p className="text-[12px] text-[color:var(--text-tertiary)] sm:text-right">
               Approve all required documents first.
             </p>
           )}

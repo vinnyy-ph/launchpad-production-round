@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
-import "./google-sign-in-button.css";
+import { Button } from "@/shared/ui/primitives/button";
+import { cn } from "@/shared/lib/utils";
 
 function GoogleG() {
   return (
@@ -18,19 +19,22 @@ interface GoogleSignInButtonProps {
   className?: string;
 }
 
-/** White "Continue with Google" button (Jia secondary button) with a loading state. */
+/** "Continue with Google" — the shared Button (secondary / lg) with the Google mark and a
+ *  loading state. Built on the shared Button so it stays in lockstep with the design system. */
 export function GoogleSignInButton({ onClick, loading = false, className }: GoogleSignInButtonProps) {
   return (
-    <button
+    <Button
       type="button"
-      className={`sw-gbtn${className ? ` ${className}` : ""}`}
+      variant="secondary"
+      size="lg"
       onClick={onClick}
       disabled={loading}
       aria-busy={loading}
+      className={cn("w-full gap-2.5", className)}
     >
       {loading ? (
         <>
-          <Loader2 className="sw-spin" aria-hidden="true" />
+          <Loader2 className="animate-spin" aria-hidden="true" />
           Signing in…
         </>
       ) : (
@@ -39,6 +43,6 @@ export function GoogleSignInButton({ onClick, loading = false, className }: Goog
           Continue with Google
         </>
       )}
-    </button>
+    </Button>
   );
 }

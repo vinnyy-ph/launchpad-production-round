@@ -1,6 +1,6 @@
 "use client";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton } from "@/shared/ui";
 import { useAudienceOptions } from "../../hooks/use-audience-options";
 import type { ResultsFilter } from "../../types/surveys.types";
 
@@ -17,14 +17,15 @@ export function ResultsFilters({
   filter: ResultsFilter;
   onChange: (filter: ResultsFilter) => void;
 }) {
-  const { data } = useAudienceOptions();
+  const { data, isLoading } = useAudienceOptions();
   const teams = data?.teams ?? [];
   const supervisors = data?.supervisors ?? [];
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Team</span>
+    <div className="flex flex-wrap items-center gap-3">
+      {isLoading ? (
+        <Skeleton className="h-9 w-48" />
+      ) : (
         <Select
           value={filter.teamId ?? ALL}
           onValueChange={(v) => onChange(v === ALL ? {} : { teamId: v })}
@@ -41,10 +42,11 @@ export function ResultsFilters({
             ))}
           </SelectContent>
         </Select>
-      </div>
+      )}
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-[color:var(--text-tertiary)]">Supervisor</span>
+      {isLoading ? (
+        <Skeleton className="h-9 w-56" />
+      ) : (
         <Select
           value={filter.supervisorId ?? ALL}
           onValueChange={(v) => onChange(v === ALL ? {} : { supervisorId: v })}
@@ -61,16 +63,6 @@ export function ResultsFilters({
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      {(filter.teamId || filter.supervisorId) && (
-        <button
-          type="button"
-          onClick={() => onChange({})}
-          className="text-xs font-medium text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
-        >
-          Clear filter
-        </button>
       )}
     </div>
   );

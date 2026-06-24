@@ -21,7 +21,7 @@ export function ErrorState({
       role="alert"
     >
       <p className="text-sm font-bold text-[#B42318]">Something went wrong</p>
-      <p className="text-[12.5px] font-medium text-[#B42318]">{message}</p>
+      <p className="text-[12px] font-medium text-[#B42318]">{message}</p>
       {onRetry && (
         <Button variant="outline" size="sm" className="mt-2 self-start" onClick={onRetry}>
           <RefreshCw /> Try again
