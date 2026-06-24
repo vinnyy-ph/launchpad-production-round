@@ -34,9 +34,11 @@ const PH_COUNTRY = "Philippines";
 const LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
 const STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'’/&()-]+$/;
 
-const PROFILE_FIELD_MESSAGES: Partial<Record<keyof Draft | "contact", string>> = {
+const PROFILE_FIELD_MESSAGES: Record<string, string> = {
+  firstNameRequired: "First name is required.",
   firstName: "Please enter a valid first name using letters only.",
   middleName: "Please enter a valid middle name using letters only.",
+  lastNameRequired: "Last name is required.",
   lastName: "Please enter a valid last name using letters only.",
   personalEmail: "Please enter a valid personal email address.",
   address:
@@ -86,8 +88,8 @@ function validateProfileField(field: keyof Draft | "contact", value: string): st
   const trimmed = value.trim();
 
   if (field === "firstName") {
-    return !trimmed ||
-      !LETTERS_ONLY_RE.test(trimmed) ||
+    if (!trimmed) return PROFILE_FIELD_MESSAGES.firstNameRequired;
+    return !LETTERS_ONLY_RE.test(trimmed) ||
       validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.firstName
       : undefined;
@@ -102,8 +104,8 @@ function validateProfileField(field: keyof Draft | "contact", value: string): st
   }
 
   if (field === "lastName") {
-    return !trimmed ||
-      !LETTERS_ONLY_RE.test(trimmed) ||
+    if (!trimmed) return PROFILE_FIELD_MESSAGES.lastNameRequired;
+    return !LETTERS_ONLY_RE.test(trimmed) ||
       validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.lastName
       : undefined;

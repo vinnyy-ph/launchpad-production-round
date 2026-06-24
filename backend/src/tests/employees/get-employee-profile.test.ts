@@ -76,6 +76,20 @@ describe("GET /api/v1/employees/:employeeId - HR employee profile", () => {
           emergencyContactName: "Jamie Reed",
           emergencyContactNumber: "+1 555 0100",
         },
+        customFields: [
+          {
+            id: "custom-shirt-size",
+            fieldLabel: "Shirt size",
+            isRequired: true,
+            value: "Medium",
+          },
+          {
+            id: "custom-food-allergies",
+            fieldLabel: "Food allergies",
+            isRequired: false,
+            value: null,
+          },
+        ],
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-02T00:00:00.000Z",
         status: "active",

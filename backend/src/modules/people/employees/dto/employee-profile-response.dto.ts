@@ -27,6 +27,7 @@ export interface EmployeeProfileDto {
   birthday: Date | null;
   address: EmployeeAddressResponseDto | null;
   emergencyContact: EmployeeEmergencyContactResponseDto | null;
+  customFields: EmployeeCustomFieldResponseDto[];
   jobTitle: string | null;
   department: string | null;
   status: EmployeeStatusDto;
@@ -36,6 +37,13 @@ export interface EmployeeProfileDto {
   directReports: EmployeeDirectReportResponseDto[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface EmployeeCustomFieldResponseDto {
+  id: string;
+  fieldLabel: string;
+  isRequired: boolean;
+  value: string | null;
 }
 
 /**
