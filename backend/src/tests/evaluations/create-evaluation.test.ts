@@ -97,7 +97,47 @@ describe("POST /api/v1/evaluations", () => {
       .send({ ...VALID_BODY, periodStart: "2026-03-31", periodEnd: "2026-01-01" })
       .expect(400);
 
-    expect(response.body.errors[0].message).toBe("periodEnd must be on or after periodStart");
+    expect(response.body.errors[0].message).toBe("periodEnd must be after periodStart");
+    expect(evalCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when periodEnd equals periodStart (no same-day period)", async () => {
+    const response = await request(app)
+      .post("/api/v1/evaluations")
+      .send({ ...VALID_BODY, periodStart: "2026-01-01", periodEnd: "2026-01-01" })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toBe("periodEnd must be after periodStart");
+    expect(evalCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when periodEnd is in the future", async () => {
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 1);
+    const futureStr = future.toISOString().slice(0, 10);
+
+    const response = await request(app)
+      .post("/api/v1/evaluations")
+      .send({ ...VALID_BODY, periodEnd: futureStr })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toBe("periodEnd cannot be in the future");
+    expect(evalCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when periodStart is in the future", async () => {
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 1);
+    const futureStart = future.toISOString().slice(0, 10);
+    future.setDate(future.getDate() + 1);
+    const futureEnd = future.toISOString().slice(0, 10);
+
+    const response = await request(app)
+      .post("/api/v1/evaluations")
+      .send({ ...VALID_BODY, periodStart: futureStart, periodEnd: futureEnd })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toBe("periodStart cannot be in the future");
     expect(evalCreateMock).not.toHaveBeenCalled();
   });
 
