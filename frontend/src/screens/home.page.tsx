@@ -218,13 +218,13 @@ function AttentionBand({ items, loading }: { items: DashAttentionItem[]; loading
             href={item.href}
             className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[color:var(--bg-secondary)]"
           >
-            <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-[color:var(--bg-tertiary)] px-1.5 text-xs font-bold tabular-nums text-[color:var(--text-secondary)]">
-              {item.count}
-            </span>
             <span className="flex-1 text-sm text-[color:var(--text-primary)]">{item.label}</span>
+            <span className="hidden flex-shrink-0 text-xs font-semibold text-[color:var(--text-tertiary)] transition-colors group-hover:text-[color:var(--text-secondary)] sm:inline">
+              {item.cta}
+            </span>
             <ArrowUpRight
               size={15}
-              className="flex-shrink-0 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
+              className="flex-shrink-0 text-[color:var(--text-quaternary)] transition-transform group-hover:translate-x-0.5"
             />
           </Link>
         ))}
