@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { AlertCircle, ChevronDown, RotateCcw, LogOut, UserCog } from "lucide-react";
+import { AlertCircle, ChevronDown, Eye, FileText, RotateCcw, LogOut, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -35,7 +35,12 @@ import {
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
-import type { OffboardingDetail, SignatureRequest } from "@/modules/people/offboarding";
+import { DocumentViewerModal } from "@/modules/people/onboarding/components/documents/document-viewer-modal";
+import type {
+  OffboardingAttachment,
+  OffboardingDetail,
+  SignatureRequest,
+} from "@/modules/people/offboarding";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -131,6 +136,8 @@ function OffboardingDetailInner() {
   const { reset, resetting } = useResetClearance();
   const confirm = useConfirm();
   const [replaceTarget, setReplaceTarget] = useState<SignatureRequest | null>(null);
+  // The attachment currently shown in the document preview modal (null when closed).
+  const [previewAttachment, setPreviewAttachment] = useState<OffboardingAttachment | null>(null);
 
   // Topbar breadcrumb: Organization › People › Offboarding › {employee}.
   usePageBreadcrumb(offboarding ? [fullName(offboarding.employee)] : []);
@@ -257,6 +264,52 @@ function OffboardingDetailInner() {
         </div>
       </div>
 
+      {/* Attachments section (only when HR uploaded supporting documents) */}
+      {offboarding.attachments.length > 0 && (
+        <div
+          className="mb-6 rounded-xl border border-[color:var(--border-primary)] bg-white"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <div className="px-5 py-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+              Attachments
+            </p>
+          </div>
+          <Separator />
+          <ul className="divide-y divide-[color:var(--border-primary)]">
+            {offboarding.attachments.map((attachment) => (
+              <li
+                key={attachment.id}
+                className="flex items-center justify-between gap-3 px-5 py-4"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <FileText
+                    className="h-5 w-5 flex-shrink-0 text-[color:var(--text-tertiary)]"
+                    strokeWidth={1.7}
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="truncate text-sm font-medium text-[color:var(--text-primary)]"
+                    title={attachment.fileName}
+                  >
+                    {attachment.fileName}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-shrink-0"
+                  onClick={() => setPreviewAttachment(attachment)}
+                >
+                  <Eye className="h-4 w-4" />
+                  View
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Clearances section */}
       <div
         className="mb-6 rounded-xl border border-[color:var(--border-primary)] bg-white"
@@ -335,6 +388,13 @@ function OffboardingDetailInner() {
         request={replaceTarget}
         offboardeeId={employee.id}
         onClose={() => setReplaceTarget(null)}
+      />
+
+      <DocumentViewerModal
+        open={previewAttachment !== null}
+        onClose={() => setPreviewAttachment(null)}
+        fileUrl={previewAttachment?.url ?? null}
+        documentName={previewAttachment?.fileName}
       />
     </div>
   );
