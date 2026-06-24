@@ -13,41 +13,20 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-/** Join clauses naturally: "a", "a and b", "a, b and c". */
-function joinClauses(parts: string[]): string {
-  if (parts.length <= 1) return parts[0] ?? "";
-  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-}
-
 /** People count, e.g. "1 person" / "3 people". */
 function people(n: number): string {
   return n === 1 ? "1 person" : `${n} people`;
 }
 
 /**
- * A plain-language line of what's waiting, aggregated across every hat the user holds
- * (personal → team → org). Capped at three clauses so it never becomes a run-on.
+ * A friendly one-line hero summary. It reports HOW MANY things need attention without re-listing
+ * them — the actionable rows themselves live in the "Needs your attention" band below, so the hero
+ * stays a summary instead of duplicating the list. `itemCount` is the band's item count.
  */
-export function buildSummary(
-  role: string | undefined,
-  isSupervisor: boolean | undefined,
-  stats: DashboardStats | null,
-): string {
-  if (!stats) return "Here's your day at a glance.";
-
-  const clauses: string[] = [];
-  if (stats.unreadSurveys) clauses.push(`${plural(stats.unreadSurveys, "survey")} to answer`);
-  if (stats.pendingAcknowledgements) clauses.push(`${plural(stats.pendingAcknowledgements, "evaluation")} to acknowledge`);
-  if (isSupervisor && stats.pendingEvaluations) clauses.push(`${plural(stats.pendingEvaluations, "evaluation")} to finish`);
-  if (role === "HR" || role === "ADMIN") {
-    if (stats.pendingOnboarding) clauses.push(`${people(stats.pendingOnboarding)} onboarding`);
-    if (stats.pendingOffboarding) clauses.push(`${people(stats.pendingOffboarding)} offboarding`);
-    if (stats.pendingClearances) clauses.push(`${plural(stats.pendingClearances, "clearance")} to sign`);
-  }
-
-  if (clauses.length === 0) return "You're all caught up — nice work.";
-  if (clauses.length <= 3) return `You have ${joinClauses(clauses)}.`;
-  return `You have ${joinClauses(clauses.slice(0, 2))}, and ${clauses.length - 2} more things to review.`;
+export function buildSummary(itemCount: number, statsPresent: boolean): string {
+  if (!statsPresent) return "Here's your day at a glance.";
+  if (itemCount === 0) return "You're all caught up — nice work.";
+  return `You have ${itemCount} thing${itemCount === 1 ? "" : "s"} to review today.`;
 }
 
 /** A prioritized, clickable to-do surfaced in the attention band. `cta` is the hero button verb. */
@@ -143,7 +122,11 @@ export function buildGlanceCards(input: {
     }
     if (stats.totalEvaluations != null && stats.totalEvaluations > 0) {
       const completed = stats.completedEvaluations ?? 0;
-      cards.push({ id: "evals-complete", label: "Evals complete", value: `${completed}/${stats.totalEvaluations}`, progress: Math.round((completed / stats.totalEvaluations) * 100), href: "/supervisor/evaluations", hint: "Evaluations you've completed out of those expected this cycle." });
+      // A full-width bar over a 1/1 denominator reads like a divider, so only show the bar once
+      // the denominator is large enough for the proportion to carry meaning.
+      const progress =
+        stats.totalEvaluations > 1 ? Math.round((completed / stats.totalEvaluations) * 100) : undefined;
+      cards.push({ id: "evals-complete", label: "Evals complete", value: `${completed}/${stats.totalEvaluations}`, progress, href: "/supervisor/evaluations", hint: "Evaluations you've completed out of those expected this cycle." });
     }
   }
   // HR / Admin — the workforce headline.
