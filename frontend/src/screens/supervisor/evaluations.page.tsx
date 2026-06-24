@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { format, startOfMonth } from "date-fns";
 import {
     ClipboardCheck,
+    ClipboardList,
+    FilePen,
     Plus,
     Trash2,
     Send,
@@ -45,6 +47,7 @@ import {
 import {
     EmptyState,
     DataTable,
+    PageTabs,
     FormField,
     StatusBadge,
     FilterBar,
@@ -1824,66 +1827,16 @@ export default function EvaluationsPage() {
             {/* Status sub-tabs — double as the status filter, with a live count badge each. Hidden
           in the team scope, where every evaluation is sent so a status filter is moot. */}
             {scope !== "team" && (
-                <div
-                    role="tablist"
-                    aria-label="Filter by status"
-                    className="mb-5 flex items-center gap-6 overflow-x-auto overflow-y-hidden scrollbar-none border-b border-[color:var(--border-primary)]"
-                >
-                    {(
-                        [
-                            { value: "ALL", label: "All", count: evals.length },
-                            {
-                                value: "draft",
-                                label: "Drafts",
-                                count: draftCount,
-                            },
-                            { value: "sent", label: "Sent", count: sentCount },
-                        ] as {
-                            value: StatusFilter;
-                            label: string;
-                            count: number;
-                        }[]
-                    ).map((t) => {
-                        const active = statusFilter === t.value;
-                        return (
-                            <button
-                                key={t.value}
-                                type="button"
-                                role="tab"
-                                aria-selected={active}
-                                onClick={() => setStatusFilter(t.value)}
-                                className={[
-                                    "relative flex items-center gap-2 whitespace-nowrap rounded-sm px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                                    active
-                                        ? "text-[color:var(--text-primary)]"
-                                        : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
-                                ].join(" ")}
-                            >
-                                {t.label}
-                                <span
-                                    className={[
-                                        "inline-flex min-w-[20px] items-center justify-center rounded-full border bg-[color:var(--bg-tertiary)] px-1.5 py-0.5 text-xs font-semibold tabular-nums",
-                                        active
-                                            ? "border-[color:var(--border-primary)] text-[color:var(--text-secondary)]"
-                                            : "border-transparent text-[color:var(--text-tertiary)]",
-                                    ].join(" ")}
-                                >
-                                    {isLoading ? "–" : t.count}
-                                </span>
-                                {/* Gradient underline — the sole active indicator. Sits over the container border. */}
-                                {active && (
-                                    <span
-                                        aria-hidden="true"
-                                        className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
-                                        style={{
-                                            background: "var(--gradient-jia)",
-                                        }}
-                                    />
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
+                <PageTabs
+                    ariaLabel="Filter by status"
+                    value={statusFilter}
+                    onChange={(v) => setStatusFilter(v as StatusFilter)}
+                    items={[
+                        { value: "ALL", label: "All", count: isLoading ? undefined : evals.length, icon: ClipboardList },
+                        { value: "draft", label: "Drafts", count: isLoading ? undefined : draftCount, icon: FilePen },
+                        { value: "sent", label: "Sent", count: isLoading ? undefined : sentCount, icon: Send },
+                    ]}
+                />
             )}
 
             <FilterBar aria-label="Filter evaluations" className="gap-3">
