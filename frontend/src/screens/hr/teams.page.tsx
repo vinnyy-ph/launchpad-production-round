@@ -144,7 +144,7 @@ export default function TeamsPage() {
     },
     {
       header: "Members",
-      className: "min-w-[150px] text-center",
+      className: "min-w-[150px] text-right tabular-nums",
       sortable: true,
       sortKey: "members",
       cell: (team) => (

@@ -91,7 +91,7 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
     "max-w-[110px] truncate rounded-full border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]";
 
   return (
-    <div className="inline-flex max-w-[260px] flex-wrap items-center justify-center gap-1.5">
+    <div className="inline-flex max-w-[260px] flex-wrap items-center justify-start gap-1.5">
       {visibleTeams.map((team) => (
         <Badge key={team.id} variant="outline" pill className={teamBadgeClassName}>
           {team.name}
@@ -276,7 +276,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Job Title",
-      className: "min-w-[160px] text-center",
+      className: "min-w-[160px]",
       sortable: true,
       sortKey: "jobTitle",
       cell: (employee) => (
@@ -287,7 +287,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Department",
-      className: "min-w-[150px] text-center",
+      className: "min-w-[150px]",
       sortable: true,
       sortKey: "department",
       cell: (employee) => (
@@ -298,7 +298,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Supervisor",
-      className: "min-w-[170px] text-center",
+      className: "min-w-[170px]",
       sortable: true,
       sortKey: "supervisor",
       cell: (employee) => (
@@ -309,14 +309,14 @@ export default function DirectoryPage() {
     },
     {
       header: "Team/s",
-      className: "min-w-[190px] text-center",
+      className: "min-w-[190px]",
       sortable: true,
       sortKey: "teams",
       cell: (employee) => <TeamsCell teams={employee.teams} />,
     },
     {
       header: "Status",
-      className: "min-w-[120px] text-center",
+      className: "min-w-[120px]",
       sortable: true,
       sortKey: "status",
       cell: (employee) => <StatusBadge status={employee.status} />,

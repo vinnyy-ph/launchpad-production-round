@@ -301,19 +301,19 @@ export default function HRSurveysPage() {
     {
       header: "Type",
       mobileLabel: "Type",
-      className: "min-w-[130px] text-center whitespace-nowrap",
+      className: "min-w-[130px] whitespace-nowrap",
       cell: (s) => <AnonymityChip anonymous={s.isAnonymous} />,
     },
     {
       header: "Responses",
       mobileLabel: "Responses",
-      className: "min-w-[150px] text-center whitespace-nowrap",
+      className: "min-w-[150px] text-right tabular-nums whitespace-nowrap",
       cell: (s) => <ResponsesCell s={s} />,
     },
     {
       header: "Status",
       mobileLabel: "Status",
-      className: "min-w-[120px] text-center whitespace-nowrap",
+      className: "min-w-[120px] whitespace-nowrap",
       cell: (s) => <StatusChip status={deriveStatus(s)} />,
     },
     {

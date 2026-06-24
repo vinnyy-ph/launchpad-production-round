@@ -140,7 +140,7 @@ export default function HrEvaluationsPage() {
     },
     {
       header: "Period",
-      className: "min-w-[150px] text-center whitespace-nowrap",
+      className: "min-w-[150px] whitespace-nowrap",
       sortable: true,
       sortKey: "period",
       cell: (ev) => (
@@ -151,7 +151,7 @@ export default function HrEvaluationsPage() {
     },
     {
       header: "Grade",
-      className: "min-w-[140px] text-center whitespace-nowrap",
+      className: "min-w-[140px] text-right tabular-nums whitespace-nowrap",
       sortable: true,
       sortKey: "grade",
       cell: (ev) => (
@@ -166,7 +166,7 @@ export default function HrEvaluationsPage() {
     {
       header: "Acknowledgement",
       mobileLabel: "Acknowledgement",
-      className: "min-w-[150px] text-center",
+      className: "min-w-[150px]",
       cell: (ev) => {
         const ack = ackInfo(ev);
         return <StatusBadge status={ack.status} tone={ack.tone} />;
@@ -175,7 +175,7 @@ export default function HrEvaluationsPage() {
     {
       header: "Acknowledgement due",
       mobileLabel: "Acknowledgement due",
-      className: "min-w-[160px] text-center whitespace-nowrap",
+      className: "min-w-[160px] whitespace-nowrap",
       sortable: true,
       sortKey: "due",
       cell: (ev) =>

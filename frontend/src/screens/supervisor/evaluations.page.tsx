@@ -1690,7 +1690,7 @@ export default function EvaluationsPage() {
             : []),
         {
             header: "Period",
-            className: "min-w-[150px] text-center whitespace-nowrap",
+            className: "min-w-[150px] whitespace-nowrap",
             sortable: true,
             sortKey: "period",
             cell: (ev) => (
@@ -1701,7 +1701,7 @@ export default function EvaluationsPage() {
         },
         {
             header: "Grade",
-            className: "min-w-[140px] text-center whitespace-nowrap",
+            className: "min-w-[140px] text-right tabular-nums whitespace-nowrap",
             sortable: true,
             sortKey: "grade",
             cell: (ev) => (
@@ -1719,7 +1719,7 @@ export default function EvaluationsPage() {
         {
             header: "Status",
             mobileLabel: "Status",
-            className: "min-w-[110px] text-center",
+            className: "min-w-[110px]",
             sortable: true,
             sortKey: "status",
             cell: (ev) => (
@@ -1729,7 +1729,7 @@ export default function EvaluationsPage() {
         {
             header: "Acknowledgement",
             mobileLabel: "Acknowledgement",
-            className: "min-w-[150px] text-center",
+            className: "min-w-[150px]",
             cell: (ev) => {
                 const ack = ackInfo(ev);
                 if (!ack)
@@ -1744,7 +1744,7 @@ export default function EvaluationsPage() {
         {
             header: "Acknowledgement due",
             mobileLabel: "Acknowledgement due",
-            className: "min-w-[160px] text-center whitespace-nowrap",
+            className: "min-w-[160px] whitespace-nowrap",
             sortable: true,
             sortKey: "due",
             cell: (ev) => {
