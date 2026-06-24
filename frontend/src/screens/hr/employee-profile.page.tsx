@@ -18,6 +18,7 @@ import {
   EmptyState,
 } from "@/shared/ui";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useUpdateEmployee } from "@/modules/people/employees/hooks/use-update-employee";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
@@ -331,7 +332,7 @@ export default function EmployeeProfilePage() {
 
   const supervisorOptions = employees
     .filter((e) => e.id !== profile.id)
-    .map((e) => ({ value: e.id, label: `${e.fullName} · ${e.jobTitle ?? "—"}` }));
+    .map(toEmployeeOption);
 
   const initials = getInitials(profile.fullName);
 

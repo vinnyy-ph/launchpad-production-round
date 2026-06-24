@@ -20,10 +20,16 @@ import {
   DialogTitle,
   FormField,
   Input,
+  UserAvatar,
 } from "@/shared/ui";
 import { ApiError } from "@/shared/lib/api-client";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useCreateTeam } from "../hooks/use-create-team";
+import {
+  EMPLOYEE_AVATAR_FALLBACK_STYLE,
+  employeeInitials,
+  toEmployeeOption,
+} from "@/modules/people/employees/employee-options";
 import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
 
 const TEAM_NAME_INVALID_MESSAGE =
@@ -60,14 +66,7 @@ export function CreateTeamDialog({
   const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
-  const leaderOptions = useMemo(
-    () =>
-      employees.map((e) => ({
-        value: e.id,
-        label: e.jobTitle ? `${e.fullName} · ${e.jobTitle}` : e.fullName,
-      })),
-    [employees],
-  );
+  const leaderOptions = useMemo(() => employees.map(toEmployeeOption), [employees]);
 
   const leader = useMemo(
     () => employees.find((e) => e.id === leaderId) ?? null,
@@ -201,6 +200,7 @@ export function CreateTeamDialog({
             />
           </FormField>
 
+          {leaderId ? (
           <FormField
             label="Members"
             hint={
@@ -227,6 +227,13 @@ export function CreateTeamDialog({
                           tabIndex={-1}
                           className="pointer-events-none"
                         />
+                        <UserAvatar
+                          src={e.avatarUrl}
+                          fallback={employeeInitials(e.fullName)}
+                          className="h-7 w-7 shrink-0"
+                          fallbackClassName="text-[11px] font-semibold text-[color:var(--text-primary)]"
+                          fallbackStyle={EMPLOYEE_AVATAR_FALLBACK_STYLE}
+                        />
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">
                             {e.fullName}
@@ -243,6 +250,13 @@ export function CreateTeamDialog({
               </CommandList>
             </Command>
           </FormField>
+          ) : (
+            <FormField label="Members">
+              <p className="text-xs text-[color:var(--text-tertiary)]">
+                Select a team leader first to add members.
+              </p>
+            </FormField>
+          )}
         </div>
 
         <DialogFooter>

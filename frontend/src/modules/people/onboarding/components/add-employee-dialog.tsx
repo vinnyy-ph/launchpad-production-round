@@ -25,6 +25,7 @@ import {
 } from "@/shared/ui";
 import { isValidPhilippinePhone } from "@/shared/lib/phone";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useOnboardEmployee } from "../hooks/use-onboard-employee";
@@ -166,10 +167,7 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   // exempt — mirrors the same-department rule). Options are scoped to the chosen department.
   const supervisorOptions = activeEmployees
     .filter((employee) => !employee.department || employee.department === department)
-    .map((employee) => ({
-      value: employee.id,
-      label: `${employee.fullName} · ${employee.companyEmail}`,
-    }));
+    .map(toEmployeeOption);
 
   const requiredDocsNote =
     requiredDocuments.length > 0

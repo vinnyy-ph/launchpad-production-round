@@ -24,6 +24,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { useOffboardings } from "../hooks/use-offboarding";
 import { useCreateOffboarding } from "../hooks/use-create-offboarding";
 import { useClearanceTemplateOptions } from "../hooks/use-clearance-templates";
@@ -275,10 +276,7 @@ export function InitiateOffboardingDialog({
     [employees, offboardingIds],
   );
 
-  const empOptions = selectableEmployees.map((e) => ({
-    value: e.id,
-    label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}`,
-  }));
+  const empOptions = selectableEmployees.map(toEmployeeOption);
 
   // Reassignment targets must share the offboardee's department (a null department on either
   // side is exempt — mirrors the backend rule). The backend remains authoritative and rejects a
@@ -290,7 +288,7 @@ export function InitiateOffboardingDialog({
         e.id !== empId &&
         (!e.department || !offboardeeDepartment || e.department === offboardeeDepartment),
     )
-    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+    .map(toEmployeeOption);
 
   async function handleSubmit() {
     const next: typeof errors = {};

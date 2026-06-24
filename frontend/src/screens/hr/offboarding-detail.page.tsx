@@ -34,6 +34,7 @@ import {
 } from "@/modules/people/offboarding";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import type { OffboardingDetail, SignatureRequest } from "@/modules/people/offboarding";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -363,7 +364,7 @@ function ReplaceSignatoryDialog({
 
   const options = employees
     .filter((e) => e.id !== offboardeeId && e.id !== request?.signatory.id)
-    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+    .map(toEmployeeOption);
 
   async function handleReplace() {
     if (!request || !newSignatoryId) return;
@@ -448,7 +449,7 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
         e.id !== offboarding.employee.id &&
         (!e.department || !offboardeeDepartment || e.department === offboardeeDepartment),
     )
-    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+    .map(toEmployeeOption);
 
   async function handleReassign() {
     if (!newSupervisorId) return;

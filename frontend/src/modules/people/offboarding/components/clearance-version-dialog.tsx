@@ -17,6 +17,7 @@ import {
   Textarea,
 } from "@/shared/ui";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import type {
   ClearanceSignatoryInput,
@@ -114,10 +115,7 @@ export function ClearanceVersionDialog({
     setRowErrors({});
   }, [open, template]);
 
-  const employeeOptions = employees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.fullName}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
-  }));
+  const employeeOptions = employees.map(toEmployeeOption);
 
   function updateRow(key: string, patch: Partial<ClearanceSignatoryInput>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));

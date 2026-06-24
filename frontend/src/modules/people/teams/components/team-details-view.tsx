@@ -30,6 +30,10 @@ import {
 import { EmptyState, ErrorState } from "@/shared/ui/patterns";
 import { RedactedProfileSheet } from "@/modules/people/employees/components/redacted-profile-sheet";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import {
+  EMPLOYEE_AVATAR_FALLBACK_STYLE,
+  employeeInitials,
+} from "@/modules/people/employees/employee-options";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useTeamMutations } from "../hooks/use-team-mutations";
 import type { Team, TeamEmployee } from "../types/teams.types";
@@ -110,24 +114,28 @@ function AddMembersDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { employees, loading } = useAllEmployees({ status: "active" });
+  // Fetch the full directory (all statuses) so the leader is always resolvable; candidates are
+  // narrowed to active employees below.
+  const { employees, loading } = useAllEmployees();
   const { addMembers, addingMembers } = useTeamMutations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // The team leader's department (resolved from the directory, since the team DTO omits it).
-  // Members must share it; a null department on either side is exempt — mirrors the backend rule.
   const leaderDepartment = useMemo(
     () => employees.find((employee) => employee.id === team.leader.id)?.department ?? null,
     [employees, team.leader.id],
   );
 
+  // Only active employees who are not already on the team AND belong to the leader's department
+  // may be added — matching the same-department rule enforced on the backend.
   const addableEmployees = useMemo(() => {
     const present = new Set(team.members.map((member) => member.id));
     present.add(team.leader.id);
     return employees.filter(
       (employee) =>
+        employee.status === "active" &&
         !present.has(employee.id) &&
-        (!employee.department || !leaderDepartment || employee.department === leaderDepartment),
+        employee.department === leaderDepartment,
     );
   }, [team, employees, leaderDepartment]);
 
@@ -192,6 +200,13 @@ function AddMembersDialog({
                       aria-hidden="true"
                       tabIndex={-1}
                       className="pointer-events-none"
+                    />
+                    <UserAvatar
+                      src={employee.avatarUrl}
+                      fallback={employeeInitials(employee.fullName)}
+                      className="h-7 w-7 shrink-0"
+                      fallbackClassName="text-[11px] font-semibold text-[color:var(--text-primary)]"
+                      fallbackStyle={EMPLOYEE_AVATAR_FALLBACK_STYLE}
                     />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium text-[color:var(--text-primary)]">

@@ -225,18 +225,19 @@ export default function RosterPage() {
       },
       {
           header: "Team/s",
-          className: "min-w-[200px] text-start",
+          className: "min-w-[150px] text-center",
           cell: (row) => (
               <span className="text-sm text-[color:var(--text-secondary)]">
                   {row.teams.length
                       ? row.teams.map((t) => t.name).join(", ")
-                      : "—"}
+                      : "No teams assigned"}
               </span>
           ),
       },
       {
           header: "Status",
           mobileLabel: "Status",
+          className: "min-w-[100px] text-center",
           sortable: true,
           sortKey: "status",
           cell: (row) => <StatusBadge status={row.status} dot />,

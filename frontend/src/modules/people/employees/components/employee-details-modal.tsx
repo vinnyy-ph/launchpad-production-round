@@ -45,6 +45,7 @@ import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
 import { useEmployeeDocuments } from "../hooks/use-employee-documents";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
 import { useAllEmployees } from "../hooks/use-employees";
+import { toEmployeeOption } from "../employee-options";
 import { useUpdateEmployee } from "../hooks/use-update-employee";
 import type {
   EmployeeListItem,
@@ -547,7 +548,7 @@ export function EmployeeDetailsModal({
       allEmployees
         .filter((emp) => emp.id !== employeeId)
         .filter((emp) => (emp.department ?? "") === draft.department || emp.supervisor === null)
-        .map((emp) => ({ value: emp.id, label: emp.fullName })),
+        .map(toEmployeeOption),
     [allEmployees, employeeId, draft.department],
   );
 
@@ -719,12 +720,16 @@ export function EmployeeDetailsModal({
                   <h2 className="mt-4 truncate text-sm font-bold text-[color:var(--text-primary)]">
                     {fullName(profile)}
                   </h2>
-                  <p className="mt-1 truncate text-xs text-[color:var(--text-tertiary)]">
+                  <p className="mt-1 truncate text-xs text-[color:var(--text-secondary)]">
                     {displayValue(profile.jobTitle)}
                   </p>
-                  <p className="mt-1 truncate text-xs text-[color:var(--text-tertiary)]">
-                    {displayValue(profile.department)}
-                  </p>
+                  {profile.department ? (
+                    <div className="mt-2 flex justify-center">
+                      <span className="inline-flex max-w-full items-center truncate rounded-full border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-2.5 py-0.5 text-[11px] font-medium text-[color:var(--text-secondary)]">
+                        {profile.department}
+                      </span>
+                    </div>
+                  ) : null}
                   <div className="mt-3 flex justify-center">
                     <StatusBadge status={profile.status} />
                   </div>

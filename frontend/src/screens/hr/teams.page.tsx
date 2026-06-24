@@ -27,6 +27,7 @@ import { OrgChartTree } from "@/modules/people/employees/components/org-chart/or
 import { OrgChartCanvas } from "@/modules/people/employees/components/org-chart/org-chart-canvas";
 import { EmployeeProfileSheet } from "@/modules/people/employees/components/employee-profile-sheet";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { employeeInitials } from "@/modules/people/employees/employee-options";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
@@ -82,11 +83,16 @@ export default function TeamsPage() {
 
   // Distinct team leaders, for the leader filter dropdown.
   const leaderOptions = useMemo(() => {
-    const byId = new Map<string, string>();
-    teams.forEach((team) => byId.set(team.leader.id, team.leader.fullName));
-    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) =>
-      a.name.localeCompare(b.name),
+    const byId = new Map<string, { name: string; avatarUrl: string | null }>();
+    teams.forEach((team) =>
+      byId.set(team.leader.id, { name: team.leader.fullName, avatarUrl: team.leader.avatarUrl }),
     );
+    return Array.from(byId, ([id, leader]) => ({
+      id,
+      name: leader.name,
+      avatarUrl: leader.avatarUrl,
+      avatarFallback: employeeInitials(leader.name),
+    })).sort((a, b) => a.name.localeCompare(b.name));
   }, [teams]);
 
   // Filter by search (team or leader name) and selected leaders, then sort client-side

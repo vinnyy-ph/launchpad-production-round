@@ -27,6 +27,7 @@ import {
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
 import { useAllEmployees, useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { employeeInitials } from "@/modules/people/employees/employee-options";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
@@ -234,6 +235,8 @@ export default function DirectoryPage() {
             options: supervisorOptions.map((employee) => ({
               id: employee.id,
               name: employee.fullName,
+              avatarUrl: employee.avatarUrl,
+              avatarFallback: employeeInitials(employee.fullName),
             })),
             selected: supervisorIds,
             onChange: (next) => {
