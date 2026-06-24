@@ -81,7 +81,7 @@ export function buildSubmissionRecord(overrides: Record<string, unknown> = {}) {
     id: SUBMISSION_ID,
     recordId: RECORD_ID,
     documentId: DOCUMENT_ID,
-    fileUrl: "https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.pdf",
+    fileUrl: "https://res.cloudinary.com/demo/raw/upload/v1710000000/onboarding/maria-santos/nbi-clearance.pdf",
     status: "APPROVED",
     rejectionNote: null,
     reviewerId: HR_USER_ID,

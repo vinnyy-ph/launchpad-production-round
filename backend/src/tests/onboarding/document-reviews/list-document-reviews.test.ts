@@ -14,6 +14,13 @@ jest.mock("../../../core/middleware/auth.middleware", () => ({
   },
 }));
 
+jest.mock("../../../core/cloudinary", () => ({
+  CloudinaryService: jest.fn().mockImplementation(() => ({
+    resolveOnboardingDocumentViewUrl: (stored: string) =>
+      `https://signed.example.test/${encodeURIComponent(stored)}`,
+  })),
+}));
+
 jest.mock("../../../core/database/prisma.service", () => ({
   prisma: {
     employee: { findUnique: jest.fn() },

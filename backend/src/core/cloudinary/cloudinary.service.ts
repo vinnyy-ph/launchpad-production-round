@@ -2,11 +2,11 @@ import { v2 as cloudinary } from "cloudinary";
 import {
   formatOnboardingDocumentStorageKey,
   isLegacyOnboardingDocumentUrl,
+  parseLegacyCloudinaryDocumentUrl,
   parseOnboardingDocumentStorageKey,
 } from "./onboarding-document-storage";
 
-/** Lifetime of signed document URLs, in seconds (10 minutes). */
-const SIGNED_DOCUMENT_URL_TTL_SECONDS = 10 * 60;
+const DOCUMENT_LINK_TTL_SECONDS = 10 * 60;
 
 /**
  * Uploads onboarding documents to Cloudinary using server-side credentials.
@@ -72,24 +72,37 @@ export class CloudinaryService {
 
   /**
    * Mints a short-lived signed view URL for an onboarding submission.
-   * Legacy rows that still store a public HTTPS URL are returned unchanged.
+   * Legacy Cloudinary URLs are parsed and re-signed instead of returned as-is.
    */
   resolveOnboardingDocumentViewUrl(storedValue: string): string {
     if (isLegacyOnboardingDocumentUrl(storedValue)) {
-      return storedValue;
-    }
+      const legacyDocument = parseLegacyCloudinaryDocumentUrl(storedValue);
+      if (!legacyDocument) {
+        throw new Error("Legacy public document URL cannot be signed");
+      }
 
-    this.ensureConfigured();
+      return this.getExpiringDocumentDownloadUrl(
+        legacyDocument.publicId,
+        legacyDocument.resourceType,
+      );
+    }
 
     const { publicId, resourceType } =
       parseOnboardingDocumentStorageKey(storedValue);
 
-    return cloudinary.url(publicId, {
+    return this.getExpiringDocumentDownloadUrl(publicId, resourceType);
+  }
+
+  private getExpiringDocumentDownloadUrl(
+    publicId: string,
+    resourceType: string,
+  ): string {
+    this.ensureConfigured();
+
+    return cloudinary.utils.private_download_url(publicId, "", {
       resource_type: resourceType,
       type: "authenticated",
-      sign_url: true,
-      secure: true,
-      expires_at: Math.floor(Date.now() / 1000) + SIGNED_DOCUMENT_URL_TTL_SECONDS,
+      expires_at: this.buildDocumentLinkExpiry(),
     });
   }
 
@@ -134,7 +147,11 @@ export class CloudinaryService {
     return cloudinary.utils.private_download_url(publicId, "", {
       resource_type: "raw",
       type: "authenticated",
-      expires_at: Math.floor(Date.now() / 1000) + SIGNED_DOCUMENT_URL_TTL_SECONDS,
+      expires_at: this.buildDocumentLinkExpiry(),
     });
+  }
+
+  private buildDocumentLinkExpiry(): number {
+    return Math.floor(Date.now() / 1000) + DOCUMENT_LINK_TTL_SECONDS;
   }
 }
