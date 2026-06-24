@@ -270,7 +270,7 @@ export function ClearanceVersionDialog({
               </Button>
             </div>
             {errors.signatories ? (
-              <p className="mb-2 text-xs text-[#B42318]">{errors.signatories}</p>
+              <p className="mb-2 text-xs text-[color:var(--color-error-700)]">{errors.signatories}</p>
             ) : null}
 
             <ol className="space-y-3">
@@ -283,15 +283,16 @@ export function ClearanceVersionDialog({
                     <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
                       Signatory {index + 1}
                     </span>
-                    <button
+                    <Button
                       type="button"
+                      variant="destructive-ghost"
+                      size="icon-sm"
                       onClick={() => removeRow(row.key)}
                       disabled={rows.length === 1}
                       aria-label={`Remove signatory ${index + 1}`}
-                      className="text-[color:var(--text-tertiary)] hover:text-[#B42318] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      <Trash2 />
+                    </Button>
                   </div>
                   <div className="space-y-3">
                     <FormField label="Employee" error={rowErrors[row.key]?.employeeId}>

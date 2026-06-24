@@ -210,8 +210,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
         id: toastId,
         position: "top-center",
         classNames: {
-          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
-          title: "!text-[#7A271A]",
+          toast: "employee-unsaved-toast-shake !border-[color:var(--color-error-700)] !bg-[color:var(--color-error-50)] !text-[color:var(--color-error-900)]",
+          title: "!text-[color:var(--color-error-900)]",
         },
       });
     });

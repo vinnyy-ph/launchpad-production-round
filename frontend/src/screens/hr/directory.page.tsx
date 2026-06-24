@@ -1,7 +1,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Users } from "lucide-react";
+import { FileSpreadsheet, Plus, Users, UserRoundPlus, UserRoundMinus } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -105,7 +105,7 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex rounded-full"
                 aria-label={`${overflowCount} more teams`}
                 onClick={(event) => event.stopPropagation()}
               >
@@ -280,7 +280,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Job Title",
-      className: "min-w-[160px] text-center",
+      className: "min-w-[160px]",
       sortable: true,
       sortKey: "jobTitle",
       cell: (employee) => (
@@ -291,7 +291,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Department",
-      className: "min-w-[150px] text-center",
+      className: "min-w-[150px]",
       sortable: true,
       sortKey: "department",
       cell: (employee) => (
@@ -302,7 +302,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Supervisor",
-      className: "min-w-[170px] text-center",
+      className: "min-w-[170px]",
       sortable: true,
       sortKey: "supervisor",
       cell: (employee) => (
@@ -313,14 +313,14 @@ export default function DirectoryPage() {
     },
     {
       header: "Team/s",
-      className: "min-w-[190px] text-center",
+      className: "min-w-[190px]",
       sortable: true,
       sortKey: "teams",
       cell: (employee) => <TeamsCell teams={employee.teams} />,
     },
     {
       header: "Status",
-      className: "min-w-[120px] text-center",
+      className: "min-w-[120px]",
       sortable: true,
       sortKey: "status",
       cell: (employee) => <StatusBadge status={employee.status} />,
@@ -367,9 +367,9 @@ export default function DirectoryPage() {
           setPage(1);
         }}
         items={[
-          { value: "all", label: "All", count: counts.all },
-          { value: "onboarding", label: "Onboarding", count: counts.onboarding },
-          { value: "offboarding", label: "Offboarding", count: counts.offboarding },
+          { value: "all", label: "All", count: counts.all, icon: Users },
+          { value: "onboarding", label: "Onboarding", count: counts.onboarding, icon: UserRoundPlus },
+          { value: "offboarding", label: "Offboarding", count: counts.offboarding, icon: UserRoundMinus },
         ]}
       />
 

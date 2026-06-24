@@ -113,7 +113,7 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string }[] = [
 const GENERIC_SAVE_ERROR =
   "We couldn't save these changes. Please review the highlighted fields and try again.";
 const DISABLED_FIELD_INPUT =
-  "bg-[#FAFAFA] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
+  "bg-[color:var(--gray-neutral-50)] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
 const DISABLED_FIELD_ICON =
   "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]";
 
@@ -309,7 +309,7 @@ function sidebarActionStyles(status: EmployeeStatus): string {
     return "border-[#B2DDFF] bg-[#EFF8FF] text-[#175CD3] hover:bg-[#D1E9FF]";
   }
 
-  return "border-[#FECDCA] bg-white text-[#B42318] hover:bg-[#FEF3F2]";
+  return "border-[color:var(--color-error-200)] bg-white text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]";
 }
 
 function blankDraft(): EditDraft {
@@ -381,9 +381,17 @@ function formatActivityDate(timestamp: string): string {
 }
 
 const DOCUMENT_STATUS_STYLES: Record<EmployeeDocumentStatus, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]" },
-  approved: { label: "Approved", className: "bg-[#ECFDF3] text-[#027A48] border-[#6CE9A6]" },
-  rejected: { label: "Rejected", className: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]" },
+  pending: {
+    label: "Pending",
+    className:
+      "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]",
+  },
+  approved: { label: "Approved", className: "bg-[color:var(--color-success-50)] text-[#027A48] border-[#6CE9A6]" },
+  rejected: {
+    label: "Rejected",
+    className:
+      "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]",
+  },
 };
 
 /** Detects whether a stored document URL points to an image (vs a PDF/other file). */
@@ -467,7 +475,7 @@ function EditableField({
         maxLength={maxLength}
         className="min-w-0 truncate"
       />
-      {error ? <span className="mt-1 block text-xs text-[#D92D20]">{error}</span> : null}
+      {error ? <span className="mt-1 block text-xs text-[color:var(--color-error-600)]">{error}</span> : null}
     </label>
   );
 }
@@ -523,7 +531,7 @@ function TeamPill({ team, className }: { team: EmployeeTeam; className: string }
   return (
     <Link
       href={`/hr/teams/${team.id}`}
-      className={`inline-flex max-w-[160px] items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}
+      className={`inline-flex max-w-[160px] items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-3 text-sm font-semibold transition-colors ${className}`}
     >
       <UserAvatar
         fallback={(team.name.trim()[0] ?? "?").toUpperCase()}
@@ -678,8 +686,8 @@ export function EmployeeDetailsModal({
         id: toastId,
         position: "top-center",
         classNames: {
-          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
-          title: "!text-[#7A271A]",
+          toast: "employee-unsaved-toast-shake !border-[color:var(--color-error-700)] !bg-[color:var(--color-error-50)] !text-[color:var(--color-error-900)]",
+          title: "!text-[color:var(--color-error-900)]",
         },
       });
     });
@@ -1223,7 +1231,7 @@ export function EmployeeDetailsModal({
                                                                       />
                                                                       {contactNumberError ||
                                                                       fieldErrors.emergencyContactNumber ? (
-                                                                          <span className="mt-1 block text-xs text-[#D92D20]">
+                                                                          <span className="mt-1 block text-xs text-[color:var(--color-error-600)]">
                                                                               {contactNumberError ??
                                                                                   fieldErrors.emergencyContactNumber}
                                                                           </span>

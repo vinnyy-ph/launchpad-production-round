@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Users, Filter, ArrowUpDown } from "lucide-react";
+import { Users, Filter, ArrowUpDown, List, Network } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import type {
@@ -235,7 +235,7 @@ export default function RosterPage() {
       },
       {
           header: "Team/s",
-          className: "min-w-[150px] text-center",
+          className: "min-w-[150px]",
           cell: (row) => (
               <span className="text-sm text-[color:var(--text-secondary)]">
                   {row.teams.length
@@ -247,7 +247,7 @@ export default function RosterPage() {
       {
           header: "Status",
           mobileLabel: "Status",
-          className: "min-w-[100px] text-center",
+          className: "min-w-[100px]",
           sortable: true,
           sortKey: "status",
           cell: (row) => <StatusBadge status={row.status} dot />,
@@ -263,8 +263,8 @@ export default function RosterPage() {
         value={activeTab}
         onChange={setActiveTab}
         items={[
-          { value: "list", label: "List" },
-          { value: "org-chart", label: "Org Chart" },
+          { value: "list", label: "List", icon: List },
+          { value: "org-chart", label: "Org Chart", icon: Network },
         ]}
       />
 

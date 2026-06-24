@@ -471,7 +471,7 @@ export function InitiateOffboardingDialog({
                           ) : (
                             <div className="flex flex-col items-center gap-0.5 text-[color:var(--text-tertiary)]">
                               <FileText className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
-                              <span className="rounded-sm bg-[#F04438] px-1 py-0.5 text-[9px] font-bold leading-none text-white">
+                              <span className="rounded-sm bg-[color:var(--color-error-500)] px-1 py-0.5 text-[9px] font-bold leading-none text-white">
                                 {fileExtension(file.name)}
                               </span>
                             </div>
@@ -543,7 +543,7 @@ export function InitiateOffboardingDialog({
                       {selectedEmployeeProfile?.directReports?.map((report) => (
                         <li
                           key={report.id}
-                          className="flex items-center gap-3 rounded-lg border border-[#FEDF89] bg-white px-3 py-2"
+                          className="flex items-center gap-3 rounded-lg border border-[color:var(--color-warning-200)] bg-white px-3 py-2"
                         >
                           <UserAvatar
                             src={null}
@@ -590,7 +590,7 @@ export function InitiateOffboardingDialog({
                         {selectedEmployeeProfile?.ledTeams.map((team) => (
                           <span
                             key={team.id}
-                            className="max-w-[160px] truncate rounded-full border border-[#ABEFC6] bg-[#ECFDF3] px-2.5 py-0.5 text-xs font-semibold text-[#067647]"
+                            className="max-w-[160px] truncate rounded-full border border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] px-2.5 py-0.5 text-xs font-semibold text-[color:var(--color-success-700)]"
                           >
                             {team.name}
                           </span>
