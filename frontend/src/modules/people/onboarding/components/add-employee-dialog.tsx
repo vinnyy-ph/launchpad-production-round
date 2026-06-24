@@ -26,6 +26,7 @@ import {
 import { isValidPhilippinePhone } from "@/shared/lib/phone";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useOnboardEmployee } from "../hooks/use-onboard-employee";
 import { useDocumentConfigs } from "../hooks/use-document-configs";
 import { sendInvitation } from "../services/onboarding.service";
@@ -38,9 +39,26 @@ interface AddEmployeeDialogProps {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
+const JOB_TITLE_RE = /^[A-Za-z0-9\s.,'’/&()-]+$/;
+const STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'’/&()-]+$/;
+
+const ADD_EMPLOYEE_FIELD_MESSAGES = {
+  firstName: "Please enter a valid first name using letters only.",
+  middleName: "Please enter a valid middle name using letters only.",
+  lastName: "Please enter a valid last name using letters only.",
+  companyEmail: "Please enter a valid work email address.",
+  jobTitle:
+    "Please enter a valid job title using letters, numbers, spaces, and common punctuation only.",
+  personalEmail: "Please enter a valid personal email address.",
+  address:
+    "Please enter a valid street address using letters, numbers, and standard address characters only.",
+  emergencyContactName: "Please enter a valid contact name using letters only.",
+} as const;
 
 interface FieldErrors {
   firstName?: string;
+  middleName?: string;
   lastName?: string;
   companyEmail?: string;
   jobTitle?: string;
@@ -49,6 +67,11 @@ interface FieldErrors {
   personalEmail?: string;
   birthday?: string;
   emergencyContact?: string;
+  emergencyContactName?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  country?: string;
 }
 
 interface FormSnapshot {
@@ -206,17 +229,82 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
 
   function validate(): FieldErrors {
     const next: FieldErrors = {};
-    if (!firstName.trim()) next.firstName = "First name is required.";
-    if (!lastName.trim()) next.lastName = "Last name is required.";
-    if (!EMAIL_RE.test(companyEmail.trim())) next.companyEmail = "Enter a valid work email address.";
-    if (!jobTitle.trim()) next.jobTitle = "Job title is required.";
+    const trimmedFirst = firstName.trim();
+    const trimmedMiddle = middleName.trim();
+    const trimmedLast = lastName.trim();
+    const trimmedCompanyEmail = companyEmail.trim();
+    const trimmedJobTitle = jobTitle.trim();
+    const trimmedPersonalEmail = personalEmail.trim();
+    const trimmedAddress = address.trim();
+    const trimmedEmergencyName = emergencyContactName.trim();
+
+    if (
+      !trimmedFirst ||
+      !LETTERS_ONLY_RE.test(trimmedFirst) ||
+      validatePeopleText(trimmedFirst, "First name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.firstName = ADD_EMPLOYEE_FIELD_MESSAGES.firstName;
+    }
+    if (
+      trimmedMiddle &&
+      (!LETTERS_ONLY_RE.test(trimmedMiddle) ||
+        validatePeopleText(trimmedMiddle, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
+    ) {
+      next.middleName = ADD_EMPLOYEE_FIELD_MESSAGES.middleName;
+    }
+    if (
+      !trimmedLast ||
+      !LETTERS_ONLY_RE.test(trimmedLast) ||
+      validatePeopleText(trimmedLast, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.lastName = ADD_EMPLOYEE_FIELD_MESSAGES.lastName;
+    }
+    if (
+      !EMAIL_RE.test(trimmedCompanyEmail) ||
+      validatePeopleText(trimmedCompanyEmail, "Work email", PEOPLE_TEXT_LIMITS.EMAIL)
+    ) {
+      next.companyEmail = ADD_EMPLOYEE_FIELD_MESSAGES.companyEmail;
+    }
+    if (
+      !trimmedJobTitle ||
+      !JOB_TITLE_RE.test(trimmedJobTitle) ||
+      validatePeopleText(trimmedJobTitle, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
+    ) {
+      next.jobTitle = ADD_EMPLOYEE_FIELD_MESSAGES.jobTitle;
+    }
+    if (
+      trimmedPersonalEmail &&
+      (!EMAIL_RE.test(trimmedPersonalEmail) ||
+        validatePeopleText(trimmedPersonalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL))
+    ) {
+      next.personalEmail = ADD_EMPLOYEE_FIELD_MESSAGES.personalEmail;
+    }
+    if (
+      trimmedAddress &&
+      (!STREET_ADDRESS_RE.test(trimmedAddress) ||
+        validatePeopleText(trimmedAddress, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE))
+    ) {
+      next.address = ADD_EMPLOYEE_FIELD_MESSAGES.address;
+    }
+    if (
+      trimmedEmergencyName &&
+      (!LETTERS_ONLY_RE.test(trimmedEmergencyName) ||
+        validatePeopleText(trimmedEmergencyName, "Emergency contact name", PEOPLE_TEXT_LIMITS.NAME))
+    ) {
+      next.emergencyContactName = ADD_EMPLOYEE_FIELD_MESSAGES.emergencyContactName;
+    }
+
+    const locationChecks: Array<[keyof FieldErrors, string, string, number]> = [
+      ["city", city.trim(), "City", PEOPLE_TEXT_LIMITS.LOCATION],
+      ["province", province.trim(), "Province", PEOPLE_TEXT_LIMITS.LOCATION],
+      ["country", country.trim(), "Country", PEOPLE_TEXT_LIMITS.LOCATION],
+    ];
+    for (const [field, value, label, maxLen] of locationChecks) {
+      const error = value ? validatePeopleText(value, label, maxLen) : undefined;
+      if (error) next[field] = error;
+    }
     if (!department.trim()) next.department = "Select a department.";
     if (!supervisorId) next.supervisorId = "Select a supervisor.";
-
-    // Optional fields are only validated when provided.
-    if (personalEmail.trim() && !EMAIL_RE.test(personalEmail.trim())) {
-      next.personalEmail = "Enter a valid personal email address.";
-    }
     if (birthday) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -225,6 +313,97 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
       if (selected > today) next.birthday = "Birthday cannot be in the future.";
     }
     return next;
+  }
+
+  function validateField(field: keyof FieldErrors, value: string): string | undefined {
+    const trimmed = value.trim();
+
+    if (field === "firstName") {
+      return !trimmed ||
+        !LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
+        ? ADD_EMPLOYEE_FIELD_MESSAGES.firstName
+        : undefined;
+    }
+
+    if (field === "middleName") {
+      return trimmed &&
+        (!LETTERS_ONLY_RE.test(trimmed) ||
+          validatePeopleText(trimmed, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
+        ? ADD_EMPLOYEE_FIELD_MESSAGES.middleName
+        : undefined;
+    }
+
+    if (field === "lastName") {
+      return !trimmed ||
+        !LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+        ? ADD_EMPLOYEE_FIELD_MESSAGES.lastName
+        : undefined;
+    }
+
+    if (field === "companyEmail") {
+      return !EMAIL_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Work email", PEOPLE_TEXT_LIMITS.EMAIL)
+        ? ADD_EMPLOYEE_FIELD_MESSAGES.companyEmail
+        : undefined;
+    }
+
+    if (field === "jobTitle") {
+      return !trimmed ||
+        !JOB_TITLE_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
+        ? ADD_EMPLOYEE_FIELD_MESSAGES.jobTitle
+        : undefined;
+    }
+
+    if (field === "personalEmail") {
+      return trimmed &&
+        (!EMAIL_RE.test(trimmed) ||
+          validatePeopleText(trimmed, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL))
+        ? ADD_EMPLOYEE_FIELD_MESSAGES.personalEmail
+        : undefined;
+    }
+
+    if (field === "address") {
+      return trimmed &&
+        (!STREET_ADDRESS_RE.test(trimmed) ||
+          validatePeopleText(trimmed, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE))
+        ? ADD_EMPLOYEE_FIELD_MESSAGES.address
+        : undefined;
+    }
+
+    if (field === "emergencyContactName") {
+      return trimmed &&
+        (!LETTERS_ONLY_RE.test(trimmed) ||
+          validatePeopleText(trimmed, "Emergency contact name", PEOPLE_TEXT_LIMITS.NAME))
+        ? ADD_EMPLOYEE_FIELD_MESSAGES.emergencyContactName
+        : undefined;
+    }
+
+    if (field === "city" || field === "province" || field === "country") {
+      const label = field[0].toUpperCase() + field.slice(1);
+      return trimmed ? validatePeopleText(trimmed, label, PEOPLE_TEXT_LIMITS.LOCATION) : undefined;
+    }
+
+    return undefined;
+  }
+
+  function setFieldError(field: keyof FieldErrors, message: string | undefined) {
+    setErrors((current) => {
+      const next = { ...current };
+      if (message) {
+        next[field] = message;
+      } else {
+        delete next[field];
+      }
+      return next;
+    });
+  }
+
+  function updateTextField(field: keyof FieldErrors, value: string, setter: (value: string) => void) {
+    setter(value);
+    setFieldError(field, validateField(field, value));
   }
 
   async function handleSubmit() {
@@ -312,24 +491,33 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                 <Input
                   id="add-first"
                   value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
+                  onChange={(event) =>
+                    updateTextField("firstName", event.target.value, setFirstName)
+                  }
                   placeholder="e.g. Maria"
+                  maxLength={PEOPLE_TEXT_LIMITS.NAME}
                 />
               </FormField>
-              <FormField label="Middle name" htmlFor="add-middle">
+              <FormField label="Middle name" htmlFor="add-middle" error={errors.middleName}>
                 <Input
                   id="add-middle"
                   value={middleName}
-                  onChange={(event) => setMiddleName(event.target.value)}
+                  onChange={(event) =>
+                    updateTextField("middleName", event.target.value, setMiddleName)
+                  }
                   placeholder="Optional"
+                  maxLength={PEOPLE_TEXT_LIMITS.NAME}
                 />
               </FormField>
               <FormField label="Last name" htmlFor="add-last" required error={errors.lastName}>
                 <Input
                   id="add-last"
                   value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
+                  onChange={(event) =>
+                    updateTextField("lastName", event.target.value, setLastName)
+                  }
                   placeholder="e.g. Santos"
+                  maxLength={PEOPLE_TEXT_LIMITS.NAME}
                 />
               </FormField>
             </div>
@@ -344,8 +532,11 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                 id="add-email"
                 type="email"
                 value={companyEmail}
-                onChange={(event) => setCompanyEmail(event.target.value)}
+                onChange={(event) =>
+                  updateTextField("companyEmail", event.target.value, setCompanyEmail)
+                }
                 placeholder="name@company.com"
+                maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
               />
             </FormField>
           </section>
@@ -356,8 +547,9 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
               <Input
                 id="add-title"
                 value={jobTitle}
-                onChange={(event) => setJobTitle(event.target.value)}
+                onChange={(event) => updateTextField("jobTitle", event.target.value, setJobTitle)}
                 placeholder="e.g. Nurse"
+                maxLength={PEOPLE_TEXT_LIMITS.JOB_TITLE}
               />
             </FormField>
             <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
@@ -404,8 +596,11 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   id="add-personal"
                   type="email"
                   value={personalEmail}
-                  onChange={(event) => setPersonalEmail(event.target.value)}
+                  onChange={(event) =>
+                    updateTextField("personalEmail", event.target.value, setPersonalEmail)
+                  }
                   placeholder="name.personal@gmail.com"
+                  maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
                 />
               </FormField>
               <FormField
@@ -424,11 +619,25 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
               <PhAddressFields
                 idPrefix="add"
                 value={{ country, province, city, address }}
+                errors={{
+                  country: errors.country,
+                  province: errors.province,
+                  city: errors.city,
+                  address: errors.address,
+                }}
                 onChange={(patch) => {
-                  if (patch.address !== undefined) setAddress(patch.address);
-                  if (patch.country !== undefined) setCountry(patch.country);
-                  if (patch.province !== undefined) setProvince(patch.province);
-                  if (patch.city !== undefined) setCity(patch.city);
+                  if (patch.address !== undefined) {
+                    updateTextField("address", patch.address, setAddress);
+                  }
+                  if (patch.country !== undefined) {
+                    updateTextField("country", patch.country, setCountry);
+                  }
+                  if (patch.province !== undefined) {
+                    updateTextField("province", patch.province, setProvince);
+                  }
+                  if (patch.city !== undefined) {
+                    updateTextField("city", patch.city, setCity);
+                  }
                 }}
               />
             </div>
@@ -438,12 +647,23 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                 Emergency contact
               </h4>
               <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-                <FormField label="Contact name" htmlFor="add-emergency-name">
+                <FormField
+                  label="Contact name"
+                  htmlFor="add-emergency-name"
+                  error={errors.emergencyContactName}
+                >
                   <Input
                     id="add-emergency-name"
                     value={emergencyContactName}
-                    onChange={(event) => setEmergencyContactName(event.target.value)}
+                    onChange={(event) =>
+                      updateTextField(
+                        "emergencyContactName",
+                        event.target.value,
+                        setEmergencyContactName,
+                      )
+                    }
                     placeholder="e.g. Juan Santos"
+                    maxLength={PEOPLE_TEXT_LIMITS.NAME}
                   />
                 </FormField>
                 <FormField

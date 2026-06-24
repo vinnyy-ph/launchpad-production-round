@@ -4,6 +4,8 @@ import type {
   UpdateCustomFieldRequestDto,
 } from "./dto";
 import { CUSTOM_FIELD_FIELDS } from "./custom-fields.constants";
+import { assertSafeText } from "../../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 
 /**
  * Validates and normalizes incoming custom-fields API payloads.
@@ -48,7 +50,9 @@ export class CustomFieldsValidation {
       throw new Error(`${fieldName} is required`);
     }
 
-    return value.trim();
+    const parsed = value.trim();
+    assertSafeText(parsed, fieldName, PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_LABEL);
+    return parsed;
   }
 
   private parseOptionalBoolean(value: unknown): boolean | undefined {

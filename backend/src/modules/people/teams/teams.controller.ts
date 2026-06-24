@@ -202,15 +202,17 @@ export class TeamsController {
   private isValidationError(error: unknown): error is Error {
     return (
       error instanceof Error &&
-      [
-        "Team id is required",
-        "Team name is required",
-        "Team leader is required",
-        "Employee id is required",
-        "At least one team member is required",
-        "One or more employees were not found",
-        "Team leader cannot be removed",
-      ].includes(error.message)
+      ([
+          "Team id is required",
+          "Team name is required",
+          "Team leader is required",
+          "Employee id is required",
+          "At least one team member is required",
+          "One or more employees were not found",
+          "Team leader cannot be removed",
+        ].includes(error.message) ||
+        error.message.includes(" must be ") ||
+        error.message.includes(" must not contain "))
     );
   }
 

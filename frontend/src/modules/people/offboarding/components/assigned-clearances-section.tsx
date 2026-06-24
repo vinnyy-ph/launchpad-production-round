@@ -21,6 +21,7 @@ import {
   DialogFooter,
   Textarea,
 } from "@/shared/ui";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 
 function fullName(p: { firstName: string; lastName: string }): string {
   return `${p.firstName} ${p.lastName}`.trim();
@@ -77,6 +78,11 @@ export function AssignedClearancesSection() {
     if (!signTarget) return;
     const item = signTarget;
     const note = signNote.trim();
+    const noteError = note ? validatePeopleText(note, "Note", PEOPLE_TEXT_LIMITS.NOTE) : undefined;
+    if (noteError) {
+      toast.error(noteError);
+      return;
+    }
     try {
       const action = await sign({ requestId: item.requestId, note: note || undefined });
       toast.success(`${item.purpose} clearance signed for ${fullName(item.offboardee)}.`);
@@ -95,6 +101,11 @@ export function AssignedClearancesSection() {
 
   async function handleRejectConfirm() {
     if (!rejectTarget || !rejectNote.trim()) return;
+    const noteError = validatePeopleText(rejectNote.trim(), "Rejection reason", PEOPLE_TEXT_LIMITS.NOTE);
+    if (noteError) {
+      toast.error(noteError);
+      return;
+    }
     try {
       await reject({ requestId: rejectTarget.requestId, note: rejectNote.trim() });
       toast.success(`${rejectTarget.purpose} clearance rejected.`);
@@ -113,6 +124,12 @@ export function AssignedClearancesSection() {
 
   const pending = clearances.filter((i) => i.status === "PENDING");
   const resolved = clearances.filter((i) => i.status !== "PENDING");
+  const signNoteError = signNote.trim()
+    ? validatePeopleText(signNote.trim(), "Note", PEOPLE_TEXT_LIMITS.NOTE)
+    : undefined;
+  const rejectNoteError = rejectNote.trim()
+    ? validatePeopleText(rejectNote.trim(), "Rejection reason", PEOPLE_TEXT_LIMITS.NOTE)
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -200,12 +217,16 @@ export function AssignedClearancesSection() {
             onChange={(e) => setSignNote(e.target.value)}
             rows={3}
             className="mt-1"
+            maxLength={PEOPLE_TEXT_LIMITS.NOTE}
           />
+          {signNoteError ? (
+            <p className="text-xs text-[color:var(--color-error-500)]">{signNoteError}</p>
+          ) : null}
           <DialogFooter className="mt-2">
             <Button variant="secondary" onClick={() => setSignTarget(null)} disabled={signing}>
               Cancel
             </Button>
-            <Button onClick={() => void handleSignConfirm()} disabled={signing}>
+            <Button onClick={() => void handleSignConfirm()} disabled={signing || Boolean(signNoteError)}>
               <CheckCircle2 size={14} className="mr-1" />
               Confirm &amp; sign
             </Button>
@@ -230,10 +251,13 @@ export function AssignedClearancesSection() {
             onChange={(e) => setRejectNote(e.target.value)}
             rows={3}
             className="mt-1"
+            maxLength={PEOPLE_TEXT_LIMITS.NOTE}
           />
-          {rejectNote.trim() === "" && rejectTarget && (
+          {rejectNote.trim() === "" && rejectTarget ? (
             <p className="text-xs text-[color:var(--color-error-500)]">A reason is required to reject.</p>
-          )}
+          ) : rejectNoteError ? (
+            <p className="text-xs text-[color:var(--color-error-500)]">{rejectNoteError}</p>
+          ) : null}
           <DialogFooter className="mt-2">
             <Button variant="secondary" onClick={() => setRejectTarget(null)}>
               Cancel
@@ -241,7 +265,7 @@ export function AssignedClearancesSection() {
             <Button
               variant="destructive"
               onClick={() => void handleRejectConfirm()}
-              disabled={rejectNote.trim() === "" || rejecting}
+              disabled={rejectNote.trim() === "" || rejecting || Boolean(rejectNoteError)}
             >
               Confirm reject
             </Button>

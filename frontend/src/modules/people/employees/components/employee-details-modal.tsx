@@ -39,6 +39,7 @@ import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
 import type { EmployeeDocument, EmployeeDocumentStatus } from "../services/employees.service";
 import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
 import { useEmployeeDocuments } from "../hooks/use-employee-documents";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
@@ -124,6 +125,134 @@ const SAVE_ERROR_MESSAGES: Record<string, string> = {
     "The selected supervisor is no longer available. Please refresh the page and choose another.",
   "Invalid employee birthday": "Please enter a valid birthday.",
 };
+
+const PROFILE_LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
+const PROFILE_JOB_TITLE_RE = /^[A-Za-z0-9\s.,'’/&()-]+$/;
+const PROFILE_STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'’/&()-]+$/;
+
+const PROFILE_FIELD_MESSAGES: Partial<Record<keyof EditDraft, string>> = {
+  firstName: "Please enter a valid first name using letters only.",
+  middleName: "Please enter a valid middle name using letters only.",
+  lastName: "Please enter a valid last name using letters only.",
+  personalEmail: "Please enter a valid personal email address.",
+  companyEmail: "Please enter a valid company email address (e.g., name@company.com).",
+  address:
+    "Please enter a valid street address using letters, numbers, and standard address characters only.",
+  emergencyContactName: "Please enter a valid contact name using letters only.",
+  jobTitle:
+    "Please enter a valid role using letters, numbers, spaces, and common punctuation only.",
+};
+
+const PROFILE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateProfileField(field: keyof EditDraft, value: string): string | undefined {
+  const trimmed = value.trim();
+
+  if (field === "firstName") {
+    return !trimmed ||
+      !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
+      validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
+      ? PROFILE_FIELD_MESSAGES.firstName
+      : undefined;
+  }
+
+  if (field === "middleName") {
+    return trimmed &&
+      (!PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
+      ? PROFILE_FIELD_MESSAGES.middleName
+      : undefined;
+  }
+
+  if (field === "lastName") {
+    return !trimmed ||
+      !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
+      validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+      ? PROFILE_FIELD_MESSAGES.lastName
+      : undefined;
+  }
+
+  if (field === "personalEmail") {
+    return trimmed &&
+      (!PROFILE_EMAIL_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL))
+      ? PROFILE_FIELD_MESSAGES.personalEmail
+      : undefined;
+  }
+
+  if (field === "companyEmail") {
+    return !PROFILE_EMAIL_RE.test(trimmed) ||
+      validatePeopleText(trimmed, "Company email", PEOPLE_TEXT_LIMITS.EMAIL)
+      ? PROFILE_FIELD_MESSAGES.companyEmail
+      : undefined;
+  }
+
+  if (field === "address") {
+    return trimmed &&
+      (!PROFILE_STREET_ADDRESS_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE))
+      ? PROFILE_FIELD_MESSAGES.address
+      : undefined;
+  }
+
+  if (field === "emergencyContactName") {
+    return trimmed &&
+      (!PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Contact name", PEOPLE_TEXT_LIMITS.NAME))
+      ? PROFILE_FIELD_MESSAGES.emergencyContactName
+      : undefined;
+  }
+
+  if (field === "jobTitle") {
+    return trimmed &&
+      (!PROFILE_JOB_TITLE_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Role", PEOPLE_TEXT_LIMITS.JOB_TITLE))
+      ? PROFILE_FIELD_MESSAGES.jobTitle
+      : undefined;
+  }
+
+  if (field === "country" || field === "province" || field === "city") {
+    const label = field[0].toUpperCase() + field.slice(1);
+    return trimmed ? validatePeopleText(trimmed, label, PEOPLE_TEXT_LIMITS.LOCATION) : undefined;
+  }
+
+  return undefined;
+}
+
+function validateDraftText(draft: EditDraft): Partial<Record<keyof EditDraft, string>> {
+  const errors: Partial<Record<keyof EditDraft, string>> = {};
+  for (const field of Object.keys(draft) as (keyof EditDraft)[]) {
+    const error = validateProfileField(field, draft[field]);
+    if (error) errors[field] = error;
+  }
+  return errors;
+}
+
+function inferDraftFieldFromMessage(message: string | undefined): keyof EditDraft | null {
+  if (!message) return null;
+  const rawField = message.match(/^([A-Za-z.]+) must /)?.[1];
+  if (!rawField) return null;
+  const aliases: Record<string, keyof EditDraft> = {
+    firstName: "firstName",
+    middleName: "middleName",
+    lastName: "lastName",
+    personalEmail: "personalEmail",
+    companyEmail: "companyEmail",
+    address: "address",
+    city: "city",
+    province: "province",
+    country: "country",
+    emergencyContactName: "emergencyContactName",
+    emergencyContactNumber: "emergencyContactNumber",
+    jobTitle: "jobTitle",
+    department: "department",
+  };
+  return aliases[rawField] ?? null;
+}
+
+function friendlyProfileError(field: keyof EditDraft, fallback: string): string {
+  return PROFILE_FIELD_MESSAGES[field] ?? fallback;
+}
 
 /**
  * Resolves a user-facing message from a failed profile save. Prefers a friendly mapping keyed
@@ -314,6 +443,8 @@ function EditableField({
   type = "text",
   placeholder,
   required,
+  error,
+  maxLength,
   className = "",
 }: {
   label: string;
@@ -322,6 +453,8 @@ function EditableField({
   type?: string;
   placeholder?: string;
   required?: boolean;
+  error?: string;
+  maxLength?: number;
   className?: string;
 }) {
   return (
@@ -335,7 +468,10 @@ function EditableField({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}
+        error={Boolean(error)}
+        maxLength={maxLength}
       />
+      {error ? <span className="mt-1 block text-xs text-[#D92D20]">{error}</span> : null}
     </label>
   );
 }
@@ -405,6 +541,7 @@ export function EmployeeDetailsModal({
   const profile = employee ?? fallbackEmployee;
   const profileDetails = profile as EmployeeProfile | null;
   const [draft, setDraft] = useState<EditDraft>(blankDraft);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof EditDraft, string>>>({});
   const [contactNumberError, setContactNumberError] = useState<string | null>(null);
   const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
@@ -451,6 +588,8 @@ export function EmployeeDetailsModal({
   useEffect(() => {
     if (profile) {
       setDraft(savedDraft);
+      setFieldErrors({});
+      setContactNumberError(null);
     }
   }, [profile, savedDraft]);
 
@@ -460,6 +599,13 @@ export function EmployeeDetailsModal({
 
   function updateDraft(field: keyof EditDraft, value: string) {
     setDraft((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      const error = validateProfileField(field, value);
+      if (error) next[field] = error;
+      else delete next[field];
+      return next;
+    });
   }
 
   function alertUnsavedChanges() {
@@ -501,6 +647,13 @@ export function EmployeeDetailsModal({
     event.preventDefault();
     if (!employeeId) return;
 
+    const nextFieldErrors = validateDraftText(draft);
+    setFieldErrors(nextFieldErrors);
+    if (Object.keys(nextFieldErrors).length > 0) {
+      toast.error("Please fix the highlighted fields.");
+      return;
+    }
+
     // Emergency contact is optional, but when provided it must be a valid PH mobile.
     const contactNumber = draft.emergencyContactNumber.trim();
     if (contactNumber && !isStrictPhilippineMobile(contactNumber)) {
@@ -540,6 +693,16 @@ export function EmployeeDetailsModal({
       await update(input);
       toast.success("Employee details updated");
     } catch (err) {
+      if (err instanceof ApiError) {
+        const fieldMessage = err.fieldErrors.find((entry) => entry.message)?.message;
+        const field = inferDraftFieldFromMessage(fieldMessage);
+        if (field && fieldMessage) {
+          setFieldErrors((current) => ({
+            ...current,
+            [field]: friendlyProfileError(field, fieldMessage),
+          }));
+        }
+      }
       toast.error(resolveSaveErrorMessage(err));
     }
   }
@@ -666,18 +829,24 @@ export function EmployeeDetailsModal({
                               value={draft.firstName}
                               onChange={(value) => updateDraft("firstName", value)}
                               required
+                              error={fieldErrors.firstName}
+                              maxLength={PEOPLE_TEXT_LIMITS.NAME}
                             />
                             <EditableField
                               label="Middle name"
                               value={draft.middleName}
                               onChange={(value) => updateDraft("middleName", value)}
                               placeholder="Optional"
+                              error={fieldErrors.middleName}
+                              maxLength={PEOPLE_TEXT_LIMITS.NAME}
                             />
                             <EditableField
                               label="Last name"
                               value={draft.lastName}
                               onChange={(value) => updateDraft("lastName", value)}
                               required
+                              error={fieldErrors.lastName}
+                              maxLength={PEOPLE_TEXT_LIMITS.NAME}
                             />
                           </div>
 
@@ -687,6 +856,8 @@ export function EmployeeDetailsModal({
                               type="email"
                               value={draft.personalEmail}
                               onChange={(value) => updateDraft("personalEmail", value)}
+                              error={fieldErrors.personalEmail}
+                              maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
                             />
                             <EditableField
                               label="Company email"
@@ -694,6 +865,8 @@ export function EmployeeDetailsModal({
                               value={draft.companyEmail}
                               onChange={(value) => updateDraft("companyEmail", value)}
                               required
+                              error={fieldErrors.companyEmail}
+                              maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
                             />
                           </div>
 
@@ -726,9 +899,26 @@ export function EmployeeDetailsModal({
                                   city: draft.city,
                                   address: draft.address,
                                 }}
-                                onChange={(patch) =>
-                                  setDraft((current) => ({ ...current, ...patch }))
-                                }
+                                errors={{
+                                  country: fieldErrors.country,
+                                  province: fieldErrors.province,
+                                  city: fieldErrors.city,
+                                  address: fieldErrors.address,
+                                }}
+                                onChange={(patch) => {
+                                  setDraft((current) => ({ ...current, ...patch }));
+                                  setFieldErrors((current) => {
+                                    const next = { ...current };
+                                    for (const key of Object.keys(patch) as Array<
+                                      Extract<keyof EditDraft, "country" | "province" | "city" | "address">
+                                    >) {
+                                      const error = validateProfileField(key, patch[key] ?? "");
+                                      if (error) next[key] = error;
+                                      else delete next[key];
+                                    }
+                                    return next;
+                                  });
+                                }}
                               />
                             </div>
                           </div>
@@ -742,6 +932,8 @@ export function EmployeeDetailsModal({
                                 label="Contact Name"
                                 value={draft.emergencyContactName}
                                 onChange={(value) => updateDraft("emergencyContactName", value)}
+                                error={fieldErrors.emergencyContactName}
+                                maxLength={PEOPLE_TEXT_LIMITS.NAME}
                               />
                               <label>
                                 <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
@@ -753,11 +945,11 @@ export function EmployeeDetailsModal({
                                     updateDraft("emergencyContactNumber", value);
                                     if (contactNumberError) setContactNumberError(null);
                                   }}
-                                  error={Boolean(contactNumberError)}
+                                  error={Boolean(contactNumberError || fieldErrors.emergencyContactNumber)}
                                 />
-                                {contactNumberError ? (
+                                {contactNumberError || fieldErrors.emergencyContactNumber ? (
                                   <span className="mt-1 block text-xs text-[#D92D20]">
-                                    {contactNumberError}
+                                    {contactNumberError ?? fieldErrors.emergencyContactNumber}
                                   </span>
                                 ) : null}
                               </label>
@@ -777,6 +969,8 @@ export function EmployeeDetailsModal({
                               label="Role"
                               value={draft.jobTitle}
                               onChange={(value) => updateDraft("jobTitle", value)}
+                              error={fieldErrors.jobTitle}
+                              maxLength={PEOPLE_TEXT_LIMITS.JOB_TITLE}
                             />
                             <EditableSelect
                               label="Department"
@@ -1038,6 +1232,7 @@ export function EmployeeDetailsModal({
                   onClick={() => {
                     setDraft(savedDraft);
                     setContactNumberError(null);
+                    setFieldErrors({});
                   }}
                 >
                   Discard

@@ -152,8 +152,15 @@ export class ClearanceTemplatesController {
       });
     }
 
-    if (error.message.endsWith("is required") || error.message.startsWith("Invalid ")) {
-      const field = error.message.replace(" is required", "").replace("Invalid ", "");
+    if (
+      error.message.endsWith("is required") ||
+      error.message.startsWith("Invalid ") ||
+      this.isTextValidationError(error.message)
+    ) {
+      const field = error.message
+        .replace(" is required", "")
+        .replace("Invalid ", "")
+        .replace(/ must .*/, "");
 
       return this.fail(res, HTTP_STATUS_CODES.BAD_REQUEST, {
         field,
@@ -163,6 +170,11 @@ export class ClearanceTemplatesController {
     }
 
     return next(error);
+  }
+
+  /** Identifies shared free-text validation failures. */
+  private isTextValidationError(message: string): boolean {
+    return message.includes(" must be ") || message.includes(" must not contain ");
   }
 
   /** Sends a standard error envelope. */

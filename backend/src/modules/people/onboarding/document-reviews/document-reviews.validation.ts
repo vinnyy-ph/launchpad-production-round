@@ -5,6 +5,8 @@ import type {
   ReviewSubmissionParamsDto,
 } from "./dto";
 import { DOCUMENT_REVIEW_FIELDS } from "./document-reviews.constants";
+import { assertSafeText } from "../../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 
 /**
  * Validates and normalizes incoming document-review API payloads.
@@ -40,6 +42,7 @@ export class DocumentReviewsValidation {
     const rejectionNote = this.parseRequiredString(
       body.rejectionNote,
       DOCUMENT_REVIEW_FIELDS.REJECTION_NOTE,
+      PEOPLE_TEXT_LIMITS.NOTE,
     );
 
     return { rejectionNote };
@@ -59,12 +62,16 @@ export class DocumentReviewsValidation {
     return status as DocumentStatus;
   }
 
-  private parseRequiredString(value: unknown, fieldName: string): string {
+  private parseRequiredString(value: unknown, fieldName: string, maxLen?: number): string {
     if (typeof value !== "string" || value.trim().length === 0) {
       throw new Error(`${fieldName} is required`);
     }
 
-    return value.trim();
+    const parsed = value.trim();
+    if (maxLen !== undefined) {
+      assertSafeText(parsed, fieldName, maxLen);
+    }
+    return parsed;
   }
 
   private parseOptionalString(value: unknown): string | undefined {

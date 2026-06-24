@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import { toast } from "sonner";
+import { ApiError } from "@/shared/lib/api-client";
 import {
   Button,
   Checkbox,
@@ -29,6 +30,7 @@ import {
 import { EmptyState, ErrorState } from "@/shared/ui/patterns";
 import { RedactedProfileSheet } from "@/modules/people/employees/components/redacted-profile-sheet";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useTeamMutations } from "../hooks/use-team-mutations";
 import type { Team, TeamEmployee } from "../types/teams.types";
 
@@ -263,12 +265,21 @@ export function TeamDetailsView({
       setRenameMode(false);
       return;
     }
+    const textError = validatePeopleText(trimmed, "Team name", PEOPLE_TEXT_LIMITS.TEAM_NAME);
+    if (textError) {
+      toast.error(textError);
+      return;
+    }
     try {
       await rename({ teamId: team.id, name: trimmed });
       toast.success("Team renamed.");
       setRenameMode(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not rename the team.");
+      if (err instanceof ApiError) {
+        toast.error(err.fieldErrors[0]?.message ?? err.message);
+      } else {
+        toast.error(err instanceof Error ? err.message : "Could not rename the team.");
+      }
     }
   }
 
@@ -339,6 +350,7 @@ export function TeamDetailsView({
               aria-label="Team name"
               autoFocus
               className="max-w-xs"
+              maxLength={PEOPLE_TEXT_LIMITS.TEAM_NAME}
             />
             <Button size="sm" onClick={() => void saveRename()} disabled={renaming}>
               <Check aria-hidden="true" /> {renaming ? "Saving…" : "Save"}
