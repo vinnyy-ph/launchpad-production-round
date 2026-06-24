@@ -126,11 +126,14 @@ export function averageGrade(evals: Evaluation[], myId: string | undefined): num
   return Math.round((sum / sent.length) * 10) / 10;
 }
 
-export interface TrendPoint {
+// A `type` (not `interface`) so it carries an implicit index signature and is assignable to the
+// chart components' `Record<string, unknown>[]` data prop without a cast (matches how other chart
+// call sites pass inline-shaped data).
+export type TrendPoint = {
   period: string;
   avg: number;
   count: number;
-}
+};
 
 /** Average SENT-eval grade per calendar month of `periodEnd`, oldest → newest. Label e.g. "Jun '26". */
 export function gradeTrend(evals: Evaluation[], myId: string | undefined): TrendPoint[] {

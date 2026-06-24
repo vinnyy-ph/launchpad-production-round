@@ -304,12 +304,7 @@ function PerformanceTrend({ trend, loading }: { trend: TrendPoint[]; loading: bo
           </p>
         </div>
       ) : (
-        <LineChart
-          data={trend as unknown as Record<string, unknown>[]}
-          categoryKey="period"
-          valueKey="avg"
-          height={200}
-        />
+        <LineChart data={trend} categoryKey="period" valueKey="avg" height={200} />
       )}
     </div>
   );
