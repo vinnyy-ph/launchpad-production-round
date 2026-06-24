@@ -10,7 +10,6 @@ import {
   Power,
   PowerOff,
   Filter,
-  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -18,7 +17,6 @@ import {
   Button,
   Badge,
   BadgeDot,
-  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -39,6 +37,7 @@ import {
   type Column,
   type DataTableSort,
   FilterBar,
+  SearchInput,
 } from "@/shared/ui/patterns";
 import { SurveyBuilderDialog } from "@/modules/performance/surveys/components/survey-builder";
 import { SurveyDetailDrawer } from "@/modules/performance/surveys/components/survey-detail-drawer";
@@ -400,20 +399,13 @@ export default function HRSurveysPage() {
 
       <FilterBar aria-label="Filter surveys" className="gap-3">
         <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative w-full min-w-0 sm:max-w-[360px] sm:flex-1">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
-              aria-hidden="true"
-            />
-            <Input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name…"
-              aria-label="Search surveys"
-              className="w-full pl-9"
-            />
-          </div>
+          <SearchInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Search by name…"
+            aria-label="Search surveys"
+            containerClassName="min-w-0 sm:max-w-[360px] sm:flex-1"
+          />
           <Select
             value={statusFilter}
             onValueChange={(v: string) => setStatusFilter(v as SurveyStatus | "ALL")}

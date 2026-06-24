@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronsUpDown, Filter } from "lucide-react";
+import { ChevronDown, Filter } from "lucide-react";
 import {
   Button,
   Checkbox,
@@ -94,7 +94,7 @@ export function MultiSelectFilter({
             />
           ) : null}
           <span className="truncate">{label}</span>
-          <ChevronsUpDown
+          <ChevronDown
             className="h-4 w-4 shrink-0 text-[color:var(--text-tertiary)]"
             aria-hidden="true"
           />

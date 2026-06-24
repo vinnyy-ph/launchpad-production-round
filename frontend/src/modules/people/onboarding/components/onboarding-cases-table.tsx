@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList } from "lucide-react";
-import { Input } from "@/shared/ui/primitives/input";
 import { Progress } from "@/shared/ui/primitives/progress";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import {
@@ -17,6 +16,7 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  SearchInput,
   StatCard,
   StatusBadge,
   type Column,
@@ -231,13 +231,12 @@ export function OnboardingCasesTable() {
       </div>
 
       <FilterBar aria-label="Filter onboarding cases">
-        <Input
-          type="text"
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onValueChange={setSearch}
           placeholder="Search by name or email…"
           aria-label="Search onboarding cases"
-          className="sm:max-w-[320px]"
+          containerClassName="sm:max-w-[320px]"
         />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="sm:w-[200px]" aria-label="Filter by invite status">
