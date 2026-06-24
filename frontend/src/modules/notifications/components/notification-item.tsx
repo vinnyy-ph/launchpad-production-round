@@ -2,7 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
+import { parseISO, isToday, isYesterday, format, differenceInMinutes } from "date-fns";
 import type { Notification } from "../types/notifications.types";
+
+/** Compact relative time: "Just now", "5m ago", "3h ago", "Yesterday", else "Jun 18". */
+function relativeTime(iso: string): string {
+  const d = parseISO(iso);
+  const mins = differenceInMinutes(new Date(), d);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (isToday(d)) return `${Math.round(mins / 60)}h ago`;
+  if (isYesterday(d)) return "Yesterday";
+  return format(d, "MMM d");
+}
 
 interface Props {
   notification: Notification;
@@ -97,6 +109,12 @@ export function NotificationItem({ notification, onRead, groupCount }: Props) {
           {notification.body}
         </p>
       </div>
+      <time
+        dateTime={notification.createdAt}
+        className="mt-px flex-shrink-0 whitespace-nowrap text-[11px] text-[color:var(--text-quaternary)]"
+      >
+        {relativeTime(notification.createdAt)}
+      </time>
       <ChevronRight size={16} className="mt-0.5 flex-shrink-0 text-[color:var(--text-quaternary)]" />
     </button>
   );
