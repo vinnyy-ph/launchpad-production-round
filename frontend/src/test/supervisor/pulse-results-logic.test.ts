@@ -56,6 +56,13 @@ describe("pulseSentiment", () => {
   it("is null when there are no scale questions", () => {
     expect(pulseSentiment(results({ questions: [{ questionId: "q", type: "SHORT_ANSWER", questionText: "x", responseCount: 1, responses: [] }] }))).toBeNull();
   });
+  it("ignores scale questions with no responses, so a zero-response survey reports no sentiment", () => {
+    expect(
+      pulseSentiment(
+        results({ questions: [{ questionId: "q1", type: "LINEAR_SCALE", questionText: "A", responseCount: 0, average: 0, min: 0, max: 0, distribution: {} }] }),
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("buildPulseCard", () => {

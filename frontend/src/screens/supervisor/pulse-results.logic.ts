@@ -39,13 +39,17 @@ type LinearResult = Extract<QuestionResult, { type: "LINEAR_SCALE" }>;
  *  scale questions (the results payload carries no scale definition); defaults to 5. */
 export function pulseSentiment(results: SurveyResults): { avg: number; scaleMax: number } | null {
   if (results.suppressed) return null;
-  const linear = results.questions.filter((q): q is LinearResult => q.type === "LINEAR_SCALE");
-  if (linear.length === 0) return null;
-  const avg = linear.reduce((s, q) => s + q.average, 0) / linear.length;
+  // Only scale questions that actually received responses — a survey with linear questions but
+  // zero answers yet would otherwise report a misleading 0.0 average next to "No responses yet".
+  const answered = results.questions.filter(
+    (q): q is LinearResult => q.type === "LINEAR_SCALE" && q.responseCount > 0,
+  );
+  if (answered.length === 0) return null;
+  const avg = answered.reduce((s, q) => s + q.average, 0) / answered.length;
   const scaleMax = Math.max(
-    ...linear.map((q) => {
+    ...answered.map((q) => {
       const keys = Object.keys(q.distribution).map(Number).filter((n) => !Number.isNaN(n));
-      return Math.max(q.max ?? 0, ...(keys.length ? keys : [0]));
+      return Math.max(q.max, ...(keys.length ? keys : [0]));
     }),
   );
   return { avg: Math.round(avg * 10) / 10, scaleMax: scaleMax || 5 };
