@@ -20,6 +20,7 @@ import {
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useUpdateEmployee } from "@/modules/people/employees/hooks/use-update-employee";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import type {
   EmployeeProfile,
   EmployeeStatus,
@@ -153,6 +154,7 @@ function InlineEditForm({
           onChange={(e) => onChange("jobTitle", e.target.value)}
           placeholder="Job title"
           className="h-9 text-sm"
+          maxLength={PEOPLE_TEXT_LIMITS.JOB_TITLE}
         />
       </div>
       <div className="grid grid-cols-[160px_1fr] items-start gap-x-4 py-2">
@@ -162,6 +164,7 @@ function InlineEditForm({
           onChange={(e) => onChange("department", e.target.value)}
           placeholder="Department"
           className="h-9 text-sm"
+          maxLength={PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME}
         />
       </div>
       <div className="grid grid-cols-[160px_1fr] items-start gap-x-4 py-2">
@@ -247,10 +250,22 @@ export default function EmployeeProfilePage() {
 
   async function saveEdit() {
     if (!profile) return;
+    const trimmedJobTitle = draft.jobTitle.trim();
+    const trimmedDepartment = draft.department.trim();
+    const jobTitleError = trimmedJobTitle
+      ? validatePeopleText(trimmedJobTitle, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
+      : undefined;
+    const departmentError = trimmedDepartment
+      ? validatePeopleText(trimmedDepartment, "Department", PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME)
+      : undefined;
+    if (jobTitleError || departmentError) {
+      toast.error(jobTitleError ?? departmentError);
+      return;
+    }
     try {
       await update({
-        jobTitle: draft.jobTitle.trim() || null,
-        department: draft.department.trim() || null,
+        jobTitle: trimmedJobTitle || null,
+        department: trimmedDepartment || null,
         supervisorId: draft.supervisorId || null,
         status: draft.status,
       });

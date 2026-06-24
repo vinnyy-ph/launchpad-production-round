@@ -17,6 +17,7 @@ import {
   Textarea,
 } from "@/shared/ui";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import type {
   ClearanceSignatoryInput,
   ClearanceTemplate,
@@ -37,11 +38,34 @@ interface ClearanceVersionDialogProps {
 }
 
 type Row = ClearanceSignatoryInput & { key: string };
+type RowErrors = {
+  employeeId?: string;
+  purpose?: string;
+  requirements?: string;
+};
+
+const CLEARANCE_FIELD_MESSAGES = {
+  name: "Please enter a valid version name using letters, numbers, spaces, and common punctuation only.",
+  purpose: "Please enter a valid purpose using letters, numbers, spaces, and common punctuation only.",
+  requirements:
+    "Please enter valid requirements using letters, numbers, spaces, and common punctuation only.",
+};
+const CLEARANCE_TEXT_RE = /^[A-Za-z0-9\s.,'&/()#:\-]+$/;
 
 let rowSeq = 0;
 function emptyRow(): Row {
   rowSeq += 1;
   return { key: `row-${rowSeq}`, employeeId: "", purpose: "", requirements: "" };
+}
+
+function validateClearanceText(
+  value: string,
+  field: keyof typeof CLEARANCE_FIELD_MESSAGES,
+  maxLen: number,
+): string | undefined {
+  if (validatePeopleText(value, field, maxLen)) return CLEARANCE_FIELD_MESSAGES[field];
+  if (value && !CLEARANCE_TEXT_RE.test(value)) return CLEARANCE_FIELD_MESSAGES[field];
+  return undefined;
 }
 
 /**
@@ -64,6 +88,7 @@ export function ClearanceVersionDialog({
   const [isDefault, setIsDefault] = useState(false);
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [errors, setErrors] = useState<{ name?: string; signatories?: string }>({});
+  const [rowErrors, setRowErrors] = useState<Record<string, RowErrors>>({});
 
   // Reset the form whenever the dialog opens (prefill from the template when editing).
   useEffect(() => {
@@ -85,6 +110,7 @@ export function ClearanceVersionDialog({
       setRows([emptyRow()]);
     }
     setErrors({});
+    setRowErrors({});
   }, [open, template]);
 
   const employeeOptions = employees.map((employee) => ({
@@ -94,6 +120,38 @@ export function ClearanceVersionDialog({
 
   function updateRow(key: string, patch: Partial<ClearanceSignatoryInput>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+    setErrors((current) => ({ ...current, signatories: undefined }));
+    setRowErrors((current) => {
+      const nextRow = { ...(current[key] ?? {}) };
+      if ("employeeId" in patch) {
+        nextRow.employeeId = patch.employeeId ? undefined : "Select a signatory employee.";
+      }
+      if (typeof patch.purpose === "string") {
+        nextRow.purpose = patch.purpose.trim()
+          ? validateClearanceText(patch.purpose, "purpose", PEOPLE_TEXT_LIMITS.CLEARANCE_PURPOSE)
+          : "Purpose is required.";
+      }
+      if (typeof patch.requirements === "string") {
+        nextRow.requirements = patch.requirements.trim()
+          ? validateClearanceText(
+              patch.requirements,
+              "requirements",
+              PEOPLE_TEXT_LIMITS.CLEARANCE_REQUIREMENTS,
+            )
+          : "Requirements are required.";
+      }
+      return { ...current, [key]: nextRow };
+    });
+  }
+
+  function updateName(value: string) {
+    setName(value);
+    setErrors((current) => ({
+      ...current,
+      name: value.trim()
+        ? validateClearanceText(value, "name", PEOPLE_TEXT_LIMITS.CLEARANCE_TEMPLATE_NAME)
+        : "Version name is required.",
+    }));
   }
 
   function addRow() {
@@ -102,11 +160,26 @@ export function ClearanceVersionDialog({
 
   function removeRow(key: string) {
     setRows((current) => (current.length === 1 ? current : current.filter((row) => row.key !== key)));
+    setRowErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
   }
 
   function handleSubmit() {
     const next: typeof errors = {};
-    if (!name.trim()) next.name = "Version name is required.";
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      next.name = "Version name is required.";
+    } else {
+      const error = validateClearanceText(
+        trimmedName,
+        "name",
+        PEOPLE_TEXT_LIMITS.CLEARANCE_TEMPLATE_NAME,
+      );
+      if (error) next.name = error;
+    }
 
     const cleaned = rows.map((row) => ({
       employeeId: row.employeeId,
@@ -119,17 +192,46 @@ export function ClearanceVersionDialog({
     );
     const employeeIds = cleaned.map((row) => row.employeeId).filter(Boolean);
     const hasDuplicate = new Set(employeeIds).size !== employeeIds.length;
+    const nextRowErrors: Record<string, RowErrors> = {};
+
+    rows.forEach((row) => {
+      const rowError: RowErrors = {};
+      if (!row.employeeId) rowError.employeeId = "Select a signatory employee.";
+      if (!row.purpose.trim()) {
+        rowError.purpose = "Purpose is required.";
+      } else {
+        rowError.purpose = validateClearanceText(
+          row.purpose.trim(),
+          "purpose",
+          PEOPLE_TEXT_LIMITS.CLEARANCE_PURPOSE,
+        );
+      }
+      if (!row.requirements.trim()) {
+        rowError.requirements = "Requirements are required.";
+      } else {
+        rowError.requirements = validateClearanceText(
+          row.requirements.trim(),
+          "requirements",
+          PEOPLE_TEXT_LIMITS.CLEARANCE_REQUIREMENTS,
+        );
+      }
+      if (Object.values(rowError).some(Boolean)) nextRowErrors[row.key] = rowError;
+    });
 
     if (cleaned.length === 0 || incomplete) {
       next.signatories = "Every signatory needs an employee, a purpose, and requirements.";
     } else if (hasDuplicate) {
       next.signatories = "Each employee can only appear once.";
+    } else {
+      const hasUnsafeText = Object.values(nextRowErrors).some((row) => row.purpose || row.requirements);
+      if (hasUnsafeText) next.signatories = "Please review the highlighted signatory fields.";
     }
 
     setErrors(next);
-    if (Object.keys(next).length > 0) return;
+    setRowErrors(nextRowErrors);
+    if (Object.keys(next).length > 0 || Object.keys(nextRowErrors).length > 0) return;
 
-    onSubmit({ name: name.trim(), isDefault, signatories: cleaned });
+    onSubmit({ name: trimmedName, isDefault, signatories: cleaned });
   }
 
   return (
@@ -154,8 +256,9 @@ export function ClearanceVersionDialog({
             <Input
               id="cv-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => updateName(e.target.value)}
               placeholder="e.g. Standard Clearance"
+              maxLength={PEOPLE_TEXT_LIMITS.CLEARANCE_TEMPLATE_NAME}
             />
           </FormField>
 
@@ -192,7 +295,7 @@ export function ClearanceVersionDialog({
                     </button>
                   </div>
                   <div className="space-y-3">
-                    <FormField label="Employee">
+                    <FormField label="Employee" error={rowErrors[row.key]?.employeeId}>
                       <Combobox
                         options={employeeOptions}
                         value={row.employeeId}
@@ -202,20 +305,22 @@ export function ClearanceVersionDialog({
                         emptyText="No employees available."
                       />
                     </FormField>
-                    <FormField label="Purpose">
+                    <FormField label="Purpose" error={rowErrors[row.key]?.purpose}>
                       <Textarea
                         value={row.purpose}
                         onChange={(e) => updateRow(row.key, { purpose: e.target.value })}
                         placeholder="What does this signatory clear?"
                         rows={2}
+                        maxLength={PEOPLE_TEXT_LIMITS.CLEARANCE_PURPOSE}
                       />
                     </FormField>
-                    <FormField label="Requirements">
+                    <FormField label="Requirements" error={rowErrors[row.key]?.requirements}>
                       <Textarea
                         value={row.requirements}
                         onChange={(e) => updateRow(row.key, { requirements: e.target.value })}
                         placeholder="What must they verify before signing?"
                         rows={2}
+                        maxLength={PEOPLE_TEXT_LIMITS.CLEARANCE_REQUIREMENTS}
                       />
                     </FormField>
                   </div>
