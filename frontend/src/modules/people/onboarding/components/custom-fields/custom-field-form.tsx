@@ -1,6 +1,7 @@
 "use client";
 
 import { Checkbox, FormField, Input } from "@/shared/ui";
+import { PEOPLE_TEXT_LIMITS } from "@/modules/people/people-text";
 
 export function CustomFieldForm({
   fieldLabel,
@@ -23,6 +24,7 @@ export function CustomFieldForm({
           value={fieldLabel}
           onChange={(e) => onFieldLabelChange(e.target.value)}
           placeholder="e.g. SSS Number"
+          maxLength={PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_LABEL}
         />
       </FormField>
       <label className="flex items-center gap-2 text-sm text-[color:var(--text-secondary)]">

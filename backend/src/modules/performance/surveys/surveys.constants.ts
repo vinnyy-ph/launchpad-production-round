@@ -34,6 +34,9 @@ export const SURVEY_ERROR_MESSAGES = {
   SHARE_NOT_COMPLETED: "Available once this survey closes",
   SHARE_NO_SUPERVISOR: "This team has no supervisor to send results to",
   SHARE_ACTOR_NOT_EMPLOYEE: "Your account is not linked to an employee record",
+  SHARE_MESSAGE_REQUIRED: "A note for the supervisor is required",
+  SHARE_MESSAGE_TOO_LONG: "The note is too long",
+  AI_UNAVAILABLE: "AI assistance is unavailable right now",
 } as const;
 
 /** Max character lengths for user-supplied free-text survey fields. */
@@ -42,4 +45,6 @@ export const SURVEY_TEXT_LIMITS = {
   QUESTION_TEXT: 500,
   SCALE_LABEL: 100,
   OPTION: 200,
+  /** HR's open-text note shared with a small team's supervisor (SYS-005). */
+  SHARE_MESSAGE: 2000,
 } as const;

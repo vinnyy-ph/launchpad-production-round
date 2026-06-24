@@ -21,6 +21,8 @@ export interface KpiCardProps {
   hint?: string;
   /** Trend pill — up = green, down = red (e.g. { value: "12%", direction: "up" }). */
   delta?: { value: string; direction: "up" | "down" };
+  /** Optional 0–100 progress bar rendered as a thin track under the value. */
+  progress?: number;
   /** Render the value as a skeleton while data loads. */
   loading?: boolean;
   /** When set, the whole card becomes a link to this route, with a hover affordance. */
@@ -32,7 +34,7 @@ export interface KpiCardProps {
  * a period sub-line, a 40px value, and an optional green/red trend pill. Pass `href`
  * to make the whole card a link to where the metric is acted on.
  */
-export function KpiCard({ label, value, icon: Icon, period, hint, delta, loading = false, href }: KpiCardProps) {
+export function KpiCard({ label, value, icon: Icon, period, hint, delta, progress, loading = false, href }: KpiCardProps) {
   const interactive = !!href;
   const className = cn(
     "relative block overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-[18px]",
@@ -86,6 +88,21 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, loading
         <p className="mt-3.5 text-[40px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
           {value}
         </p>
+      )}
+
+      {progress != null && !loading && (
+        <div
+          className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--bg-tertiary)]"
+          role="progressbar"
+          aria-valuenow={Math.round(progress)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%`, background: "hsl(var(--chart-1))" }}
+          />
+        </div>
       )}
 
       {delta && !loading && (

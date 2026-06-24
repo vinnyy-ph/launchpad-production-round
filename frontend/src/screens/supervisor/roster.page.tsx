@@ -25,10 +25,10 @@ import {
   PageTabs,
   StatusBadge,
   FilterBar,
+  SearchInput,
 } from "@/shared/ui/patterns";
 import {
   Button,
-  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -261,13 +261,12 @@ export default function RosterPage() {
         <>
           <FilterBar aria-label="Filter roster" className="gap-3">
         <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <Input
-            type="text"
+          <SearchInput
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={setSearch}
             placeholder="Search by name or email…"
             aria-label="Search roster"
-            className="w-full sm:max-w-[320px]"
+            containerClassName="sm:max-w-[320px]"
           />
           <div className="flex w-full gap-2 md:hidden">
             <Select

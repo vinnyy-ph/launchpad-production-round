@@ -49,7 +49,7 @@ export async function seedOnboarding(prisma: PrismaClient, users: SeededUsers): 
     data: {
       recordId: record.id,
       documentId: govIdDoc.id,
-      fileUrl: 'https://storage.example.com/onboarding/casey-gov-id.pdf',
+      fileUrl: 'onboarding/casey-gov-id.pdf|raw',
       status: 'PENDING',
     },
   })
@@ -60,7 +60,7 @@ export async function seedOnboarding(prisma: PrismaClient, users: SeededUsers): 
     data: {
       recordId: record.id,
       documentId: contractDoc.id,
-      fileUrl: 'https://storage.example.com/onboarding/casey-contract-v1.pdf',
+      fileUrl: 'onboarding/casey-contract-v1.pdf|raw',
       status: 'REJECTED',
       reviewerId: users.chro.id,
       rejectionNote: 'Contract is missing your signature on page 3. Please re-sign and re-upload.',

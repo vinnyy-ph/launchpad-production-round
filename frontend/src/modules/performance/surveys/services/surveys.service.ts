@@ -205,18 +205,35 @@ export async function fetchSurveyResults(
 }
 
 /**
- * HR-only: share a small anonymous team's results with that team's supervisor. The server
- * enforces every gate (anonymous, small team, completed occurrence, resolvable supervisor).
+ * HR-only: send a small anonymous team's supervisor an open-text note about their team's
+ * results (the supervisor sees the note, never the raw anonymous breakdown). The server
+ * enforces every gate (anonymous, small team, completed occurrence, resolvable supervisor)
+ * and that the note is non-empty.
  */
 export async function shareSmallTeamResults(
   surveyId: string,
-  input: { teamId: string; occurrenceId?: string },
+  input: { teamId: string; occurrenceId?: string; message: string },
 ): Promise<ShareResultsResponse> {
   const res = await apiFetch<{ data: ShareResultsResponse }>(
     `${BASE}/${surveyId}/results/share`,
     { method: "POST", body: JSON.stringify(input) },
   );
   return res.data;
+}
+
+/**
+ * HR-only: AI-drafted note options (3 pills) for the small team's supervisor, built from the
+ * team's aggregate results (never raw responses). Same gates as the share, server-enforced.
+ */
+export async function fetchNoteSuggestions(
+  surveyId: string,
+  input: { teamId: string; occurrenceId?: string },
+): Promise<string[]> {
+  const res = await apiFetch<{ data: { suggestions: string[] } }>(
+    `${BASE}/${surveyId}/results/note-suggestions`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return res.data.suggestions;
 }
 
 /** All rounds of a recurring survey (HR only), newest first, for the results-page round picker. */

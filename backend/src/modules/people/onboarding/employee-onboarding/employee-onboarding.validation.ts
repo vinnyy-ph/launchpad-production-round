@@ -1,4 +1,6 @@
-import { formatPhilippineMobileDisplay, parseEmergencyContact } from "../../../shared/phone";
+import { formatPhilippineMobileE164, parseEmergencyContact } from "../../../shared/phone";
+import { assertSafeText } from "../../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 import type {
   SubmitCustomFieldsRequestDto,
   SubmitDocumentParamsDto,
@@ -30,18 +32,24 @@ export class EmployeeOnboardingValidation {
     const emergencyContact = this.optionalEmergencyContact(body.emergencyContact);
 
     if (firstName !== undefined) {
+      assertSafeText(firstName, "firstName", PEOPLE_TEXT_LIMITS.NAME);
       dto.firstName = firstName;
     }
 
     if (lastName !== undefined) {
+      assertSafeText(lastName, "lastName", PEOPLE_TEXT_LIMITS.NAME);
       dto.lastName = lastName;
     }
 
     if (middleName !== undefined) {
+      if (middleName !== null) {
+        assertSafeText(middleName, "middleName", PEOPLE_TEXT_LIMITS.NAME);
+      }
       dto.middleName = middleName;
     }
 
     if (personalEmail !== undefined) {
+      assertSafeText(personalEmail, "personalEmail", PEOPLE_TEXT_LIMITS.EMAIL);
       dto.personalEmail = personalEmail.toLowerCase();
     }
 
@@ -50,26 +58,35 @@ export class EmployeeOnboardingValidation {
     }
 
     if (address !== undefined) {
+      assertSafeText(address, "address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE);
       dto.address = address;
     }
 
     if (city !== undefined) {
+      assertSafeText(city, "city", PEOPLE_TEXT_LIMITS.LOCATION);
       dto.city = city;
     }
 
     if (province !== undefined) {
+      assertSafeText(province, "province", PEOPLE_TEXT_LIMITS.LOCATION);
       dto.province = province;
     }
 
     if (country !== undefined) {
+      assertSafeText(country, "country", PEOPLE_TEXT_LIMITS.LOCATION);
       dto.country = country;
     }
 
     if (emergencyContact !== undefined) {
-      dto.emergencyContact = formatPhilippineMobileDisplay(emergencyContact.normalizedPhone);
-      dto.emergencyContactName = emergencyContactName ?? emergencyContact.contactName ?? undefined;
+      dto.emergencyContact = formatPhilippineMobileE164(emergencyContact.normalizedPhone);
+      const contactName = emergencyContactName ?? emergencyContact.contactName ?? undefined;
+      if (contactName !== undefined) {
+        assertSafeText(contactName, "emergencyContactName", PEOPLE_TEXT_LIMITS.NAME);
+      }
+      dto.emergencyContactName = contactName;
       dto.emergencyContactNormalizedPhone = emergencyContact.normalizedPhone;
     } else if (emergencyContactName !== undefined) {
+      assertSafeText(emergencyContactName, "emergencyContactName", PEOPLE_TEXT_LIMITS.NAME);
       dto.emergencyContactName = emergencyContactName;
     }
 
@@ -108,6 +125,7 @@ export class EmployeeOnboardingValidation {
         field.value,
         EMPLOYEE_ONBOARDING_FIELDS.VALUE,
       );
+      assertSafeText(value, `fields[${index}].value`, PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_VALUE);
 
       return { fieldId, value };
     });

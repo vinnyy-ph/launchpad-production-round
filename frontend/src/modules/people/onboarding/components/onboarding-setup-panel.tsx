@@ -43,6 +43,7 @@ import {
   parseAllowedFileTypes,
   serializeAllowedFileTypes,
 } from "@/modules/people/onboarding/constants/allowed-file-types";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 
 const SECTION_TITLE = "Onboarding setup";
 const SECTION_SUBTITLE = "Manage required documents and custom fields for new hires.";
@@ -73,9 +74,11 @@ export function OnboardingSetupPanel() {
   const [docInstructions, setDocInstructions] = useState("");
   const [docFileTypes, setDocFileTypes] = useState<string[]>(["pdf", "jpg", "png"]);
   const [docRequired, setDocRequired] = useState(true);
-  const [docErrors, setDocErrors] = useState<{ documentName?: string; allowedFileTypes?: string }>(
-    {},
-  );
+  const [docErrors, setDocErrors] = useState<{
+    documentName?: string;
+    instructions?: string;
+    allowedFileTypes?: string;
+  }>({});
 
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [editingField, setEditingField] = useState<OnboardingCustomFieldConfig | null>(null);
@@ -112,14 +115,33 @@ export function OnboardingSetupPanel() {
 
   function submitDoc() {
     const next: typeof docErrors = {};
-    if (!docName.trim()) next.documentName = "Document name is required.";
+    const trimmedDocName = docName.trim();
+    const trimmedInstructions = docInstructions.trim();
+    if (!trimmedDocName) {
+      next.documentName = "Document name is required.";
+    } else {
+      const error = validatePeopleText(
+        trimmedDocName,
+        "Document name",
+        PEOPLE_TEXT_LIMITS.DOCUMENT_NAME,
+      );
+      if (error) next.documentName = error;
+    }
+    if (trimmedInstructions) {
+      const error = validatePeopleText(
+        trimmedInstructions,
+        "Instructions",
+        PEOPLE_TEXT_LIMITS.DOCUMENT_INSTRUCTIONS,
+      );
+      if (error) next.instructions = error;
+    }
     if (docFileTypes.length === 0) next.allowedFileTypes = "Select at least one file type.";
     setDocErrors(next);
     if (Object.keys(next).length > 0) return;
 
     const payload = {
-      documentName: docName.trim(),
-      instructions: docInstructions.trim() || undefined,
+      documentName: trimmedDocName,
+      instructions: trimmedInstructions || undefined,
       allowedFileTypes: serializeAllowedFileTypes(docFileTypes),
       isRequired: docRequired,
     };
@@ -187,12 +209,22 @@ export function OnboardingSetupPanel() {
 
   function submitField() {
     const next: typeof fieldErrors = {};
-    if (!fieldLabel.trim()) next.fieldLabel = "Field label is required.";
+    const trimmedLabel = fieldLabel.trim();
+    if (!trimmedLabel) {
+      next.fieldLabel = "Field label is required.";
+    } else {
+      const error = validatePeopleText(
+        trimmedLabel,
+        "Field label",
+        PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_LABEL,
+      );
+      if (error) next.fieldLabel = error;
+    }
     setFieldErrors(next);
     if (Object.keys(next).length > 0) return;
 
     const payload = {
-      fieldLabel: fieldLabel.trim(),
+      fieldLabel: trimmedLabel,
       isRequired: fieldRequired,
     };
 
@@ -329,15 +361,17 @@ export function OnboardingSetupPanel() {
                 value={docName}
                 onChange={(e) => setDocName(e.target.value)}
                 placeholder="e.g. NBI Clearance"
+                maxLength={PEOPLE_TEXT_LIMITS.DOCUMENT_NAME}
               />
             </FormField>
-            <FormField label="Instructions" htmlFor="doc-instructions">
+            <FormField label="Instructions" htmlFor="doc-instructions" error={docErrors.instructions}>
               <Textarea
                 id="doc-instructions"
                 value={docInstructions}
                 onChange={(e) => setDocInstructions(e.target.value)}
                 placeholder="Tell the employee what to upload."
                 rows={3}
+                maxLength={PEOPLE_TEXT_LIMITS.DOCUMENT_INSTRUCTIONS}
               />
             </FormField>
             <FormField

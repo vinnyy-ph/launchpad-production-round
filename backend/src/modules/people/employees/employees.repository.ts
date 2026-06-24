@@ -1,5 +1,9 @@
 import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
+import {
+  formatPhilippineMobileE164,
+  tryExtractNormalizedPhilippinePhone,
+} from "../../shared/phone";
 import { downwardChain } from "../../shared/org";
 import type {
   ListEmployeesQueryDto,
@@ -292,52 +296,54 @@ export class EmployeesRepository {
       select: { id: true },
     });
 
-    const diffs = await this.computeDiffs(existingEmployee, update);
+    const effectiveUpdate = this.normalizeEmergencyContactPhone(update);
+
+    const diffs = await this.computeDiffs(existingEmployee, effectiveUpdate);
 
     const addressUpdate = this.buildAddressRelationUpdate(
-      update.address,
+      effectiveUpdate.address,
       Boolean(existingEmployee.address),
     );
     const emergencyContactUpdate = this.buildEmergencyContactRelationUpdate(
-      update.emergencyContact,
+      effectiveUpdate.emergencyContact,
       Boolean(existingEmployee.emergencyContact),
     );
 
     const data: Prisma.EmployeeUpdateInput = {
-      companyEmail: update.companyEmail,
-      firstName: update.firstName,
-      lastName: update.lastName,
-      middleName: update.middleName,
-      personalEmail: update.personalEmail,
-      birthday: update.birthday,
-      jobTitle: update.jobTitle,
-      status: update.status,
+      companyEmail: effectiveUpdate.companyEmail,
+      firstName: effectiveUpdate.firstName,
+      lastName: effectiveUpdate.lastName,
+      middleName: effectiveUpdate.middleName,
+      personalEmail: effectiveUpdate.personalEmail,
+      birthday: effectiveUpdate.birthday,
+      jobTitle: effectiveUpdate.jobTitle,
+      status: effectiveUpdate.status,
       ...(addressUpdate ? { address: addressUpdate } : {}),
       ...(emergencyContactUpdate ? { emergencyContact: emergencyContactUpdate } : {}),
-      ...(update.department !== undefined
+      ...(effectiveUpdate.department !== undefined
         ? {
-            department: update.department
+            department: effectiveUpdate.department
               ? {
                   connectOrCreate: {
-                    where: { name: update.department },
-                    create: { name: update.department },
+                    where: { name: effectiveUpdate.department },
+                    create: { name: effectiveUpdate.department },
                   },
                 }
               : { disconnect: true },
           }
         : {}),
-      ...(update.supervisorId !== undefined
+      ...(effectiveUpdate.supervisorId !== undefined
         ? {
-            supervisor: update.supervisorId
-              ? { connect: { id: update.supervisorId } }
+            supervisor: effectiveUpdate.supervisorId
+              ? { connect: { id: effectiveUpdate.supervisorId } }
               : { disconnect: true },
           }
         : {}),
-      ...(update.companyEmail
+      ...(effectiveUpdate.companyEmail
         ? {
             user: {
               update: {
-                email: update.companyEmail,
+                email: effectiveUpdate.companyEmail,
               },
             },
           }
@@ -369,6 +375,43 @@ export class EmployeesRepository {
     });
 
     return this.findById(employeeId);
+  }
+
+  /**
+   * Store PH phone values as E.164 (`+639...`). Older rows may still hold display-formatted
+   * numbers; if the incoming value is the same phone, canonicalize the saved value while keeping
+   * activity logs quiet by comparing normalized values in computeDiffs.
+   */
+  private normalizeEmergencyContactPhone(
+    update: UpdateEmployeeProfileRequestDto,
+  ): UpdateEmployeeProfileRequestDto {
+    if (
+      update.emergencyContact === undefined ||
+      update.emergencyContact === null ||
+      update.emergencyContact.emergencyContactNumber === undefined
+    ) {
+      return update;
+    }
+
+    const nextPhone = update.emergencyContact.emergencyContactNumber;
+
+    if (!nextPhone) {
+      return update;
+    }
+
+    const nextNormalized = tryExtractNormalizedPhilippinePhone(nextPhone);
+
+    if (!nextNormalized) {
+      return update;
+    }
+
+    return {
+      ...update,
+      emergencyContact: {
+        ...update.emergencyContact,
+        emergencyContactNumber: formatPhilippineMobileE164(nextNormalized),
+      },
+    };
   }
 
   /**
@@ -453,7 +496,18 @@ export class EmployeesRepository {
         }
       } else {
         track("emergencyContact.name", existing.emergencyContact?.emergencyContactName ?? null, update.emergencyContact.emergencyContactName);
-        track("emergencyContact.phone", existing.emergencyContact?.emergencyContactNumber ?? null, update.emergencyContact.emergencyContactNumber);
+        const existingPhone = existing.emergencyContact?.emergencyContactNumber ?? null;
+        const nextPhone = update.emergencyContact.emergencyContactNumber;
+        const existingNormalized = existingPhone
+          ? tryExtractNormalizedPhilippinePhone(existingPhone)
+          : null;
+        const nextNormalized = nextPhone
+          ? tryExtractNormalizedPhilippinePhone(nextPhone)
+          : null;
+
+        if (!existingNormalized || existingNormalized !== nextNormalized) {
+          track("emergencyContact.phone", existingPhone, nextPhone);
+        }
       }
     }
 

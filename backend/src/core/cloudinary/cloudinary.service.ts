@@ -2,8 +2,11 @@ import { v2 as cloudinary } from "cloudinary";
 import {
   formatOnboardingDocumentStorageKey,
   isLegacyOnboardingDocumentUrl,
+  parseLegacyCloudinaryDocumentUrl,
   parseOnboardingDocumentStorageKey,
 } from "./onboarding-document-storage";
+
+const DOCUMENT_LINK_TTL_SECONDS = 10 * 60;
 
 /**
  * Uploads onboarding documents to Cloudinary using server-side credentials.
@@ -47,11 +50,14 @@ export class CloudinaryService {
 
     const base64 = buffer.toString("base64");
     const dataUri = `data:${mimeType || "application/octet-stream"};base64,${base64}`;
+    const normalizedMimeType = mimeType.toLowerCase().split(";")[0]?.trim();
+    const resourceType = normalizedMimeType === "application/pdf" ? "raw" : "image";
 
-    // `auto` keeps PDFs previewable inline; `authenticated` blocks unsigned public URLs.
+    // PDFs must be raw assets so signed delivery returns PDF bytes instead of an
+    // image-transformation response that browser PDF viewers cannot load.
     const result = await cloudinary.uploader.upload(dataUri, {
       folder: "onboarding",
-      resource_type: "auto",
+      resource_type: resourceType,
       type: "authenticated",
       use_filename: true,
       unique_filename: true,
@@ -66,23 +72,37 @@ export class CloudinaryService {
 
   /**
    * Mints a short-lived signed view URL for an onboarding submission.
-   * Legacy rows that still store a public HTTPS URL are returned unchanged.
+   * Legacy Cloudinary URLs are parsed and re-signed instead of returned as-is.
    */
   resolveOnboardingDocumentViewUrl(storedValue: string): string {
     if (isLegacyOnboardingDocumentUrl(storedValue)) {
-      return storedValue;
-    }
+      const legacyDocument = parseLegacyCloudinaryDocumentUrl(storedValue);
+      if (!legacyDocument) {
+        throw new Error("Legacy public document URL cannot be signed");
+      }
 
-    this.ensureConfigured();
+      return this.getExpiringDocumentDownloadUrl(
+        legacyDocument.publicId,
+        legacyDocument.resourceType,
+      );
+    }
 
     const { publicId, resourceType } =
       parseOnboardingDocumentStorageKey(storedValue);
 
-    return cloudinary.url(publicId, {
+    return this.getExpiringDocumentDownloadUrl(publicId, resourceType);
+  }
+
+  private getExpiringDocumentDownloadUrl(
+    publicId: string,
+    resourceType: string,
+  ): string {
+    this.ensureConfigured();
+
+    return cloudinary.utils.private_download_url(publicId, "", {
       resource_type: resourceType,
       type: "authenticated",
-      sign_url: true,
-      secure: true,
+      expires_at: this.buildDocumentLinkExpiry(),
     });
   }
 
@@ -127,6 +147,11 @@ export class CloudinaryService {
     return cloudinary.utils.private_download_url(publicId, "", {
       resource_type: "raw",
       type: "authenticated",
+      expires_at: this.buildDocumentLinkExpiry(),
     });
+  }
+
+  private buildDocumentLinkExpiry(): number {
+    return Math.floor(Date.now() / 1000) + DOCUMENT_LINK_TTL_SECONDS;
   }
 }

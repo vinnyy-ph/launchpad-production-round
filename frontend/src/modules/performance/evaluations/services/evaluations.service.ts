@@ -74,12 +74,20 @@ export async function acknowledgeEvaluation(id: string): Promise<Evaluation> {
 }
 
 /**
- * Downloads a supporting document. The backend authorizes the request and returns a
- * short-lived signed Cloudinary URL (the docs aren't publicly accessible), which we then
- * navigate to so the browser downloads the file.
+ * Resolves a supporting document's short-lived signed Cloudinary URL. The backend
+ * authorizes the request (the docs aren't publicly accessible) and returns the signed URL,
+ * used to preview the document in a modal or open it in a new tab.
+ */
+export async function getSupportingDocUrl(evaluationId: string, docIndex: number): Promise<string> {
+  const { url } = await apiFetch<{ url: string }>(`${BASE}/${evaluationId}/documents/${docIndex}/download`);
+  return url;
+}
+
+/**
+ * Opens a supporting document in a new tab using its signed URL.
  */
 export async function downloadSupportingDoc(evaluationId: string, docIndex: number): Promise<void> {
-  const { url } = await apiFetch<{ url: string }>(`${BASE}/${evaluationId}/documents/${docIndex}/download`);
+  const url = await getSupportingDocUrl(evaluationId, docIndex);
   const a = document.createElement("a");
   a.href = url;
   a.target = "_blank";

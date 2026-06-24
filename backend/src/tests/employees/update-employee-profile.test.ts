@@ -1,6 +1,7 @@
 import request from "supertest";
 import { app } from "../../app";
 import {
+  activityLogCreateManyMock,
   buildEmployeeProfileRecord,
   buildViewer,
   findFirstMock,
@@ -137,6 +138,65 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
           emergencyContactNumber: "+1 555 0100",
         },
       },
+    });
+  });
+
+  it("persists canonical phone format without logging when only formatting changed", async () => {
+    const existingProfile = {
+      ...buildEmployeeProfileRecord(),
+      emergencyContact: {
+        emergencyContactName: "Jamie Reed",
+        emergencyContactNumber: "+63 909 123 4567",
+      },
+    };
+    const updatedProfile = {
+      ...existingProfile,
+      firstName: "Marco",
+    };
+
+    findFirstMock
+      .mockResolvedValueOnce(existingProfile)
+      .mockResolvedValueOnce({ id: "editor-employee" })
+      .mockResolvedValue(updatedProfile);
+    updateMock.mockResolvedValue(updatedProfile);
+
+    await request(app)
+      .patch("/api/v1/employees/employee-active")
+      .send({
+        firstName: "Marco",
+        emergencyContact: {
+          emergencyContactName: "Jamie Reed",
+          emergencyContactNumber: "+639091234567",
+        },
+      })
+      .expect(200);
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          emergencyContact: {
+            upsert: {
+              create: {
+                emergencyContactName: "Jamie Reed",
+                emergencyContactNumber: "+639091234567",
+              },
+              update: {
+                emergencyContactName: "Jamie Reed",
+                emergencyContactNumber: "+639091234567",
+              },
+            },
+          },
+        }),
+      }),
+    );
+    expect(activityLogCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          fieldName: "firstName",
+          oldValue: "Marcus",
+          newValue: "Marco",
+        }),
+      ],
     });
   });
 

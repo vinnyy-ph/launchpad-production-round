@@ -8,8 +8,8 @@ import { useMyTeams } from "@/modules/people/teams/hooks/use-my-teams";
 import type { Team } from "@/modules/people/teams/types/teams.types";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
-import { Input, Badge, Skeleton, UserAvatar } from "@/shared/ui";
-import { EmptyState, ErrorState, FilterBar } from "@/shared/ui/patterns";
+import { Badge, Skeleton, UserAvatar } from "@/shared/ui";
+import { EmptyState, ErrorState, FilterBar, SearchInput } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
 
 function initials(name: string): string {
@@ -114,13 +114,12 @@ export default function EmployeeTeamsPage() {
       <ScreenHeader id="teams" level="page" />
 
       <FilterBar aria-label="Filter teams">
-        <Input
-          type="text"
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onValueChange={setSearch}
           placeholder="Search by team or leader…"
           aria-label="Search teams"
-          className="sm:max-w-[320px]"
+          containerClassName="sm:max-w-[320px]"
         />
       </FilterBar>
 

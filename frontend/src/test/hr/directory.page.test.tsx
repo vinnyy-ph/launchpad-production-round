@@ -410,7 +410,7 @@ describe("DirectoryPage", () => {
     expect(screen.getByText("Pending invites")).toBeInTheDocument();
     expect(screen.getByText("Invite issues")).toBeInTheDocument();
     expect(screen.getByText("In progress")).toBeInTheDocument();
-    expect(screen.getByText("Ready for review")).toBeInTheDocument();
+    expect(screen.getByText("Onboarded")).toBeInTheDocument();
     expect(screen.getByText("Grace Hopper")).toBeInTheDocument();
     expect(screen.getByText("Accepted")).toBeInTheDocument();
     expect(screen.getByText("1/2 approved")).toBeInTheDocument();

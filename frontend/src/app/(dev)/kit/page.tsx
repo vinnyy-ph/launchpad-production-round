@@ -112,6 +112,7 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  SearchInput,
   FormField,
   PageSection,
   StatCard,
@@ -250,6 +251,7 @@ export default function KitPage() {
   const [checked, setChecked] = useState(true);
   const [radioVal, setRadioVal] = useState("a");
   const [selectVal, setSelectVal] = useState("");
+  const [kitSearch, setKitSearch] = useState("");
 
   return (
     <ConfirmProvider>
@@ -483,7 +485,12 @@ export default function KitPage() {
           </CompCard>
           <CompCard title="Filter bar" full>
             <FilterBar className="w-full">
-              <Input placeholder="Search employees…" className="max-w-xs" />
+              <SearchInput
+                value={kitSearch}
+                onValueChange={setKitSearch}
+                placeholder="Search employees…"
+                containerClassName="max-w-xs"
+              />
               <Select>
                 <SelectTrigger className="w-36">
                   <SelectValue placeholder="Status" />

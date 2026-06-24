@@ -229,17 +229,18 @@ export class EmployeesController {
 
     if (
       error instanceof Error &&
-      [
-        "Employee profile update body is required",
-        "Employee cannot supervise themselves",
-        "Supervisor not found",
-        "Circular supervisory relationship detected",
-        "Another employee is already the root node",
-        "Supervisor must belong to the same department",
-        "Invalid employee birthday",
-        "Invalid employee profile update",
-        "Invalid employee status",
-      ].includes(error.message)
+      ([
+          "Employee profile update body is required",
+          "Employee cannot supervise themselves",
+          "Supervisor not found",
+          "Circular supervisory relationship detected",
+          "Another employee is already the root node",
+          "Supervisor must belong to the same department",
+          "Invalid employee birthday",
+          "Invalid employee profile update",
+          "Invalid employee status",
+        ].includes(error.message) ||
+        this.isTextValidationError(error.message))
     ) {
       const response: ApiErrorResponseDto = {
         success: false,
@@ -258,6 +259,11 @@ export class EmployeesController {
     }
 
     return next(error);
+  }
+
+  /** Identifies shared free-text validation failures. */
+  private isTextValidationError(message: string): boolean {
+    return message.includes(" must be ") || message.includes(" must not contain ");
   }
 
   /** Maps known employee update validation failures to the field clients can correct. */
