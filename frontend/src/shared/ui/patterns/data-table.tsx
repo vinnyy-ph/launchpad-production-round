@@ -288,7 +288,7 @@ export function DataTable<T>({
                   <button
                     type="button"
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-sm text-[12px] font-bold uppercase tracking-[0.8px] text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-primary)]",
+                      "inline-flex items-center gap-1 rounded-sm text-[10.5px] font-bold uppercase tracking-[0.8px] text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-primary)]",
                       col.className?.includes("text-center") && "justify-center",
                     )}
                     onClick={() => handleSort(col.sortKey!)}
