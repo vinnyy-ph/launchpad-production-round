@@ -49,6 +49,17 @@ export interface SmallTeamShareDto {
   alreadySharedAt: string | null;
 }
 
+/**
+ * HR's open-text note, returned to a small-team SUPERVISOR who reaches the results via an HR
+ * share. Present only for that viewer; when present, the breakdown is withheld (the supervisor
+ * reads the note instead of the raw anonymous results).
+ */
+export interface SharedNoteDto {
+  message: string;
+  sharedAt: string; // ISO
+  sharedByName: string | null;
+}
+
 export interface SurveyResultsResponseDto {
   success: boolean;
   data: {
@@ -69,5 +80,8 @@ export interface SurveyResultsResponseDto {
     questions: QuestionResult[]; // empty when suppressed = true
     /** HR-only; present on an anonymous small-team filtered view. Drives the share action. */
     smallTeamShare?: SmallTeamShareDto;
+    /** Present only for the small-team supervisor reading via an HR share — HR's note,
+     *  shown instead of the breakdown. */
+    sharedNote?: SharedNoteDto;
   };
 }

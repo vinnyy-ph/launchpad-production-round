@@ -1,4 +1,5 @@
 import { ActivityLogRepository } from "./activity-log.repository";
+import { EmployeesRepository } from "../employees/employees.repository";
 
 export interface ActivityLogEntryDto {
   id: string;
@@ -17,7 +18,24 @@ export interface ActivityLogsResponseDto {
 }
 
 export class ActivityLogService {
-  constructor(private readonly repo = new ActivityLogRepository()) {}
+  constructor(
+    private readonly repo = new ActivityLogRepository(),
+    private readonly employeesRepository = new EmployeesRepository(),
+  ) {}
+
+  /**
+   * Returns the caller's OWN profile field edit history (self-service). Resolves the employee
+   * from the auth user id, then reuses the shared activity-log query.
+   */
+  async getMyActivityLogs(userId: string): Promise<ActivityLogsResponseDto> {
+    const me = await this.employeesRepository.findIdentityByUserId(userId);
+
+    if (!me) {
+      throw new Error("Employee not found");
+    }
+
+    return this.getActivityLogs(me.id);
+  }
 
   async getActivityLogs(employeeId: string): Promise<ActivityLogsResponseDto> {
     const logs = await this.repo.findByTargetEmployee(employeeId);

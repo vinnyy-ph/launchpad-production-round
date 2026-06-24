@@ -41,6 +41,7 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  SearchInput,
   ConfirmProvider,
   useConfirm,
   Spinner,
@@ -319,13 +320,12 @@ function UsersPageInner() {
 
       <FilterBar aria-label="Filter users" className="gap-3">
         <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <Input
-            type="text"
+          <SearchInput
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={setSearch}
             placeholder="Search by name or email…"
             aria-label="Search users"
-            className="w-full sm:max-w-[320px]"
+            containerClassName="sm:max-w-[320px]"
           />
           <div className="flex w-full gap-2 md:hidden">
             <Select

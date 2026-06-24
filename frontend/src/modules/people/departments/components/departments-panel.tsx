@@ -4,7 +4,6 @@ import { Building2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button } from "@/shared/ui/primitives/button";
-import { Input } from "@/shared/ui/primitives/input";
 import {
   Tooltip,
   TooltipContent,
@@ -15,6 +14,7 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  SearchInput,
   useConfirm,
   type Column,
   type DataTableSort,
@@ -189,16 +189,15 @@ export function DepartmentsPanel() {
       />
 
       <FilterBar aria-label="Filter departments">
-        <Input
-          type="text"
+        <SearchInput
           value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
+          onValueChange={(value) => {
+            setSearch(value);
             setPage(1);
           }}
           placeholder="Search by name…"
           aria-label="Search departments"
-          className="sm:max-w-[320px]"
+          containerClassName="sm:max-w-[320px]"
         />
       </FilterBar>
 

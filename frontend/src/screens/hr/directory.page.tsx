@@ -6,7 +6,6 @@ import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
-import { Input } from "@/shared/ui/primitives/input";
 import {
   Tooltip,
   TooltipContent,
@@ -17,11 +16,13 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
-  MultiSelectFilter,
+  GroupedFilterMenu,
   PageTabs,
+  SearchInput,
   StatusBadge,
   type Column,
   type DataTableSort,
+  type FilterGroup,
 } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
@@ -185,6 +186,66 @@ export default function DirectoryPage() {
     departmentIds.size > 0 ||
     supervisorIds.size > 0;
 
+  // The team/department/status/supervisor filters are grouped behind a single "Filter" dropdown.
+  // Status and supervisor only apply on the All tab, so they are appended conditionally.
+  const filterGroups: FilterGroup[] = [
+    {
+      key: "teams",
+      label: "Filter by teams",
+      options: teams.map((team) => ({ id: team.id, name: team.name })),
+      selected: teamIds,
+      onChange: (next) => {
+        setTeamIds(next);
+        setPage(1);
+      },
+      searchPlaceholder: "Search teams…",
+      emptyText: teamsLoading ? "Loading teams…" : "No teams found.",
+    },
+    {
+      key: "departments",
+      label: "Filter by departments",
+      options: departments.map((department) => ({ id: department.id, name: department.name })),
+      selected: departmentIds,
+      onChange: (next) => {
+        setDepartmentIds(next);
+        setPage(1);
+      },
+      searchPlaceholder: "Search departments…",
+      emptyText: departmentsLoading ? "Loading departments…" : "No departments found.",
+    },
+    ...(tab === "all"
+      ? ([
+          {
+            key: "status",
+            label: "Filter by status",
+            options: STATUS_FILTER_OPTIONS.map((status) => ({ id: status.id, name: status.name })),
+            selected: statuses,
+            onChange: (next) => {
+              setStatuses(next);
+              setPage(1);
+            },
+            searchPlaceholder: "Search statuses…",
+            emptyText: "No statuses found.",
+          },
+          {
+            key: "supervisors",
+            label: "Filter by supervisors",
+            options: supervisorOptions.map((employee) => ({
+              id: employee.id,
+              name: employee.fullName,
+            })),
+            selected: supervisorIds,
+            onChange: (next) => {
+              setSupervisorIds(next);
+              setPage(1);
+            },
+            searchPlaceholder: "Search supervisors…",
+            emptyText: "No employees found.",
+          },
+        ] as FilterGroup[])
+      : []),
+  ];
+
   const columns: Column<EmployeeListItem>[] = [
     {
       header: "Employee name",
@@ -331,80 +392,17 @@ export default function DirectoryPage() {
       ) : (
         <>
           <FilterBar aria-label="Filter employees">
-            <Input
-              type="text"
+            <SearchInput
               value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
+              onValueChange={(value) => {
+                setSearch(value);
                 setPage(1);
               }}
               placeholder="Search by name or email…"
               aria-label="Search employees"
-              className="sm:max-w-[320px]"
+              containerClassName="sm:max-w-[320px]"
             />
-            <MultiSelectFilter
-              options={teams.map((team) => ({ id: team.id, name: team.name }))}
-              selected={teamIds}
-              onChange={(next) => {
-                setTeamIds(next);
-                setPage(1);
-              }}
-              allLabel="All teams"
-              countNoun="teams"
-              searchPlaceholder="Search teams…"
-              emptyText={teamsLoading ? "Loading teams…" : "No teams found."}
-              ariaLabel="Filter by team"
-            />
-            <MultiSelectFilter
-              options={departments.map((department) => ({
-                id: department.id,
-                name: department.name,
-              }))}
-              selected={departmentIds}
-              onChange={(next) => {
-                setDepartmentIds(next);
-                setPage(1);
-              }}
-              allLabel="All departments"
-              countNoun="departments"
-              searchPlaceholder="Search departments…"
-              emptyText={departmentsLoading ? "Loading departments…" : "No departments found."}
-              ariaLabel="Filter by department"
-            />
-            {tab === "all" ? (
-              <MultiSelectFilter
-                options={STATUS_FILTER_OPTIONS}
-                selected={statuses}
-                onChange={(next) => {
-                  setStatuses(next);
-                  setPage(1);
-                }}
-                allLabel="All statuses"
-                countNoun="statuses"
-                searchPlaceholder="Search statuses…"
-                emptyText="No statuses found."
-                ariaLabel="Filter by status"
-              />
-            ) : null}
-            {tab === "all" ? (
-              <MultiSelectFilter
-                options={supervisorOptions.map((employee) => ({
-                  id: employee.id,
-                  name: employee.fullName,
-                }))}
-                selected={supervisorIds}
-                onChange={(next) => {
-                  setSupervisorIds(next);
-                  setPage(1);
-                }}
-                allLabel="All supervisors"
-                countNoun="supervisors"
-                showFilterIcon
-                searchPlaceholder="Search supervisors…"
-                emptyText="No employees found."
-                ariaLabel="Filter by supervisor"
-              />
-            ) : null}
+            <GroupedFilterMenu groups={filterGroups} ariaLabel="Filter employees" />
           </FilterBar>
 
           <div

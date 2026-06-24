@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import {
     ClipboardCheck,
     Plus,
@@ -12,7 +12,6 @@ import {
     ChevronLeft,
     ArrowUpDown,
     FileText,
-    Search,
     X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -49,6 +48,7 @@ import {
     FormField,
     StatusBadge,
     FilterBar,
+    SearchInput,
     type Column,
     type DataTableSort,
 } from "@/shared/ui/patterns";
@@ -593,10 +593,10 @@ function EvaluationEditorDialog({
         } else {
             // Reviewee starts empty (placeholder "Select employee").
             setRevieweeId("");
-            // Smart default: prefill the current month as the evaluation period.
+            // Smart default: prefill month-to-date (the period can't extend past today).
             const now = new Date();
             const from = startOfMonth(now);
-            const to = endOfMonth(now);
+            const to = now;
             setPeriod({ from, to });
             setGrade(null);
             setHighlights([]);
@@ -659,11 +659,33 @@ function EvaluationEditorDialog({
         return errs;
     };
 
+    /** The period's own rules once both ends are picked: no future dates, end strictly after start.
+     *  Returns the message to show under the period field, or null when the range is valid (or still
+     *  incomplete — a missing end is handled by the required-field checks, not here). */
+    const periodError = (range?: DateRange): string | null => {
+        if (!range?.from || !range?.to) return null;
+        const now = new Date();
+        const endOfToday = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            23, 59, 59, 999,
+        );
+        if (range.from.getTime() > endOfToday.getTime() || range.to.getTime() > endOfToday.getTime())
+            return "The evaluation period can't be in the future.";
+        if (range.to.getTime() <= range.from.getTime())
+            return "The end date must be after the start date.";
+        return null;
+    };
+
     const validate = (): boolean => {
         const errs: Record<string, string> = { ...textErrors() };
         if (!revieweeId) errs.reviewee = "Select an employee.";
-        if (!period?.from || !period?.to)
-            errs.period = "Select an evaluation period.";
+        if (!period?.from || !period?.to) errs.period = "Select an evaluation period.";
+        else {
+            const pe = periodError(period);
+            if (pe) errs.period = pe;
+        }
         if (!grade) errs.grade = "Pick an overall rating.";
         setErrors(errs);
         return Object.keys(errs).length === 0;
@@ -713,6 +735,10 @@ function EvaluationEditorDialog({
         if (!revieweeId) errs.reviewee = "Select an employee before sending.";
         if (!period?.from || !period?.to)
             errs.period = "Add the evaluation period before sending.";
+        else {
+            const pe = periodError(period);
+            if (pe) errs.period = pe;
+        }
         if (!grade) errs.grade = "Pick an overall rating before sending.";
         if (!evaluationText.trim())
             errs.summary = "Add an overall summary before sending.";
@@ -1041,9 +1067,12 @@ function EvaluationEditorDialog({
                                     <div aria-invalid={!!errors.period}>
                                         <DateRangePicker
                                             value={period}
+                                            maxDate={new Date()}
                                             onChange={(v) => {
                                                 setPeriod(v);
-                                                clearError("period");
+                                                const pe = periodError(v);
+                                                if (pe) setErrors((e) => ({ ...e, period: pe }));
+                                                else clearError("period");
                                             }}
                                         />
                                     </div>
@@ -1278,9 +1307,9 @@ function EvaluationEditorDialog({
                                     <Button
                                         variant="secondary"
                                         type="button"
-                                        onClick={handleClose}
+                                        onClick={handleSubmit}
                                     >
-                                        Cancel
+                                        Save as draft
                                     </Button>
                                     <TooltipProvider delayDuration={0}>
                                         <Tooltip>
@@ -1316,8 +1345,7 @@ function EvaluationEditorDialog({
                                     </TooltipProvider>
                                 </>
                             ) : (
-                                // Preview step. No explicit "Save as draft" — the draft autosaves; Back, Cancel
-                                // and Send sit together as one action group.
+                                // Preview step. Back, Save as draft and Send sit together as one action group.
                                 <>
                                     <Button
                                         variant="ghost"
@@ -1333,9 +1361,9 @@ function EvaluationEditorDialog({
                                     <Button
                                         variant="secondary"
                                         type="button"
-                                        onClick={handleClose}
+                                        onClick={handleSubmit}
                                     >
-                                        Cancel
+                                        Save as draft
                                     </Button>
                                     <Button type="button" onClick={handleSend}>
                                         <Send size={14} className="mr-1" /> Send
@@ -1837,20 +1865,13 @@ export default function EvaluationsPage() {
 
             <FilterBar aria-label="Filter evaluations" className="gap-3">
                 <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                    <div className="relative w-full sm:max-w-[320px]">
-                        <Search
-                            aria-hidden="true"
-                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]"
-                        />
-                        <Input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search by employee"
-                            aria-label="Search evaluations"
-                            className="w-full pl-9"
-                        />
-                    </div>
+                    <SearchInput
+                        value={search}
+                        onValueChange={setSearch}
+                        placeholder="Search by employee"
+                        aria-label="Search evaluations"
+                        containerClassName="sm:max-w-[320px]"
+                    />
                     <div className="flex w-full gap-2 md:hidden">
                         <Select
                             value={sort.key}

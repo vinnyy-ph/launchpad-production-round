@@ -14,10 +14,12 @@ export interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (range?: DateRange) => void;
   disabled?: boolean;
+  /** Latest selectable day; days after this are disabled in the calendar. */
+  maxDate?: Date;
   className?: string;
 }
 
-export function DateRangePicker({ value, onChange, disabled, className }: DateRangePickerProps) {
+export function DateRangePicker({ value, onChange, disabled, maxDate, className }: DateRangePickerProps) {
   const label =
     value?.from && value?.to
       ? `${format(value.from, "LLL d")} - ${format(value.to, "LLL d, y")}`
@@ -58,6 +60,7 @@ export function DateRangePicker({ value, onChange, disabled, className }: DateRa
           onSelect={onChange}
           numberOfMonths={2}
           showOutsideDays={false}
+          {...(maxDate ? { disabled: { after: maxDate } } : {})}
           className="!w-full"
         />
       </PopoverContent>

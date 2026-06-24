@@ -599,7 +599,8 @@ export class EvaluationsController {
       error.message.endsWith("must be a string") ||
       error.message.endsWith("must be a valid date") ||
       error.message.endsWith("must be an array of strings") ||
-      error.message === "periodEnd must be on or after periodStart" ||
+      error.message === "periodEnd must be after periodStart" ||
+      error.message.endsWith("cannot be in the future") ||
       error.message === "Request body is required" ||
       error.message === "No fields provided to update" ||
       error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES ||
