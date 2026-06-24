@@ -599,6 +599,12 @@ export function EmployeeDetailsModal({
     }
   }, [profile, savedDraft]);
 
+  // Default to Personal Information whenever the modal opens (or switches employee). This
+  // component stays mounted across open/close, so the active section must be reset explicitly.
+  useEffect(() => {
+    if (open) setActiveSection("personal");
+  }, [open, employeeId]);
+
   // Track which section is scrolled into view so the sidebar tab highlights it. The top-most
   // intersecting section wins; the bottom rootMargin biases activation toward the upper area.
   useEffect(() => {
@@ -623,7 +629,9 @@ export function EmployeeDetailsModal({
       if (node) observer.observe(node);
     }
     return () => observer.disconnect();
-  }, [profile, loading, error]);
+    // `open` is a dependency so the observer re-attaches to the freshly mounted section nodes
+    // each time the modal reopens (the dialog content unmounts while closed).
+  }, [profile, loading, error, open]);
 
   function scrollToSection(section: EmployeeDetailsSection) {
     sectionRefs.current[section]?.scrollIntoView({ behavior: "smooth", block: "start" });
