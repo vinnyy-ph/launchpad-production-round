@@ -22,5 +22,8 @@ export interface Notification {
   body: string;
   linkUrl: string | null;
   isRead: boolean;
+  isPinned: boolean;
+  /** ISO timestamp set when pinned, null otherwise. */
+  pinnedAt: string | null;
   createdAt: string;
 }
