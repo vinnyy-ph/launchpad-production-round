@@ -6,8 +6,11 @@ import {
   HTTP_STATUS_CODES,
 } from "../../core/globals";
 import type {
+  BulkNotificationResponseDto,
   ListNotificationsResponseDto,
   MarkAsReadResponseDto,
+  MessageResponseDto,
+  SingleNotificationResponseDto,
 } from "./dto";
 import { NOTIFICATION_FIELDS } from "./notifications.constants";
 import { NotificationsService } from "./notifications.service";
@@ -48,11 +51,81 @@ export class NotificationsController {
     next: NextFunction,
   ) => {
     try {
-      const params = this.notificationsValidation.parseMarkAsReadParams(req.params);
+      const params = this.notificationsValidation.parseNotificationIdParams(req.params);
       const result = await this.notificationsService.markAsRead(
         req.user!,
         params.notificationId,
       );
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
+  /** Handles PATCH /api/v1/notifications/read-all. */
+  markAllAsRead = async (
+    req: Request,
+    res: Response<BulkNotificationResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const result = await this.notificationsService.markAllAsRead(req.user!);
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
+  /** Handles PATCH /api/v1/notifications/:notificationId/pin. */
+  setPin = async (
+    req: Request,
+    res: Response<SingleNotificationResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const params = this.notificationsValidation.parseNotificationIdParams(req.params);
+      const body = this.notificationsValidation.parsePinBody(req.body);
+      const result = await this.notificationsService.setPinned(
+        req.user!,
+        params.notificationId,
+        body.pinned,
+      );
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
+  /** Handles DELETE /api/v1/notifications/:notificationId (soft-delete / clear one). */
+  clearOne = async (
+    req: Request,
+    res: Response<MessageResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const params = this.notificationsValidation.parseNotificationIdParams(req.params);
+      const result = await this.notificationsService.clearOne(
+        req.user!,
+        params.notificationId,
+      );
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
+  /** Handles DELETE /api/v1/notifications (clear all except pinned). */
+  clearAll = async (
+    req: Request,
+    res: Response<BulkNotificationResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const result = await this.notificationsService.clearAll(req.user!);
 
       return res.json(result);
     } catch (error) {

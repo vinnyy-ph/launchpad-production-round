@@ -95,6 +95,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: "people", label: "People", icon: Users01, href: "/hr/directory" },
       { id: "orgchart", label: "Structure", icon: Dataflow03, href: "/hr/teams" },
       { id: "surveys", label: "Surveys", icon: MessageSquare01, href: "/hr/surveys" },
+      // TODO(post-freeze): a multi-role user sees two "Evaluations" labels (this one + the
+      // supervisor "My Team > Evaluations"). Disambiguating the label is an IA decision deferred
+      // past the freeze.
       { id: "hr-evaluations", label: "Evaluations", icon: ClipboardCheck, href: "/hr/evaluations" },
       { id: "configurations", label: "Configurations", icon: Settings01, href: "/hr/configurations" },
     ],

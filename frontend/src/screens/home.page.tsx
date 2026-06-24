@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import {
   AlertCircle,
   RefreshCw,
-  Bell,
   Users,
   ClipboardCheck,
   CheckCircle2,
@@ -17,9 +16,6 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
-import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
-import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
-import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { useAssignedClearances, AssignedClearancesSection } from "@/modules/people/offboarding";
 import { KpiCard } from "@/shared/ui/patterns";
 import { Skeleton } from "@/shared/ui";
@@ -49,9 +45,6 @@ export default function HomePage() {
   const { appUser } = useAuth();
   const { stats, loading: statsLoading, error: statsError, reload: loadStats } = useDashboard();
 
-  const { notifications, loading: notifLoading, error: notifError, reload: reloadNotifs } = useNotifications(5);
-  const { markRead } = useMarkRead(() => void reloadNotifs());
-
   // Clearances the signed-in user must sign — surfaced only when something is pending.
   const { clearances: assignedClearances } = useAssignedClearances(Boolean(appUser?.employeeId));
   const hasPendingSignatures = assignedClearances.some((c) => c.status === "PENDING");
@@ -69,7 +62,6 @@ export default function HomePage() {
   }, []);
 
   const firstName = getFirstName(appUser);
-  const summary = buildSummary(appUser?.role, appUser?.isSupervisor, stats);
   const attention = buildDashboardAttention({
     role: appUser?.role,
     isSupervisor: appUser?.isSupervisor,
@@ -77,6 +69,7 @@ export default function HomePage() {
     stats,
   });
   const primary = dashboardPrimaryAction(attention);
+  const summary = buildSummary(attention.length, stats != null);
   const glance = buildGlanceCards({
     role: appUser?.role,
     isSupervisor: appUser?.isSupervisor,
@@ -172,53 +165,6 @@ export default function HomePage() {
         teams={myTeams}
         loading={statsLoading || teamsLoading}
       />
-
-      {/* Recent notifications */}
-      <section>
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          Recent notifications
-        </h2>
-        <div
-          className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        >
-          {notifLoading ? (
-            <div>
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="flex gap-3 px-4 py-3 border-b border-[color:var(--border-primary)] last:border-0">
-                  <Skeleton className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3 w-3/4" />
-                    <Skeleton className="h-2.5 w-1/2" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : notifError ? (
-            <div className="flex items-center gap-3 p-4">
-              <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-              <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{notifError}</span>
-              <button
-                onClick={() => void reloadNotifs()}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-              >
-                <RefreshCw size={12} /> Retry
-              </button>
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10">
-              <Bell size={20} className="text-[color:var(--text-quaternary)]" />
-              <p className="text-sm text-[color:var(--text-tertiary)]">No notifications yet</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[color:var(--border-primary)]">
-              {notifications.map((n) => (
-                <NotificationItem key={n.id} notification={n} onRead={markRead} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
     </div>
   );
 }
@@ -273,13 +219,13 @@ function AttentionBand({ items, loading }: { items: DashAttentionItem[]; loading
             href={item.href}
             className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[color:var(--bg-secondary)]"
           >
-            <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-[color:var(--bg-tertiary)] px-1.5 text-xs font-bold tabular-nums text-[color:var(--text-secondary)]">
-              {item.count}
-            </span>
             <span className="flex-1 text-sm text-[color:var(--text-primary)]">{item.label}</span>
+            <span className="hidden flex-shrink-0 text-xs font-semibold text-[color:var(--text-tertiary)] transition-colors group-hover:text-[color:var(--text-secondary)] sm:inline">
+              {item.cta}
+            </span>
             <ArrowUpRight
               size={15}
-              className="flex-shrink-0 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
+              className="flex-shrink-0 text-[color:var(--text-quaternary)] transition-transform group-hover:translate-x-0.5"
             />
           </Link>
         ))}

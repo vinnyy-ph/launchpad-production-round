@@ -8,6 +8,14 @@ export const MIN_GROUP = 3;
  */
 export const MIN_TEAM_SIZE = 3;
 
+/** HR may send a small team's supervisor a note only within this many days of the survey closing. */
+export const SHARE_WINDOW_DAYS = 30;
+
+/** End of HR's send window for an occurrence: its close (deadline) plus SHARE_WINDOW_DAYS. */
+export function shareWindowEnd(closeDate: Date | string): Date {
+  return new Date(new Date(closeDate).getTime() + SHARE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+}
+
 export type Gated<T> = { suppressed: true } | { suppressed: false; data: T };
 
 /**

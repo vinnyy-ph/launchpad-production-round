@@ -30,18 +30,18 @@ export function UnansweredSurveyBanner() {
   return (
     <div
       role="alert"
-      className="flex items-center gap-3 border-b border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-6 py-2.5"
+      className="flex items-center gap-3 border-b border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-100)] px-6 py-2.5"
     >
       <ClipboardList
         size={15}
-        className="flex-shrink-0 text-[color:var(--text-secondary)]"
+        className="flex-shrink-0 text-[color:var(--color-warning-600)]"
         aria-hidden="true"
       />
-      <p className="flex-1 text-[13px] font-medium text-[color:var(--text-secondary)]">
+      <p className="flex-1 text-[13px] font-medium text-[color:var(--color-warning-700)]">
         You have {count} pulse survey{count > 1 ? "s" : ""} waiting for your response.{" "}
         <Link
           href={href}
-          className="font-semibold text-[color:var(--text-primary)] underline-offset-2 hover:underline"
+          className="font-semibold text-[color:var(--color-warning-700)] underline-offset-2 hover:underline"
         >
           Answer now
         </Link>

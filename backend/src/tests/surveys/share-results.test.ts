@@ -43,11 +43,12 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
       next();
     });
 
+  // Closed recently so the completion gate passes AND the 30-day send window is still open.
   const completedOccurrence = {
     id: "occ-1",
     surveyId: "survey-1",
     isClosed: true,
-    deadline: new Date("2020-01-01"),
+    deadline: new Date(Date.now() - 24 * 60 * 60 * 1000),
   };
   const smallTeam = {
     id: "team-1",
@@ -184,5 +185,31 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
       .send({ teamId: "team-1", occurrenceId: "occ-7", message: "Nice work this week." })
       .expect(200);
     expect(occUniqueMock).toHaveBeenCalledWith({ where: { id: "occ-7" } });
+  });
+
+  it("409s when a note has already been sent for this occurrence + team (immutable)", async () => {
+    (prisma.surveyResultShare.findUnique as jest.Mock).mockResolvedValue({
+      id: "share-1",
+      message: "Already sent.",
+      sharedAt: new Date(),
+    });
+    const res = await request(app)
+      .post(`${URL}/survey-1/results/share`)
+      .send({ teamId: "team-1", message: "Trying to re-send." })
+      .expect(409);
+    expect(res.body.errorCode).toBe("SHARE_ALREADY_SENT");
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+
+  it("409s when the 30-day send window has closed", async () => {
+    const longClosed = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000); // 60 days ago
+    occUniqueMock.mockResolvedValue({ ...completedOccurrence, isClosed: true, deadline: longClosed });
+    occFirstMock.mockResolvedValue({ ...completedOccurrence, isClosed: true, deadline: longClosed });
+    const res = await request(app)
+      .post(`${URL}/survey-1/results/share`)
+      .send({ teamId: "team-1", message: "Too late to send." })
+      .expect(409);
+    expect(res.body.errorCode).toBe("SHARE_WINDOW_CLOSED");
+    expect(upsertMock).not.toHaveBeenCalled();
   });
 });

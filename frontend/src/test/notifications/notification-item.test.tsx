@@ -16,6 +16,8 @@ function notification(overrides: Partial<Notification> = {}): Notification {
     body: "Blake Rivera has started offboarding.",
     linkUrl: "/supervisor/status",
     isRead: false,
+    isPinned: false,
+    pinnedAt: null,
     createdAt: "2026-06-22T00:00:00.000Z",
     ...overrides,
   };

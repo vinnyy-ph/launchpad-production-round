@@ -85,6 +85,12 @@ describe("buildGlanceCards", () => {
     expect(cards.find((c) => c.id === "evals-complete")?.value).toBe("1/2");
     expect(cards.find((c) => c.id === "evals-complete")?.progress).toBe(50);
   });
+  it("omits the evals-complete progress bar when the denominator is <= 1", () => {
+    const cards = buildGlanceCards({ role: "EMPLOYEE", isSupervisor: true, employeeStatus: "ACTIVE", stats: stats({ completedEvaluations: 1, totalEvaluations: 1 }) });
+    const card = cards.find((c) => c.id === "evals-complete");
+    expect(card?.value).toBe("1/1");
+    expect(card?.progress).toBeUndefined();
+  });
   it("shows HR active employees and the onboarding-progress card only while ONBOARDING", () => {
     const hr = buildGlanceCards({ role: "HR", isSupervisor: false, employeeStatus: "ACTIVE", stats: stats({ activeEmployees: 42 }) });
     expect(hr.map((c) => c.id)).toEqual(["active-employees"]);
@@ -98,10 +104,14 @@ describe("buildGlanceCards", () => {
 });
 
 describe("buildSummary", () => {
-  it("is all-caught-up when nothing is pending", () => {
-    expect(buildSummary("EMPLOYEE", false, stats({}))).toBe("You're all caught up — nice work.");
+  it("is a neutral line before stats load", () => {
+    expect(buildSummary(0, false)).toBe("Here's your day at a glance.");
   });
-  it("lists what is waiting across hats", () => {
-    expect(buildSummary("HR", true, stats({ unreadSurveys: 1, pendingEvaluations: 2 }))).toBe("You have 1 survey to answer and 2 evaluations to finish.");
+  it("is all-caught-up when nothing needs attention", () => {
+    expect(buildSummary(0, true)).toBe("You're all caught up — nice work.");
+  });
+  it("reports the count without re-listing the items", () => {
+    expect(buildSummary(1, true)).toBe("You have 1 thing to review today.");
+    expect(buildSummary(3, true)).toBe("You have 3 things to review today.");
   });
 });
