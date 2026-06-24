@@ -148,10 +148,14 @@ describe("groupNotifications", () => {
 });
 
 describe("buildSummary", () => {
-  it("is all-caught-up when nothing is pending", () => {
-    expect(buildSummary("EMPLOYEE", false, stats({}))).toBe("You're all caught up — nice work.");
+  it("is a neutral line before stats load", () => {
+    expect(buildSummary(0, false)).toBe("Here's your day at a glance.");
   });
-  it("lists what is waiting across hats", () => {
-    expect(buildSummary("HR", true, stats({ unreadSurveys: 1, pendingEvaluations: 2 }))).toBe("You have 1 survey to answer and 2 evaluations to finish.");
+  it("is all-caught-up when nothing needs attention", () => {
+    expect(buildSummary(0, true)).toBe("You're all caught up — nice work.");
+  });
+  it("reports the count without re-listing the items", () => {
+    expect(buildSummary(1, true)).toBe("You have 1 thing to review today.");
+    expect(buildSummary(3, true)).toBe("You have 3 things to review today.");
   });
 });

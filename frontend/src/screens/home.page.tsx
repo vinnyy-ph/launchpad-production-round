@@ -69,7 +69,6 @@ export default function HomePage() {
   }, []);
 
   const firstName = getFirstName(appUser);
-  const summary = buildSummary(appUser?.role, appUser?.isSupervisor, stats);
   const attention = buildDashboardAttention({
     role: appUser?.role,
     isSupervisor: appUser?.isSupervisor,
@@ -77,6 +76,7 @@ export default function HomePage() {
     stats,
   });
   const primary = dashboardPrimaryAction(attention);
+  const summary = buildSummary(attention.length, stats != null);
   const glance = buildGlanceCards({
     role: appUser?.role,
     isSupervisor: appUser?.isSupervisor,
