@@ -278,6 +278,16 @@ export interface SurveyResults {
   questions: QuestionResult[]; // empty when suppressed
   /** HR-only; present on an anonymous small-team filtered view. Drives the share-to-supervisor action. */
   smallTeamShare?: SmallTeamShare;
+  /** Present only for the small-team supervisor reading via an HR share — HR's note, shown
+   *  instead of the breakdown (which stays hidden to preserve anonymity). */
+  sharedNote?: SharedNote;
+}
+
+/** HR's open-text note to a small anonymous team's supervisor, shown in place of the breakdown. */
+export interface SharedNote {
+  message: string;
+  sharedAt: string;
+  sharedByName: string | null;
 }
 
 /** HR-only hint for sharing a small anonymous team's results with its supervisor. */

@@ -46,6 +46,14 @@ router.post(
   resultsController.shareSmallTeamResults,
 );
 
+/** POST /api/v1/pulse/surveys/:id/results/note-suggestions — HR/ADMIN only. AI-drafted note
+ *  options (3 pills) for the small anonymous team's supervisor, built from the team aggregate. */
+router.post(
+  "/:id/results/note-suggestions",
+  requireRole("HR", "ADMIN"),
+  resultsController.suggestNotes,
+);
+
 /** GET /api/v1/pulse/surveys/:id/insights — AI summary of open-text responses. Visibility-gated (not role-gated). */
 router.get("/:id/insights", insightsController.getSurveyInsights);
 
