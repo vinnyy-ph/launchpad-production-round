@@ -1,5 +1,5 @@
 const uploadMock = jest.fn();
-const urlMock = jest.fn();
+const privateDownloadUrlMock = jest.fn();
 const configMock = jest.fn();
 
 jest.mock("cloudinary", () => ({
@@ -8,9 +8,8 @@ jest.mock("cloudinary", () => ({
     uploader: {
       upload: (...args: unknown[]) => uploadMock(...args),
     },
-    url: (...args: unknown[]) => urlMock(...args),
     utils: {
-      private_download_url: jest.fn(),
+      private_download_url: (...args: unknown[]) => privateDownloadUrlMock(...args),
     },
   },
 }));
@@ -22,6 +21,7 @@ describe("CloudinaryService onboarding documents", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
     process.env = {
       ...env,
       CLOUDINARY_CLOUD_NAME: "demo",
@@ -32,6 +32,11 @@ describe("CloudinaryService onboarding documents", () => {
       public_id: "onboarding/employment-contract.pdf",
       resource_type: "raw",
     });
+    privateDownloadUrlMock.mockReturnValue("https://signed.example.test/pdf");
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   afterAll(() => {
@@ -74,21 +79,66 @@ describe("CloudinaryService onboarding documents", () => {
     );
   });
 
-  it("resolves stored raw PDF keys with raw signed delivery", () => {
+  it("resolves stored raw PDF keys with expiring authenticated delivery", () => {
     const service = new CloudinaryService();
-    urlMock.mockReturnValue("https://signed.example.test/pdf");
 
-    service.resolveOnboardingDocumentViewUrl(
+    const result = service.resolveOnboardingDocumentViewUrl(
       "onboarding/employment-contract.pdf|raw",
     );
 
-    expect(urlMock).toHaveBeenCalledWith(
+    expect(result).toBe("https://signed.example.test/pdf");
+    expect(privateDownloadUrlMock).toHaveBeenCalledWith(
       "onboarding/employment-contract.pdf",
-      expect.objectContaining({
+      "",
+      {
         resource_type: "raw",
         type: "authenticated",
-        sign_url: true,
-      }),
+        expires_at: 1_800_000_600,
+      },
+    );
+  });
+
+  it("converts legacy Cloudinary public URLs before signing", () => {
+    const service = new CloudinaryService();
+
+    service.resolveOnboardingDocumentViewUrl(
+      "https://res.cloudinary.com/demo/image/upload/v1710000000/onboarding/id-card.jpg",
+    );
+
+    expect(privateDownloadUrlMock).toHaveBeenCalledWith(
+      "onboarding/id-card",
+      "",
+      {
+        resource_type: "image",
+        type: "authenticated",
+        expires_at: 1_800_000_600,
+      },
+    );
+  });
+
+  it("rejects legacy non-Cloudinary public document URLs", () => {
+    const service = new CloudinaryService();
+
+    expect(() =>
+      service.resolveOnboardingDocumentViewUrl(
+        "https://storage.example.com/onboarding/id-card.pdf",
+      ),
+    ).toThrow("Legacy public document URL cannot be signed");
+  });
+
+  it("creates expiring URLs for evaluation supporting documents", () => {
+    const service = new CloudinaryService();
+
+    service.getSupportingDocumentDownloadUrl("supporting_docs/review.pdf");
+
+    expect(privateDownloadUrlMock).toHaveBeenCalledWith(
+      "supporting_docs/review.pdf",
+      "",
+      {
+        resource_type: "raw",
+        type: "authenticated",
+        expires_at: 1_800_000_600,
+      },
     );
   });
 });

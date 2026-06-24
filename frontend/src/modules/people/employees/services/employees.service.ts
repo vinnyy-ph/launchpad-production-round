@@ -1,4 +1,5 @@
 import { apiFetch } from "@/shared/lib/api-client";
+import { formatPhilippinePhoneDisplay } from "@/shared/lib/phone";
 import type {
   EmployeeFilters,
   EmployeeListItem,
@@ -96,7 +97,19 @@ export interface EmployeeActivityLogsResult {
 
 /** Returns profile field edit history for one employee (HR/Admin only). */
 export async function getEmployeeActivityLogs(employeeId: string): Promise<EmployeeActivityLogsResult> {
-  return apiFetch<EmployeeActivityLogsResult>(`${BASE}/${employeeId}/activity-logs`);
+  const result = await apiFetch<EmployeeActivityLogsResult>(`${BASE}/${employeeId}/activity-logs`);
+
+  return {
+    data: result.data.map((log) =>
+      log.fieldName === "emergencyContact.phone"
+        ? {
+            ...log,
+            oldValue: formatPhilippinePhoneDisplay(log.oldValue) ?? log.oldValue,
+            newValue: formatPhilippinePhoneDisplay(log.newValue) ?? log.newValue,
+          }
+        : log,
+    ),
+  };
 }
 
 /** Returns the signed-in employee's OWN profile field edit history (self-service). */

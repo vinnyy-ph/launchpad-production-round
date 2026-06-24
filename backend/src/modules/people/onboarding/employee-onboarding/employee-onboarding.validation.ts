@@ -1,4 +1,4 @@
-import { formatPhilippineMobileDisplay, parseEmergencyContact } from "../../../shared/phone";
+import { formatPhilippineMobileE164, parseEmergencyContact } from "../../../shared/phone";
 import { assertSafeText } from "../../../../core/validation/text-input";
 import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 import type {
@@ -78,7 +78,7 @@ export class EmployeeOnboardingValidation {
     }
 
     if (emergencyContact !== undefined) {
-      dto.emergencyContact = formatPhilippineMobileDisplay(emergencyContact.normalizedPhone);
+      dto.emergencyContact = formatPhilippineMobileE164(emergencyContact.normalizedPhone);
       const contactName = emergencyContactName ?? emergencyContact.contactName ?? undefined;
       if (contactName !== undefined) {
         assertSafeText(contactName, "emergencyContactName", PEOPLE_TEXT_LIMITS.NAME);

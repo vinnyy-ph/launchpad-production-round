@@ -5,7 +5,7 @@ export const SUPERVISOR_ID = "supervisor-employee-id";
 export const HR_USER_ID = "hr-user-id";
 export const VALID_PH_EMERGENCY_CONTACT = "Jane Doe - 09171234567";
 export const VALID_PH_EMERGENCY_CONTACT_DISPLAY = "Jane Doe - +63 917 123 4567";
-export const VALID_PH_EMERGENCY_CONTACT_NUMBER = "+63 917 123 4567";
+export const VALID_PH_EMERGENCY_CONTACT_NUMBER = "+639171234567";
 
 export const mockedPrisma = jest.mocked(prisma);
 export const userFindUniqueMock = mockedPrisma.user.findUnique as jest.Mock;

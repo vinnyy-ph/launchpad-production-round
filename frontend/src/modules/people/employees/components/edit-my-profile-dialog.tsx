@@ -17,7 +17,7 @@ import {
 } from "@/shared/ui";
 import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
-import { isStrictPhilippineMobile } from "@/shared/lib/phone";
+import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useUpdateMyProfile } from "../hooks/use-update-my-profile";
 import type { EmployeeProfile, MyProfileUpdateInput } from "../types/employees.types";
@@ -74,7 +74,7 @@ function draftFromProfile(profile: EmployeeProfile): Draft {
     city: profile.address?.city ?? "",
     address: profile.address?.address ?? "",
     emergencyContactName: profile.emergencyContact?.emergencyContactName ?? "",
-    emergencyContactNumber: profile.emergencyContact?.emergencyContactNumber ?? "",
+    emergencyContactNumber: toPhilippineE164(profile.emergencyContact?.emergencyContactNumber ?? ""),
   };
 }
 
