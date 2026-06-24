@@ -44,10 +44,14 @@ const JOB_TITLE_RE = /^[A-Za-z0-9\s.,'’/&()-]+$/;
 const STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'’/&()-]+$/;
 
 const ADD_EMPLOYEE_FIELD_MESSAGES = {
+  firstNameRequired: "First name is required.",
   firstName: "Please enter a valid first name using letters only.",
   middleName: "Please enter a valid middle name using letters only.",
+  lastNameRequired: "Last name is required.",
   lastName: "Please enter a valid last name using letters only.",
+  companyEmailRequired: "Work email is required.",
   companyEmail: "Please enter a valid work email address.",
+  jobTitleRequired: "Job title is required.",
   jobTitle:
     "Please enter a valid job title using letters, numbers, spaces, and common punctuation only.",
   personalEmail: "Please enter a valid personal email address.",
@@ -242,8 +246,9 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     const trimmedAddress = address.trim();
     const trimmedEmergencyName = emergencyContactName.trim();
 
-    if (
-      !trimmedFirst ||
+    if (!trimmedFirst) {
+      next.firstName = ADD_EMPLOYEE_FIELD_MESSAGES.firstNameRequired;
+    } else if (
       !LETTERS_ONLY_RE.test(trimmedFirst) ||
       validatePeopleText(trimmedFirst, "First name", PEOPLE_TEXT_LIMITS.NAME)
     ) {
@@ -256,21 +261,25 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     ) {
       next.middleName = ADD_EMPLOYEE_FIELD_MESSAGES.middleName;
     }
-    if (
-      !trimmedLast ||
+    if (!trimmedLast) {
+      next.lastName = ADD_EMPLOYEE_FIELD_MESSAGES.lastNameRequired;
+    } else if (
       !LETTERS_ONLY_RE.test(trimmedLast) ||
       validatePeopleText(trimmedLast, "Last name", PEOPLE_TEXT_LIMITS.NAME)
     ) {
       next.lastName = ADD_EMPLOYEE_FIELD_MESSAGES.lastName;
     }
-    if (
+    if (!trimmedCompanyEmail) {
+      next.companyEmail = ADD_EMPLOYEE_FIELD_MESSAGES.companyEmailRequired;
+    } else if (
       !EMAIL_RE.test(trimmedCompanyEmail) ||
       validatePeopleText(trimmedCompanyEmail, "Work email", PEOPLE_TEXT_LIMITS.EMAIL)
     ) {
       next.companyEmail = ADD_EMPLOYEE_FIELD_MESSAGES.companyEmail;
     }
-    if (
-      !trimmedJobTitle ||
+    if (!trimmedJobTitle) {
+      next.jobTitle = ADD_EMPLOYEE_FIELD_MESSAGES.jobTitleRequired;
+    } else if (
       !JOB_TITLE_RE.test(trimmedJobTitle) ||
       validatePeopleText(trimmedJobTitle, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
     ) {
@@ -323,8 +332,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     const trimmed = value.trim();
 
     if (field === "firstName") {
-      return !trimmed ||
-        !LETTERS_ONLY_RE.test(trimmed) ||
+      if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.firstNameRequired;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.firstName
         : undefined;
@@ -339,14 +348,15 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
 
     if (field === "lastName") {
-      return !trimmed ||
-        !LETTERS_ONLY_RE.test(trimmed) ||
+      if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.lastNameRequired;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.lastName
         : undefined;
     }
 
     if (field === "companyEmail") {
+      if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.companyEmailRequired;
       return !EMAIL_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Work email", PEOPLE_TEXT_LIMITS.EMAIL)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.companyEmail
@@ -354,8 +364,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
 
     if (field === "jobTitle") {
-      return !trimmed ||
-        !JOB_TITLE_RE.test(trimmed) ||
+      if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.jobTitleRequired;
+      return !JOB_TITLE_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.jobTitle
         : undefined;

@@ -36,6 +36,7 @@ export class InvitationService {
    */
   async sendInvitation(
     params: SendInvitationParamsDto,
+    inviterEmail?: string | null,
   ): Promise<InvitationResponseDto> {
     const record = await this.invitationRepository.findRecordWithEmployee(
       params.recordId,
@@ -56,6 +57,7 @@ export class InvitationService {
         existingInvitation,
         record.employee.firstName,
         record.employee.lastName,
+        inviterEmail,
       );
 
       return {
@@ -76,6 +78,7 @@ export class InvitationService {
       invitation,
       record.employee.firstName,
       record.employee.lastName,
+      inviterEmail,
     );
 
     return {
@@ -90,6 +93,7 @@ export class InvitationService {
    */
   async resendInvitation(
     params: ResendInvitationParamsDto,
+    inviterEmail?: string | null,
   ): Promise<InvitationResponseDto> {
     const invitation = await this.invitationRepository.findById(
       params.invitationId,
@@ -107,6 +111,7 @@ export class InvitationService {
       invitation,
       invitation.record.employee.firstName,
       invitation.record.employee.lastName,
+      inviterEmail,
     );
 
     return {
@@ -122,6 +127,7 @@ export class InvitationService {
   async updateEmail(
     params: ResendInvitationParamsDto,
     body: UpdateInvitationEmailRequestDto,
+    inviterEmail?: string | null,
   ): Promise<InvitationResponseDto> {
     const invitation = await this.invitationRepository.findById(
       params.invitationId,
@@ -163,6 +169,7 @@ export class InvitationService {
       updatedInvitation,
       invitation.record.employee.firstName,
       invitation.record.employee.lastName,
+      inviterEmail,
     );
 
     await this.invitationRepository.createResendAttempt(updatedInvitation.id);
@@ -179,6 +186,7 @@ export class InvitationService {
     invitation: InvitationRecord,
     firstName: string,
     lastName: string,
+    inviterEmail?: string | null,
   ): Promise<InvitationRecord> {
     await this.assertCanResend(invitation);
 
@@ -191,6 +199,7 @@ export class InvitationService {
       updatedInvitation,
       firstName,
       lastName,
+      inviterEmail,
     );
 
     await this.invitationRepository.createResendAttempt(updatedInvitation.id);
@@ -252,6 +261,7 @@ export class InvitationService {
     invitation: InvitationRecord,
     firstName: string,
     lastName: string,
+    inviterEmail?: string | null,
   ): Promise<InvitationRecord> {
     try {
       await this.emailService.sendEmail({
@@ -261,6 +271,7 @@ export class InvitationService {
           firstName,
           lastName,
           email: invitation.sentToEmail,
+          hrEmail: inviterEmail,
           appUrl: this.resolveAppUrl(),
         }),
       });

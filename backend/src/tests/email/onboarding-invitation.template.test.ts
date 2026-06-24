@@ -6,6 +6,7 @@ describe("buildOnboardingInvitationEmailHtml", () => {
       firstName: "Maria",
       lastName: "Santos",
       email: "maria.santos@launchpad.ph",
+      hrEmail: "hr@launchpad.ph",
       appUrl: "http://localhost:3000",
     });
 
@@ -13,6 +14,7 @@ describe("buildOnboardingInvitationEmailHtml", () => {
     expect(html).toContain("Manage Jia");
     expect(html).toContain("Set up account");
     expect(html).toContain("maria.santos@launchpad.ph");
+    expect(html).toContain("hr@launchpad.ph");
     expect(html).toContain('src="cid:jia-logo@managejia"');
     expect(html).not.toContain('src="http://localhost:3000/brand/jia-logo.png"');
     expect(html).toContain('href="http://localhost:3000"');
@@ -23,11 +25,13 @@ describe("buildOnboardingInvitationEmailHtml", () => {
       firstName: "<script>",
       lastName: 'alert("x")',
       email: 'bad@example.com"><img src=x onerror=alert(1)>',
+      hrEmail: 'hr@example.com"><img src=x onerror=alert(2)>',
       appUrl: "http://localhost:3000",
     });
 
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("bad@example.com&quot;&gt;&lt;img");
+    expect(html).toContain("hr@example.com&quot;&gt;&lt;img");
   });
 });

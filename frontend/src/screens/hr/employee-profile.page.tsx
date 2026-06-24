@@ -442,6 +442,41 @@ export default function EmployeeProfilePage() {
           <DetailRow label="Emergency contact" value={formatEmergencyContact(profile)} />
         </div>
       </div>
+
+      {profile.customFields !== undefined && (
+        <div
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white p-6"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <div className="mb-4">
+            <SectionLabel>Custom fields</SectionLabel>
+          </div>
+          <div className="divide-y divide-[color:var(--border-primary)]">
+            {profile.customFields.length === 0 ? (
+              <DetailRow label="Answers" value="No custom fields defined." />
+            ) : (
+              profile.customFields.map((field) => {
+                const answer = field.value?.trim();
+                return (
+                  <DetailRow
+                    key={field.id}
+                    label={field.fieldLabel}
+                    value={
+                      answer ? (
+                        answer
+                      ) : (
+                        <span className="italic text-[color:var(--text-tertiary)]">
+                          {field.isRequired ? "Awaiting answer (required)" : "Not answered"}
+                        </span>
+                      )
+                    }
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -223,6 +223,15 @@ function customFieldValueError(value: string): string | undefined {
     : undefined;
 }
 
+function customFieldInputError(
+  field: OnboardingCustomFieldStatus,
+  touched: boolean,
+): string | undefined {
+  const value = (field.value ?? "").trim();
+  if (touched && field.isRequired && value === "") return "This question is required.";
+  return customFieldValueError(value);
+}
+
 function fileNameFromUrl(url?: string | null): string | null {
   if (!url) return null;
   const clean = url.split("?")[0].split("#")[0];
@@ -557,16 +566,25 @@ function AccountUnderReviewStatus({
     .at(-1);
 
   const actionNeeded = docsRejected > 0;
-  const activated = isComplete || allDocsApproved;
-  const documentReviewState: TimelineStepState = actionNeeded ? "alert" : activated ? "complete" : "active";
-  const activationState: TimelineStepState = activated ? "complete" : "pending";
+  const awaitingHrCompletion = allDocsApproved && !isComplete;
+  const activated = isComplete;
+  const documentReviewState: TimelineStepState = actionNeeded
+    ? "alert"
+    : allDocsApproved
+      ? "complete"
+      : "active";
+  const activationState: TimelineStepState = activated
+    ? "complete"
+    : awaitingHrCompletion
+      ? "active"
+      : "pending";
 
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col">
       <section className={`ob-review-hero ${activated ? "ob-review-hero--success" : actionNeeded ? "ob-review-hero--warning" : ""}`}>
-        {activated || actionNeeded ? (
+        {activated || awaitingHrCompletion || actionNeeded ? (
           <span className="ob-review-hero-icon">
-            {activated ? (
+            {activated || awaitingHrCompletion ? (
               <Check className="h-7 w-7" strokeWidth={2.4} aria-hidden="true" />
             ) : (
               <AlertCircle className="h-[26px] w-[26px]" strokeWidth={1.8} aria-hidden="true" />
@@ -576,6 +594,8 @@ function AccountUnderReviewStatus({
         <h1>
           {activated
             ? "You're all set"
+            : awaitingHrCompletion
+              ? "Awaiting HR completion"
             : actionNeeded
               ? docsRejected === 1
                 ? "One document needs your attention"
@@ -585,6 +605,8 @@ function AccountUnderReviewStatus({
         <p>
           {activated
             ? "Your account is active. Head to your dashboard to get started."
+            : awaitingHrCompletion
+              ? "HR approved your documents. They still need to mark your onboarding as complete before your account is activated."
             : actionNeeded
               ? "HR asked for a change before they can finish reviewing. Re-upload the document below to continue."
               : "HR is reviewing each of your documents. You'll get an email when there's an update — no need to wait here."}
@@ -614,13 +636,13 @@ function AccountUnderReviewStatus({
           <ReviewTimelineStep
             state={documentReviewState}
             title="Document review"
-            meta={activated ? formatReviewDateLabel(reviewedAt) : undefined}
+            meta={allDocsApproved ? formatReviewDateLabel(reviewedAt) : undefined}
             description={
               actionNeeded
                 ? docsRejected === 1
                   ? "1 document needs changes before HR can continue."
                   : `${docsRejected} documents need changes before HR can continue.`
-                : activated
+                : allDocsApproved
                   ? "All documents approved by HR."
                   : docsTotal === 0
                 ? "HR is reviewing your submission."
@@ -630,9 +652,15 @@ function AccountUnderReviewStatus({
           />
           <ReviewTimelineStep
             state={activationState}
-            title="Account activated"
+            title={awaitingHrCompletion ? "Awaiting HR completion" : "Account activated"}
             meta={activated ? "Today" : undefined}
-            description={activated ? "Your Manage Jia account is ready." : "You'll get an email the moment your account is ready."}
+            description={
+              activated
+                ? "Your Manage Jia account is ready."
+                : awaitingHrCompletion
+                  ? "HR needs to mark your onboarding as complete."
+                  : "You'll get an email the moment your account is ready."
+            }
             isLast
           />
         </div>
@@ -802,6 +830,15 @@ export default function EmployeeOnboardingPage() {
 
   function handleContinueFromFields(): void {
     if (!fieldsCanContinue) {
+      setTouchedCustomFields((prev) => {
+        const next = { ...prev };
+        for (const field of fields) {
+          if (field.isRequired && !(field.value ?? "").trim()) {
+            next[field.id] = true;
+          }
+        }
+        return next;
+      });
       toast.error("Please answer the required question(s).");
       return;
     }
@@ -855,6 +892,15 @@ export default function EmployeeOnboardingPage() {
       return;
     }
     if (!fieldsCanContinue) {
+      setTouchedCustomFields((prev) => {
+        const next = { ...prev };
+        for (const field of fields) {
+          if (field.isRequired && !(field.value ?? "").trim()) {
+            next[field.id] = true;
+          }
+        }
+        return next;
+      });
       toast.error("Answer the quick questions before submitting.");
       setStep(2);
       return;
@@ -1307,10 +1353,7 @@ export default function EmployeeOnboardingPage() {
             <div className="grid grid-cols-1 gap-4">
               {fields.map((field, idx) => {
                 const fieldId = `custom-field-${field.id}`;
-                const fieldError =
-                  touchedCustomFields[field.id] && field.isRequired && !(field.value ?? "").trim()
-                    ? "This question is required."
-                    : customFieldValueError((field.value ?? "").trim());
+                const fieldError = customFieldInputError(field, Boolean(touchedCustomFields[field.id]));
                 return (
                   <FormField
                     key={field.id}
@@ -1343,7 +1386,7 @@ export default function EmployeeOnboardingPage() {
             <Button variant="secondary" onClick={back}>
               Back
             </Button>
-            <Button onClick={handleContinueFromFields} disabled={!fieldsCanContinue}>
+            <Button onClick={handleContinueFromFields}>
               Continue
             </Button>
           </div>
