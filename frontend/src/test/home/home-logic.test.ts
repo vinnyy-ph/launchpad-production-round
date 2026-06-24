@@ -85,6 +85,12 @@ describe("buildGlanceCards", () => {
     expect(cards.find((c) => c.id === "evals-complete")?.value).toBe("1/2");
     expect(cards.find((c) => c.id === "evals-complete")?.progress).toBe(50);
   });
+  it("omits the evals-complete progress bar when the denominator is <= 1", () => {
+    const cards = buildGlanceCards({ role: "EMPLOYEE", isSupervisor: true, employeeStatus: "ACTIVE", stats: stats({ completedEvaluations: 1, totalEvaluations: 1 }) });
+    const card = cards.find((c) => c.id === "evals-complete");
+    expect(card?.value).toBe("1/1");
+    expect(card?.progress).toBeUndefined();
+  });
   it("shows HR active employees and the onboarding-progress card only while ONBOARDING", () => {
     const hr = buildGlanceCards({ role: "HR", isSupervisor: false, employeeStatus: "ACTIVE", stats: stats({ activeEmployees: 42 }) });
     expect(hr.map((c) => c.id)).toEqual(["active-employees"]);

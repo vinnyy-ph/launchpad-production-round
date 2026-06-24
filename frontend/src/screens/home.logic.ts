@@ -122,7 +122,11 @@ export function buildGlanceCards(input: {
     }
     if (stats.totalEvaluations != null && stats.totalEvaluations > 0) {
       const completed = stats.completedEvaluations ?? 0;
-      cards.push({ id: "evals-complete", label: "Evals complete", value: `${completed}/${stats.totalEvaluations}`, progress: Math.round((completed / stats.totalEvaluations) * 100), href: "/supervisor/evaluations", hint: "Evaluations you've completed out of those expected this cycle." });
+      // A full-width bar over a 1/1 denominator reads like a divider, so only show the bar once
+      // the denominator is large enough for the proportion to carry meaning.
+      const progress =
+        stats.totalEvaluations > 1 ? Math.round((completed / stats.totalEvaluations) * 100) : undefined;
+      cards.push({ id: "evals-complete", label: "Evals complete", value: `${completed}/${stats.totalEvaluations}`, progress, href: "/supervisor/evaluations", hint: "Evaluations you've completed out of those expected this cycle." });
     }
   }
   // HR / Admin — the workforce headline.
