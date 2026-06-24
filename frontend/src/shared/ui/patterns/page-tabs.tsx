@@ -35,7 +35,7 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
             aria-selected={isActive}
             onClick={() => onChange(item.value)}
             className={cn(
-              "relative flex items-center gap-2 whitespace-nowrap rounded-md px-1 pb-3 pt-1 text-sm font-semibold transition-colors",
+              "relative flex items-center gap-2 whitespace-nowrap rounded-md px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
               isActive
                 ? "text-[color:var(--text-primary)]"
                 : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
