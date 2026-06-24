@@ -8,7 +8,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/shared/ui/primitives/sheet";
-import { Badge, BadgeDot, Button } from "@/shared/ui";
+import { Badge, BadgeDot, Button, Skeleton } from "@/shared/ui";
 import { useSurveyInsights } from "../hooks/use-survey-insights";
 import type { SurveyListItem, SurveyStatus } from "../types/surveys.types";
 import { STATUS_LABEL, deriveStatus } from "../types/surveys.types";
@@ -72,9 +72,9 @@ export function SurveyDetailDrawer({
                 </span>
               </div>
               {q.isLoading ? (
-                <div className="h-5 w-5/6 rounded-md bg-[color:var(--border-primary)]" />
+                <Skeleton className="h-5 w-5/6" />
               ) : (
-                <p className="text-[14.5px] leading-snug text-[color:var(--text-primary)]">
+                <p className="text-[14px] leading-snug text-[color:var(--text-primary)]">
                   {oneLine()}
                 </p>
               )}

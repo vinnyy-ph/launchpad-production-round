@@ -57,15 +57,15 @@ export function SkeletonRows({
 export function PageSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-4", className)} aria-hidden="true">
-      <div className="h-7 w-1/3 rounded-md bg-[color:var(--gray-100)]" />
+      <Skeleton className="h-7 w-1/3" />
       {Array.from({ length: 2 }).map((_, r) => (
         <div
           key={r}
           className="space-y-2 rounded-xl border border-[color:var(--border-primary)] p-4"
         >
-          <div className="h-4 w-1/2 rounded bg-[color:var(--gray-100)]" />
-          <div className="h-4 w-full rounded bg-[color:var(--gray-100)]" />
-          <div className="h-4 w-2/3 rounded bg-[color:var(--gray-100)]" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
         </div>
       ))}
     </div>

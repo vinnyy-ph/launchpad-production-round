@@ -30,6 +30,13 @@ export interface OffboardingPerson {
   lastName: string;
 }
 
+/** One stored offboarding attachment with a resolved signed view URL. */
+export interface OffboardingAttachment {
+  id: string;
+  url: string;
+  fileName: string;
+}
+
 // ─── List (GET /api/v1/offboarding) ───────────────────────────────────────────
 
 /** A row in the HR / supervisor offboarding list. */
@@ -39,7 +46,7 @@ export interface OffboardingListItem {
   status: OffboardingStatus;
   tenderDate: string;
   effectiveDate: string;
-  attachmentUrl: string | null;
+  attachments: OffboardingAttachment[];
   createdAt: string;
   completedAt: string | null;
   signedCount: number;
@@ -68,7 +75,7 @@ export interface OffboardingDetail {
   status: OffboardingStatus;
   tenderDate: string;
   effectiveDate: string;
-  attachmentUrl: string | null;
+  attachments: OffboardingAttachment[];
   createdAt: string;
   completedAt: string | null;
   signatureRequests: SignatureRequest[];
@@ -89,7 +96,7 @@ export interface InitiateOffboardingInput {
   tenderDate: string;
   effectiveDate: string;
   clearanceTemplateId?: string;
-  attachment?: File;
+  attachments?: File[];
   newSupervisorId?: string;
   newTeamLeaderId?: string;
 }

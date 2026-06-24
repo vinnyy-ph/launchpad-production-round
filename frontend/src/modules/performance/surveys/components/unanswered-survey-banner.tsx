@@ -37,7 +37,7 @@ export function UnansweredSurveyBanner() {
         className="flex-shrink-0 text-[color:var(--color-warning-600)]"
         aria-hidden="true"
       />
-      <p className="flex-1 text-[13px] font-medium text-[color:var(--color-warning-700)]">
+      <p className="flex-1 text-[14px] font-medium text-[color:var(--color-warning-700)]">
         You have {count} pulse survey{count > 1 ? "s" : ""} waiting for your response.{" "}
         <Link
           href={href}

@@ -55,7 +55,7 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
             <Icon size={12} className="text-[color:var(--text-secondary)]" />
           </span>
         )}
-        <span className="text-[13.5px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
+        <span className="text-[14px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
           {label}
         </span>
         {hint && (
@@ -85,7 +85,7 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
       {loading ? (
         <Skeleton className="mt-3.5 h-10 w-16" />
       ) : (
-        <p className="mt-3.5 text-[40px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
+        <p className="mt-3.5 text-[36px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
           {value}
         </p>
       )}
@@ -106,10 +106,10 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
       )}
 
       {delta && !loading && (
-        <div className="mt-2.5 flex items-center gap-2 text-[12.5px] font-medium text-[color:var(--text-secondary)]">
+        <div className="mt-2.5 flex items-center gap-2 text-[12px] font-medium text-[color:var(--text-secondary)]">
           <span
             className={cn(
-              "inline-flex items-center gap-[3px] rounded-full py-0.5 pl-[5px] pr-[7px] text-[11.5px] font-semibold",
+              "inline-flex items-center gap-[3px] rounded-full py-0.5 pl-[5px] pr-[7px] text-[12px] font-semibold",
               delta.direction === "up" ? "bg-[#ECFDF3] text-[#067647]" : "bg-[#FEF3F2] text-[#B42318]",
             )}
           >

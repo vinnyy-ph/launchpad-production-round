@@ -270,7 +270,7 @@ function DynamicList({
                         <button
                             type="button"
                             onClick={() => remove(idx)}
-                            className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label={`Remove ${label.toLowerCase()} ${idx + 1}`}
                         >
                             <Trash2 size={14} />
@@ -835,7 +835,7 @@ function EvaluationEditorDialog({
                 </DialogHeader>
 
                 {!isViewOnly && autosave.recoverable != null && (
-                    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3.5 py-2.5 text-[13px] text-[color:var(--text-secondary)]">
+                    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3.5 py-2.5 text-[14px] text-[color:var(--text-secondary)]">
                         <span>
                             You have unsaved changes from a previous session.
                         </span>
@@ -1189,7 +1189,7 @@ function EvaluationEditorDialog({
                                                             clearError("grade");
                                                         }}
                                                         className={[
-                                                            "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                                            "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                                             selected
                                                                 ? "border-transparent bg-[color:hsl(var(--primary))] text-white"
                                                                 : "border-[color:var(--border-primary)] hover:bg-[color:var(--bg-secondary)]",
@@ -1207,7 +1207,7 @@ function EvaluationEditorDialog({
                                                         </span>
                                                         <span
                                                             className={[
-                                                                "text-[11px] font-medium leading-tight",
+                                                                "text-[12px] font-medium leading-tight",
                                                                 selected
                                                                     ? "text-white/90"
                                                                     : "text-[color:var(--text-tertiary)]",
@@ -1656,7 +1656,7 @@ export default function EvaluationsPage() {
             cell: (ev) => (
                 <div className="flex items-center gap-3">
                     <span
-                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-[color:var(--text-primary)]"
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-[color:var(--text-primary)]"
                         style={{
                             background:
                                 "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
@@ -1853,7 +1853,7 @@ export default function EvaluationsPage() {
                                 aria-selected={active}
                                 onClick={() => setStatusFilter(t.value)}
                                 className={[
-                                    "relative flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                    "relative flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                     active
                                         ? "text-[color:var(--text-primary)]"
                                         : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",

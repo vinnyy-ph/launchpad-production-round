@@ -1,7 +1,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Settings2, Users } from "lucide-react";
+import { FileSpreadsheet, Plus, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -26,7 +26,8 @@ import {
 } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees, useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { employeeInitials } from "@/modules/people/employees/employee-options";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
@@ -164,8 +165,9 @@ export default function DirectoryPage() {
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
   const { departments, loading: departmentsLoading } = useDepartments();
   const counts = useEmployeeStatusCounts();
-  // Supervisor filter options — any employee can be a supervisor.
-  const { employees: supervisorOptions } = useEmployees({ limit: 100 });
+  // Supervisor filter options — any employee can be a supervisor. Fetch the full directory so
+  // every potential supervisor is selectable, not just the first page.
+  const { employees: supervisorOptions } = useAllEmployees();
 
   const { employees, meta, loading, error, reload } = useEmployees({
     search: debouncedSearch || undefined,
@@ -233,6 +235,8 @@ export default function DirectoryPage() {
             options: supervisorOptions.map((employee) => ({
               id: employee.id,
               name: employee.fullName,
+              avatarUrl: employee.avatarUrl,
+              avatarFallback: employeeInitials(employee.fullName),
             })),
             selected: supervisorIds,
             onChange: (next) => {
@@ -258,7 +262,7 @@ export default function DirectoryPage() {
             src={employee.avatarUrl}
             fallback={initials(employee)}
             className="h-8 w-8"
-            fallbackClassName="text-[11px] font-bold text-[color:var(--text-primary)]"
+            fallbackClassName="text-[12px] font-bold text-[color:var(--text-primary)]"
             fallbackStyle={{
               background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
             }}
@@ -331,16 +335,14 @@ export default function DirectoryPage() {
         subtitle="Everyone at DG Technologies, from new hires to active staff."
         action={
           <div className="flex flex-col gap-2 sm:flex-row">
+            {tab === "all" ? (
+              <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
+                <Plus /> Initiate offboarding
+              </Button>
+            ) : null}
             {/* Adding a person always starts an onboarding case, so the action lives on that tab. */}
             {tab === "onboarding" ? (
               <>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/configurations?tab=onboarding")}
-                >
-                  <Settings2 aria-hidden="true" /> Onboarding setup
-                </Button>
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto"
@@ -350,20 +352,6 @@ export default function DirectoryPage() {
                 </Button>
                 <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
                   <Plus /> Onboard new employee
-                </Button>
-              </>
-            ) : null}
-            {tab === "offboarding" ? (
-              <>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/configurations?tab=clearances")}
-                >
-                  <Settings2 aria-hidden="true" /> Clearance setup
-                </Button>
-                <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
-                  <Plus /> Initiate offboarding
                 </Button>
               </>
             ) : null}
@@ -455,7 +443,7 @@ export default function DirectoryPage() {
 
       {bulkOpen ? <BulkUploadDropzone open={bulkOpen} onOpenChange={setBulkOpen} /> : null}
 
-      {tab === "offboarding" ? (
+      {tab === "all" ? (
         <InitiateOffboardingDialog
           open={initiateOpen}
           onOpenChange={setInitiateOpen}

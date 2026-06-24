@@ -18,15 +18,27 @@ offboardingRouter.post(
 );
 
 offboardingRouter.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-  if (err.code === "LIMIT_FILE_SIZE") {
+  // Map multer upload rejections to a consistent 400 validation envelope.
+  const uploadErrorMessage =
+    err.code === "LIMIT_FILE_SIZE"
+      ? "Each attachment must be 5 MB or smaller"
+      : err.code === "LIMIT_FILE_COUNT"
+        ? "You can upload at most 10 attachments"
+        : err.code === "LIMIT_UNEXPECTED_FILE"
+          ? "Unexpected attachment field"
+          : err.message === "Invalid file type"
+            ? "Attachments must be PNG, JPG, or PDF files"
+            : null;
+
+  if (uploadErrorMessage) {
     return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
       success: false,
-      message: "Attachment must be 10 MB or smaller",
+      message: uploadErrorMessage,
       errorCode: API_ERROR_CODES.VALIDATION_FAILED,
       errors: [
         {
-          field: "attachment",
-          message: "Attachment must be 10 MB or smaller",
+          field: "attachments",
+          message: uploadErrorMessage,
           code: API_ERROR_CODES.VALIDATION_FAILED,
         },
       ],

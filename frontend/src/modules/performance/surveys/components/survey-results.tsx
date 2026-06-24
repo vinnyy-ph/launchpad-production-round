@@ -22,11 +22,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  SearchInput,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Textarea,
   useConfirm,
 } from "@/shared/ui";
@@ -229,7 +231,7 @@ function BarRow({
   const p = pct(count, total);
   return (
     <div className="mb-2.5 grid grid-cols-[96px_1fr_72px] items-center gap-3 last:mb-0 sm:grid-cols-[120px_1fr_84px]">
-      <span className="truncate text-[13.5px] text-[color:var(--text-primary)]" title={label}>
+      <span className="truncate text-[14px] text-[color:var(--text-primary)]" title={label}>
         {label}
       </span>
       <span className="h-3 overflow-hidden rounded-full bg-[color:var(--bg-secondary)]">
@@ -241,7 +243,7 @@ function BarRow({
           style={{ width: `${p}%` }}
         />
       </span>
-      <span className="whitespace-nowrap text-right text-[12.5px] text-[color:var(--text-tertiary)]">
+      <span className="whitespace-nowrap text-right text-[12px] text-[color:var(--text-tertiary)]">
         <b className="font-semibold text-[color:var(--text-primary)]">{count}</b> · {p}%
       </span>
     </div>
@@ -258,14 +260,14 @@ function QuestionCard({
   return (
     <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-4">
-        <div className="text-[11.5px] font-bold tracking-wide text-[color:var(--text-quaternary)]">
+        <div className="text-[12px] font-bold tracking-wide text-[color:var(--text-quaternary)]">
           {QTYPE_LABEL[q.type]}
         </div>
-        <h3 className="mt-1 text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
+        <h3 className="mt-1 text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">
           {q.questionText}
         </h3>
         {q.type !== "SHORT_ANSWER" && q.type !== "LONG_ANSWER" && (
-          <div className="mt-1 text-[12.5px] text-[color:var(--text-quaternary)]">
+          <div className="mt-1 text-[12px] text-[color:var(--text-quaternary)]">
             {q.responseCount} {q.responseCount === 1 ? "response" : "responses"}
           </div>
         )}
@@ -285,7 +287,7 @@ function QuestionCard({
             />
           ))}
           {q.type === "CHECKBOX" && (
-            <p className="mt-3.5 border-t border-[color:var(--border-secondary)] pt-3 text-[12.5px] text-[color:var(--text-quaternary)]">
+            <p className="mt-3.5 border-t border-[color:var(--border-secondary)] pt-3 text-[12px] text-[color:var(--text-quaternary)]">
               People could pick more than one, so percentages add up past 100%.
             </p>
           )}
@@ -306,10 +308,10 @@ function ScaleBody({ q }: { q: Extract<QuestionResult, { type: "LINEAR_SCALE" }>
   return (
     <div>
       <div className="mb-3.5 flex items-baseline gap-3">
-        <span className="text-[34px] font-bold leading-none tracking-tight text-[color:var(--text-primary)]">
+        <span className="text-[36px] font-bold leading-none tracking-tight text-[color:var(--text-primary)]">
           {q.average.toFixed(1)}
         </span>
-        <span className="text-[13.5px] text-[color:var(--text-tertiary)]">
+        <span className="text-[14px] text-[color:var(--text-tertiary)]">
           average out of {scaleMax}
         </span>
       </div>
@@ -322,6 +324,8 @@ function ScaleBody({ q }: { q: Extract<QuestionResult, { type: "LINEAR_SCALE" }>
   );
 }
 
+const OPEN_TEXT_PAGE_SIZE = 10;
+
 function OpenTextBody({
   q,
   isAnonymous,
@@ -329,34 +333,87 @@ function OpenTextBody({
   q: Extract<QuestionResult, { type: "SHORT_ANSWER" | "LONG_ANSWER" }>;
   isAnonymous: boolean;
 }) {
+  const [query, setQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(OPEN_TEXT_PAGE_SIZE);
+
   const hidden = isAnonymous || q.responses.length === 0;
+
+  // Keep each response's original 1-based number stable even while filtered.
+  const indexed = q.responses.map((text, i) => ({ text, number: i + 1 }));
+  const trimmed = query.trim().toLowerCase();
+  const filtered = trimmed
+    ? indexed.filter((r) => r.text.toLowerCase().includes(trimmed))
+    : indexed;
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visible.length;
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setVisibleCount(OPEN_TEXT_PAGE_SIZE);
+  };
+
   return (
     <div>
       <div className="mb-3.5">
-        <span className="text-[13.5px] text-[color:var(--text-tertiary)]">
+        <span className="text-[14px] text-[color:var(--text-tertiary)]">
           {q.responseCount} written {q.responseCount === 1 ? "response" : "responses"}
         </span>
       </div>
       {isAnonymous ? (
-        <p className="rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[13.5px] text-[color:var(--text-tertiary)]">
+        <p className="rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[14px] text-[color:var(--text-tertiary)]">
           Individual answers are hidden for anonymous surveys — only the response count is shown.
         </p>
       ) : hidden ? (
-        <p className="text-[13.5px] text-[color:var(--text-tertiary)]">No responses yet.</p>
+        <p className="text-[14px] text-[color:var(--text-tertiary)]">No responses yet.</p>
       ) : (
-        <div className="space-y-2.5">
-          {q.responses.map((text, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-[color:var(--border-primary)] px-4 py-3"
-            >
-              <div className="mb-1 text-[12px] font-semibold text-[color:var(--text-quaternary)]">
-                Response {i + 1}
+        <>
+          <div className="mb-3">
+            <SearchInput
+              value={query}
+              onValueChange={handleQueryChange}
+              placeholder="Search answers"
+              aria-label="Search written answers"
+            />
+          </div>
+
+          {trimmed && (
+            <p className="mb-2.5 text-[12px] text-[color:var(--text-quaternary)]">
+              Showing {filtered.length} of {q.responses.length}
+            </p>
+          )}
+
+          {filtered.length === 0 ? (
+            <p className="text-[14px] text-[color:var(--text-tertiary)]">
+              No answers match &ldquo;{query.trim()}&rdquo;.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2.5">
+                {visible.map((r) => (
+                  <div
+                    key={r.number}
+                    className="rounded-xl border border-[color:var(--border-primary)] px-4 py-3"
+                  >
+                    <div className="mb-1 text-[12px] font-semibold text-[color:var(--text-quaternary)]">
+                      Response {r.number}
+                    </div>
+                    <div className="text-[14px] text-[color:var(--text-primary)]">{r.text}</div>
+                  </div>
+                ))}
               </div>
-              <div className="text-[14.5px] text-[color:var(--text-primary)]">{text}</div>
-            </div>
-          ))}
-        </div>
+              {hasMore && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3 w-full"
+                  onClick={() => setVisibleCount((c) => c + OPEN_TEXT_PAGE_SIZE)}
+                >
+                  Load more
+                </Button>
+              )}
+            </>
+          )}
+        </>
       )}
     </div>
   );
@@ -456,13 +513,13 @@ export function ShareToSupervisorCard({
           <p className="text-sm font-bold text-[color:var(--text-primary)]">
             Shared with the team&apos;s supervisor
           </p>
-          <p className="mt-1 text-[13px] text-[color:var(--text-tertiary)]">
+          <p className="mt-1 text-[14px] text-[color:var(--text-tertiary)]">
             Sent to {supervisorLabel} on {fmtDay(share.alreadySharedAt ?? undefined)}. No further
             messages can be sent.
           </p>
         </div>
         {share.sharedMessage && (
-          <p className="whitespace-pre-wrap rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[13.5px] leading-relaxed text-[color:var(--text-primary)]">
+          <p className="whitespace-pre-wrap rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[14px] leading-relaxed text-[color:var(--text-primary)]">
             {share.sharedMessage}
           </p>
         )}
@@ -477,7 +534,7 @@ export function ShareToSupervisorCard({
         <p className="text-sm font-bold text-[color:var(--text-primary)]">
           Share with the team&apos;s supervisor
         </p>
-        <p className="mt-1 text-[13px] text-[color:var(--text-tertiary)]">
+        <p className="mt-1 text-[14px] text-[color:var(--text-tertiary)]">
           This survey has fewer than 3 responses, so results aren&apos;t shared automatically. You
           can write a note to the supervisor below.
           {share.shareDeadline ? ` You have until ${fmtFullDay(share.shareDeadline)} to send it.` : ""}
@@ -494,14 +551,14 @@ export function ShareToSupervisorCard({
           className="bg-white"
           aria-label="Note to the supervisor"
         />
-        <div className="mt-1 text-right text-[11.5px] text-[color:var(--text-quaternary)]">
+        <div className="mt-1 text-right text-[12px] text-[color:var(--text-quaternary)]">
           {trimmed.length}/{NOTE_MAX}
         </div>
       </div>
 
       {hasSupervisor && (
         <div>
-          <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-medium text-[color:var(--text-tertiary)]">
+          <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-tertiary)]">
             <Sparkles size={13} /> Tap a suggestion to use it
           </div>
           {suggestMutation.isPending && suggestions.length === 0 ? (
@@ -524,7 +581,7 @@ export function ShareToSupervisorCard({
                     onClick={() => setMessage(s)}
                     aria-pressed={active}
                     className={cn(
-                      "cursor-pointer rounded-xl border px-4 py-2.5 text-left text-[13.5px] leading-relaxed transition-colors",
+                      "cursor-pointer rounded-xl border px-4 py-2.5 text-left text-[14px] leading-relaxed transition-colors",
                       active
                         ? "border-[#B54708] bg-[#FEF0C7] text-[#93370D]"
                         : "border-[#FEDF89] bg-[#FFFAEB] text-[#854A0E] hover:border-[#F79009] hover:bg-[#FEF0C7]",
@@ -536,7 +593,7 @@ export function ShareToSupervisorCard({
               })}
             </div>
           ) : suggestFailed ? (
-            <p className="text-[12.5px] text-[color:var(--text-quaternary)]">
+            <p className="text-[12px] text-[color:var(--text-quaternary)]">
               Couldn&apos;t draft suggestions right now.{" "}
               <button
                 type="button"
@@ -556,7 +613,7 @@ export function ShareToSupervisorCard({
           Send to supervisor
         </Button>
         {sendReason && (
-          <span className="text-[12.5px] text-[color:var(--text-quaternary)]">{sendReason}</span>
+          <span className="text-[12px] text-[color:var(--text-quaternary)]">{sendReason}</span>
         )}
       </div>
     </div>
@@ -572,14 +629,14 @@ function SharedNoteCard({ note }: { note: SharedNote }) {
     <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-3 flex items-center gap-2">
         <MessageSquareText size={18} className="text-[color:var(--text-tertiary)]" />
-        <h3 className="text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
+        <h3 className="text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">
           Message from HR
         </h3>
       </div>
-      <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-[color:var(--text-primary)]">
+      <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[color:var(--text-primary)]">
         {note.message}
       </p>
-      <p className="mt-4 border-t border-[color:var(--border-secondary)] pt-3 text-[12.5px] text-[color:var(--text-quaternary)]">
+      <p className="mt-4 border-t border-[color:var(--border-secondary)] pt-3 text-[12px] text-[color:var(--text-quaternary)]">
         Shared by {note.sharedByName ?? "HR"} on {fmtDay(note.sharedAt)}. This team has fewer than 3
         members, so its anonymous responses aren&apos;t shown individually — HR has summarised them
         for you above.
@@ -685,7 +742,7 @@ export function SurveyResults({
         <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-[28px] font-bold tracking-tight text-[color:var(--text-primary)]">
+              <h1 className="text-[30px] font-bold tracking-tight text-[color:var(--text-primary)]">
                 {headerName || "Survey results"}
               </h1>
               {status && (
@@ -732,7 +789,7 @@ export function SurveyResults({
           latest round; pick a past one to inspect it. */}
       {multiRound && (
         <div className="mb-5 flex flex-wrap items-center gap-2.5">
-          <span className="text-[13px] font-medium text-[color:var(--text-tertiary)]">Round</span>
+          <span className="text-[14px] font-medium text-[color:var(--text-tertiary)]">Round</span>
           <Select
             value={currentOccurrenceId ?? ""}
             onValueChange={(v: string) => setSelectedOccurrenceId(v)}
@@ -761,7 +818,7 @@ export function SurveyResults({
             <Lock size={18} className="mt-0.5 flex-none" />
             <div>
               <p className="text-sm font-bold">Results hidden for this team&apos;s supervisor.</p>
-              <p className="mt-1 text-[13px] font-medium">
+              <p className="mt-1 text-[14px] font-medium">
                 This team has fewer than 3 members, so its anonymous results aren&apos;t shown to the
                 team&apos;s supervisor. HR and managers above the supervisor can view them.
               </p>
@@ -812,7 +869,7 @@ export function SurveyResults({
 
           {/* Filters + showing line */}
           {canFilter && <ResultsFilters filter={filter} onChange={setFilter} />}
-          <p className="mb-4 mt-2 text-[13px] text-[color:var(--text-tertiary)]">{showingText}</p>
+          <p className="mb-4 mt-2 text-[14px] text-[color:var(--text-tertiary)]">{showingText}</p>
 
           {/* HR-only: deliberately share this small anonymous team's results with its supervisor. */}
           {canFilter && results.smallTeamShare && (
@@ -828,7 +885,7 @@ export function SurveyResults({
               <Lock size={18} className="mt-0.5 flex-none" />
               <div>
                 <p className="text-sm font-bold">Not enough responses to show results anonymously.</p>
-                <p className="mt-1 text-[13px] font-medium">
+                <p className="mt-1 text-[14px] font-medium">
                   This view has fewer than 3 responses, so we can&apos;t show any results — even a
                   summary — without risking someone being identified.
                   {canFilter ? " Try widening your filter." : ""}
@@ -866,17 +923,11 @@ function ResultsSkeleton() {
     <div className="space-y-4">
       <div className="grid gap-3.5 sm:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-[92px] rounded-2xl border border-[color:var(--border-primary)] bg-white"
-          />
+          <Skeleton key={i} className="h-[92px] rounded-2xl" />
         ))}
       </div>
       {[0, 1].map((i) => (
-        <div
-          key={i}
-          className="h-52 rounded-2xl border border-[color:var(--border-primary)] bg-white"
-        />
+        <Skeleton key={i} className="h-52 rounded-2xl" />
       ))}
     </div>
   );

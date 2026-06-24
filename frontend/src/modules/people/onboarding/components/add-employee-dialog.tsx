@@ -24,7 +24,8 @@ import {
   SelectValue,
 } from "@/shared/ui";
 import { isValidPhilippinePhone } from "@/shared/lib/phone";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useOnboardEmployee } from "../hooks/use-onboard-employee";
@@ -44,10 +45,14 @@ const JOB_TITLE_RE = /^[A-Za-z0-9\s.,'’/&()-]+$/;
 const STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'’/&()-]+$/;
 
 const ADD_EMPLOYEE_FIELD_MESSAGES = {
+  firstNameRequired: "First name is required.",
   firstName: "Please enter a valid first name using letters only.",
   middleName: "Please enter a valid middle name using letters only.",
+  lastNameRequired: "Last name is required.",
   lastName: "Please enter a valid last name using letters only.",
+  companyEmailRequired: "Work email is required.",
   companyEmail: "Please enter a valid work email address.",
+  jobTitleRequired: "Job title is required.",
   jobTitle:
     "Please enter a valid job title using letters, numbers, spaces, and common punctuation only.",
   personalEmail: "Please enter a valid personal email address.",
@@ -118,9 +123,9 @@ function hasFormData(form: FormSnapshot): boolean {
  * the new hire a step. On success it sends the invitation and reports the new employee id.
  */
 export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployeeDialogProps) {
-  const { employees: activeEmployees } = useEmployees({ status: "active", limit: 100 });
-  const { departments } = useDepartments();
-  const { documents: requiredDocuments } = useDocumentConfigs();
+  const { employees: activeEmployees } = useAllEmployees({ status: "active" });
+  const { departments, loading: departmentsLoading } = useDepartments();
+  const { documents: requiredDocuments, loading: docsLoading } = useDocumentConfigs();
   const onboard = useOnboardEmployee();
 
   const [firstName, setFirstName] = useState("");
@@ -162,13 +167,15 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     emergencyContact,
   });
 
-  const supervisorOptions = activeEmployees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.fullName} · ${employee.companyEmail}`,
-  }));
+  // A supervisor must belong to the new hire's department (a supervisor with no department is
+  // exempt — mirrors the same-department rule). Options are scoped to the chosen department.
+  const supervisorOptions = activeEmployees
+    .filter((employee) => !employee.department || employee.department === department)
+    .map(toEmployeeOption);
 
-  const requiredDocsNote =
-    requiredDocuments.length > 0
+  const requiredDocsNote = docsLoading
+    ? "loading…"
+    : requiredDocuments.length > 0
       ? requiredDocuments.map((document) => document.documentName).join(", ")
       : "none set yet";
 
@@ -238,8 +245,9 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     const trimmedAddress = address.trim();
     const trimmedEmergencyName = emergencyContactName.trim();
 
-    if (
-      !trimmedFirst ||
+    if (!trimmedFirst) {
+      next.firstName = ADD_EMPLOYEE_FIELD_MESSAGES.firstNameRequired;
+    } else if (
       !LETTERS_ONLY_RE.test(trimmedFirst) ||
       validatePeopleText(trimmedFirst, "First name", PEOPLE_TEXT_LIMITS.NAME)
     ) {
@@ -252,21 +260,25 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     ) {
       next.middleName = ADD_EMPLOYEE_FIELD_MESSAGES.middleName;
     }
-    if (
-      !trimmedLast ||
+    if (!trimmedLast) {
+      next.lastName = ADD_EMPLOYEE_FIELD_MESSAGES.lastNameRequired;
+    } else if (
       !LETTERS_ONLY_RE.test(trimmedLast) ||
       validatePeopleText(trimmedLast, "Last name", PEOPLE_TEXT_LIMITS.NAME)
     ) {
       next.lastName = ADD_EMPLOYEE_FIELD_MESSAGES.lastName;
     }
-    if (
+    if (!trimmedCompanyEmail) {
+      next.companyEmail = ADD_EMPLOYEE_FIELD_MESSAGES.companyEmailRequired;
+    } else if (
       !EMAIL_RE.test(trimmedCompanyEmail) ||
       validatePeopleText(trimmedCompanyEmail, "Work email", PEOPLE_TEXT_LIMITS.EMAIL)
     ) {
       next.companyEmail = ADD_EMPLOYEE_FIELD_MESSAGES.companyEmail;
     }
-    if (
-      !trimmedJobTitle ||
+    if (!trimmedJobTitle) {
+      next.jobTitle = ADD_EMPLOYEE_FIELD_MESSAGES.jobTitleRequired;
+    } else if (
       !JOB_TITLE_RE.test(trimmedJobTitle) ||
       validatePeopleText(trimmedJobTitle, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
     ) {
@@ -319,8 +331,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     const trimmed = value.trim();
 
     if (field === "firstName") {
-      return !trimmed ||
-        !LETTERS_ONLY_RE.test(trimmed) ||
+      if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.firstNameRequired;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.firstName
         : undefined;
@@ -335,14 +347,15 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
 
     if (field === "lastName") {
-      return !trimmed ||
-        !LETTERS_ONLY_RE.test(trimmed) ||
+      if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.lastNameRequired;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.lastName
         : undefined;
     }
 
     if (field === "companyEmail") {
+      if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.companyEmailRequired;
       return !EMAIL_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Work email", PEOPLE_TEXT_LIMITS.EMAIL)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.companyEmail
@@ -350,8 +363,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
 
     if (field === "jobTitle") {
-      return !trimmed ||
-        !JOB_TITLE_RE.test(trimmed) ||
+      if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.jobTitleRequired;
+      return !JOB_TITLE_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.jobTitle
         : undefined;
@@ -554,9 +567,21 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
             </FormField>
             <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
               <FormField label="Department" required error={errors.department}>
-                <Select value={department} onValueChange={setDepartment}>
+                <Select
+                  value={department}
+                  onValueChange={(value) => {
+                    setDepartment(value);
+                    setFieldError("department", value ? undefined : "Select a department.");
+                    // The current supervisor may no longer belong to the new department —
+                    // clear it so the user re-picks from the scoped list.
+                    setSupervisorId("");
+                    setFieldError("supervisorId", "Select a supervisor.");
+                  }}
+                >
                   <SelectTrigger aria-label="Select department">
-                    <SelectValue placeholder="Select a department" />
+                    <SelectValue
+                      placeholder={departmentsLoading ? "Loading departments…" : "Select a department"}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((option) => (
@@ -567,16 +592,27 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   </SelectContent>
                 </Select>
               </FormField>
-              <FormField label="Supervisor" required error={errors.supervisorId}>
-                <Combobox
-                  options={supervisorOptions}
-                  value={supervisorId}
-                  onChange={(value) => setSupervisorId(value || "")}
-                  placeholder="Select a supervisor…"
-                  searchPlaceholder="Search employees…"
-                  emptyText="No active employees found."
-                />
-              </FormField>
+              {department ? (
+                <FormField label="Supervisor" required error={errors.supervisorId}>
+                  <Combobox
+                    options={supervisorOptions}
+                    value={supervisorId}
+                    onChange={(value) => {
+                      setSupervisorId(value || "");
+                      setFieldError("supervisorId", value ? undefined : "Select a supervisor.");
+                    }}
+                    placeholder="Select a supervisor…"
+                    searchPlaceholder="Search employees…"
+                    emptyText={`No active employees in ${department}.`}
+                  />
+                </FormField>
+              ) : (
+                <FormField label="Supervisor" required>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">
+                    Select a department first to choose a supervisor.
+                  </p>
+                </FormField>
+              )}
             </div>
           </section>
 

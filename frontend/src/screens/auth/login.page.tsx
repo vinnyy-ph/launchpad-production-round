@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { GoogleSignInButton } from "@/modules/auth/components/google-sign-in-button";
 import { signInWithGoogle } from "@/modules/auth/services/auth.service";
-import { getSignInErrorMessage } from "@/modules/auth/services/auth-errors";
+import { getSignInErrorMessage, isBenignSignInCancel } from "@/modules/auth/services/auth-errors";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
-import { clearAuthError } from "@/modules/auth/stores/auth.store";
+import { clearAuthError, useAuthStore } from "@/modules/auth/stores/auth.store";
 import {
   Checkbox,
   Dialog,
@@ -27,26 +26,21 @@ function Poster({ variant }: { variant: "band" | "full" }) {
 
   const intro = (
     <div>
-      <p className="text-[12px] font-bold uppercase tracking-[2px] text-white/90">
-        One workspace for your people <span aria-hidden="true">✦</span>
-      </p>
       <h2
         className={
           full
-            ? "mt-6 text-[clamp(40px,4.4vw,66px)] font-bold leading-[0.98] tracking-[-0.03em] text-white"
-            : "mt-3 text-[32px] font-bold leading-[1.0] tracking-[-0.02em] text-white"
+            ? "text-[clamp(28px,2.8vw,34px)] font-bold leading-[1.1] tracking-[-0.02em] text-white"
+            : "text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-white"
         }
       >
-        Your team,
+        Where your people
         <br />
-        start to
-        <br />
-        finish.
+        do their best work.
       </h2>
       {full && (
-        <p className="mt-5 max-w-[380px] text-[15px] font-medium leading-relaxed text-white/90">
-          Onboarding, performance, and offboarding — one place for the whole
-          employee journey.
+        <p className="mt-5 max-w-[380px] text-[14px] font-medium leading-[20px] text-white/90">
+          An intelligent workspace with the insights, tools, and data your
+          organization needs to move better, together.
         </p>
       )}
     </div>
@@ -55,25 +49,8 @@ function Poster({ variant }: { variant: "band" | "full" }) {
   if (!full) return intro;
 
   return (
-    <div className="flex h-full w-full flex-col justify-between">
+    <div className="flex h-full w-full flex-col justify-center">
       {intro}
-      {/* Tilted preview card — a real Manage Jia artifact, not a stock image. */}
-      <div className="mt-12 w-[300px] max-w-full self-end rotate-3 rounded-3xl bg-white p-7 text-[color:var(--text-primary)] shadow-2xl">
-        <p className="text-[26px] font-bold leading-[1.05] tracking-[-0.02em]">
-          Q2 performance
-          <br />
-          review
-        </p>
-        <p className="mt-2 text-[11px] font-bold uppercase tracking-[2px] text-[color:var(--text-tertiary)]">
-          Maria Santos · RN <span aria-hidden="true">✦</span>
-        </p>
-        <div className="my-5 h-px bg-[color:var(--border-primary)]" />
-        <div className="flex flex-col gap-2.5">
-          {[100, 72, 100, 56, 88, 64].map((w, i) => (
-            <div key={i} className="h-1.5 rounded-full bg-gray-200" style={{ width: `${w}%` }} />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -171,13 +148,13 @@ function LegalDialog({
           <DialogDescription>Last updated {content.updated}</DialogDescription>
         </DialogHeader>
         <div className="-mx-1 mt-3 min-h-0 flex-1 space-y-5 overflow-y-auto px-1 pb-1">
-          <p className="text-sm leading-relaxed text-[color:var(--text-secondary)]">
+          <p className="text-sm leading-[20px] text-[color:var(--text-secondary)]">
             {content.intro}
           </p>
           {content.sections.map((s) => (
             <section key={s.h}>
               <h3 className="text-sm font-bold text-[color:var(--text-primary)]">{s.h}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-[color:var(--text-secondary)]">
+              <p className="mt-1.5 text-sm leading-[20px] text-[color:var(--text-secondary)]">
                 {s.p}
               </p>
             </section>
@@ -198,22 +175,22 @@ export default function LoginPage() {
   const loading = status === "loading";
 
   useEffect(() => {
-    if (authError) {
-      setStatus("idle");
-      toast.error(authError, { id: "login-error" });
-    }
+    if (authError) setStatus("idle");
   }, [authError]);
 
   async function handleSignIn() {
     clearAuthError();
-    toast.dismiss("login-error");
     setStatus("loading");
     try {
       await signInWithGoogle(rememberMe);
       // success: useAuth observes the user; the /login guard redirects to "/".
     } catch (err) {
       setStatus("idle");
-      toast.error(getSignInErrorMessage(err), { id: "login-error" });
+      // Surface failures on the one inline error line; a user-cancelled popup is
+      // intentional, so it stays silent.
+      if (!isBenignSignInCancel(err)) {
+        useAuthStore.setState({ authError: getSignInErrorMessage(err) });
+      }
     }
   }
 
@@ -226,18 +203,19 @@ export default function LoginPage() {
 
       {/* Form rail */}
       <div className="flex items-center justify-center bg-white px-6 py-12 md:p-16 lg:p-20">
-        <div className="flex w-full max-w-[400px] flex-col">
-          <ManageJiaLogo />
-          <h1 className="mt-12 text-[34px] font-bold leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)] md:text-[38px]">
+        <div className="flex w-full max-w-[440px] flex-col items-center text-center">
+          <ManageJiaLogo markOnly size={40} />
+          <h1 className="mt-6 text-[36px] font-bold leading-[44px] tracking-[-0.02em] text-[color:var(--text-primary)]">
             Welcome back
           </h1>
-          <p className="mt-2 text-[15px] font-medium text-[color:var(--text-secondary)]">
+          <p className="mt-2 text-balance text-[14px] leading-[20px] text-[color:var(--text-secondary)]">
             Sign in to continue to your workspace.
           </p>
 
-          <GoogleSignInButton className="mt-8" onClick={handleSignIn} loading={loading} />
+          {/* Action group — mt-10 from the heading group above. */}
+          <GoogleSignInButton className="mt-10" onClick={handleSignIn} loading={loading} />
 
-          <label className="mt-4 flex cursor-pointer items-start gap-2.5">
+          <label className="mt-4 flex cursor-pointer items-start gap-2.5 self-start text-left">
             <Checkbox
               id="remember-me"
               checked={rememberMe}
@@ -245,25 +223,24 @@ export default function LoginPage() {
               onCheckedChange={(checked) => setRememberMe(checked === true)}
               className="mt-0.5"
             />
-            <span className="text-[13px] leading-snug text-[color:var(--text-secondary)]">
-              <span className="font-medium text-[color:var(--text-primary)]">
-                Remember me
-              </span>
+            <span className="text-[14px] leading-[20px] text-[color:var(--text-secondary)]">
+              Remember me
             </span>
           </label>
 
           {authError && (
-            <p role="alert" className="mt-4 text-sm font-medium text-red-600">
+            <p role="alert" className="mt-4 text-sm font-medium text-[color:var(--color-error-600)]">
               {authError}
             </p>
           )}
 
-          <p className="mt-8 text-[13px] leading-relaxed text-[color:var(--text-tertiary)]">
-            By continuing you agree to Manage Jia&apos;s{" "}
+          {/* Legal — mt-10 mirrors the heading→action gap above. */}
+          <p className="mt-10 text-balance text-[12px] leading-[18px] text-[color:var(--text-tertiary)]">
+            By continuing, you agree to Manage Jia&apos;s{" "}
             <button
               type="button"
               onClick={() => setLegal("terms")}
-              className="rounded-sm font-medium text-[color:var(--text-secondary)] underline underline-offset-2 outline-none transition-colors hover:text-[color:var(--text-primary)] focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-sm font-medium text-[color:var(--text-primary)] underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Terms
             </button>{" "}
@@ -271,7 +248,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setLegal("privacy")}
-              className="rounded-sm font-medium text-[color:var(--text-secondary)] underline underline-offset-2 outline-none transition-colors hover:text-[color:var(--text-primary)] focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-sm font-medium text-[color:var(--text-primary)] underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Privacy Policy
             </button>
@@ -281,7 +258,7 @@ export default function LoginPage() {
       </div>
 
       {/* Desktop poster (hidden on mobile) — dominant gradient canvas */}
-      <div className="sw-poster hidden p-14 md:flex md:order-last">
+      <div className="sw-poster hidden p-10 md:flex md:order-last">
         <Poster variant="full" />
       </div>
 

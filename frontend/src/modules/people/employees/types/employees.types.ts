@@ -71,6 +71,13 @@ export interface EmployeeDirectReport {
   status: EmployeeStatus;
 }
 
+export interface EmployeeCustomField {
+  id: string;
+  fieldLabel: string;
+  isRequired: boolean;
+  value: string | null;
+}
+
 /**
  * Employee profile (GET /api/v1/employees/:id). The endpoint returns a UNION: HR/Admin/self get
  * the full profile, while any other viewer gets a redacted profile that OMITS personalEmail,
@@ -81,6 +88,7 @@ export interface EmployeeProfile extends EmployeeListItem {
   user?: EmployeeUser;
   personalEmail?: string | null;
   birthday?: string | null;
+  customFields?: EmployeeCustomField[];
   ledTeams: EmployeeTeam[];
   directReports?: EmployeeDirectReport[];
   createdAt?: string;

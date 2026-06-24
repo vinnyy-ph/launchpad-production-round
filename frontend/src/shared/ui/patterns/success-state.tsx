@@ -23,7 +23,7 @@ export function SuccessState({ title, body, className }: SuccessStateProps) {
       <CheckCircle2 className="mt-0.5 shrink-0 text-[#079455]" size={20} aria-hidden="true" />
       <div className="flex flex-col gap-1">
         <p className="text-sm font-bold text-[#047857]">{title}</p>
-        {body && <p className="text-[12.5px] font-medium text-[#047857]">{body}</p>}
+        {body && <p className="text-[12px] font-medium text-[#047857]">{body}</p>}
       </div>
     </div>
   );

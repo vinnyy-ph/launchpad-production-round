@@ -335,6 +335,7 @@ export class EmployeesService {
       birthday: employee.birthday,
       address: this.toAddressResponse(employee.address),
       emergencyContact: this.toEmergencyContactResponse(employee.emergencyContact),
+      customFields: this.toCustomFieldResponses(employee.onboardingRecord),
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
       status: this.toStatusDto(employee.status),
@@ -461,6 +462,28 @@ export class EmployeesService {
       emergencyContactName: emergencyContact.emergencyContactName,
       emergencyContactNumber: emergencyContact.emergencyContactNumber,
     };
+  }
+
+  /** Maps onboarding custom fields and the employee's submitted answers for HR/self profile views. */
+  private toCustomFieldResponses(
+    onboardingRecord: NonNullable<RepositoryEmployeeProfile>["onboardingRecord"] | undefined,
+  ) {
+    if (!onboardingRecord) {
+      return [];
+    }
+
+    return onboardingRecord.template.customFields.map((field) => {
+      const value = onboardingRecord.customFieldValues.find(
+        (fieldValue) => fieldValue.fieldId === field.id,
+      );
+
+      return {
+        id: field.id,
+        fieldLabel: field.fieldLabel,
+        isRequired: field.isRequired,
+        value: value?.value ?? null,
+      };
+    });
   }
 
   /** Maps Prisma's uppercase status enum to the lowercase API response contract. */

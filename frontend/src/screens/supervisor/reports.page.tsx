@@ -138,14 +138,14 @@ function TeamCard({
         <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
           <Users size={12} className="text-[color:var(--text-secondary)]" />
         </span>
-        <span className="text-[13.5px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
+        <span className="text-[14px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
           Team
         </span>
       </div>
       {loading ? (
         <Skeleton className="mt-3.5 h-10 w-16" />
       ) : (
-        <p className="mt-3.5 text-[40px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
+        <p className="mt-3.5 text-[36px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
           {total}
         </p>
       )}
@@ -206,11 +206,7 @@ function EvaluationBreakdown({
     return (
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {[0, 1].map((i) => (
-          <div
-            key={i}
-            className="h-[260px] rounded-xl border border-[color:var(--border-primary)] bg-white"
-            style={{ boxShadow: "var(--shadow-xs)" }}
-          />
+          <Skeleton key={i} className="h-[260px] rounded-xl" />
         ))}
       </div>
     );
