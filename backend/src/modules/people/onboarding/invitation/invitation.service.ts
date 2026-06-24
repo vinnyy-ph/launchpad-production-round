@@ -48,7 +48,11 @@ export class InvitationService {
     const existingInvitation = record.invitations[0];
 
     if (existingInvitation) {
-      const invitation = await this.resendInvitationEmail(
+      if (existingInvitation.status === "ACCEPTED") {
+        throw new Error("Invitation already accepted");
+      }
+
+      const invitation = await this.deliverInvitationEmail(
         existingInvitation,
         record.employee.firstName,
         record.employee.lastName,
