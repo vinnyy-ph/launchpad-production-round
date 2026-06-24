@@ -159,7 +159,7 @@ describe("POST /api/v1/onboarding/:employeeId/complete - HR complete onboarding"
             id: "submission-id",
             recordId: "770e8400-e29b-41d4-a716-446655440002",
             documentId: "document-id",
-            fileUrl: "https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.pdf",
+            fileUrl: "https://res.cloudinary.com/demo/raw/upload/v1710000000/onboarding/maria-santos/nbi-clearance.pdf",
             status: "PENDING",
             rejectionNote: null,
             reviewerId: null,

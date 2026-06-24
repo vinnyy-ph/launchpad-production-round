@@ -184,7 +184,7 @@
  *         fileUrl:
  *           type: string
  *           format: uri
- *           example: https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.pdf
+ *           example: https://api.cloudinary.com/v1_1/demo/download?public_id=onboarding%2Fmaria-santos%2Fnbi-clearance.pdf&expires_at=1800000600&signature=...
  *     DocumentSubmission:
  *       type: object
  *       properties:
