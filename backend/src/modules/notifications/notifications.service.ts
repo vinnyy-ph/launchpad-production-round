@@ -672,7 +672,7 @@ export class NotificationsService {
           firstName: recipient.firstName,
           lastName: recipient.lastName,
           surveyName,
-          surveyUrl: `${this.resolveAppUrl()}/employee/surveys`,
+          surveyUrl: `${this.resolveAppUrl()}/employee/surveys?tab=survey&pulse=${occurrenceId}`,
         }),
       });
     } catch {
@@ -732,7 +732,7 @@ export class NotificationsService {
         html: buildEvaluationReminderEmailHtml({
           firstName: recipient.firstName,
           lastName: recipient.lastName,
-          evaluationUrl: `${this.resolveAppUrl()}/employee/surveys`,
+          evaluationUrl: `${this.resolveAppUrl()}/employee/surveys?tab=acknowledgements&eval=${evaluationId}`,
         }),
       });
     } catch {
