@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import { format, parseISO } from "date-fns";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, UserAvatar } from "@/shared/ui";
 import { StatusBadge } from "@/shared/ui/patterns";
+import { formatPhilippinePhoneDisplay } from "@/shared/lib/phone";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
 import type { EmployeeListItem, EmployeeProfile } from "../types/employees.types";
 
@@ -184,7 +185,7 @@ export function EmployeeProfileSheet({
                     />
                     <SheetField
                       label="Contact number"
-                      value={emergencyContact?.emergencyContactNumber}
+                      value={formatPhilippinePhoneDisplay(emergencyContact?.emergencyContactNumber)}
                     />
                   </>
                 ) : null}

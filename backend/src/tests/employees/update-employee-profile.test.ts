@@ -141,7 +141,7 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
     });
   });
 
-  it("does not log or persist phone changes when only formatting changed", async () => {
+  it("persists canonical phone format without logging when only formatting changed", async () => {
     const existingProfile = {
       ...buildEmployeeProfileRecord(),
       emergencyContact: {
@@ -178,11 +178,11 @@ describe("PATCH /api/v1/employees/:employeeId - HR employee profile edit", () =>
             upsert: {
               create: {
                 emergencyContactName: "Jamie Reed",
-                emergencyContactNumber: "+63 909 123 4567",
+                emergencyContactNumber: "+639091234567",
               },
               update: {
                 emergencyContactName: "Jamie Reed",
-                emergencyContactNumber: "+63 909 123 4567",
+                emergencyContactNumber: "+639091234567",
               },
             },
           },

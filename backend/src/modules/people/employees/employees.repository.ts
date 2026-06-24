@@ -1,6 +1,9 @@
 import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
-import { tryExtractNormalizedPhilippinePhone } from "../../shared/phone";
+import {
+  formatPhilippineMobileE164,
+  tryExtractNormalizedPhilippinePhone,
+} from "../../shared/phone";
 import { downwardChain } from "../../shared/org";
 import type {
   ListEmployeesQueryDto,
@@ -293,10 +296,7 @@ export class EmployeesRepository {
       select: { id: true },
     });
 
-    const effectiveUpdate = this.preserveEquivalentEmergencyContactPhone(
-      existingEmployee,
-      update,
-    );
+    const effectiveUpdate = this.normalizeEmergencyContactPhone(update);
 
     const diffs = await this.computeDiffs(existingEmployee, effectiveUpdate);
 
@@ -378,12 +378,11 @@ export class EmployeesRepository {
   }
 
   /**
-   * The HR editor sends phone values in E.164 for the phone input, while older rows may store
-   * display-formatted PH numbers. If both values point to the same phone, keep the stored text so
-   * unrelated profile edits do not silently reformat it or create noisy activity-log entries.
+   * Store PH phone values as E.164 (`+639...`). Older rows may still hold display-formatted
+   * numbers; if the incoming value is the same phone, canonicalize the saved value while keeping
+   * activity logs quiet by comparing normalized values in computeDiffs.
    */
-  private preserveEquivalentEmergencyContactPhone(
-    existing: EmployeeProfileRecord,
+  private normalizeEmergencyContactPhone(
     update: UpdateEmployeeProfileRequestDto,
   ): UpdateEmployeeProfileRequestDto {
     if (
@@ -394,17 +393,15 @@ export class EmployeesRepository {
       return update;
     }
 
-    const existingPhone = existing.emergencyContact?.emergencyContactNumber;
     const nextPhone = update.emergencyContact.emergencyContactNumber;
 
-    if (!existingPhone || !nextPhone) {
+    if (!nextPhone) {
       return update;
     }
 
-    const existingNormalized = tryExtractNormalizedPhilippinePhone(existingPhone);
     const nextNormalized = tryExtractNormalizedPhilippinePhone(nextPhone);
 
-    if (!existingNormalized || existingNormalized !== nextNormalized) {
+    if (!nextNormalized) {
       return update;
     }
 
@@ -412,7 +409,7 @@ export class EmployeesRepository {
       ...update,
       emergencyContact: {
         ...update.emergencyContact,
-        emergencyContactNumber: existingPhone,
+        emergencyContactNumber: formatPhilippineMobileE164(nextNormalized),
       },
     };
   }
@@ -499,7 +496,18 @@ export class EmployeesRepository {
         }
       } else {
         track("emergencyContact.name", existing.emergencyContact?.emergencyContactName ?? null, update.emergencyContact.emergencyContactName);
-        track("emergencyContact.phone", existing.emergencyContact?.emergencyContactNumber ?? null, update.emergencyContact.emergencyContactNumber);
+        const existingPhone = existing.emergencyContact?.emergencyContactNumber ?? null;
+        const nextPhone = update.emergencyContact.emergencyContactNumber;
+        const existingNormalized = existingPhone
+          ? tryExtractNormalizedPhilippinePhone(existingPhone)
+          : null;
+        const nextNormalized = nextPhone
+          ? tryExtractNormalizedPhilippinePhone(nextPhone)
+          : null;
+
+        if (!existingNormalized || existingNormalized !== nextNormalized) {
+          track("emergencyContact.phone", existingPhone, nextPhone);
+        }
       }
     }
 

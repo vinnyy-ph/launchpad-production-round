@@ -8,6 +8,7 @@ import {
   FileText,
   History,
   LogOut,
+  Mail,
   Send,
   UserRound,
   Users,
@@ -108,6 +109,10 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string }[] = [
 
 const GENERIC_SAVE_ERROR =
   "We couldn't save these changes. Please review the highlighted fields and try again.";
+const DISABLED_FIELD_INPUT =
+  "bg-[#FAFAFA] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
+const DISABLED_FIELD_ICON =
+  "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]";
 
 /**
  * Maps known backend validation messages to friendly, descriptive copy. Messages stay
@@ -429,17 +434,25 @@ function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
 function ReadField({
   label,
   value,
+  icon: Icon,
   className = "",
 }: {
   label: string;
   value: string | null | undefined;
+  icon?: LucideIcon;
   className?: string;
 }) {
   return (
-    <div className={className}>
+    <div className={`min-w-0 ${className}`}>
       <p className="mb-2 text-xs font-medium text-[color:var(--text-tertiary)]">{label}</p>
-      <div className="flex min-h-10 items-center rounded-lg border border-[color:var(--border-primary)] bg-white px-3 text-sm font-medium text-[color:var(--text-primary)]">
-        {displayValue(value)}
+      <div className="relative">
+        {Icon ? <Icon className={DISABLED_FIELD_ICON} strokeWidth={1.8} aria-hidden="true" /> : null}
+        <Input
+          value={displayValue(value)}
+          readOnly
+          disabled
+          className={`min-w-0 truncate ${Icon ? DISABLED_FIELD_INPUT : "text-[color:var(--text-tertiary)] disabled:opacity-100"}`}
+        />
       </div>
     </div>
   );
@@ -467,7 +480,7 @@ function EditableField({
   className?: string;
 }) {
   return (
-    <label className={className}>
+    <label className={`min-w-0 ${className}`}>
       <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
         {label}
       </span>
@@ -479,6 +492,7 @@ function EditableField({
         required={required}
         error={Boolean(error)}
         maxLength={maxLength}
+        className="min-w-0 truncate"
       />
       {error ? <span className="mt-1 block text-xs text-[#D92D20]">{error}</span> : null}
     </label>
@@ -1041,12 +1055,14 @@ export function EmployeeDetailsModal({
                                 />
                               </label>
                               <ReadField
-                                label="Email"
+                                label="Company Email"
                                 value={selectedSupervisor?.email}
+                                icon={Mail}
                               />
                               <ReadField
                                 label="Title / lead"
                                 value={selectedSupervisor?.jobTitle}
+                                icon={BriefcaseBusiness}
                               />
                             </div>
                           </div>
