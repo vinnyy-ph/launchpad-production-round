@@ -11,7 +11,6 @@ const ME = "sup-1";
 
 function ev(over: Partial<Evaluation> & Pick<Evaluation, "id">): Evaluation {
   return {
-    id: over.id,
     reviewerId: ME,
     revieweeId: "r-1",
     reviewee: null,
