@@ -218,6 +218,7 @@ export default function HomePage() {
                   notification={g.notification}
                   groupCount={g.count}
                   onRead={markRead}
+                  tone="reminder"
                 />
               ))}
             </div>

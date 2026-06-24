@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { parseISO, isToday, isYesterday, format, differenceInMinutes } from "date-fns";
+import { cn } from "@/shared/lib/utils";
 import type { Notification } from "../types/notifications.types";
 
 /** Compact relative time: "Just now", "5m ago", "3h ago", "Yesterday", else "Jun 18". */
@@ -21,6 +22,8 @@ interface Props {
   onRead: (id: string) => void;
   /** When >1, the row stands in for this many identical notifications (e.g. repeated reminders). */
   groupCount?: number;
+  /** "reminder" gives unread rows a warning-amber treatment so they read as a nudge, not a log. */
+  tone?: "default" | "reminder";
 }
 
 // The backend stamps `linkUrl`s that don't match the client routes (e.g.
@@ -76,8 +79,9 @@ function resolveRoute(n: Notification): string | null {
   }
 }
 
-export function NotificationItem({ notification, onRead, groupCount }: Props) {
+export function NotificationItem({ notification, onRead, groupCount, tone = "default" }: Props) {
   const router = useRouter();
+  const isReminder = tone === "reminder" && !notification.isRead;
 
   const handleClick = () => {
     if (!notification.isRead) onRead(notification.id);
@@ -91,14 +95,21 @@ export function NotificationItem({ notification, onRead, groupCount }: Props) {
   return (
     <button
       onClick={handleClick}
-      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[color:var(--bg-secondary)]"
+      className={cn(
+        "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors",
+        isReminder
+          ? "bg-[color:var(--color-warning-50)] hover:brightness-[0.97]"
+          : "hover:bg-[color:var(--bg-secondary)]",
+      )}
     >
       <span
         className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full"
         style={{
-          background: notification.isRead
-            ? "var(--border-secondary)"
-            : "var(--gray-neutral-900)",
+          background: isReminder
+            ? "var(--color-warning-600)"
+            : notification.isRead
+              ? "var(--border-secondary)"
+              : "var(--gray-neutral-900)",
         }}
       />
       <div className="min-w-0 flex-1">
