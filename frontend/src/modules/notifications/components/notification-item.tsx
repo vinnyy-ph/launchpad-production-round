@@ -7,6 +7,8 @@ import type { Notification } from "../types/notifications.types";
 interface Props {
   notification: Notification;
   onRead: (id: string) => void;
+  /** When >1, the row stands in for this many identical notifications (e.g. repeated reminders). */
+  groupCount?: number;
 }
 
 // The backend stamps `linkUrl`s that don't match the client routes (e.g.
@@ -62,7 +64,7 @@ function resolveRoute(n: Notification): string | null {
   }
 }
 
-export function NotificationItem({ notification, onRead }: Props) {
+export function NotificationItem({ notification, onRead, groupCount }: Props) {
   const router = useRouter();
 
   const handleClick = () => {
@@ -70,6 +72,9 @@ export function NotificationItem({ notification, onRead }: Props) {
     const route = resolveRoute(notification);
     if (route) router.push(route);
   };
+
+  const subject =
+    groupCount && groupCount > 1 ? `${notification.subject} — ${groupCount} reminders` : notification.subject;
 
   return (
     <button
@@ -86,7 +91,7 @@ export function NotificationItem({ notification, onRead }: Props) {
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-          {notification.subject}
+          {subject}
         </p>
         <p className="truncate text-xs text-[color:var(--text-tertiary)]">
           {notification.body}

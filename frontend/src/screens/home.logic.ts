@@ -1,5 +1,6 @@
 import type { DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
 import type { AppUser, EmployeeStatus } from "@/modules/auth/types/auth.types";
+import type { Notification } from "@/modules/notifications/types/notifications.types";
 
 /** First name for the greeting: first token of the display name, else the email local part. */
 export function getFirstName(user: AppUser | null | undefined): string {
@@ -153,4 +154,37 @@ export function buildGlanceCards(input: {
     }
   }
   return cards;
+}
+
+/** One feed row after collapsing exact duplicates: the most recent of the group, plus how many. */
+export interface GroupedNotification {
+  notification: Notification;
+  /** Number of rows collapsed into this one (1 = no duplicates). */
+  count: number;
+}
+
+/**
+ * Collapse exact-duplicate notifications (same subject + body) into a single row, keeping the
+ * most recent of each group and a count of how many arrived. First-appearance order is preserved,
+ * so a feed already sorted newest-first stays newest-first.
+ */
+export function groupNotifications(notifications: Notification[]): GroupedNotification[] {
+  const groups = new Map<string, Notification[]>();
+  const order: string[] = [];
+  for (const n of notifications) {
+    const key = `${n.subject} ${n.body}`;
+    const bucket = groups.get(key);
+    if (bucket) {
+      bucket.push(n);
+    } else {
+      groups.set(key, [n]);
+      order.push(key);
+    }
+  }
+  return order.map((key) => {
+    const items = groups.get(key)!;
+    // createdAt is ISO 8601, so lexical comparison is chronological.
+    const newest = items.reduce((a, b) => (a.createdAt >= b.createdAt ? a : b));
+    return { notification: newest, count: items.length };
+  });
 }

@@ -33,6 +33,7 @@ import {
   buildDashboardAttention,
   dashboardPrimaryAction,
   buildGlanceCards,
+  groupNotifications,
   type DashAttentionItem,
 } from "./home.logic";
 
@@ -211,8 +212,13 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="divide-y divide-[color:var(--border-primary)]">
-              {notifications.map((n) => (
-                <NotificationItem key={n.id} notification={n} onRead={markRead} />
+              {groupNotifications(notifications).map((g) => (
+                <NotificationItem
+                  key={g.notification.id}
+                  notification={g.notification}
+                  groupCount={g.count}
+                  onRead={markRead}
+                />
               ))}
             </div>
           )}
