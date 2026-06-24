@@ -4,6 +4,7 @@ import {
   BriefcaseBusiness,
   Check,
   Eye,
+  ExternalLink,
   FileText,
   History,
   LogOut,
@@ -405,6 +406,14 @@ function isImageUrl(url: string): boolean {
   return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(url.split("?")[0]);
 }
 
+function isPdfUrl(url: string): boolean {
+  try {
+    return decodeURIComponent(new URL(url).pathname).toLowerCase().includes(".pdf");
+  } catch {
+    return decodeURIComponent(url.split("?")[0]).toLowerCase().includes(".pdf");
+  }
+}
+
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
   return (
     <section className="pb-9">
@@ -545,6 +554,7 @@ export function EmployeeDetailsModal({
   const [contactNumberError, setContactNumberError] = useState<string | null>(null);
   const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
+  const [documentImageFailed, setDocumentImageFailed] = useState(false);
   const unsavedToastIdRef = useRef<string | number | null>(null);
   const sidebarAction = profile ? sidebarActionLabel(profile.status) : null;
 
@@ -592,6 +602,10 @@ export function EmployeeDetailsModal({
       setContactNumberError(null);
     }
   }, [profile, savedDraft]);
+
+  useEffect(() => {
+    setDocumentImageFailed(false);
+  }, [viewingDocument?.fileUrl]);
 
   function scrollToSection(section: EmployeeDetailsSection) {
     sectionRefs.current[section]?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1262,21 +1276,35 @@ export function EmployeeDetailsModal({
           Preview of the selected employee document.
         </DialogDescription>
         {viewingDocument ? (
-          <div className="flex min-h-0 items-center justify-center overflow-auto bg-[color:var(--bg-secondary)] p-4">
-            {isImageUrl(viewingDocument.fileUrl) ? (
-              <img
-                src={viewingDocument.fileUrl}
-                alt={viewingDocument.documentName}
-                className="max-h-full max-w-full object-contain"
-              />
-            ) : (
-              <iframe
-                src={viewingDocument.fileUrl}
-                title={viewingDocument.documentName}
-                sandbox="allow-same-origin"
-                className="h-full w-full border-0 bg-white"
-              />
-            )}
+          <div className="flex min-h-0 flex-col bg-[color:var(--bg-secondary)]">
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
+              {!isPdfUrl(viewingDocument.fileUrl) &&
+              (isImageUrl(viewingDocument.fileUrl) || !documentImageFailed) ? (
+                <img
+                  src={viewingDocument.fileUrl}
+                  alt={viewingDocument.documentName}
+                  className="max-h-full max-w-full object-contain"
+                  onError={() => setDocumentImageFailed(true)}
+                />
+              ) : (
+                <iframe
+                  src={viewingDocument.fileUrl}
+                  title={viewingDocument.documentName}
+                  className="h-full w-full border-0 bg-white"
+                />
+              )}
+            </div>
+            <div className="flex justify-end border-t border-[color:var(--border-primary)] bg-white px-6 py-3">
+              <a
+                href={viewingDocument.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                Open in new tab
+              </a>
+            </div>
           </div>
         ) : null}
       </DialogContent>

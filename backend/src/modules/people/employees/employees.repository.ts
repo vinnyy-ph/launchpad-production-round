@@ -1,5 +1,6 @@
 import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
+import { tryExtractNormalizedPhilippinePhone } from "../../shared/phone";
 import { downwardChain } from "../../shared/org";
 import type {
   ListEmployeesQueryDto,
@@ -292,52 +293,57 @@ export class EmployeesRepository {
       select: { id: true },
     });
 
-    const diffs = await this.computeDiffs(existingEmployee, update);
+    const effectiveUpdate = this.preserveEquivalentEmergencyContactPhone(
+      existingEmployee,
+      update,
+    );
+
+    const diffs = await this.computeDiffs(existingEmployee, effectiveUpdate);
 
     const addressUpdate = this.buildAddressRelationUpdate(
-      update.address,
+      effectiveUpdate.address,
       Boolean(existingEmployee.address),
     );
     const emergencyContactUpdate = this.buildEmergencyContactRelationUpdate(
-      update.emergencyContact,
+      effectiveUpdate.emergencyContact,
       Boolean(existingEmployee.emergencyContact),
     );
 
     const data: Prisma.EmployeeUpdateInput = {
-      companyEmail: update.companyEmail,
-      firstName: update.firstName,
-      lastName: update.lastName,
-      middleName: update.middleName,
-      personalEmail: update.personalEmail,
-      birthday: update.birthday,
-      jobTitle: update.jobTitle,
-      status: update.status,
+      companyEmail: effectiveUpdate.companyEmail,
+      firstName: effectiveUpdate.firstName,
+      lastName: effectiveUpdate.lastName,
+      middleName: effectiveUpdate.middleName,
+      personalEmail: effectiveUpdate.personalEmail,
+      birthday: effectiveUpdate.birthday,
+      jobTitle: effectiveUpdate.jobTitle,
+      status: effectiveUpdate.status,
       ...(addressUpdate ? { address: addressUpdate } : {}),
       ...(emergencyContactUpdate ? { emergencyContact: emergencyContactUpdate } : {}),
-      ...(update.department !== undefined
+      ...(effectiveUpdate.department !== undefined
         ? {
-            department: update.department
+            department: effectiveUpdate.department
               ? {
                   connectOrCreate: {
-                    where: { name: update.department },
-                    create: { name: update.department },
+                    where: { name: effectiveUpdate.department },
+                    create: { name: effectiveUpdate.department },
                   },
                 }
               : { disconnect: true },
           }
         : {}),
-      ...(update.supervisorId !== undefined
+      ...(effectiveUpdate.supervisorId !== undefined
         ? {
-            supervisor: update.supervisorId
-              ? { connect: { id: update.supervisorId } }
+            supervisor: effectiveUpdate.supervisorId
+              ? { connect: { id: effectiveUpdate.supervisorId } }
               : { disconnect: true },
           }
         : {}),
-      ...(update.companyEmail
+      ...(effectiveUpdate.companyEmail
         ? {
             user: {
               update: {
-                email: update.companyEmail,
+                email: effectiveUpdate.companyEmail,
               },
             },
           }
@@ -369,6 +375,46 @@ export class EmployeesRepository {
     });
 
     return this.findById(employeeId);
+  }
+
+  /**
+   * The HR editor sends phone values in E.164 for the phone input, while older rows may store
+   * display-formatted PH numbers. If both values point to the same phone, keep the stored text so
+   * unrelated profile edits do not silently reformat it or create noisy activity-log entries.
+   */
+  private preserveEquivalentEmergencyContactPhone(
+    existing: EmployeeProfileRecord,
+    update: UpdateEmployeeProfileRequestDto,
+  ): UpdateEmployeeProfileRequestDto {
+    if (
+      update.emergencyContact === undefined ||
+      update.emergencyContact === null ||
+      update.emergencyContact.emergencyContactNumber === undefined
+    ) {
+      return update;
+    }
+
+    const existingPhone = existing.emergencyContact?.emergencyContactNumber;
+    const nextPhone = update.emergencyContact.emergencyContactNumber;
+
+    if (!existingPhone || !nextPhone) {
+      return update;
+    }
+
+    const existingNormalized = tryExtractNormalizedPhilippinePhone(existingPhone);
+    const nextNormalized = tryExtractNormalizedPhilippinePhone(nextPhone);
+
+    if (!existingNormalized || existingNormalized !== nextNormalized) {
+      return update;
+    }
+
+    return {
+      ...update,
+      emergencyContact: {
+        ...update.emergencyContact,
+        emergencyContactNumber: existingPhone,
+      },
+    };
   }
 
   /**
