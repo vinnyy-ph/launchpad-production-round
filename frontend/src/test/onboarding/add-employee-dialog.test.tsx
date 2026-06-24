@@ -2,7 +2,6 @@ import { useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddEmployeeDialog } from "@/modules/people/onboarding/components/add-employee-dialog";
-import { ConfirmProvider } from "@/shared/ui/patterns";
 
 const mockToastError = jest.fn();
 const mockToastDismiss = jest.fn();
@@ -18,6 +17,7 @@ jest.mock("sonner", () => ({
 
 jest.mock("@/modules/people/employees/hooks/use-employees", () => ({
   useEmployees: () => ({ employees: [], loading: false, error: null, reload: jest.fn() }),
+  useAllEmployees: () => ({ employees: [], loading: false, error: null, reload: jest.fn() }),
 }));
 
 jest.mock("@/modules/people/departments/hooks/use-departments", () => ({
@@ -36,17 +36,15 @@ jest.mock("@/modules/people/onboarding/services/onboarding.service", () => ({
   sendInvitation: jest.fn(),
 }));
 
-// ConfirmProvider is required because the unsaved-changes guard uses useConfirm() for the
-// "Discard changes?" prompt on an explicit close.
 function Harness() {
   const [open, setOpen] = useState(true);
   return (
-    <ConfirmProvider>
+    <>
       <button type="button" onClick={() => setOpen(true)}>
         Reopen dialog
       </button>
       <AddEmployeeDialog open={open} onOpenChange={setOpen} onStarted={jest.fn()} />
-    </ConfirmProvider>
+    </>
   );
 }
 
@@ -69,56 +67,36 @@ describe("AddEmployeeDialog unsaved changes", () => {
     expect(mockToastError).not.toHaveBeenCalled();
   });
 
-  it("prompts to discard (not just a toast) when closing via ✕ with unsaved data", async () => {
+  it("blocks close and shows an add-specific warning when the form has data", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
     await user.type(screen.getByLabelText(/first name/i), "Maria");
     await user.click(screen.getByRole("button", { name: "Close" }));
 
-    // The form modal stays open and a decisive "Discard changes?" confirm appears.
-    await waitFor(() => {
-      expect(screen.getByText("Discard changes?")).toBeInTheDocument();
-    });
-    expect(mockToastError).not.toHaveBeenCalled();
-
-    // Confirming Discard closes everything.
-    await user.click(screen.getByRole("button", { name: "Discard" }));
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-  });
-
-  it("nudges with a toast (and stays open) on Escape with unsaved data", async () => {
-    const user = userEvent.setup();
-    render(<Harness />);
-
-    await user.type(screen.getByLabelText(/first name/i), "Maria");
-    await user.keyboard("{Escape}");
-
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith(
-        "There are unsaved changes. Save or discard them before closing.",
+        "There are unsaved changes. Send the invite or discard them before closing.",
         expect.objectContaining({ position: "top-center" }),
       );
     });
   });
 
-  it("shows Reset instead of Cancel when the form has data", async () => {
+  it("shows Discard instead of Cancel when the form has data", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Discard" })).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/first name/i), "Maria");
 
-    expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   });
 
-  it("clears the form on Reset so the dialog can close", async () => {
+  it("clears the form on Discard so the dialog can close", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
@@ -126,7 +104,7 @@ describe("AddEmployeeDialog unsaved changes", () => {
     await user.type(firstName, "Maria");
     expect(firstName).toHaveValue("Maria");
 
-    await user.click(screen.getByRole("button", { name: "Reset" }));
+    await user.click(screen.getByRole("button", { name: "Discard" }));
 
     await waitFor(() => {
       expect(firstName).toHaveValue("");

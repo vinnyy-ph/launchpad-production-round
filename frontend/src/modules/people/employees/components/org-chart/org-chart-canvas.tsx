@@ -142,23 +142,36 @@ export function OrgChartCanvas({
         </TransformComponent>
       </TransformWrapper>
 
-      {/* Top-left: expand / collapse the whole tree (kept on-canvas so they work in full screen). */}
-      {onExpandAll || onCollapseAll ? (
-        <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
-          {onExpandAll ? (
-            <Button variant="outline" size="sm" onClick={onExpandAll}>
-              <ChevronsUpDown aria-hidden="true" />
-              Expand all
-            </Button>
-          ) : null}
-          {onCollapseAll ? (
-            <Button variant="outline" size="sm" onClick={onCollapseAll}>
-              <ChevronsDownUp aria-hidden="true" />
-              Collapse all
-            </Button>
-          ) : null}
+      {/* Top-left toolbar: expand / collapse the whole tree plus the zoom cluster (zoom out, fit to
+          screen, zoom in). Kept on-canvas so the controls stay available in full screen. */}
+      <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
+        {onExpandAll ? (
+          <Button variant="outline" size="sm" onClick={onExpandAll}>
+            <ChevronsUpDown aria-hidden="true" />
+            Expand all
+          </Button>
+        ) : null}
+        {onCollapseAll ? (
+          <Button variant="outline" size="sm" onClick={onCollapseAll}>
+            <ChevronsDownUp aria-hidden="true" />
+            Collapse all
+          </Button>
+        ) : null}
+        <div
+          className="flex items-center gap-1 rounded-full border border-[color:var(--border-primary)] bg-white/90 p-1 backdrop-blur"
+          style={{ boxShadow: "var(--shadow-sm)" }}
+        >
+          <CanvasButton label="Zoom out" onClick={() => apiRef.current?.zoomOut()} bare>
+            <Minus className="h-4 w-4" />
+          </CanvasButton>
+          <CanvasButton label="Fit to screen" onClick={fitToScreen} bare>
+            <Scan className="h-4 w-4" />
+          </CanvasButton>
+          <CanvasButton label="Zoom in" onClick={() => apiRef.current?.zoomIn()} bare>
+            <Plus className="h-4 w-4" />
+          </CanvasButton>
         </div>
-      ) : null}
+      </div>
 
       {/* Top-right: enter/exit full screen. */}
       <CanvasButton
@@ -168,22 +181,6 @@ export function OrgChartCanvas({
       >
         {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
       </CanvasButton>
-
-      {/* Bottom-right: zoom cluster. */}
-      <div
-        className="absolute bottom-4 right-4 flex items-center gap-1 rounded-full border border-[color:var(--border-primary)] bg-white/90 p-1 backdrop-blur"
-        style={{ boxShadow: "var(--shadow-sm)" }}
-      >
-        <CanvasButton label="Zoom out" onClick={() => apiRef.current?.zoomOut()} bare>
-          <Minus className="h-4 w-4" />
-        </CanvasButton>
-        <CanvasButton label="Fit to screen" onClick={fitToScreen} bare>
-          <Scan className="h-4 w-4" />
-        </CanvasButton>
-        <CanvasButton label="Zoom in" onClick={() => apiRef.current?.zoomIn()} bare>
-          <Plus className="h-4 w-4" />
-        </CanvasButton>
-      </div>
     </div>
   );
 }

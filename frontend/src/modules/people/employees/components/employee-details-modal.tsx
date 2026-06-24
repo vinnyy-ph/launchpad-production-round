@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import {
   BriefcaseBusiness,
@@ -8,6 +9,8 @@ import {
   FileText,
   History,
   LogOut,
+  MapPin,
+  Phone,
   Mail,
   Send,
   UserRound,
@@ -15,7 +18,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
 import { Combobox } from "@/shared/ui/primitives/combobox";
 import {
@@ -37,7 +39,6 @@ import {
 import { StatusBadge } from "@/shared/ui/patterns";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { ApiError } from "@/shared/lib/api-client";
-import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
 import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
 import type { EmployeeDocument, EmployeeDocumentStatus } from "../services/employees.service";
 import { ProfileActivityHistory } from "./profile-activity-history";
@@ -47,12 +48,14 @@ import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-
 import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
 import { useEmployeeDocuments } from "../hooks/use-employee-documents";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
-import { useEmployees } from "../hooks/use-employees";
+import { useAllEmployees } from "../hooks/use-employees";
+import { toEmployeeOption } from "../employee-options";
 import { useUpdateEmployee } from "../hooks/use-update-employee";
 import type {
   EmployeeListItem,
   EmployeeProfile,
   EmployeeStatus,
+  EmployeeTeam,
   EmployeeUpdateInput,
 } from "../types/employees.types";
 
@@ -112,7 +115,7 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string }[] = [
 const GENERIC_SAVE_ERROR =
   "We couldn't save these changes. Please review the highlighted fields and try again.";
 const DISABLED_FIELD_INPUT =
-  "bg-[color:var(--gray-neutral-50)] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
+  "bg-[#FAFAFA] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
 const DISABLED_FIELD_ICON =
   "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]";
 
@@ -308,7 +311,7 @@ function sidebarActionStyles(status: EmployeeStatus): string {
     return "border-[#B2DDFF] bg-[#EFF8FF] text-[#175CD3] hover:bg-[#D1E9FF]";
   }
 
-  return "border-[color:var(--color-error-200)] bg-white text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]";
+  return "border-[#FECDCA] bg-white text-[#B42318] hover:bg-[#FEF3F2]";
 }
 
 function blankDraft(): EditDraft {
@@ -380,9 +383,9 @@ function formatActivityDate(timestamp: string): string {
 }
 
 const DOCUMENT_STATUS_STYLES: Record<EmployeeDocumentStatus, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]" },
-  approved: { label: "Approved", className: "bg-[color:var(--color-success-50)] text-[#027A48] border-[#6CE9A6]" },
-  rejected: { label: "Rejected", className: "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]" },
+  pending: { label: "Pending", className: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]" },
+  approved: { label: "Approved", className: "bg-[#ECFDF3] text-[#027A48] border-[#6CE9A6]" },
+  rejected: { label: "Rejected", className: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]" },
 };
 
 /** Detects whether a stored document URL points to an image (vs a PDF/other file). */
@@ -473,7 +476,7 @@ function EditableField({
         maxLength={maxLength}
         className="min-w-0 truncate"
       />
-      {error ? <span className="mt-1 block text-xs text-[color:var(--color-error-600)]">{error}</span> : null}
+      {error ? <span className="mt-1 block text-xs text-[#D92D20]">{error}</span> : null}
     </label>
   );
 }
@@ -521,6 +524,27 @@ function EmptyPanel({
   );
 }
 
+/**
+ * A team chip showing the team's initial avatar and name. Clicking it navigates to the
+ * team's detail page. `className` supplies the colored variant (member vs. led team).
+ */
+function TeamPill({ team, className }: { team: EmployeeTeam; className: string }) {
+  return (
+    <Link
+      href={`/hr/teams/${team.id}`}
+      className={`inline-flex max-w-[160px] items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}
+    >
+      <UserAvatar
+        fallback={(team.name.trim()[0] ?? "?").toUpperCase()}
+        className="h-7 w-7 shrink-0"
+        fallbackClassName="text-sm font-bold text-white"
+        fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
+      />
+      <span className="truncate">{team.name}</span>
+    </Link>
+  );
+}
+
 export function EmployeeDetailsModal({
   employeeId,
   fallbackEmployee,
@@ -539,19 +563,23 @@ export function EmployeeDetailsModal({
   const { logs: activityLogs, loading: activityLoading } = useEmployeeActivityLogs(employeeId);
   const { documents, loading: documentsLoading } = useEmployeeDocuments(employeeId);
   const { departments, loading: departmentsLoading } = useDepartments();
-  const { employees: allEmployees } = useEmployees({ limit: 100 });
+  const { employees: allEmployees } = useAllEmployees();
   const profile = employee ?? fallbackEmployee;
   const profileDetails = profile as EmployeeProfile | null;
   const [draft, setDraft] = useState<EditDraft>(blankDraft);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof EditDraft, string>>>({});
   const [contactNumberError, setContactNumberError] = useState<string | null>(null);
+  const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
   const [documentImageFailed, setDocumentImageFailed] = useState(false);
+  const unsavedToastIdRef = useRef<string | number | null>(null);
+  // Scroll container + the section currently in view, so the sidebar can highlight the active tab.
+  const scrollContainerRef = useRef<HTMLElement>(null);
+  const [activeSection, setActiveSection] = useState<EmployeeDetailsSection>("personal");
   const sidebarAction = profile ? sidebarActionLabel(profile.status) : null;
 
   const savedDraft = useMemo(() => (profile ? draftFromProfile(profile) : blankDraft()), [profile]);
   const hasUnsavedChanges = profile ? !draftsMatch(draft, savedDraft) : false;
-  const guard = useUnsavedGuard({ hasUnsavedChanges, onOpenChange });
 
   const departmentOptions = useMemo(() => {
     const names = new Set(departments.map((department) => department.name));
@@ -571,7 +599,7 @@ export function EmployeeDetailsModal({
       allEmployees
         .filter((emp) => emp.id !== employeeId)
         .filter((emp) => (emp.department ?? "") === draft.department || emp.supervisor === null)
-        .map((emp) => ({ value: emp.id, label: emp.fullName })),
+        .map(toEmployeeOption),
     [allEmployees, employeeId, draft.department],
   );
 
@@ -595,6 +623,39 @@ export function EmployeeDetailsModal({
     }
   }, [profile, savedDraft]);
 
+  // Default to Personal Information whenever the modal opens (or switches employee). This
+  // component stays mounted across open/close, so the active section must be reset explicitly.
+  useEffect(() => {
+    if (open) setActiveSection("personal");
+  }, [open, employeeId]);
+
+  // Track which section is scrolled into view so the sidebar tab highlights it. The top-most
+  // intersecting section wins; the bottom rootMargin biases activation toward the upper area.
+  useEffect(() => {
+    const root = scrollContainerRef.current;
+    if (!profile || loading || error || !root) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const topMost = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (!topMost) return;
+        const match = (Object.keys(sectionRefs.current) as EmployeeDetailsSection[]).find(
+          (key) => sectionRefs.current[key] === topMost.target,
+        );
+        if (match) setActiveSection(match);
+      },
+      { root, rootMargin: "0px 0px -70% 0px" },
+    );
+
+    for (const node of Object.values(sectionRefs.current)) {
+      if (node) observer.observe(node);
+    }
+    return () => observer.disconnect();
+    // `open` is a dependency so the observer re-attaches to the freshly mounted section nodes
+    // each time the modal reopens (the dialog content unmounts while closed).
+  }, [profile, loading, error, open]);
   useEffect(() => {
     setDocumentImageFailed(false);
   }, [viewingDocument?.fileUrl]);
@@ -612,6 +673,41 @@ export function EmployeeDetailsModal({
       else delete next[field];
       return next;
     });
+  }
+
+  function alertUnsavedChanges() {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(90);
+    }
+
+    if (unsavedToastIdRef.current) {
+      toast.dismiss(unsavedToastIdRef.current);
+    }
+
+    const toastId = `employee-details-unsaved-changes-${Date.now()}`;
+    unsavedToastIdRef.current = toastId;
+    window.requestAnimationFrame(() => {
+      toast.error("There are unsaved changes. Save or discard them before closing.", {
+        id: toastId,
+        position: "top-center",
+        classNames: {
+          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
+          title: "!text-[#7A271A]",
+        },
+      });
+    });
+
+    setShakeUnsavedAlert(false);
+    window.requestAnimationFrame(() => setShakeUnsavedAlert(true));
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && hasUnsavedChanges) {
+      alertUnsavedChanges();
+      return;
+    }
+
+    onOpenChange(nextOpen);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -679,537 +775,926 @@ export function EmployeeDetailsModal({
   }
 
   return (
-    <>
-    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
-      <DialogContent
-        className={`directory-profile-dialog h-[90vh] w-[90vw] max-w-[90vw] origin-center gap-0 overflow-hidden p-0 sm:rounded-2xl [&>button]:z-30 [&>button]:p-1 [&>button]:text-[color:var(--text-secondary)] ${guard.shakeClass}`}
-        onAnimationEnd={guard.onAnimationEnd}
-        onEscapeKeyDown={guard.onEscapeKeyDown}
-        onInteractOutside={guard.onInteractOutside}
-      >
-        <DialogTitle className="sr-only">
-          Employee details
-        </DialogTitle>
-        <DialogDescription className="sr-only">
-          Employee personal information, employment details, documents, and activity.
-        </DialogDescription>
-
-        <div className="grid h-full min-h-0 grid-cols-[260px_minmax(0,1fr)] bg-white">
-          <aside className="flex min-h-0 flex-col border-r border-[color:var(--border-primary)] bg-white">
-            {profile ? (
-              <>
-                <div className="border-b border-[color:var(--border-primary)] px-6 py-6 text-center">
-                  <UserAvatar
-                    src={profile.avatarUrl}
-                    fallback={initials(profile)}
-                    className="mx-auto h-20 w-20"
-                    fallbackClassName="text-lg font-bold text-[color:var(--text-primary)]"
-                    fallbackStyle={{
-                      background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
-                    }}
-                  />
-                  <h2 className="mt-4 truncate text-sm font-bold text-[color:var(--text-primary)]">
-                    {fullName(profile)}
-                  </h2>
-                  <p className="mt-1 truncate text-xs text-[color:var(--text-tertiary)]">
-                    {displayValue(profile.jobTitle)}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-[color:var(--text-tertiary)]">
-                    {displayValue(profile.department)}
-                  </p>
-                  <div className="mt-3 flex justify-center">
-                    <StatusBadge status={profile.status} />
-                  </div>
-                </div>
-
-                <nav
-                  className="flex h-auto flex-1 flex-col items-stretch justify-start gap-1 px-3 py-4 text-[color:var(--text-secondary)]"
-                  aria-label="Employee details sections"
-                >
-                  {DETAIL_SECTIONS.map((section) => {
-                    const Icon = section.icon;
-                    return (
-                      <button
-                        key={section.value}
-                        type="button"
-                        className="inline-flex items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-bold transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)]"
-                        onClick={() => scrollToSection(section.value)}
-                      >
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                        <span className="truncate">{section.label}</span>
-                      </button>
-                    );
-                  })}
-                </nav>
-
-                {sidebarAction ? (
-                  <div className="border-t border-[color:var(--border-primary)] p-4">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className={`w-full ${sidebarActionStyles(profile.status)}`}
-                    >
-                      {profile.status === "onboarding" ? <Send /> : <LogOut />} {sidebarAction}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-          </aside>
-
-          <main className="min-h-0 min-w-0 overflow-y-auto bg-white">
-            <form onSubmit={(event) => void handleSubmit(event)}>
-            <header className="sticky top-0 z-10 flex min-h-[64px] items-center justify-between border-b border-[color:var(--border-primary)] bg-white px-8 pr-16">
-              <h2 className="truncate text-lg font-bold text-[color:var(--text-primary)]">
-                Employee details
-              </h2>
-            </header>
-
-            <div className="px-8 py-8 pb-24">
-              {loading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 8 }).map((_, index) => (
-                    <Skeleton key={index} className="h-10 rounded-lg" />
-                  ))}
-                </div>
-              ) : error ? (
-                <div className="rounded-lg border border-[color:var(--border-primary)] p-4">
-                  <p className="text-sm font-medium text-[color:var(--text-primary)]">{error}</p>
-                  <Button
-                    className="mt-3"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => void reload()}
-                  >
-                    Try again
-                  </Button>
-                </div>
-              ) : profile ? (
-                <div className="space-y-9">
-                  <div ref={(node) => { sectionRefs.current.personal = node; }} className="scroll-mt-[88px]">
-                    <div className="space-y-9">
-                      <DetailSection title="Personal Information" icon={UserRound}>
-                        <div className="grid gap-4">
-                          <div className="grid gap-4 lg:grid-cols-3">
-                            <EditableField
-                              label="First name"
-                              value={draft.firstName}
-                              onChange={(value) => updateDraft("firstName", value)}
-                              required
-                              error={fieldErrors.firstName}
-                              maxLength={PEOPLE_TEXT_LIMITS.NAME}
-                            />
-                            <EditableField
-                              label="Middle name"
-                              value={draft.middleName}
-                              onChange={(value) => updateDraft("middleName", value)}
-                              placeholder="Optional"
-                              error={fieldErrors.middleName}
-                              maxLength={PEOPLE_TEXT_LIMITS.NAME}
-                            />
-                            <EditableField
-                              label="Last name"
-                              value={draft.lastName}
-                              onChange={(value) => updateDraft("lastName", value)}
-                              required
-                              error={fieldErrors.lastName}
-                              maxLength={PEOPLE_TEXT_LIMITS.NAME}
-                            />
-                          </div>
-
-                          <div className="grid gap-4 lg:grid-cols-2">
-                            <EditableField
-                              label="Personal email"
-                              type="email"
-                              value={draft.personalEmail}
-                              onChange={(value) => updateDraft("personalEmail", value)}
-                              error={fieldErrors.personalEmail}
-                              maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
-                            />
-                            <EditableField
-                              label="Company email"
-                              type="email"
-                              value={draft.companyEmail}
-                              onChange={(value) => updateDraft("companyEmail", value)}
-                              required
-                              error={fieldErrors.companyEmail}
-                              maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
-                            />
-                          </div>
-
-                          <div className="grid gap-4 lg:grid-cols-2">
-                            <label>
-                              <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
-                                Birthday
-                              </span>
-                              <DatePicker
-                                disableFuture
-                                value={draft.birthday ? new Date(`${draft.birthday}T00:00:00`) : undefined}
-                                onChange={(next) =>
-                                  updateDraft("birthday", next ? format(next, "yyyy-MM-dd") : "")
-                                }
-                                className="w-full"
-                              />
-                            </label>
-                          </div>
-
-                          <div>
-                            <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
-                              Address
-                            </p>
-                            <div className="flex flex-col gap-4">
-                              <PhAddressFields
-                                idPrefix="emp-details"
-                                value={{
-                                  country: draft.country,
-                                  province: draft.province,
-                                  city: draft.city,
-                                  address: draft.address,
-                                }}
-                                errors={{
-                                  country: fieldErrors.country,
-                                  province: fieldErrors.province,
-                                  city: fieldErrors.city,
-                                  address: fieldErrors.address,
-                                }}
-                                onChange={(patch) => {
-                                  setDraft((current) => ({ ...current, ...patch }));
-                                  setFieldErrors((current) => {
-                                    const next = { ...current };
-                                    for (const key of Object.keys(patch) as Array<
-                                      Extract<keyof EditDraft, "country" | "province" | "city" | "address">
-                                    >) {
-                                      const error = validateProfileField(key, patch[key] ?? "");
-                                      if (error) next[key] = error;
-                                      else delete next[key];
-                                    }
-                                    return next;
-                                  });
-                                }}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
-                              Emergency Contacts
-                            </p>
-                            <div className="grid gap-4 lg:grid-cols-2">
-                              <EditableField
-                                label="Contact Name"
-                                value={draft.emergencyContactName}
-                                onChange={(value) => updateDraft("emergencyContactName", value)}
-                                error={fieldErrors.emergencyContactName}
-                                maxLength={PEOPLE_TEXT_LIMITS.NAME}
-                              />
-                              <label>
-                                <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
-                                  Contact Number
-                                </span>
-                                <PhoneInput
-                                  value={draft.emergencyContactNumber}
-                                  onChange={(value) => {
-                                    updateDraft("emergencyContactNumber", value);
-                                    if (contactNumberError) setContactNumberError(null);
-                                  }}
-                                  error={Boolean(contactNumberError || fieldErrors.emergencyContactNumber)}
-                                />
-                                {contactNumberError || fieldErrors.emergencyContactNumber ? (
-                                  <span className="mt-1 block text-xs text-[color:var(--color-error-600)]">
-                                    {contactNumberError ?? fieldErrors.emergencyContactNumber}
-                                  </span>
-                                ) : null}
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      </DetailSection>
-                    </div>
-                  </div>
-
-                  <div ref={(node) => { sectionRefs.current.employment = node; }} className="scroll-mt-[88px]">
-                    <div className="space-y-9">
-                      <DetailSection title="Employment Details" icon={BriefcaseBusiness}>
-                        <div className="grid gap-5">
-                          <div className="grid gap-4 lg:grid-cols-3">
-                            <EditableField
-                              label="Role"
-                              value={draft.jobTitle}
-                              onChange={(value) => updateDraft("jobTitle", value)}
-                              error={fieldErrors.jobTitle}
-                              maxLength={PEOPLE_TEXT_LIMITS.JOB_TITLE}
-                            />
-                            <EditableSelect
-                              label="Department"
-                              value={draft.department || NO_DEPARTMENT}
-                              onChange={(value) => {
-                                const nextDepartment = value === NO_DEPARTMENT ? "" : value;
-                                // Reset the supervisor on department change so a now-invalid
-                                // cross-department selection can't linger; the user re-picks from
-                                // the new department's list (the org root stays selectable there).
-                                setDraft((current) => ({
-                                  ...current,
-                                  department: nextDepartment,
-                                  supervisorId: "",
-                                }));
-                              }}
-                              placeholder={departmentsLoading ? "Loading departments..." : "Select department"}
-                            >
-                              <SelectItem value={NO_DEPARTMENT}>No department</SelectItem>
-                              {departmentOptions.map((department) => (
-                                <SelectItem key={department.id} value={department.name}>
-                                  {department.name}
-                                </SelectItem>
-                              ))}
-                            </EditableSelect>
-                            <EditableSelect
-                              label="Employment status"
-                              value={draft.status}
-                              onChange={(value) => updateDraft("status", value)}
-                            >
-                              {STATUS_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </EditableSelect>
-                          </div>
-
-                          <div>
-                            <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
-                              Supervisor
-                            </p>
-                            <div className="grid gap-4 lg:grid-cols-3">
-                              <label>
-                                <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
-                                  Assign supervisor
-                                </span>
-                                <Combobox
-                                  options={supervisorOptions}
-                                  value={draft.supervisorId}
-                                  onChange={(value) => updateDraft("supervisorId", value)}
-                                  placeholder="No supervisor (root node)"
-                                  searchPlaceholder="Search employees…"
-                                  emptyText="No employees found."
-                                />
-                              </label>
-                              <ReadField
-                                label="Company Email"
-                                value={selectedSupervisor?.email}
-                                icon={Mail}
-                              />
-                              <ReadField
-                                label="Title / lead"
-                                value={selectedSupervisor?.jobTitle}
-                                icon={BriefcaseBusiness}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </DetailSection>
-                    </div>
-                  </div>
-
-                  <div ref={(node) => { sectionRefs.current.teams = node; }} className="scroll-mt-[88px]">
-                    <div className="space-y-9">
-                      <DetailSection title="Teams" icon={Users}>
-                        <div className="space-y-5">
-                          <div>
-                            <p className="mb-2 text-xs font-medium text-[color:var(--text-tertiary)]">
-                              Is a member of
-                            </p>
-                            {profile.teams.length > 0 ? (
-                              <div className="flex flex-wrap gap-2">
-                                {profile.teams.map((team) => (
-                                  <Badge
-                                    key={team.id}
-                                    variant="outline"
-                                    pill
-                                    className="max-w-[110px] truncate rounded-full border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]"
-                                  >
-                                    {team.name}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-[color:var(--text-tertiary)]">
-                                No team assignment.
-                              </p>
-                            )}
-                          </div>
-
-                          <div>
-                            <p className="mb-2 text-xs font-medium text-[color:var(--text-tertiary)]">
-                              Leads
-                            </p>
-                            {profileDetails?.ledTeams?.length ? (
-                              <div className="flex flex-wrap gap-2">
-                                {profileDetails.ledTeams.map((team) => (
-                                  <Badge
-                                    key={team.id}
-                                    variant="outline"
-                                    pill
-                                    className="max-w-[110px] truncate rounded-full border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] font-semibold text-[color:var(--color-success-700)]"
-                                  >
-                                    {team.name}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-[color:var(--text-tertiary)]">
-                                No led teams.
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </DetailSection>
-                    </div>
-                  </div>
-
-                  <div ref={(node) => { sectionRefs.current.documents = node; }} className="scroll-mt-[88px]">
-                    <DetailSection title="Documents" icon={FileText}>
-                      {documentsLoading ? (
-                        <div className="space-y-3">
-                          {Array.from({ length: 3 }).map((_, index) => (
-                            <Skeleton key={index} className="h-16 rounded-lg" />
-                          ))}
-                        </div>
-                      ) : documents.length === 0 ? (
-                        <EmptyPanel
-                          title="No documents yet"
-                          body="Uploaded employee files will appear here."
-                        />
-                      ) : (
-                        <ul className="space-y-3">
-                          {documents.map((document) => {
-                            const statusStyle = DOCUMENT_STATUS_STYLES[document.status];
-                            return (
-                              <li
-                                key={document.id}
-                                className="flex items-center justify-between gap-4 rounded-lg border border-[color:var(--border-primary)] bg-white p-4"
-                              >
-                                <div className="flex min-w-0 items-center gap-3">
-                                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[color:var(--bg-secondary)]">
-                                    <FileText
-                                      className="h-5 w-5 text-[color:var(--text-secondary)]"
-                                      aria-hidden="true"
-                                    />
-                                  </span>
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-[color:var(--text-primary)]">
-                                      {document.documentName}
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
-                                      Uploaded {formatActivityDate(document.submittedAt)}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-3">
-                                  <span
-                                    className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyle.className}`}
-                                  >
-                                    {statusStyle.label}
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => setViewingDocument(document)}
-                                    aria-label={`View ${document.documentName}`}
-                                  >
-                                    <Eye /> View
-                                  </Button>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </DetailSection>
-                  </div>
-
-                  <div ref={(node) => { sectionRefs.current.activity = node; }} className="scroll-mt-[88px]">
-                    <DetailSection title="Activity History" icon={History}>
-                      <ProfileActivityHistory logs={activityLogs} loading={activityLoading} />
-                    </DetailSection>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {profile && hasUnsavedChanges ? (
-              <footer className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-[color:var(--border-primary)] bg-white px-8 py-4">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={saving}
-                  onClick={() => {
-                    setDraft(savedDraft);
-                    setContactNumberError(null);
-                    setFieldErrors({});
-                  }}
-                >
-                  Revert
-                </Button>
-                <Button type="submit" size="sm" disabled={saving}>
-                  <Check /> {saving ? "Saving..." : "Save changes"}
-                </Button>
-              </footer>
-            ) : null}
-            </form>
-          </main>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog
-      open={viewingDocument !== null}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) setViewingDocument(null);
-      }}
-    >
-      <DialogContent className="grid h-[90vh] w-[90vw] max-w-[90vw] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:rounded-2xl">
-        <DialogTitle className="border-b border-[color:var(--border-primary)] px-6 py-4 pr-12 text-base font-bold text-[color:var(--text-primary)]">
-          {viewingDocument?.documentName ?? "Document"}
-        </DialogTitle>
-        <DialogDescription className="sr-only">
-          Preview of the selected employee document.
-        </DialogDescription>
-        {viewingDocument ? (
-          <div className="flex min-h-0 flex-col bg-[color:var(--bg-secondary)]">
-            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
-              {!isPdfUrl(viewingDocument.fileUrl) &&
-              (isImageUrl(viewingDocument.fileUrl) || !documentImageFailed) ? (
-                <img
-                  src={viewingDocument.fileUrl}
-                  alt={viewingDocument.documentName}
-                  className="max-h-full max-w-full object-contain"
-                  onError={() => setDocumentImageFailed(true)}
-                />
-              ) : (
-                <iframe
-                  src={viewingDocument.fileUrl}
-                  title={viewingDocument.documentName}
-                  className="h-full w-full border-0 bg-white"
-                />
-              )}
-            </div>
-            <div className="flex justify-end border-t border-[color:var(--border-primary)] bg-white px-6 py-3">
-              <a
-                href={viewingDocument.fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
+      <>
+          <Dialog open={open} onOpenChange={handleOpenChange}>
+              <DialogContent
+                  className={`directory-profile-dialog grid-rows-[minmax(0,1fr)] h-[88vh] w-[90vw] max-w-[90vw] origin-center gap-0 overflow-hidden p-0 sm:rounded-xl [&>button]:z-30 [&>button]:p-1 [&>button]:text-[color:var(--text-secondary)] ${
+                      shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
+                  }`}
+                  onAnimationEnd={() => setShakeUnsavedAlert(false)}
+                  onInteractOutside={(event) => event.preventDefault()}
               >
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                Open in new tab
-              </a>
-            </div>
-          </div>
-        ) : null}
-      </DialogContent>
-    </Dialog>
-    </>
+                  <DialogTitle className="sr-only">
+                      Employee details
+                  </DialogTitle>
+                  <DialogDescription className="sr-only">
+                      Employee personal information, employment details,
+                      documents, and activity.
+                  </DialogDescription>
+
+                  <div className="grid h-full min-h-0 grid-cols-[260px_minmax(0,1fr)] grid-rows-1 bg-white">
+                      <aside className="flex min-h-0 flex-col border-r border-[color:var(--border-primary)] bg-white">
+                          {profile ? (
+                              <>
+                                  <div className="border-b border-[color:var(--border-primary)] px-6 py-6 text-center">
+                                      <UserAvatar
+                                          src={profile.avatarUrl}
+                                          fallback={initials(profile)}
+                                          className="mx-auto h-20 w-20"
+                                          fallbackClassName="text-lg font-bold text-[color:var(--text-primary)]"
+                                          fallbackStyle={{
+                                              background:
+                                                  "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                                          }}
+                                      />
+                                      <h2 className="mt-4 truncate text-sm font-bold text-[color:var(--text-primary)]">
+                                          {fullName(profile)}
+                                      </h2>
+                                      <p className="mt-1 truncate text-xs text-[color:var(--text-secondary)]">
+                                          {displayValue(profile.jobTitle)}
+                                      </p>
+                                      {profile.department ? (
+                                          <div className="mt-2 flex justify-center">
+                                              <span className="inline-flex max-w-full items-center truncate rounded-full border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-2.5 py-0.5 text-[11px] font-medium text-[color:var(--text-secondary)]">
+                                                  {profile.department}
+                                              </span>
+                                          </div>
+                                      ) : null}
+                                      <div className="mt-3 flex justify-center">
+                                          <StatusBadge
+                                              status={profile.status}
+                                          />
+                                      </div>
+                                  </div>
+
+                                  <nav
+                                      className="flex h-auto flex-1 flex-col items-stretch justify-start gap-0.5 py-4 pr-3 text-sm"
+                                      aria-label="Employee details sections"
+                                  >
+                                      {DETAIL_SECTIONS.map((section) => {
+                                          const isActive = activeSection === section.value;
+                                          const teamCount =
+                                              section.value === "teams" ? profile.teams.length : 0;
+                                          return (
+                                              <button
+                                                  key={section.value}
+                                                  type="button"
+                                                  aria-current={isActive ? "true" : undefined}
+                                                  className={`relative flex items-center justify-between gap-2 py-2 pl-6 pr-3 text-left transition-colors ${
+                                                      isActive
+                                                          ? "font-bold text-[color:var(--text-primary)]"
+                                                          : "font-medium text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]"
+                                                  }`}
+                                                  onClick={() => {
+                                                      setActiveSection(section.value);
+                                                      scrollToSection(section.value);
+                                                  }}
+                                              >
+                                                  {isActive ? (
+                                                      <span
+                                                          aria-hidden="true"
+                                                          className="absolute left-3 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full"
+                                                          style={{
+                                                              background:
+                                                                  "linear-gradient(180deg, var(--brand-peach), var(--brand-pink))",
+                                                          }}
+                                                      />
+                                                  ) : null}
+                                                  <span className="truncate">{section.label}</span>
+                                                  {teamCount > 0 ? (
+                                                      <span className="ml-auto shrink-0 rounded-md bg-[color:var(--bg-secondary)] px-1.5 py-0.5 text-xs font-semibold text-[color:var(--text-secondary)]">
+                                                          {teamCount}
+                                                      </span>
+                                                  ) : null}
+                                              </button>
+                                          );
+                                      })}
+                                  </nav>
+
+                                  {sidebarAction ? (
+                                      <div className="border-t border-[color:var(--border-primary)] p-4">
+                                          <Button
+                                              type="button"
+                                              variant="secondary"
+                                              className={`w-full ${sidebarActionStyles(profile.status)}`}
+                                          >
+                                              {profile.status ===
+                                              "onboarding" ? (
+                                                  <Send />
+                                              ) : (
+                                                  <LogOut />
+                                              )}{" "}
+                                              {sidebarAction}
+                                          </Button>
+                                      </div>
+                                  ) : null}
+                              </>
+                          ) : null}
+                      </aside>
+
+                      <main ref={scrollContainerRef} className="min-h-0 min-w-0 overflow-y-auto bg-white">
+                          <form onSubmit={(event) => void handleSubmit(event)}>
+                              <header className="sticky top-0 z-10 flex min-h-[64px] items-center justify-between border-b border-[color:var(--border-primary)] bg-white px-8 pr-16">
+                                  <h2 className="truncate text-lg font-bold text-[color:var(--text-primary)]">
+                                      Employee details
+                                  </h2>
+                              </header>
+
+                              <div className="px-8 py-8">
+                                  {loading ? (
+                                      <div className="space-y-3">
+                                          {Array.from({ length: 8 }).map(
+                                              (_, index) => (
+                                                  <div
+                                                      key={index}
+                                                      className="h-10 rounded-lg bg-[color:var(--bg-secondary)]"
+                                                  />
+                                              ),
+                                          )}
+                                      </div>
+                                  ) : error ? (
+                                      <div className="rounded-lg border border-[color:var(--border-primary)] p-4">
+                                          <p className="text-sm font-medium text-[color:var(--text-primary)]">
+                                              {error}
+                                          </p>
+                                          <Button
+                                              className="mt-3"
+                                              size="sm"
+                                              variant="secondary"
+                                              onClick={() => void reload()}
+                                          >
+                                              Try again
+                                          </Button>
+                                      </div>
+                                  ) : profile ? (
+                                      <div className="space-y-9">
+                                          <div
+                                              ref={(node) => {
+                                                  sectionRefs.current.personal =
+                                                      node;
+                                              }}
+                                              className="scroll-mt-[88px]"
+                                          >
+                                              <div className="space-y-9">
+                                                  <DetailSection
+                                                      title="Personal Information"
+                                                      icon={UserRound}
+                                                  >
+                                                      <div className="grid gap-4">
+                                                          <div className="grid gap-4 lg:grid-cols-3">
+                                                              <EditableField
+                                                                  label="First name"
+                                                                  value={
+                                                                      draft.firstName
+                                                                  }
+                                                                  onChange={(
+                                                                      value,
+                                                                  ) =>
+                                                                      updateDraft(
+                                                                          "firstName",
+                                                                          value,
+                                                                      )
+                                                                  }
+                                                                  required
+                                                                  error={
+                                                                      fieldErrors.firstName
+                                                                  }
+                                                                  maxLength={
+                                                                      PEOPLE_TEXT_LIMITS.NAME
+                                                                  }
+                                                              />
+                                                              <EditableField
+                                                                  label="Middle name"
+                                                                  value={
+                                                                      draft.middleName
+                                                                  }
+                                                                  onChange={(
+                                                                      value,
+                                                                  ) =>
+                                                                      updateDraft(
+                                                                          "middleName",
+                                                                          value,
+                                                                      )
+                                                                  }
+                                                                  placeholder="Optional"
+                                                                  error={
+                                                                      fieldErrors.middleName
+                                                                  }
+                                                                  maxLength={
+                                                                      PEOPLE_TEXT_LIMITS.NAME
+                                                                  }
+                                                              />
+                                                              <EditableField
+                                                                  label="Last name"
+                                                                  value={
+                                                                      draft.lastName
+                                                                  }
+                                                                  onChange={(
+                                                                      value,
+                                                                  ) =>
+                                                                      updateDraft(
+                                                                          "lastName",
+                                                                          value,
+                                                                      )
+                                                                  }
+                                                                  required
+                                                                  error={
+                                                                      fieldErrors.lastName
+                                                                  }
+                                                                  maxLength={
+                                                                      PEOPLE_TEXT_LIMITS.NAME
+                                                                  }
+                                                              />
+                                                          </div>
+
+                                                          <div className="grid gap-4 lg:grid-cols-2">
+                                                              <EditableField
+                                                                  label="Personal email"
+                                                                  type="email"
+                                                                  value={
+                                                                      draft.personalEmail
+                                                                  }
+                                                                  onChange={(
+                                                                      value,
+                                                                  ) =>
+                                                                      updateDraft(
+                                                                          "personalEmail",
+                                                                          value,
+                                                                      )
+                                                                  }
+                                                                  error={
+                                                                      fieldErrors.personalEmail
+                                                                  }
+                                                                  maxLength={
+                                                                      PEOPLE_TEXT_LIMITS.EMAIL
+                                                                  }
+                                                              />
+                                                              <EditableField
+                                                                  label="Company email"
+                                                                  type="email"
+                                                                  value={
+                                                                      draft.companyEmail
+                                                                  }
+                                                                  onChange={(
+                                                                      value,
+                                                                  ) =>
+                                                                      updateDraft(
+                                                                          "companyEmail",
+                                                                          value,
+                                                                      )
+                                                                  }
+                                                                  required
+                                                                  error={
+                                                                      fieldErrors.companyEmail
+                                                                  }
+                                                                  maxLength={
+                                                                      PEOPLE_TEXT_LIMITS.EMAIL
+                                                                  }
+                                                              />
+                                                          </div>
+
+                                                          <div className="grid gap-4 lg:grid-cols-2 mb-5">
+                                                              <label>
+                                                                  <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
+                                                                      Birthday
+                                                                  </span>
+                                                                  <DatePicker
+                                                                      disableFuture
+                                                                      value={
+                                                                          draft.birthday
+                                                                              ? new Date(
+                                                                                    `${draft.birthday}T00:00:00`,
+                                                                                )
+                                                                              : undefined
+                                                                      }
+                                                                      onChange={(
+                                                                          next,
+                                                                      ) =>
+                                                                          updateDraft(
+                                                                              "birthday",
+                                                                              next
+                                                                                  ? format(
+                                                                                        next,
+                                                                                        "yyyy-MM-dd",
+                                                                                    )
+                                                                                  : "",
+                                                                          )
+                                                                      }
+                                                                      className="w-full"
+                                                                  />
+                                                              </label>
+                                                          </div>
+
+                                                          <div>
+                                                              <div className="mb-5 flex items-center gap-2">
+                                                                  <MapPin
+                                                                      className="h-4 w-4 text-[color:var(--text-secondary)]"
+                                                                      aria-hidden="true"
+                                                                  />
+                                                                  <h4 className="text-sm font-bold text-[color:var(--text-primary)]">
+                                                                      Address
+                                                                  </h4>
+                                                              </div>
+                                                              <div className="flex flex-col gap-4">
+                                                                  <PhAddressFields
+                                                                      idPrefix="emp-details"
+                                                                      value={{
+                                                                          country:
+                                                                              draft.country,
+                                                                          province:
+                                                                              draft.province,
+                                                                          city: draft.city,
+                                                                          address:
+                                                                              draft.address,
+                                                                      }}
+                                                                      errors={{
+                                                                          country:
+                                                                              fieldErrors.country,
+                                                                          province:
+                                                                              fieldErrors.province,
+                                                                          city: fieldErrors.city,
+                                                                          address:
+                                                                              fieldErrors.address,
+                                                                      }}
+                                                                      onChange={(
+                                                                          patch,
+                                                                      ) => {
+                                                                          setDraft(
+                                                                              (
+                                                                                  current,
+                                                                              ) => ({
+                                                                                  ...current,
+                                                                                  ...patch,
+                                                                              }),
+                                                                          );
+                                                                          setFieldErrors(
+                                                                              (
+                                                                                  current,
+                                                                              ) => {
+                                                                                  const next =
+                                                                                      {
+                                                                                          ...current,
+                                                                                      };
+                                                                                  for (const key of Object.keys(
+                                                                                      patch,
+                                                                                  ) as Array<
+                                                                                      Extract<
+                                                                                          keyof EditDraft,
+                                                                                          | "country"
+                                                                                          | "province"
+                                                                                          | "city"
+                                                                                          | "address"
+                                                                                      >
+                                                                                  >) {
+                                                                                      const error =
+                                                                                          validateProfileField(
+                                                                                              key,
+                                                                                              patch[
+                                                                                                  key
+                                                                                              ] ??
+                                                                                                  "",
+                                                                                          );
+                                                                                      if (
+                                                                                          error
+                                                                                      )
+                                                                                          next[
+                                                                                              key
+                                                                                          ] =
+                                                                                              error;
+                                                                                      else
+                                                                                          delete next[
+                                                                                              key
+                                                                                          ];
+                                                                                  }
+                                                                                  return next;
+                                                                              },
+                                                                          );
+                                                                      }}
+                                                                  />
+                                                              </div>
+                                                          </div>
+
+                                                          <div>
+                                                              <div className="my-5 flex items-center gap-2">
+                                                                  <Phone
+                                                                      className="h-4 w-4 text-[color:var(--text-secondary)]"
+                                                                      aria-hidden="true"
+                                                                  />
+                                                                  <h4 className="text-sm font-bold text-[color:var(--text-primary)]">
+                                                                      Emergency
+                                                                      Contacts
+                                                                  </h4>
+                                                              </div>
+                                                              <div className="grid gap-4 lg:grid-cols-2">
+                                                                  <EditableField
+                                                                      label="Contact Name"
+                                                                      value={
+                                                                          draft.emergencyContactName
+                                                                      }
+                                                                      onChange={(
+                                                                          value,
+                                                                      ) =>
+                                                                          updateDraft(
+                                                                              "emergencyContactName",
+                                                                              value,
+                                                                          )
+                                                                      }
+                                                                      error={
+                                                                          fieldErrors.emergencyContactName
+                                                                      }
+                                                                      maxLength={
+                                                                          PEOPLE_TEXT_LIMITS.NAME
+                                                                      }
+                                                                  />
+                                                                  <label>
+                                                                      <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
+                                                                          Contact
+                                                                          Number
+                                                                      </span>
+                                                                      <PhoneInput
+                                                                          value={
+                                                                              draft.emergencyContactNumber
+                                                                          }
+                                                                          onChange={(
+                                                                              value,
+                                                                          ) => {
+                                                                              updateDraft(
+                                                                                  "emergencyContactNumber",
+                                                                                  value,
+                                                                              );
+                                                                              if (
+                                                                                  contactNumberError
+                                                                              )
+                                                                                  setContactNumberError(
+                                                                                      null,
+                                                                                  );
+                                                                          }}
+                                                                          error={Boolean(
+                                                                              contactNumberError ||
+                                                                              fieldErrors.emergencyContactNumber,
+                                                                          )}
+                                                                      />
+                                                                      {contactNumberError ||
+                                                                      fieldErrors.emergencyContactNumber ? (
+                                                                          <span className="mt-1 block text-xs text-[#D92D20]">
+                                                                              {contactNumberError ??
+                                                                                  fieldErrors.emergencyContactNumber}
+                                                                          </span>
+                                                                      ) : null}
+                                                                  </label>
+                                                              </div>
+                                                          </div>
+                                                      </div>
+                                                  </DetailSection>
+                                              </div>
+                                          </div>
+
+                                          <div
+                                              ref={(node) => {
+                                                  sectionRefs.current.employment =
+                                                      node;
+                                              }}
+                                              className="scroll-mt-[88px]"
+                                          >
+                                              <div className="space-y-9">
+                                                  <DetailSection
+                                                      title="Employment Details"
+                                                      icon={BriefcaseBusiness}
+                                                  >
+                                                      <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
+                                                          Position
+                                                      </p>
+                                                      <div className="grid gap-5">
+                                                          <div className="grid gap-4 lg:grid-cols-3">
+                                                              <EditableField
+                                                                  label="Job Title"
+                                                                  value={
+                                                                      draft.jobTitle
+                                                                  }
+                                                                  onChange={(
+                                                                      value,
+                                                                  ) =>
+                                                                      updateDraft(
+                                                                          "jobTitle",
+                                                                          value,
+                                                                      )
+                                                                  }
+                                                                  error={
+                                                                      fieldErrors.jobTitle
+                                                                  }
+                                                                  maxLength={
+                                                                      PEOPLE_TEXT_LIMITS.JOB_TITLE
+                                                                  }
+                                                              />
+                                                              <EditableSelect
+                                                                  label="Department"
+                                                                  value={
+                                                                      draft.department ||
+                                                                      NO_DEPARTMENT
+                                                                  }
+                                                                  onChange={(
+                                                                      value,
+                                                                  ) => {
+                                                                      const nextDepartment =
+                                                                          value ===
+                                                                          NO_DEPARTMENT
+                                                                              ? ""
+                                                                              : value;
+                                                                      // Reset the supervisor on department change so a now-invalid
+                                                                      // cross-department selection can't linger; the user re-picks from
+                                                                      // the new department's list (the org root stays selectable there).
+                                                                      setDraft(
+                                                                          (
+                                                                              current,
+                                                                          ) => ({
+                                                                              ...current,
+                                                                              department:
+                                                                                  nextDepartment,
+                                                                              supervisorId:
+                                                                                  "",
+                                                                          }),
+                                                                      );
+                                                                  }}
+                                                                  placeholder={
+                                                                      departmentsLoading
+                                                                          ? "Loading departments..."
+                                                                          : "Select department"
+                                                                  }
+                                                              >
+                                                                  <SelectItem
+                                                                      value={
+                                                                          NO_DEPARTMENT
+                                                                      }
+                                                                  >
+                                                                      No
+                                                                      department
+                                                                  </SelectItem>
+                                                                  {departmentOptions.map(
+                                                                      (
+                                                                          department,
+                                                                      ) => (
+                                                                          <SelectItem
+                                                                              key={
+                                                                                  department.id
+                                                                              }
+                                                                              value={
+                                                                                  department.name
+                                                                              }
+                                                                          >
+                                                                              {
+                                                                                  department.name
+                                                                              }
+                                                                          </SelectItem>
+                                                                      ),
+                                                                  )}
+                                                              </EditableSelect>
+                                                              <EditableSelect
+                                                                  label="Employment status"
+                                                                  value={
+                                                                      draft.status
+                                                                  }
+                                                                  onChange={(
+                                                                      value,
+                                                                  ) =>
+                                                                      updateDraft(
+                                                                          "status",
+                                                                          value,
+                                                                      )
+                                                                  }
+                                                              >
+                                                                  {STATUS_OPTIONS.map(
+                                                                      (
+                                                                          option,
+                                                                      ) => (
+                                                                          <SelectItem
+                                                                              key={
+                                                                                  option.value
+                                                                              }
+                                                                              value={
+                                                                                  option.value
+                                                                              }
+                                                                          >
+                                                                              {
+                                                                                  option.label
+                                                                              }
+                                                                          </SelectItem>
+                                                                      ),
+                                                                  )}
+                                                              </EditableSelect>
+                                                          </div>
+
+                                                          <div>
+                                                              <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
+                                                                  Reporting
+                                                              </p>
+                                                              <div className="grid gap-4 lg:grid-cols-3">
+                                                                  <label>
+                                                                      <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
+                                                                          Supervisor
+                                                                      </span>
+                                                                      <Combobox
+                                                                          options={
+                                                                              supervisorOptions
+                                                                          }
+                                                                          value={
+                                                                              draft.supervisorId
+                                                                          }
+                                                                          onChange={(
+                                                                              value,
+                                                                          ) =>
+                                                                              updateDraft(
+                                                                                  "supervisorId",
+                                                                                  value,
+                                                                              )
+                                                                          }
+                                                                          placeholder="No supervisor (root node)"
+                                                                          searchPlaceholder="Search employees…"
+                                                                          emptyText="No employees found."
+                                                                      />
+                                                                  </label>
+                                                                  <ReadField
+                                                                      label="Supervisor Email"
+                                                                      value={
+                                                                          selectedSupervisor?.email
+                                                                      }
+                                                                  />
+                                                                  <ReadField
+                                                                      label="Job Title"
+                                                                      value={
+                                                                          selectedSupervisor?.jobTitle
+                                                                      }
+                                                                  />
+                                                              </div>
+                                                          </div>
+                                                      </div>
+                                                  </DetailSection>
+                                              </div>
+                                          </div>
+
+                                          <div
+                                              ref={(node) => {
+                                                  sectionRefs.current.teams =
+                                                      node;
+                                              }}
+                                              className="scroll-mt-[88px]"
+                                          >
+                                              <div className="space-y-9">
+                                                  <DetailSection
+                                                      title="Teams"
+                                                      icon={Users}
+                                                  >
+                                                      <div className="space-y-5">
+                                                          <div>
+                                                              <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
+                                                                  Is a member of
+                                                              </p>
+                                                              {profile.teams
+                                                                  .length >
+                                                              0 ? (
+                                                                  <div className="flex flex-wrap gap-2">
+                                                                      {profile.teams.map(
+                                                                          (
+                                                                              team,
+                                                                          ) => (
+                                                                              <TeamPill
+                                                                                  key={
+                                                                                      team.id
+                                                                                  }
+                                                                                  team={
+                                                                                      team
+                                                                                  }
+                                                                                  className="border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100"
+                                                                              />
+                                                                          ),
+                                                                      )}
+                                                                  </div>
+                                                              ) : (
+                                                                  <p className="text-sm text-[color:var(--text-tertiary)]">
+                                                                      No team
+                                                                      assignment.
+                                                                  </p>
+                                                              )}
+                                                          </div>
+
+                                                          <div>
+                                                              <p className="mb-3 text-xs font-bold text-[color:var(--text-primary)]">
+                                                                  Leads
+                                                              </p>
+                                                              {profileDetails
+                                                                  ?.ledTeams
+                                                                  ?.length ? (
+                                                                  <div className="flex flex-wrap gap-2">
+                                                                      {profileDetails.ledTeams.map(
+                                                                          (
+                                                                              team,
+                                                                          ) => (
+                                                                              <TeamPill
+                                                                                  key={
+                                                                                      team.id
+                                                                                  }
+                                                                                  team={
+                                                                                      team
+                                                                                  }
+                                                                                  className="border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100"
+                                                                              />
+                                                                          ),
+                                                                      )}
+                                                                  </div>
+                                                              ) : (
+                                                                  <p className="text-sm text-[color:var(--text-tertiary)]">
+                                                                      No led
+                                                                      teams.
+                                                                  </p>
+                                                              )}
+                                                          </div>
+                                                      </div>
+                                                  </DetailSection>
+                                              </div>
+                                          </div>
+
+                                          <div
+                                              ref={(node) => {
+                                                  sectionRefs.current.documents =
+                                                      node;
+                                              }}
+                                              className="scroll-mt-[88px]"
+                                          >
+                                              <DetailSection
+                                                  title="Documents"
+                                                  icon={FileText}
+                                              >
+                                                  {documentsLoading ? (
+                                                      <div className="space-y-3">
+                                                          {Array.from({
+                                                              length: 3,
+                                                          }).map((_, index) => (
+                                                              <div
+                                                                  key={index}
+                                                                  className="h-16 rounded-lg bg-[color:var(--bg-secondary)]"
+                                                              />
+                                                          ))}
+                                                      </div>
+                                                  ) : documents.length === 0 ? (
+                                                      <EmptyPanel
+                                                          title="No documents yet"
+                                                          body="Uploaded employee files will appear here."
+                                                      />
+                                                  ) : (
+                                                      <ul className="space-y-3">
+                                                          {documents.map(
+                                                              (document) => {
+                                                                  const statusStyle =
+                                                                      DOCUMENT_STATUS_STYLES[
+                                                                          document
+                                                                              .status
+                                                                      ];
+                                                                  return (
+                                                                      <li
+                                                                          key={
+                                                                              document.id
+                                                                          }
+                                                                          className="flex items-center justify-between gap-4 rounded-lg border border-[color:var(--border-primary)] bg-white p-4"
+                                                                      >
+                                                                          <div className="flex min-w-0 items-center gap-3">
+                                                                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[color:var(--bg-secondary)]">
+                                                                                  <FileText
+                                                                                      className="h-5 w-5 text-[color:var(--text-secondary)]"
+                                                                                      aria-hidden="true"
+                                                                                  />
+                                                                              </span>
+                                                                              <div className="min-w-0">
+                                                                                  <p className="truncate text-sm font-bold text-[color:var(--text-primary)]">
+                                                                                      {
+                                                                                          document.documentName
+                                                                                      }
+                                                                                  </p>
+                                                                                  <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
+                                                                                      Uploaded{" "}
+                                                                                      {formatActivityDate(
+                                                                                          document.submittedAt,
+                                                                                      )}
+                                                                                  </p>
+                                                                              </div>
+                                                                          </div>
+                                                                          <div className="flex shrink-0 items-center gap-3">
+                                                                              <span
+                                                                                  className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyle.className}`}
+                                                                              >
+                                                                                  {
+                                                                                      statusStyle.label
+                                                                                  }
+                                                                              </span>
+                                                                              <Button
+                                                                                  type="button"
+                                                                                  variant="secondary"
+                                                                                  size="sm"
+                                                                                  onClick={() =>
+                                                                                      setViewingDocument(
+                                                                                          document,
+                                                                                      )
+                                                                                  }
+                                                                                  aria-label={`View ${document.documentName}`}
+                                                                              >
+                                                                                  <Eye />{" "}
+                                                                                  View
+                                                                              </Button>
+                                                                          </div>
+                                                                      </li>
+                                                                  );
+                                                              },
+                                                          )}
+                                                      </ul>
+                                                  )}
+                                              </DetailSection>
+                                          </div>
+
+                                          <div
+                                              ref={(node) => {
+                                                  sectionRefs.current.activity =
+                                                      node;
+                                              }}
+                                              className="scroll-mt-[88px]"
+                                          >
+                                              <DetailSection
+                                                  title="Activity History"
+                                                  icon={History}
+                                              >
+                                                  <ProfileActivityHistory
+                                                      logs={activityLogs}
+                                                      loading={activityLoading}
+                                                  />
+                                              </DetailSection>
+                                          </div>
+                                      </div>
+                                  ) : null}
+                              </div>
+
+                              {profile && hasUnsavedChanges ? (
+                                  <footer className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-[color:var(--border-primary)] bg-white px-8 py-4">
+                                      <Button
+                                          type="button"
+                                          variant="secondary"
+                                          size="sm"
+                                          disabled={saving}
+                                          onClick={() => {
+                                              setDraft(savedDraft);
+                                              setContactNumberError(null);
+                                              setFieldErrors({});
+                                          }}
+                                      >
+                                          Discard
+                                      </Button>
+                                      <Button
+                                          type="submit"
+                                          size="sm"
+                                          disabled={saving}
+                                      >
+                                          <Check />{" "}
+                                          {saving
+                                              ? "Saving..."
+                                              : "Save changes"}
+                                      </Button>
+                                  </footer>
+                              ) : null}
+                          </form>
+                      </main>
+                  </div>
+              </DialogContent>
+          </Dialog>
+
+          <Dialog
+              open={viewingDocument !== null}
+              onOpenChange={(nextOpen) => {
+                  if (!nextOpen) setViewingDocument(null);
+              }}
+          >
+              <DialogContent className="grid h-[88vh] w-[90vw] max-w-[90vw] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:rounded-xl">
+                  <DialogTitle className="border-b border-[color:var(--border-primary)] px-6 py-4 pr-12 text-base font-bold text-[color:var(--text-primary)]">
+                      {viewingDocument?.documentName ?? "Document"}
+                  </DialogTitle>
+                  <DialogDescription className="sr-only">
+                      Preview of the selected employee document.
+                  </DialogDescription>
+                  {viewingDocument ? (
+                      <div className="flex min-h-0 items-center justify-center overflow-auto bg-[color:var(--bg-secondary)] p-4">
+                          {isImageUrl(viewingDocument.fileUrl) ? (
+                              <img
+                                  src={viewingDocument.fileUrl}
+                                  alt={viewingDocument.documentName}
+                                  className="max-h-full max-w-full object-contain"
+                              />
+                          ) : (
+                              <iframe
+                                  src={viewingDocument.fileUrl}
+                                  title={viewingDocument.documentName}
+                                  sandbox="allow-same-origin"
+                                  className="h-full w-full border-0 bg-white"
+                              />
+                          )}
+                      </div>
+                  ) : null}
+              </DialogContent>
+          </Dialog>
+      </>
   );
 }

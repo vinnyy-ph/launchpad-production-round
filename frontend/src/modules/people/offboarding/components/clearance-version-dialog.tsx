@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   Button,
@@ -16,8 +16,8 @@ import {
   Input,
   Textarea,
 } from "@/shared/ui";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
-import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import type {
   ClearanceSignatoryInput,
@@ -81,9 +81,10 @@ export function ClearanceVersionDialog({
   onSubmit,
 }: ClearanceVersionDialogProps) {
   const isEdit = Boolean(template);
-  const { employees, loading: employeesLoading } = useEmployees(
-    open ? { status: "active", limit: 200 } : {},
-  );
+  const { employees, loading: employeesLoading } = useAllEmployees({
+    status: "active",
+    enabled: open,
+  });
 
   const [name, setName] = useState("");
   const [isDefault, setIsDefault] = useState(false);
@@ -114,47 +115,7 @@ export function ClearanceVersionDialog({
     setRowErrors({});
   }, [open, template]);
 
-  // Guard against closing with unsaved edits — compares the form to its initial (template) state.
-  const initialSnapshot = useMemo(
-    () =>
-      JSON.stringify(
-        template
-          ? {
-              name: template.name,
-              isDefault: template.isDefault,
-              rows: template.signatories.map((s) => ({
-                employeeId: s.employee.id,
-                purpose: s.purpose,
-                requirements: s.requirements,
-              })),
-            }
-          : { name: "", isDefault: false, rows: [{ employeeId: "", purpose: "", requirements: "" }] },
-      ),
-    [template],
-  );
-  const currentSnapshot = JSON.stringify({
-    name,
-    isDefault,
-    rows: rows.map((r) => ({
-      employeeId: r.employeeId,
-      purpose: r.purpose,
-      requirements: r.requirements,
-    })),
-  });
-  const hasUnsavedChanges = open && currentSnapshot !== initialSnapshot;
-
-  const guard = useUnsavedGuard({
-    hasUnsavedChanges,
-    onOpenChange: (next) => {
-      if (saving) return;
-      onOpenChange(next);
-    },
-  });
-
-  const employeeOptions = employees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.fullName}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
-  }));
+  const employeeOptions = employees.map(toEmployeeOption);
 
   function updateRow(key: string, patch: Partial<ClearanceSignatoryInput>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -273,13 +234,14 @@ export function ClearanceVersionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
-      <DialogContent
-        className={`max-h-[90vh] overflow-y-auto sm:max-w-2xl ${guard.shakeClass}`}
-        onAnimationEnd={guard.onAnimationEnd}
-        onEscapeKeyDown={guard.onEscapeKeyDown}
-        onInteractOutside={guard.onInteractOutside}
-      >
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (saving) return;
+        onOpenChange(next);
+      }}
+    >
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit clearance version" : "New clearance version"}</DialogTitle>
           <DialogDescription>
@@ -308,7 +270,7 @@ export function ClearanceVersionDialog({
               </Button>
             </div>
             {errors.signatories ? (
-              <p className="mb-2 text-xs text-[color:var(--color-error-700)]">{errors.signatories}</p>
+              <p className="mb-2 text-xs text-[#B42318]">{errors.signatories}</p>
             ) : null}
 
             <ol className="space-y-3">
@@ -321,16 +283,15 @@ export function ClearanceVersionDialog({
                     <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
                       Signatory {index + 1}
                     </span>
-                    <Button
+                    <button
                       type="button"
-                      variant="destructive-ghost"
-                      size="icon-sm"
                       onClick={() => removeRow(row.key)}
                       disabled={rows.length === 1}
                       aria-label={`Remove signatory ${index + 1}`}
+                      className="text-[color:var(--text-tertiary)] hover:text-[#B42318] disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      <Trash2 />
-                    </Button>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                   <div className="space-y-3">
                     <FormField label="Employee" error={rowErrors[row.key]?.employeeId}>
@@ -379,7 +340,7 @@ export function ClearanceVersionDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => guard.handleOpenChange(false)} disabled={saving}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>

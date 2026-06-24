@@ -26,7 +26,8 @@ import {
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
 import { OrgChartCanvas } from "@/modules/people/employees/components/org-chart/org-chart-canvas";
 import { EmployeeProfileSheet } from "@/modules/people/employees/components/employee-profile-sheet";
-import { useAllEmployees, useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { employeeInitials } from "@/modules/people/employees/employee-options";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
@@ -59,7 +60,7 @@ export default function TeamsPage() {
   const canManage = appUser?.role === "ADMIN" || appUser?.role === "HR";
 
   const { teams, loading, error, reload } = useTeams();
-  const { employees } = useEmployees({ status: "active", limit: 500 });
+  const { employees } = useAllEmployees({ status: "active" });
   // Whole-organization list (all statuses) for the supervisor-hierarchy org chart.
   const {
     employees: orgEmployees,
@@ -82,11 +83,16 @@ export default function TeamsPage() {
 
   // Distinct team leaders, for the leader filter dropdown.
   const leaderOptions = useMemo(() => {
-    const byId = new Map<string, string>();
-    teams.forEach((team) => byId.set(team.leader.id, team.leader.fullName));
-    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) =>
-      a.name.localeCompare(b.name),
+    const byId = new Map<string, { name: string; avatarUrl: string | null }>();
+    teams.forEach((team) =>
+      byId.set(team.leader.id, { name: team.leader.fullName, avatarUrl: team.leader.avatarUrl }),
     );
+    return Array.from(byId, ([id, leader]) => ({
+      id,
+      name: leader.name,
+      avatarUrl: leader.avatarUrl,
+      avatarFallback: employeeInitials(leader.name),
+    })).sort((a, b) => a.name.localeCompare(b.name));
   }, [teams]);
 
   // Filter by search (team or leader name) and selected leaders, then sort client-side
@@ -266,6 +272,18 @@ interface OrgChartPanelProps {
 }
 
 /**
+ * Matches a name against a search query token-by-token: every whitespace-separated token in the
+ * query must appear somewhere in the name, in any order. This lets "Thea Sumagang" match the
+ * stored "Thea Verah Sumagang" — a plain substring match fails on the middle name in between.
+ */
+function matchesNameQuery(fullName: string, query: string): boolean {
+  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return true;
+  const haystack = fullName.toLowerCase();
+  return tokens.every((token) => haystack.includes(token));
+}
+
+/**
  * Org Chart tab: the organization's supervisor hierarchy (CEO at the root) as a
  * collapsible top-down tree. Defaults to fully expanded so the whole chart is visible.
  */
@@ -289,8 +307,8 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   // Whether an employee satisfies the active name + department filters.
   const passesFilters = useCallback(
     (employee: EmployeeListItem) => {
-      const query = debouncedSearch.trim().toLowerCase();
-      if (query && !employee.fullName.toLowerCase().includes(query)) return false;
+      const query = debouncedSearch.trim();
+      if (query && !matchesNameQuery(employee.fullName, query)) return false;
       if (
         departmentIds.size > 0 &&
         !(employee.department && selectedDepartmentNames.has(employee.department))
@@ -364,10 +382,10 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   // Employees whose name matches the current search — their cards get a gradient-pink outline.
   // Empty when not searching, so nothing is highlighted by default.
   const matchedIds = useMemo(() => {
-    const query = debouncedSearch.trim().toLowerCase();
+    const query = debouncedSearch.trim();
     if (!query) return new Set<string>();
     return new Set(
-      employees.filter((e) => e.fullName.toLowerCase().includes(query)).map((e) => e.id),
+      employees.filter((e) => matchesNameQuery(e.fullName, query)).map((e) => e.id),
     );
   }, [employees, debouncedSearch]);
 
@@ -403,8 +421,8 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   // INTO this element, since a body-level portal would fall outside the fullscreen top layer.
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  // Bumped by expand-all / collapse-all so the canvas re-centers on those (but not on single-node
-  // toggles). Combined with the active filters into `recenterKey` below.
+  // Bumped by expand-all / collapse-all and by expanding a single node, so the canvas re-centers
+  // the tree on those. Combined with the active filters into `recenterKey` below.
   const [recenterEpoch, setRecenterEpoch] = useState(0);
 
   // Initial view: expand only the org root (CEO) so the departments show, but keep the
@@ -418,12 +436,15 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   }, [departmentsOnlyExpanded, loading, departmentsLoading, roots.length]);
 
   function toggle(employeeId: string) {
+    const isExpanding = !expanded.has(employeeId);
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(employeeId)) next.delete(employeeId);
-      else next.add(employeeId);
+      if (isExpanding) next.add(employeeId);
+      else next.delete(employeeId);
       return next;
     });
+    // Re-center the chart when a node is expanded so the newly revealed branch is framed in view.
+    if (isExpanding) setRecenterEpoch((epoch) => epoch + 1);
   }
 
   // While filtering, reveal every match by expanding all parents; otherwise honor the user's
@@ -431,8 +452,7 @@ function OrgChartPanel({ employees, loading, error, onRetry }: OrgChartPanelProp
   const effectiveExpanded = isFiltering ? parentIds : expanded;
 
   // Re-frame the chart whenever its layout shifts under the user: a new search, a department
-  // filter change, or expand/collapse all (tracked via `recenterEpoch`). Single-node toggles are
-  // intentionally excluded so drilling into one branch doesn't yank the whole view.
+  // filter change, expand/collapse all, or expanding a single node (all tracked via `recenterEpoch`).
   const recenterKey = `${debouncedSearch}|${[...departmentIds].sort().join(",")}|${recenterEpoch}`;
 
   if (loading || departmentsLoading) {

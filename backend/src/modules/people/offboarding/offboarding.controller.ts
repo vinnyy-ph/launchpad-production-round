@@ -34,13 +34,18 @@ export class OffboardingController {
   ) => {
     try {
       const body = this.offboardingValidation.parseInitiateBody(req.body);
-      if (req.file) {
-        body.attachmentUrl =
-          await this.cloudinaryService.uploadOnboardingDocument(
-            req.file.buffer,
-            req.file.originalname,
-            req.file.mimetype,
-          );
+      const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+      if (files.length > 0) {
+        body.attachments = await Promise.all(
+          files.map(async (file) => ({
+            url: await this.cloudinaryService.uploadOnboardingDocument(
+              file.buffer,
+              file.originalname,
+              file.mimetype,
+            ),
+            fileName: file.originalname,
+          })),
+        );
       }
       const result = await this.offboardingService.initiateOffboarding(
         req.user!,
@@ -240,6 +245,28 @@ export class OffboardingController {
         code: API_ERROR_CODES.FORBIDDEN,
         topMessage: API_ERROR_MESSAGES.FORBIDDEN,
         topCode: API_ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    // Same-department reassignment rule: the chosen supervisor/leader does not share the
+    // department of the reports/team members being moved. Surface as a field validation error.
+    if (error.message.startsWith("The new supervisor must belong")) {
+      return this.fail(res, HTTP_STATUS_CODES.BAD_REQUEST, {
+        field: "newSupervisorId",
+        message: error.message,
+        code: API_ERROR_CODES.VALIDATION_FAILED,
+        topMessage: API_ERROR_MESSAGES.VALIDATION_FAILED,
+        topCode: API_ERROR_CODES.VALIDATION_FAILED,
+      });
+    }
+
+    if (error.message.startsWith("The new team leader must belong")) {
+      return this.fail(res, HTTP_STATUS_CODES.BAD_REQUEST, {
+        field: "newTeamLeaderId",
+        message: error.message,
+        code: API_ERROR_CODES.VALIDATION_FAILED,
+        topMessage: API_ERROR_MESSAGES.VALIDATION_FAILED,
+        topCode: API_ERROR_CODES.VALIDATION_FAILED,
       });
     }
 

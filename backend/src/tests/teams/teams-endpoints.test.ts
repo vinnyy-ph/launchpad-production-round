@@ -4,6 +4,7 @@ import {
   buildTeamRecord,
   buildViewer,
   employeeCountMock,
+  employeeFindManyMock,
   resetTeamMocks,
   teamCountMock,
   teamCreateMock,
@@ -38,6 +39,7 @@ jest.mock("../../core/database/prisma.service", () => ({
     },
     employee: {
       count: jest.fn(),
+      findMany: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -264,6 +266,28 @@ describe("Team management endpoints", () => {
     expect(response.body.data.members.map((member: { id: string }) => member.id)).toContain(
       "employee-shared",
     );
+  });
+
+  it("rejects adding a member from a different department than the team leader", async () => {
+    teamFindUniqueMock.mockResolvedValue(
+      buildTeamRecord({ id: "team-platform", leaderId: "employee-leader" }),
+    );
+    employeeCountMock.mockResolvedValue(1);
+    // Leader is in Engineering; the candidate member is in Sales — not allowed.
+    employeeFindManyMock.mockResolvedValue([
+      { id: "employee-leader", departmentId: "dept-eng" },
+      { id: "employee-sales", departmentId: "dept-sales" },
+    ]);
+
+    const response = await request(app)
+      .post("/api/v1/teams/team-platform/members")
+      .send({ memberIds: ["employee-sales"] })
+      .expect(400);
+
+    expect(response.body.errors[0].message).toBe(
+      "Team members must belong to the team leader's department",
+    );
+    expect(teamMemberCreateManyMock).not.toHaveBeenCalled();
   });
 
   it("rejects add-member requests without member ids", async () => {

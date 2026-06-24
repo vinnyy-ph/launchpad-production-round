@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpDown, ChevronsDownUp, ChevronsUpDown, Filter, List, Network, Users } from "lucide-react";
+import { Users, Filter, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import type {
@@ -14,6 +14,7 @@ import {
   type OrgChartItem,
 } from "@/modules/people/employees/components/org-chart/org-chart";
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
+import { OrgChartCanvas } from "@/modules/people/employees/components/org-chart/org-chart-canvas";
 import { EmployeeProfileSheet } from "@/modules/people/employees/components/employee-profile-sheet";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import {
@@ -132,13 +133,22 @@ export default function RosterPage() {
     }
   }, [orgChartIds]);
 
+  // Pan/zoom canvas state: its container (so the detail drawer can portal into full screen) and a
+  // counter bumped on expand to re-center the chart on the newly revealed branch.
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [isOrgFullscreen, setIsOrgFullscreen] = useState(false);
+  const [recenterEpoch, setRecenterEpoch] = useState(0);
+
   function toggleOrgNode(id: string) {
+    const isExpanding = !orgExpanded.has(id);
     setOrgExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (isExpanding) next.add(id);
+      else next.delete(id);
       return next;
     });
+    // Re-center when a node is expanded so the newly revealed branch is framed in view.
+    if (isExpanding) setRecenterEpoch((epoch) => epoch + 1);
   }
 
   // Status filter + search, then sort — all client-side over the direct-report list.
@@ -225,18 +235,19 @@ export default function RosterPage() {
       },
       {
           header: "Team/s",
-          className: "min-w-[200px] text-start",
+          className: "min-w-[150px] text-center",
           cell: (row) => (
               <span className="text-sm text-[color:var(--text-secondary)]">
                   {row.teams.length
                       ? row.teams.map((t) => t.name).join(", ")
-                      : "—"}
+                      : "No teams assigned"}
               </span>
           ),
       },
       {
           header: "Status",
           mobileLabel: "Status",
+          className: "min-w-[100px] text-center",
           sortable: true,
           sortKey: "status",
           cell: (row) => <StatusBadge status={row.status} dot />,
@@ -252,8 +263,8 @@ export default function RosterPage() {
         value={activeTab}
         onChange={setActiveTab}
         items={[
-          { value: "list", label: "List", icon: List },
-          { value: "org-chart", label: "Org Chart", icon: Network },
+          { value: "list", label: "List" },
+          { value: "org-chart", label: "Org Chart" },
         ]}
       />
 
@@ -351,7 +362,7 @@ export default function RosterPage() {
         />
           </div>
         </>
-      ) : (
+      ) : loading || error || reports.length === 0 ? (
         <div
           className="rounded-xl border border-[color:var(--border-primary)] bg-white p-4 sm:p-6"
           style={{ boxShadow: "var(--shadow-xs)" }}
@@ -364,47 +375,39 @@ export default function RosterPage() {
             </div>
           ) : error ? (
             <ErrorState message={error} onRetry={() => void reload()} />
-          ) : reports.length === 0 ? (
+          ) : (
             <EmptyState
               icon={Users}
               title="No direct reports"
               body="Employees assigned to you will appear here"
             />
-          ) : (
-            <>
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOrgExpanded(new Set(orgChartIds))}
-                >
-                  <ChevronsUpDown aria-hidden="true" />
-                  Expand all
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setOrgExpanded(new Set())}>
-                  <ChevronsDownUp aria-hidden="true" />
-                  Collapse all
-                </Button>
-              </div>
-              <div className="overflow-x-auto">
-                <div className="mx-auto w-max">
-                  <OrgChartTree
-                    nodes={orgChartNodes}
-                    expanded={orgExpanded}
-                    onToggle={toggleOrgNode}
-                    onOpenProfile={(id) => {
-                      const employee =
-                        id === selfEmployee?.id
-                          ? selfEmployee
-                          : reports.find((r) => r.id === id);
-                      if (employee) setSelected(employee);
-                    }}
-                  />
-                </div>
-              </div>
-            </>
           )}
         </div>
+      ) : (
+        <OrgChartCanvas
+          containerRef={canvasRef}
+          onFullscreenChange={setIsOrgFullscreen}
+          recenterKey={recenterEpoch}
+          onExpandAll={() => {
+            setOrgExpanded(new Set(orgChartIds));
+            setRecenterEpoch((epoch) => epoch + 1);
+          }}
+          onCollapseAll={() => {
+            setOrgExpanded(new Set());
+            setRecenterEpoch((epoch) => epoch + 1);
+          }}
+        >
+          <OrgChartTree
+            nodes={orgChartNodes}
+            expanded={orgExpanded}
+            onToggle={toggleOrgNode}
+            onOpenProfile={(id) => {
+              const employee =
+                id === selfEmployee?.id ? selfEmployee : reports.find((r) => r.id === id);
+              if (employee) setSelected(employee);
+            }}
+          />
+        </OrgChartCanvas>
       )}
 
       {/* Detail drawer. Roster is a supervisor-context surface, so sensitive fields are always
@@ -415,6 +418,8 @@ export default function RosterPage() {
         fallbackEmployee={selected}
         onClose={() => setSelected(null)}
         redacted
+        // While the org chart is full screen, portal the drawer into the canvas so it stays visible.
+        container={isOrgFullscreen ? canvasRef.current : null}
       />
     </div>
   );

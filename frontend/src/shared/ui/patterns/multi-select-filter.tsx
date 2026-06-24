@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import { ChevronDown, Filter } from "lucide-react";
 import {
   Button,
@@ -15,12 +15,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui";
+import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { cn } from "@/shared/lib/utils";
 
 export interface MultiSelectFilterOption {
   id: string;
   name: string;
+  /**
+   * Optional leading avatar (employee filters). When `avatarFallback` is set, a small avatar is
+   * shown before the name — `avatarUrl` is the photo and `avatarFallback` the initials.
+   */
+  avatarUrl?: string | null;
+  avatarFallback?: string;
 }
+
+const FILTER_AVATAR_FALLBACK_STYLE: CSSProperties = {
+  background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+};
 
 interface MultiSelectFilterProps {
   options: MultiSelectFilterOption[];
@@ -120,6 +131,15 @@ export function MultiSelectFilter({
                     tabIndex={-1}
                     className="pointer-events-none"
                   />
+                  {option.avatarFallback !== undefined && (
+                    <UserAvatar
+                      src={option.avatarUrl ?? null}
+                      fallback={option.avatarFallback}
+                      className="h-6 w-6 shrink-0"
+                      fallbackClassName="text-[10px] font-semibold text-[color:var(--text-primary)]"
+                      fallbackStyle={FILTER_AVATAR_FALLBACK_STYLE}
+                    />
+                  )}
                   <span className="truncate">{option.name}</span>
                 </CommandItem>
               ))}

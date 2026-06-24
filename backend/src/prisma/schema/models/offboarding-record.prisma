@@ -8,12 +8,12 @@ model OffboardingRecord {
   initiatedBy         Employee          @relation("OffboardingInitiator", fields: [initiatedById], references: [id])
   tenderDate          DateTime
   effectiveDate       DateTime
-  attachmentUrl       String?
   status              OffboardingStatus @default(IN_PROGRESS)
   createdAt           DateTime          @default(now())
   completedAt         DateTime?
 
   signatureRequests ClearanceSignatureRequest[]
+  attachments       OffboardingAttachment[]
 
   updatedAt DateTime @updatedAt
 

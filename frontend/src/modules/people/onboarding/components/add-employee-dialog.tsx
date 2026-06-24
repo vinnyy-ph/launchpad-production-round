@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -24,8 +24,8 @@ import {
   SelectValue,
 } from "@/shared/ui";
 import { isValidPhilippinePhone } from "@/shared/lib/phone";
-import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useOnboardEmployee } from "../hooks/use-onboard-employee";
@@ -119,10 +119,7 @@ function hasFormData(form: FormSnapshot): boolean {
  * the new hire a step. On success it sends the invitation and reports the new employee id.
  */
 export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployeeDialogProps) {
-  const { employees: activeEmployees, loading: employeesLoading } = useEmployees({
-    status: "active",
-    limit: 100,
-  });
+  const { employees: activeEmployees } = useAllEmployees({ status: "active" });
   const { departments, loading: departmentsLoading } = useDepartments();
   const { documents: requiredDocuments, loading: docsLoading } = useDocumentConfigs();
   const onboard = useOnboardEmployee();
@@ -145,6 +142,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   const [emergencyContact, setEmergencyContact] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSending, setIsSending] = useState(false);
+  const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
+  const unsavedToastIdRef = useRef<string | number | null>(null);
 
   const hasUnsavedChanges = hasFormData({
     firstName,
@@ -164,20 +163,11 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     emergencyContact,
   });
 
-  // This dialog is always mounted and doesn't reset on open, so clear the form whenever it closes
-  // (the success path resets separately).
-  const guard = useUnsavedGuard({
-    hasUnsavedChanges,
-    onOpenChange: (next) => {
-      if (!next) reset();
-      onOpenChange(next);
-    },
-  });
-
-  const supervisorOptions = activeEmployees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.fullName} · ${employee.companyEmail}`,
-  }));
+  // A supervisor must belong to the new hire's department (a supervisor with no department is
+  // exempt — mirrors the same-department rule). Options are scoped to the chosen department.
+  const supervisorOptions = activeEmployees
+    .filter((employee) => !employee.department || employee.department === department)
+    .map(toEmployeeOption);
 
   const requiredDocsNote = docsLoading
     ? "loading…"
@@ -202,6 +192,42 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     setEmergencyContactName("");
     setEmergencyContact("");
     setErrors({});
+  }
+
+  function alertUnsavedChanges() {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(90);
+    }
+
+    if (unsavedToastIdRef.current) {
+      toast.dismiss(unsavedToastIdRef.current);
+    }
+
+    const toastId = `add-employee-unsaved-changes-${Date.now()}`;
+    unsavedToastIdRef.current = toastId;
+    window.requestAnimationFrame(() => {
+      toast.error("There are unsaved changes. Send the invite or discard them before closing.", {
+        id: toastId,
+        position: "top-center",
+        classNames: {
+          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
+          title: "!text-[#7A271A]",
+        },
+      });
+    });
+
+    setShakeUnsavedAlert(false);
+    window.requestAnimationFrame(() => setShakeUnsavedAlert(true));
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (isSending) return;
+    if (!next && hasUnsavedChanges) {
+      alertUnsavedChanges();
+      return;
+    }
+    if (!next) reset();
+    onOpenChange(next);
   }
 
   function validate(): FieldErrors {
@@ -446,12 +472,11 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   }
 
   return (
-    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={`flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl [&>button]:z-20 ${guard.shakeClass}`}
-        onAnimationEnd={guard.onAnimationEnd}
-        onEscapeKeyDown={guard.onEscapeKeyDown}
-        onInteractOutside={guard.onInteractOutside}
+        className={`flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl [&>button]:z-20 ${
+          shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
+        }`}
       >
         {/* Pinned header so it stays visible while the form body scrolls. */}
         <DialogHeader className="border-b border-[color:var(--border-primary)] px-6 pb-4 pt-6">
@@ -534,8 +559,12 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
               <FormField label="Department" required error={errors.department}>
                 <Select
                   value={department}
-                  onValueChange={setDepartment}
-                  disabled={departmentsLoading}
+                  onValueChange={(value) => {
+                    setDepartment(value);
+                    // The current supervisor may no longer belong to the new department —
+                    // clear it so the user re-picks from the scoped list.
+                    setSupervisorId("");
+                  }}
                 >
                   <SelectTrigger aria-label="Select department">
                     <SelectValue
@@ -551,17 +580,24 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   </SelectContent>
                 </Select>
               </FormField>
-              <FormField label="Supervisor" required error={errors.supervisorId}>
-                <Combobox
-                  options={supervisorOptions}
-                  value={supervisorId}
-                  onChange={(value) => setSupervisorId(value || "")}
-                  placeholder={employeesLoading ? "Loading employees…" : "Select a supervisor…"}
-                  searchPlaceholder="Search employees…"
-                  emptyText={employeesLoading ? "Loading employees…" : "No active employees found."}
-                  disabled={employeesLoading}
-                />
-              </FormField>
+              {department ? (
+                <FormField label="Supervisor" required error={errors.supervisorId}>
+                  <Combobox
+                    options={supervisorOptions}
+                    value={supervisorId}
+                    onChange={(value) => setSupervisorId(value || "")}
+                    placeholder="Select a supervisor…"
+                    searchPlaceholder="Search employees…"
+                    emptyText={`No active employees in ${department}.`}
+                  />
+                </FormField>
+              ) : (
+                <FormField label="Supervisor" required>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">
+                    Select a department first to choose a supervisor.
+                  </p>
+                </FormField>
+              )}
             </div>
           </section>
 
@@ -677,10 +713,10 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
         <DialogFooter className="border-t border-[color:var(--border-primary)] px-6 pb-6 pt-4">
           {hasUnsavedChanges ? (
             <Button type="button" variant="secondary" disabled={isSending} onClick={reset}>
-              Reset
+              Discard
             </Button>
           ) : (
-            <Button type="button" variant="secondary" onClick={() => guard.handleOpenChange(false)}>
+            <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
           )}

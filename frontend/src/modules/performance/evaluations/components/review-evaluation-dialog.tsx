@@ -18,7 +18,7 @@ import {
 import { StatusBadge } from "@/shared/ui/patterns";
 import type { Evaluation } from "../types/evaluations.types";
 import { downloadSupportingDoc, getSupportingDocUrl } from "../services/evaluations.service";
-import { DocumentViewerModal } from "@/shared/ui/patterns";
+import { DocumentViewerModal } from "./document-viewer-modal";
 
 // Sentence case (Jia), not the Title Case shared map.
 const GRADE_LABELS: Record<number, string> = {

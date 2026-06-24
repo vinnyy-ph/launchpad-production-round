@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Paperclip } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, ChevronDown, Eye, FileText, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,
@@ -14,15 +14,17 @@ import {
   DialogHeader,
   DialogTitle,
   FormField,
-  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  UserAvatar,
 } from "@/shared/ui";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { cn } from "@/shared/lib/utils";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { useOffboardings } from "../hooks/use-offboarding";
 import { useCreateOffboarding } from "../hooks/use-create-offboarding";
 import { useClearanceTemplateOptions } from "../hooks/use-clearance-templates";
@@ -55,6 +57,66 @@ function dateToIso(date?: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+// Attachment upload limits — kept in sync with the backend offboarding upload middleware.
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const MAX_ATTACHMENTS = 10;
+const ALLOWED_ATTACHMENT_TYPES = ["image/png", "image/jpeg", "application/pdf"];
+const ATTACHMENT_ACCEPT = ".png,.jpg,.jpeg,.pdf";
+
+/** Formats a byte count into a short human-readable size (e.g. "1.2 MB"). */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.round(kb)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+/** A stable key for a staged file, used for de-duplication and preview lookups. */
+function fileKey(file: File): string {
+  return `${file.name}:${file.size}`;
+}
+
+/** The uppercased extension of a file name (e.g. "PDF"), or "FILE" when absent. */
+function fileExtension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toUpperCase() : "FILE";
+}
+
+/** Two-letter initials from a full name, for avatar fallbacks. */
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+/** A titled section whose body can be collapsed and expanded (collapsed by default). */
+function CollapsibleGroup({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <span className="text-xs font-semibold text-[color:var(--text-secondary)]">{title}</span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 flex-shrink-0 text-[color:var(--text-tertiary)] transition-transform",
+            open && "rotate-180",
+          )}
+          aria-hidden="true"
+        />
+      </button>
+      {open ? <div className="mt-2">{children}</div> : null}
+    </div>
+  );
+}
+
 /**
  * Initiates an offboarding case for an active employee. Self-contained: fetches the active
  * employees and existing cases it needs, and reports the created case id to the caller.
@@ -65,9 +127,10 @@ export function InitiateOffboardingDialog({
   onInitiated,
 }: InitiateOffboardingDialogProps) {
   // Only fetch employees while the dialog is open.
-  const { employees, loading: employeesLoading } = useEmployees(
-    open ? { status: "active", limit: 200 } : {},
-  );
+  const { employees, loading: employeesLoading } = useAllEmployees({
+    status: "active",
+    enabled: open,
+  });
   const { offboardings } = useOffboardings();
   const { create, creating } = useCreateOffboarding();
   // Only fetch clearance version options while the dialog is open.
@@ -78,7 +141,15 @@ export function InitiateOffboardingDialog({
   const [tenderDate, setTenderDate] = useState<string>(todayIso());
   const [effectiveDate, setEffectiveDate] = useState<string>("");
   const [clearanceTemplateId, setClearanceTemplateId] = useState<string>("");
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string>("");
+  const [dragActive, setDragActive] = useState(false);
+  // Object URLs for previewing staged files, keyed by fileKey. Rebuilt whenever the
+  // selection changes and revoked on cleanup to avoid leaking blob URLs.
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  // The staged file currently shown in the preview modal (null when closed).
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [newSupervisorId, setNewSupervisorId] = useState<string>("");
   const [newTeamLeaderId, setNewTeamLeaderId] = useState<string>("");
   const [errors, setErrors] = useState<{
@@ -114,15 +185,79 @@ export function InitiateOffboardingDialog({
     setErrors((current) => ({ ...current, supervisor: undefined, teamLeader: undefined }));
   }, [empId]);
 
+  useEffect(() => {
+    const urls: Record<string, string> = {};
+    for (const file of attachments) {
+      urls[fileKey(file)] = URL.createObjectURL(file);
+    }
+    setPreviewUrls(urls);
+    return () => {
+      for (const url of Object.values(urls)) URL.revokeObjectURL(url);
+    };
+  }, [attachments]);
+
   function reset() {
     setEmpId("");
     setTenderDate(todayIso());
     setEffectiveDate("");
     setClearanceTemplateId("");
-    setAttachment(null);
+    setAttachments([]);
+    setAttachmentError("");
+    setDragActive(false);
+    setPreviewFile(null);
     setNewSupervisorId("");
     setNewTeamLeaderId("");
     setErrors({});
+  }
+
+  /**
+   * Validates newly picked files (type + size + count), appends the valid ones to the
+   * current selection (de-duplicated by name + size), and surfaces a message for any rejects.
+   */
+  function handleFilesSelected(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+
+    const rejected: string[] = [];
+    const accepted: File[] = [];
+
+    for (const file of Array.from(fileList)) {
+      if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        rejected.push(`${file.name} (unsupported type)`);
+      } else if (file.size > MAX_ATTACHMENT_BYTES) {
+        rejected.push(`${file.name} (over 5 MB)`);
+      } else {
+        accepted.push(file);
+      }
+    }
+
+    setAttachments((current) => {
+      const seen = new Set(current.map(fileKey));
+      const merged = [...current];
+      for (const file of accepted) {
+        const key = fileKey(file);
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(file);
+        }
+      }
+      if (merged.length > MAX_ATTACHMENTS) {
+        rejected.push(`Only the first ${MAX_ATTACHMENTS} files are kept`);
+        return merged.slice(0, MAX_ATTACHMENTS);
+      }
+      return merged;
+    });
+
+    setAttachmentError(rejected.length > 0 ? `Skipped: ${rejected.join(", ")}` : "");
+  }
+
+  /** Removes a single staged attachment by index. */
+  function removeAttachment(index: number) {
+    setAttachments((current) => current.filter((_, i) => i !== index));
+  }
+
+  /** Opens the in-app preview modal for a staged file. */
+  function openPreview(file: File) {
+    setPreviewFile(file);
   }
 
   function handleOpenChange(next: boolean) {
@@ -141,14 +276,19 @@ export function InitiateOffboardingDialog({
     [employees, offboardingIds],
   );
 
-  const empOptions = selectableEmployees.map((e) => ({
-    value: e.id,
-    label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}`,
-  }));
+  const empOptions = selectableEmployees.map(toEmployeeOption);
 
+  // Reassignment targets must share the offboardee's department (a null department on either
+  // side is exempt — mirrors the backend rule). The backend remains authoritative and rejects a
+  // target that crosses a report's own department.
+  const offboardeeDepartment = selectedEmployeeProfile?.department ?? null;
   const reassignOptions = employees
-    .filter((e) => e.id !== empId)
-    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+    .filter(
+      (e) =>
+        e.id !== empId &&
+        (!e.department || !offboardeeDepartment || e.department === offboardeeDepartment),
+    )
+    .map(toEmployeeOption);
 
   async function handleSubmit() {
     const next: typeof errors = {};
@@ -171,7 +311,7 @@ export function InitiateOffboardingDialog({
         tenderDate,
         effectiveDate,
         clearanceTemplateId,
-        ...(attachment ? { attachment } : {}),
+        ...(attachments.length > 0 ? { attachments } : {}),
         ...(newSupervisorId ? { newSupervisorId } : {}),
         ...(newTeamLeaderId ? { newTeamLeaderId } : {}),
       });
@@ -184,9 +324,12 @@ export function InitiateOffboardingDialog({
     }
   }
 
+  const previewFileUrl = previewFile ? previewUrls[fileKey(previewFile)] : undefined;
+  const previewIsImage = previewFile?.type.startsWith("image/") ?? false;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Initiate offboarding</DialogTitle>
           <DialogDescription>
@@ -194,7 +337,7 @@ export function InitiateOffboardingDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="min-w-0 space-y-4 py-2">
           <FormField label="Employee" required error={errors.emp}>
             <Combobox
               options={empOptions}
@@ -250,19 +393,125 @@ export function InitiateOffboardingDialog({
             </Select>
           </FormField>
 
-          <FormField label="Attachment (optional)" htmlFor="off-attachment">
-            <div className="flex items-center gap-3">
-              <Input
-                key={attachment ? "attachment-selected" : "attachment-empty"}
+          <FormField
+            label="Attachments (optional)"
+            htmlFor="off-attachment"
+            error={attachmentError || undefined}
+          >
+            <div className="space-y-2">
+              <input
+                // Re-key on count so the native input clears after each selection,
+                // letting the same file be re-added after it's removed.
+                key={`attachment-input-${attachments.length}`}
+                ref={attachmentInputRef}
                 id="off-attachment"
                 type="file"
-                onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
+                multiple
+                accept={ATTACHMENT_ACCEPT}
+                className="sr-only"
+                onChange={(event) => handleFilesSelected(event.target.files)}
               />
-              {attachment ? (
-                <span className="inline-flex max-w-[180px] items-center gap-1 truncate text-xs text-[color:var(--text-tertiary)]">
-                  <Paperclip className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-                  <span className="truncate">{attachment.name}</span>
-                </span>
+
+              {attachments.length < MAX_ATTACHMENTS ? (
+                <button
+                  type="button"
+                  className={cn(
+                    "flex min-h-[104px] w-full items-center justify-center rounded-md border border-dashed border-[color:var(--border-secondary)] bg-white px-4 py-6 text-center transition-colors",
+                    dragActive && "border-[color:var(--gray-900)] bg-[color:var(--bg-secondary)]",
+                  )}
+                  onClick={() => attachmentInputRef.current?.click()}
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setDragActive(true);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setDragActive(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    setDragActive(false);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setDragActive(false);
+                    handleFilesSelected(event.dataTransfer.files);
+                  }}
+                >
+                  <span className="flex items-center justify-center gap-2 text-sm text-[color:var(--text-tertiary)]">
+                    <Upload className="h-4 w-4 shrink-0" strokeWidth={1.7} aria-hidden="true" />
+                    <span>
+                      Drag and drop or{" "}
+                      <span className="font-semibold text-[color:var(--text-secondary)] underline underline-offset-2">
+                        choose files
+                      </span>
+                      .
+                    </span>
+                  </span>
+                </button>
+              ) : null}
+
+              <p className="text-xs text-[color:var(--text-tertiary)]">
+                PNG, JPG, or PDF · up to 5 MB each · max {MAX_ATTACHMENTS} files
+              </p>
+
+              {attachments.length > 0 ? (
+                <ul className="space-y-2">
+                  {attachments.map((file, index) => {
+                    const previewUrl = previewUrls[fileKey(file)];
+                    const isImage = file.type.startsWith("image/");
+                    return (
+                      <li
+                        key={fileKey(file)}
+                        className="flex min-w-0 items-center gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3"
+                      >
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[color:var(--border-primary)] bg-white">
+                          {isImage && previewUrl ? (
+                            <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center gap-0.5 text-[color:var(--text-tertiary)]">
+                              <FileText className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
+                              <span className="rounded-sm bg-[#F04438] px-1 py-0.5 text-[9px] font-bold leading-none text-white">
+                                {fileExtension(file.name)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="truncate text-sm font-semibold text-[color:var(--text-primary)]"
+                            title={file.name}
+                          >
+                            {file.name}
+                          </p>
+                          <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
+                            {formatFileSize(file.size)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="ghost"
+                            aria-label={`Preview ${file.name}`}
+                            onClick={() => openPreview(file)}
+                          >
+                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="ghost"
+                            aria-label={`Remove ${file.name}`}
+                            onClick={() => removeAttachment(index)}
+                          >
+                            <X className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : null}
             </div>
           </FormField>
@@ -288,36 +537,81 @@ export function InitiateOffboardingDialog({
             {needsSupervisorReassignment || needsTeamLeaderReassignment ? (
               <div className="mt-3 space-y-3">
                 {needsSupervisorReassignment ? (
-                  <FormField
-                    label={`New supervisor for ${directReportCount} direct report${directReportCount === 1 ? "" : "s"}`}
-                    required
-                    error={errors.supervisor}
-                  >
-                    <Combobox
-                      options={reassignOptions}
-                      value={newSupervisorId}
-                      onChange={(v) => setNewSupervisorId(v)}
-                      placeholder="Select a new supervisor..."
-                      searchPlaceholder="Search employees..."
-                      emptyText="No employees available."
-                    />
-                  </FormField>
+                  <div className="space-y-2">
+                    <CollapsibleGroup title="View members">
+                    <ul className="space-y-2">
+                      {selectedEmployeeProfile?.directReports?.map((report) => (
+                        <li
+                          key={report.id}
+                          className="flex items-center gap-3 rounded-lg border border-[#FEDF89] bg-white px-3 py-2"
+                        >
+                          <UserAvatar
+                            src={null}
+                            fallback={initials(report.fullName)}
+                            className="h-8 w-8 flex-shrink-0"
+                            fallbackClassName="text-xs font-bold text-[color:var(--text-primary)]"
+                            fallbackStyle={{
+                              background:
+                                "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                            }}
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+                              {report.fullName}
+                            </p>
+                            <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                              {report.jobTitle ?? "—"}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    </CollapsibleGroup>
+                    <FormField
+                      label={`New supervisor for ${directReportCount} direct report${directReportCount === 1 ? "" : "s"}`}
+                      required
+                      error={errors.supervisor}
+                    >
+                      <Combobox
+                        options={reassignOptions}
+                        value={newSupervisorId}
+                        onChange={(v) => setNewSupervisorId(v)}
+                        placeholder="Select a new supervisor..."
+                        searchPlaceholder="Search employees..."
+                        emptyText="No employees available."
+                      />
+                    </FormField>
+                  </div>
                 ) : null}
                 {needsTeamLeaderReassignment ? (
-                  <FormField
-                    label={`New leader for ${ledTeamCount} team${ledTeamCount === 1 ? "" : "s"}`}
-                    required
-                    error={errors.teamLeader}
-                  >
-                    <Combobox
-                      options={reassignOptions}
-                      value={newTeamLeaderId}
-                      onChange={(v) => setNewTeamLeaderId(v)}
-                      placeholder="Select a new team leader..."
-                      searchPlaceholder="Search employees..."
-                      emptyText="No employees available."
-                    />
-                  </FormField>
+                  <div className="space-y-2">
+                    <CollapsibleGroup title="View teams">
+                      <div className="flex flex-wrap gap-2">
+                        {selectedEmployeeProfile?.ledTeams.map((team) => (
+                          <span
+                            key={team.id}
+                            className="max-w-[160px] truncate rounded-full border border-[#ABEFC6] bg-[#ECFDF3] px-2.5 py-0.5 text-xs font-semibold text-[#067647]"
+                          >
+                            {team.name}
+                          </span>
+                        ))}
+                      </div>
+                    </CollapsibleGroup>
+                    <FormField
+                      label={`New leader for ${ledTeamCount} team${ledTeamCount === 1 ? "" : "s"}`}
+                      required
+                      error={errors.teamLeader}
+                    >
+                      <Combobox
+                        options={reassignOptions}
+                        value={newTeamLeaderId}
+                        onChange={(v) => setNewTeamLeaderId(v)}
+                        placeholder="Select a new team leader..."
+                        searchPlaceholder="Search employees..."
+                        emptyText="No employees available."
+                      />
+                    </FormField>
+                  </div>
                 ) : null}
               </div>
             ) : null}
@@ -335,6 +629,37 @@ export function InitiateOffboardingDialog({
             {creating ? "Initiating…" : "Initiate offboarding"}
           </Button>
         </DialogFooter>
+
+        <Dialog open={previewFile !== null} onOpenChange={(next) => !next && setPreviewFile(null)}>
+          <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-hidden sm:max-h-[calc(100dvh-3rem)] sm:max-w-3xl">
+            <DialogHeader className="min-w-0">
+              <DialogTitle className="block truncate pr-8" title={previewFile?.name}>
+                {previewFile?.name}
+              </DialogTitle>
+              <DialogDescription>
+                {previewFile ? formatFileSize(previewFile.size) : null}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex max-h-[70vh] min-h-[240px] min-w-0 items-center justify-center overflow-auto rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)]">
+              {previewFileUrl ? (
+                previewIsImage ? (
+                  <img
+                    src={previewFileUrl}
+                    alt={previewFile?.name ?? ""}
+                    className="max-h-[70vh] w-auto max-w-full object-contain"
+                  />
+                ) : (
+                  <iframe
+                    src={previewFileUrl}
+                    title={previewFile?.name ?? "Document preview"}
+                    className="h-[70vh] w-full"
+                  />
+                )
+              ) : null}
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

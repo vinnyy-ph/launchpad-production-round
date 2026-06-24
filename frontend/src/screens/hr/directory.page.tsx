@@ -1,7 +1,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Settings2, UserRoundMinus, UserRoundPlus, Users } from "lucide-react";
+import { FileSpreadsheet, Plus, Users } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -26,7 +26,8 @@ import {
 } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees, useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { employeeInitials } from "@/modules/people/employees/employee-options";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
@@ -91,7 +92,7 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
     "max-w-[110px] truncate rounded-full border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]";
 
   return (
-    <div className="inline-flex max-w-[260px] flex-wrap items-center justify-start gap-1.5">
+    <div className="inline-flex max-w-[260px] flex-wrap items-center justify-center gap-1.5">
       {visibleTeams.map((team) => (
         <Badge key={team.id} variant="outline" pill className={teamBadgeClassName}>
           {team.name}
@@ -104,7 +105,7 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex rounded-full"
+                className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={`${overflowCount} more teams`}
                 onClick={(event) => event.stopPropagation()}
               >
@@ -164,8 +165,9 @@ export default function DirectoryPage() {
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
   const { departments, loading: departmentsLoading } = useDepartments();
   const counts = useEmployeeStatusCounts();
-  // Supervisor filter options — any employee can be a supervisor.
-  const { employees: supervisorOptions } = useEmployees({ limit: 100 });
+  // Supervisor filter options — any employee can be a supervisor. Fetch the full directory so
+  // every potential supervisor is selectable, not just the first page.
+  const { employees: supervisorOptions } = useAllEmployees();
 
   const { employees, meta, loading, error, reload } = useEmployees({
     search: debouncedSearch || undefined,
@@ -233,6 +235,8 @@ export default function DirectoryPage() {
             options: supervisorOptions.map((employee) => ({
               id: employee.id,
               name: employee.fullName,
+              avatarUrl: employee.avatarUrl,
+              avatarFallback: employeeInitials(employee.fullName),
             })),
             selected: supervisorIds,
             onChange: (next) => {
@@ -276,7 +280,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Job Title",
-      className: "min-w-[160px]",
+      className: "min-w-[160px] text-center",
       sortable: true,
       sortKey: "jobTitle",
       cell: (employee) => (
@@ -287,7 +291,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Department",
-      className: "min-w-[150px]",
+      className: "min-w-[150px] text-center",
       sortable: true,
       sortKey: "department",
       cell: (employee) => (
@@ -298,7 +302,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Supervisor",
-      className: "min-w-[170px]",
+      className: "min-w-[170px] text-center",
       sortable: true,
       sortKey: "supervisor",
       cell: (employee) => (
@@ -309,14 +313,14 @@ export default function DirectoryPage() {
     },
     {
       header: "Team/s",
-      className: "min-w-[190px]",
+      className: "min-w-[190px] text-center",
       sortable: true,
       sortKey: "teams",
       cell: (employee) => <TeamsCell teams={employee.teams} />,
     },
     {
       header: "Status",
-      className: "min-w-[120px]",
+      className: "min-w-[120px] text-center",
       sortable: true,
       sortKey: "status",
       cell: (employee) => <StatusBadge status={employee.status} />,
@@ -331,16 +335,14 @@ export default function DirectoryPage() {
         subtitle="Everyone at DG Technologies, from new hires to active staff."
         action={
           <div className="flex flex-col gap-2 sm:flex-row">
+            {tab === "all" ? (
+              <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
+                <Plus /> Initiate offboarding
+              </Button>
+            ) : null}
             {/* Adding a person always starts an onboarding case, so the action lives on that tab. */}
             {tab === "onboarding" ? (
               <>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/configurations?tab=onboarding")}
-                >
-                  <Settings2 aria-hidden="true" /> Onboarding setup
-                </Button>
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto"
@@ -350,20 +352,6 @@ export default function DirectoryPage() {
                 </Button>
                 <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
                   <Plus /> Onboard new employee
-                </Button>
-              </>
-            ) : null}
-            {tab === "offboarding" ? (
-              <>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => router.push("/hr/configurations?tab=clearances")}
-                >
-                  <Settings2 aria-hidden="true" /> Clearance setup
-                </Button>
-                <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
-                  <Plus /> Initiate offboarding
                 </Button>
               </>
             ) : null}
@@ -379,9 +367,9 @@ export default function DirectoryPage() {
           setPage(1);
         }}
         items={[
-          { value: "all", label: "All", count: counts.all, icon: Users },
-          { value: "onboarding", label: "Onboarding", count: counts.onboarding, icon: UserRoundPlus },
-          { value: "offboarding", label: "Offboarding", count: counts.offboarding, icon: UserRoundMinus },
+          { value: "all", label: "All", count: counts.all },
+          { value: "onboarding", label: "Onboarding", count: counts.onboarding },
+          { value: "offboarding", label: "Offboarding", count: counts.offboarding },
         ]}
       />
 
@@ -455,7 +443,7 @@ export default function DirectoryPage() {
 
       {bulkOpen ? <BulkUploadDropzone open={bulkOpen} onOpenChange={setBulkOpen} /> : null}
 
-      {tab === "offboarding" ? (
+      {tab === "all" ? (
         <InitiateOffboardingDialog
           open={initiateOpen}
           onOpenChange={setInitiateOpen}

@@ -81,7 +81,7 @@ import {
     evaluationTextSchema,
     EVAL_TEXT_LIMITS,
 } from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
-import { DocumentViewerModal } from "@/shared/ui/patterns";
+import { DocumentViewerModal } from "@/modules/performance/evaluations/components/document-viewer-modal";
 import { partitionEvaluationsByScope } from "./evaluations.scope";
 import { formatPeriod, parseStatusFilter } from "./evaluations.format";
 
