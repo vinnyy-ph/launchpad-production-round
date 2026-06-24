@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/shared/ui";
 import { isValidPhilippinePhone } from "@/shared/lib/phone";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useOnboardEmployee } from "../hooks/use-onboard-employee";
@@ -118,7 +118,7 @@ function hasFormData(form: FormSnapshot): boolean {
  * the new hire a step. On success it sends the invitation and reports the new employee id.
  */
 export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployeeDialogProps) {
-  const { employees: activeEmployees } = useEmployees({ status: "active", limit: 100 });
+  const { employees: activeEmployees } = useAllEmployees({ status: "active" });
   const { departments } = useDepartments();
   const { documents: requiredDocuments } = useDocumentConfigs();
   const onboard = useOnboardEmployee();
@@ -162,10 +162,14 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     emergencyContact,
   });
 
-  const supervisorOptions = activeEmployees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.fullName} · ${employee.companyEmail}`,
-  }));
+  // A supervisor must belong to the new hire's department (a supervisor with no department is
+  // exempt — mirrors the same-department rule). Options are scoped to the chosen department.
+  const supervisorOptions = activeEmployees
+    .filter((employee) => !employee.department || employee.department === department)
+    .map((employee) => ({
+      value: employee.id,
+      label: `${employee.fullName} · ${employee.companyEmail}`,
+    }));
 
   const requiredDocsNote =
     requiredDocuments.length > 0
@@ -554,7 +558,15 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
             </FormField>
             <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
               <FormField label="Department" required error={errors.department}>
-                <Select value={department} onValueChange={setDepartment}>
+                <Select
+                  value={department}
+                  onValueChange={(value) => {
+                    setDepartment(value);
+                    // The current supervisor may no longer belong to the new department —
+                    // clear it so the user re-picks from the scoped list.
+                    setSupervisorId("");
+                  }}
+                >
                   <SelectTrigger aria-label="Select department">
                     <SelectValue placeholder="Select a department" />
                   </SelectTrigger>
@@ -567,16 +579,24 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   </SelectContent>
                 </Select>
               </FormField>
-              <FormField label="Supervisor" required error={errors.supervisorId}>
-                <Combobox
-                  options={supervisorOptions}
-                  value={supervisorId}
-                  onChange={(value) => setSupervisorId(value || "")}
-                  placeholder="Select a supervisor…"
-                  searchPlaceholder="Search employees…"
-                  emptyText="No active employees found."
-                />
-              </FormField>
+              {department ? (
+                <FormField label="Supervisor" required error={errors.supervisorId}>
+                  <Combobox
+                    options={supervisorOptions}
+                    value={supervisorId}
+                    onChange={(value) => setSupervisorId(value || "")}
+                    placeholder="Select a supervisor…"
+                    searchPlaceholder="Search employees…"
+                    emptyText={`No active employees in ${department}.`}
+                  />
+                </FormField>
+              ) : (
+                <FormField label="Supervisor" required>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">
+                    Select a department first to choose a supervisor.
+                  </p>
+                </FormField>
+              )}
             </div>
           </section>
 

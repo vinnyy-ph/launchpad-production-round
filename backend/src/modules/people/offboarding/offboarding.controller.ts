@@ -248,6 +248,28 @@ export class OffboardingController {
       });
     }
 
+    // Same-department reassignment rule: the chosen supervisor/leader does not share the
+    // department of the reports/team members being moved. Surface as a field validation error.
+    if (error.message.startsWith("The new supervisor must belong")) {
+      return this.fail(res, HTTP_STATUS_CODES.BAD_REQUEST, {
+        field: "newSupervisorId",
+        message: error.message,
+        code: API_ERROR_CODES.VALIDATION_FAILED,
+        topMessage: API_ERROR_MESSAGES.VALIDATION_FAILED,
+        topCode: API_ERROR_CODES.VALIDATION_FAILED,
+      });
+    }
+
+    if (error.message.startsWith("The new team leader must belong")) {
+      return this.fail(res, HTTP_STATUS_CODES.BAD_REQUEST, {
+        field: "newTeamLeaderId",
+        message: error.message,
+        code: API_ERROR_CODES.VALIDATION_FAILED,
+        topMessage: API_ERROR_MESSAGES.VALIDATION_FAILED,
+        topCode: API_ERROR_CODES.VALIDATION_FAILED,
+      });
+    }
+
     return next(error);
   }
 

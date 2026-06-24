@@ -44,7 +44,7 @@ import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-
 import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
 import { useEmployeeDocuments } from "../hooks/use-employee-documents";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
-import { useEmployees } from "../hooks/use-employees";
+import { useAllEmployees } from "../hooks/use-employees";
 import { useUpdateEmployee } from "../hooks/use-update-employee";
 import type {
   EmployeeListItem,
@@ -515,7 +515,7 @@ export function EmployeeDetailsModal({
   const { logs: activityLogs, loading: activityLoading } = useEmployeeActivityLogs(employeeId);
   const { documents, loading: documentsLoading } = useEmployeeDocuments(employeeId);
   const { departments, loading: departmentsLoading } = useDepartments();
-  const { employees: allEmployees } = useEmployees({ limit: 100 });
+  const { employees: allEmployees } = useAllEmployees();
   const profile = employee ?? fallbackEmployee;
   const profileDetails = profile as EmployeeProfile | null;
   const [draft, setDraft] = useState<EditDraft>(blankDraft);
@@ -944,7 +944,7 @@ export function EmployeeDetailsModal({
                         <div className="grid gap-5">
                           <div className="grid gap-4 lg:grid-cols-3">
                             <EditableField
-                              label="Role"
+                              label="Job Title"
                               value={draft.jobTitle}
                               onChange={(value) => updateDraft("jobTitle", value)}
                               error={fieldErrors.jobTitle}

@@ -29,6 +29,14 @@ import type { EmployeeListItem } from "@/modules/people/employees/types/employee
 const TEAM_NAME_INVALID_MESSAGE =
   "Please enter a valid team name using letters, numbers, spaces, and common punctuation only.";
 
+/**
+ * Whether an employee may sit under a manager given the same-department rule. Mirrors the
+ * backend: a null department on either side is exempt, so they pair with anyone.
+ */
+function sameDepartment(a: string | null, b: string | null): boolean {
+  return !a || !b || a === b;
+}
+
 interface CreateTeamDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,6 +67,21 @@ export function CreateTeamDialog({
         label: e.jobTitle ? `${e.fullName} · ${e.jobTitle}` : e.fullName,
       })),
     [employees],
+  );
+
+  const leader = useMemo(
+    () => employees.find((e) => e.id === leaderId) ?? null,
+    [employees, leaderId],
+  );
+
+  // Members must share the leader's department (null department = exempt). Until a leader is
+  // chosen, everyone is selectable.
+  const memberCandidates = useMemo(
+    () =>
+      employees.filter(
+        (e) => e.id !== leaderId && (!leader || sameDepartment(e.department, leader.department)),
+      ),
+    [employees, leaderId, leader],
   );
 
   function reset() {
@@ -159,6 +182,18 @@ export function CreateTeamDialog({
               onChange={(v) => {
                 setLeaderId(v);
                 setError(null);
+                // Drop any already-picked members who fall outside the new leader's department.
+                const nextLeader = employees.find((e) => e.id === v) ?? null;
+                setMemberIds((prev) => {
+                  const next = new Set<string>();
+                  for (const id of prev) {
+                    const member = employees.find((e) => e.id === id);
+                    if (member && (!nextLeader || sameDepartment(member.department, nextLeader.department))) {
+                      next.add(id);
+                    }
+                  }
+                  return next;
+                });
               }}
               placeholder="Select a leader…"
               searchPlaceholder="Search employees…"
@@ -166,15 +201,20 @@ export function CreateTeamDialog({
             />
           </FormField>
 
-          <FormField label="Members" hint="Optional — add now or later.">
+          <FormField
+            label="Members"
+            hint={
+              leader?.department
+                ? `Optional — only ${leader.department} members can join this team.`
+                : "Optional — add now or later."
+            }
+          >
             <Command className="rounded-lg border border-[color:var(--border-primary)]">
               <CommandInput placeholder="Search employees…" />
               <CommandList className="max-h-48">
                 <CommandEmpty>No employees found.</CommandEmpty>
                 <CommandGroup>
-                  {employees
-                    .filter((e) => e.id !== leaderId)
-                    .map((e) => (
+                  {memberCandidates.map((e) => (
                       <CommandItem
                         key={e.id}
                         value={`${e.fullName} ${e.jobTitle ?? ""}`}

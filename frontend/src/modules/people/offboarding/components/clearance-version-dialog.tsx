@@ -16,7 +16,7 @@ import {
   Input,
   Textarea,
 } from "@/shared/ui";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import type {
   ClearanceSignatoryInput,
@@ -80,9 +80,10 @@ export function ClearanceVersionDialog({
   onSubmit,
 }: ClearanceVersionDialogProps) {
   const isEdit = Boolean(template);
-  const { employees, loading: employeesLoading } = useEmployees(
-    open ? { status: "active", limit: 200 } : {},
-  );
+  const { employees, loading: employeesLoading } = useAllEmployees({
+    status: "active",
+    enabled: open,
+  });
 
   const [name, setName] = useState("");
   const [isDefault, setIsDefault] = useState(false);

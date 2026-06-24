@@ -17,6 +17,7 @@ jest.mock("sonner", () => ({
 
 jest.mock("@/modules/people/employees/hooks/use-employees", () => ({
   useEmployees: () => ({ employees: [], loading: false, error: null, reload: jest.fn() }),
+  useAllEmployees: () => ({ employees: [], loading: false, error: null, reload: jest.fn() }),
 }));
 
 jest.mock("@/modules/people/departments/hooks/use-departments", () => ({

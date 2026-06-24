@@ -29,7 +29,7 @@ import {
 } from "@/shared/ui";
 import { EmptyState, ErrorState } from "@/shared/ui/patterns";
 import { RedactedProfileSheet } from "@/modules/people/employees/components/redacted-profile-sheet";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useTeamMutations } from "../hooks/use-team-mutations";
 import type { Team, TeamEmployee } from "../types/teams.types";
@@ -110,15 +110,26 @@ function AddMembersDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { employees, loading } = useEmployees({ status: "active", limit: 100 });
+  const { employees, loading } = useAllEmployees({ status: "active" });
   const { addMembers, addingMembers } = useTeamMutations();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // The team leader's department (resolved from the directory, since the team DTO omits it).
+  // Members must share it; a null department on either side is exempt — mirrors the backend rule.
+  const leaderDepartment = useMemo(
+    () => employees.find((employee) => employee.id === team.leader.id)?.department ?? null,
+    [employees, team.leader.id],
+  );
 
   const addableEmployees = useMemo(() => {
     const present = new Set(team.members.map((member) => member.id));
     present.add(team.leader.id);
-    return employees.filter((employee) => !present.has(employee.id));
-  }, [team, employees]);
+    return employees.filter(
+      (employee) =>
+        !present.has(employee.id) &&
+        (!employee.department || !leaderDepartment || employee.department === leaderDepartment),
+    );
+  }, [team, employees, leaderDepartment]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -157,6 +168,11 @@ function AddMembersDialog({
         </header>
 
         <div className="overflow-y-auto px-6 py-4">
+          {leaderDepartment ? (
+            <p className="mb-3 text-xs text-[color:var(--text-tertiary)]">
+              Only {leaderDepartment} employees can join this team.
+            </p>
+          ) : null}
           <Command className="rounded-lg border border-[color:var(--border-primary)]">
             <CommandInput placeholder="Search employees…" />
             <CommandList className="max-h-72">

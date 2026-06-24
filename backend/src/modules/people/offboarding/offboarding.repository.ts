@@ -51,6 +51,38 @@ export class OffboardingRepository {
     });
   }
 
+  /** Loads one employee's department id (null when unassigned), or null when absent. */
+  async findEmployeeDepartmentId(employeeId: string): Promise<string | null | undefined> {
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { departmentId: true },
+    });
+
+    return employee?.departmentId;
+  }
+
+  /** Department id of each direct report of the offboardee, for the reassignment scope check. */
+  async findDirectReportDepartmentIds(offboardeeId: string) {
+    return prisma.employee.findMany({
+      where: { supervisorId: offboardeeId },
+      select: { id: true, departmentId: true },
+    });
+  }
+
+  /**
+   * Department id of every member across the teams led by the offboardee, for the team-leader
+   * reassignment scope check. De-duplicated by employee id.
+   */
+  async findLedTeamMemberDepartmentIds(offboardeeId: string) {
+    const memberships = await prisma.teamMember.findMany({
+      where: { team: { leaderId: offboardeeId } },
+      select: { employee: { select: { id: true, departmentId: true } } },
+    });
+
+    const byId = new Map(memberships.map((m) => [m.employee.id, m.employee.departmentId]));
+    return Array.from(byId, ([id, departmentId]) => ({ id, departmentId }));
+  }
+
   /** Counts direct reports and led teams that must be reassigned before offboarding. */
   async countTransitionResponsibilities(employeeId: string) {
     const [directReports, ledTeams] = await Promise.all([

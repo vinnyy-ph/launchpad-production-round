@@ -22,7 +22,7 @@ import {
   UserAvatar,
 } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useOffboardings } from "../hooks/use-offboarding";
 import { useCreateOffboarding } from "../hooks/use-create-offboarding";
@@ -126,9 +126,10 @@ export function InitiateOffboardingDialog({
   onInitiated,
 }: InitiateOffboardingDialogProps) {
   // Only fetch employees while the dialog is open.
-  const { employees, loading: employeesLoading } = useEmployees(
-    open ? { status: "active", limit: 200 } : {},
-  );
+  const { employees, loading: employeesLoading } = useAllEmployees({
+    status: "active",
+    enabled: open,
+  });
   const { offboardings } = useOffboardings();
   const { create, creating } = useCreateOffboarding();
   // Only fetch clearance version options while the dialog is open.
@@ -279,8 +280,16 @@ export function InitiateOffboardingDialog({
     label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}`,
   }));
 
+  // Reassignment targets must share the offboardee's department (a null department on either
+  // side is exempt — mirrors the backend rule). The backend remains authoritative and rejects a
+  // target that crosses a report's own department.
+  const offboardeeDepartment = selectedEmployeeProfile?.department ?? null;
   const reassignOptions = employees
-    .filter((e) => e.id !== empId)
+    .filter(
+      (e) =>
+        e.id !== empId &&
+        (!e.department || !offboardeeDepartment || e.department === offboardeeDepartment),
+    )
     .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
 
   async function handleSubmit() {

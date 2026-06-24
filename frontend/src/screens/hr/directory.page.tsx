@@ -26,7 +26,7 @@ import {
 } from "@/shared/ui/patterns";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { EmployeeDetailsModal } from "@/modules/people/employees/components/employee-details-modal";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees, useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeStatusCounts } from "@/modules/people/employees/hooks/use-employee-status-counts";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useTeams } from "@/modules/people/teams/hooks/use-teams";
@@ -164,8 +164,9 @@ export default function DirectoryPage() {
   const { teams, loading: teamsLoading } = useTeams({ page: 1, limit: 100 });
   const { departments, loading: departmentsLoading } = useDepartments();
   const counts = useEmployeeStatusCounts();
-  // Supervisor filter options — any employee can be a supervisor.
-  const { employees: supervisorOptions } = useEmployees({ limit: 100 });
+  // Supervisor filter options — any employee can be a supervisor. Fetch the full directory so
+  // every potential supervisor is selectable, not just the first page.
+  const { employees: supervisorOptions } = useAllEmployees();
 
   const { employees, meta, loading, error, reload } = useEmployees({
     search: debouncedSearch || undefined,

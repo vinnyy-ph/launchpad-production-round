@@ -17,7 +17,7 @@ import {
   StatusBadge,
   EmptyState,
 } from "@/shared/ui";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useUpdateEmployee } from "@/modules/people/employees/hooks/use-update-employee";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
@@ -220,8 +220,8 @@ export default function EmployeeProfilePage() {
 
   const { employee, loading, error, reload } = useEmployeeProfile(id || null);
   const { update, saving } = useUpdateEmployee(id || null);
-  // Supervisor options for the edit form (HR sees the full list).
-  const { employees } = useEmployees({ page: 1, limit: 200 });
+  // Supervisor options for the edit form (HR sees the full list — fetch the whole directory).
+  const { employees } = useAllEmployees();
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<EditDraft>({

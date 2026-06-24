@@ -32,7 +32,7 @@ import {
   useReplaceClearanceSignatory,
   useResetClearance,
 } from "@/modules/people/offboarding";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import type { OffboardingDetail, SignatureRequest } from "@/modules/people/offboarding";
 
@@ -357,7 +357,7 @@ function ReplaceSignatoryDialog({
 }) {
   const [newSignatoryId, setNewSignatoryId] = useState<string>("");
   const { replace, replacing } = useReplaceClearanceSignatory();
-  const { employees } = useEmployees({ status: "active", limit: 200 });
+  const { employees } = useAllEmployees({ status: "active" });
 
   const open = request !== null;
 
@@ -426,7 +426,7 @@ function ReplaceSignatoryDialog({
 function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
   const [newSupervisorId, setNewSupervisorId] = useState<string>("");
   const { reassign, reassigning } = useReassignOffboarding(offboarding.id);
-  const { employees } = useEmployees({ status: "active", limit: 200 });
+  const { employees } = useAllEmployees({ status: "active" });
   const {
     employee: profile,
     loading: profileLoading,
@@ -439,8 +439,15 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
   const ledTeamCount = profile?.ledTeams.length ?? 0;
   const needsReassignment = directReportCount > 0 || ledTeamCount > 0;
 
+  // Reassignment targets must share the offboardee's department (null department = exempt),
+  // mirroring the backend rule; the backend stays authoritative for per-report enforcement.
+  const offboardeeDepartment = profile?.department ?? offboarding.employee.department ?? null;
   const options = employees
-    .filter((e) => e.id !== offboarding.employee.id)
+    .filter(
+      (e) =>
+        e.id !== offboarding.employee.id &&
+        (!e.department || !offboardeeDepartment || e.department === offboardeeDepartment),
+    )
     .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
 
   async function handleReassign() {

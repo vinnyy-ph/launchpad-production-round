@@ -26,7 +26,7 @@ import {
 import { OrgChartTree } from "@/modules/people/employees/components/org-chart/org-chart-tree";
 import { OrgChartCanvas } from "@/modules/people/employees/components/org-chart/org-chart-canvas";
 import { EmployeeProfileSheet } from "@/modules/people/employees/components/employee-profile-sheet";
-import { useAllEmployees, useEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import type { Team } from "@/modules/people/teams/types/teams.types";
@@ -59,7 +59,7 @@ export default function TeamsPage() {
   const canManage = appUser?.role === "ADMIN" || appUser?.role === "HR";
 
   const { teams, loading, error, reload } = useTeams();
-  const { employees } = useEmployees({ status: "active", limit: 500 });
+  const { employees } = useAllEmployees({ status: "active" });
   // Whole-organization list (all statuses) for the supervisor-hierarchy org chart.
   const {
     employees: orgEmployees,
