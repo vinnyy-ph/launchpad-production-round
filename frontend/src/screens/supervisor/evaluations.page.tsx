@@ -303,6 +303,14 @@ function DynamicList({
 
 // ─── PDF file picker ──────────────────────────────────────────────────────────
 
+// %PDF — verifies actual file content, not just the declared MIME type/extension.
+const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46];
+
+async function fileHasPdfSignature(file: File): Promise<boolean> {
+    const bytes = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    return PDF_MAGIC_BYTES.every((value, index) => bytes[index] === value);
+}
+
 interface PdfFilePickerProps {
     files: File[];
     existingUrls: string[];
@@ -318,7 +326,7 @@ function PdfFilePicker({
 }: PdfFilePickerProps) {
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selected = Array.from(e.target.files ?? []);
         // Reset so the same file can be re-selected after removal.
         e.target.value = "";
@@ -334,6 +342,10 @@ function PdfFilePicker({
             }
             if (file.size > 10 * 1024 * 1024) {
                 toast.error(`"${file.name}" exceeds the 10 MB limit.`);
+                continue;
+            }
+            if (!(await fileHasPdfSignature(file))) {
+                toast.error(`"${file.name}" does not appear to be a valid PDF.`);
                 continue;
             }
             validFiles.push(file);

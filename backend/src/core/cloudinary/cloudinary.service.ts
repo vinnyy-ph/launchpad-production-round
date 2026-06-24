@@ -5,6 +5,9 @@ import {
   parseOnboardingDocumentStorageKey,
 } from "./onboarding-document-storage";
 
+/** Lifetime of signed document URLs, in seconds (10 minutes). */
+const SIGNED_DOCUMENT_URL_TTL_SECONDS = 10 * 60;
+
 /**
  * Uploads onboarding documents to Cloudinary using server-side credentials.
  */
@@ -86,6 +89,7 @@ export class CloudinaryService {
       type: "authenticated",
       sign_url: true,
       secure: true,
+      expires_at: Math.floor(Date.now() / 1000) + SIGNED_DOCUMENT_URL_TTL_SECONDS,
     });
   }
 
@@ -130,6 +134,7 @@ export class CloudinaryService {
     return cloudinary.utils.private_download_url(publicId, "", {
       resource_type: "raw",
       type: "authenticated",
+      expires_at: Math.floor(Date.now() / 1000) + SIGNED_DOCUMENT_URL_TTL_SECONDS,
     });
   }
 }
