@@ -30,6 +30,12 @@ employeesRouter.get("/all", employeesController.listAllEmployees);
 employeesRouter.patch("/me", employeesController.updateMyProfile);
 
 /**
+ * Lists the caller's OWN profile field edit history (self-service, any authenticated role).
+ * Declared before `/:employeeId/activity-logs` so "me" isn't parsed as an employee id.
+ */
+employeesRouter.get("/me/activity-logs", activityLogController.listMyActivityLogs);
+
+/**
  * Gets one employee profile. HR/Admin and the subject get the full profile; any other
  * authenticated viewer (including supervisors of the subject) gets a redacted profile.
  * Redaction is enforced server-side in the service serializer.

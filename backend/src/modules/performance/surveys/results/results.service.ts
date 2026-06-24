@@ -10,6 +10,7 @@ import {
 import { ResultsRepository } from "./results.repository";
 import type {
   QuestionResult,
+  SharedNoteDto,
   SmallTeamShareDto,
   SurveyResultsResponseDto,
   VisibleResultSurveyDto,
@@ -115,6 +116,9 @@ export class ResultsService {
     //     below is the HR-only hint that powers the send action on the results view.
     let smallTeamOverride = false;
     let smallTeamShare: SmallTeamShareDto | null = null;
+    // When the team's own supervisor reaches this via an HR share, they read HR's NOTE — never the
+    // raw anonymous breakdown. HR + managers above the leader still see the real breakdown.
+    let leaderNote: SharedNoteDto | null = null;
     if (survey.isAnonymous && teamIdQuery) {
       const team = await this.repo.findTeamForShare(teamIdQuery);
 
@@ -132,9 +136,20 @@ export class ResultsService {
           if (isHeadAbove) {
             smallTeamOverride = true;
           } else if (isLeader) {
-            // The supervisor sees the breakdown only after HR has shared it with them.
+            // The supervisor is let through ONLY after HR shares — and then sees HR's note,
+            // not the breakdown.
             if (existingShare) {
               smallTeamOverride = true;
+              leaderNote = {
+                message: existingShare.message,
+                sharedAt: existingShare.sharedAt.toISOString(),
+                sharedByName: existingShare.sharedBy
+                  ? [existingShare.sharedBy.firstName, existingShare.sharedBy.lastName]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim() || null
+                  : null,
+              };
             } else {
               throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN_SMALL_TEAM_SUPERVISOR);
             }
@@ -200,6 +215,31 @@ export class ResultsService {
       if (!canViewSurveyResults(ctx, info, supervisorAudienceOverlap)) {
         throw new Error(SURVEY_ERROR_MESSAGES.RESULTS_FORBIDDEN);
       }
+    }
+
+    // 5b. Small-team supervisor reading via an HR share: return HR's note, never the breakdown.
+    //     (HR + managers above the leader fall through to the real aggregation below.)
+    if (leaderNote) {
+      return {
+        success: true,
+        data: {
+          surveyId: survey.id,
+          ...(effectiveOccurrenceId && { occurrenceId: effectiveOccurrenceId }),
+          isAnonymous: survey.isAnonymous,
+          surveyName: survey.name,
+          deadline:
+            survey.deadline instanceof Date ? survey.deadline.toISOString() : survey.deadline,
+          isActive: survey.isActive,
+          occurrenceCount: survey._count?.occurrences ?? 0,
+          totalResponses: 0,
+          recipientCount: 0,
+          respondedCount: 0,
+          filter: teamIdQuery ? { teamId: teamIdQuery } : null,
+          suppressed: true,
+          questions: [],
+          sharedNote: leaderNote,
+        },
+      };
     }
 
     // 6. Check filter restrictions for non-HR callers

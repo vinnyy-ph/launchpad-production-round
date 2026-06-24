@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Lock,
   Users,
-  Search,
   Type,
   AlignLeft,
   BarChart3,
@@ -54,7 +53,7 @@ import {
   Checkbox,
   DatePicker,
 } from "@/shared/ui";
-import { FormField } from "@/shared/ui/patterns";
+import { FormField, SearchInput } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { useAudienceOptions } from "../hooks/use-audience-options";
@@ -400,20 +399,13 @@ function MultiSelectChecklist({
 
   return (
     <div className="space-y-2 rounded-xl border border-[color:var(--border-primary)] p-3">
-      <div className="relative">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-quaternary)]"
-          aria-hidden="true"
-        />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={searchPlaceholder}
-          className="h-9 pl-9"
-          disabled={disabled}
-        />
-      </div>
+      <SearchInput
+        value={query}
+        onValueChange={setQuery}
+        placeholder={searchPlaceholder}
+        disabled={disabled}
+        className="h-9"
+      />
       <div className="max-h-44 space-y-1.5 overflow-y-auto">
         {filtered.length === 0 && (
           <p className="px-1 py-2 text-xs text-[color:var(--text-tertiary)]">{emptyText}</p>

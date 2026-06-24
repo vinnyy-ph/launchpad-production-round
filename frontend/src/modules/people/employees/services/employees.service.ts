@@ -99,6 +99,11 @@ export async function getEmployeeActivityLogs(employeeId: string): Promise<Emplo
   return apiFetch<EmployeeActivityLogsResult>(`${BASE}/${employeeId}/activity-logs`);
 }
 
+/** Returns the signed-in employee's OWN profile field edit history (self-service). */
+export async function getMyActivityLogs(): Promise<EmployeeActivityLogsResult> {
+  return apiFetch<EmployeeActivityLogsResult>(`${BASE}/me/activity-logs`);
+}
+
 export type EmployeeDocumentStatus = "pending" | "approved" | "rejected";
 
 export interface EmployeeDocument {
