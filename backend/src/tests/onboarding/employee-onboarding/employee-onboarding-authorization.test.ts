@@ -57,7 +57,7 @@ describe("Employee onboarding - authorization", () => {
     const response = await request(app)
       .post(`/api/v1/employee-onboarding/documents/${DOCUMENT_ID}/submit`)
       .send({
-        fileUrl: "https://storage.launchpad.ph/onboarding/maria-santos/nbi-clearance.pdf",
+        fileUrl: "https://res.cloudinary.com/demo/raw/upload/v1710000000/onboarding/maria-santos/nbi-clearance.pdf",
       })
       .expect(403);
 

@@ -25,6 +25,7 @@ jest.mock("../../core/database/prisma.service", () => ({
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    activityLog: { createMany: jest.fn() },
   },
 }));
 

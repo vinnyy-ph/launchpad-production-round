@@ -168,7 +168,7 @@ function OnboardingDetailInner() {
   function submitReject() {
     if (!rejectTarget) return;
     if (!rejectNote.trim()) {
-      toast.error("Add a note explaining the rejection.");
+      toast.error("Please explain what needs to be fixed before the employee re-uploads this document.");
       return;
     }
     reject.mutate(

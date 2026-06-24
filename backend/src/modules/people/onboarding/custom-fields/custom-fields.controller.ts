@@ -124,11 +124,13 @@ export class CustomFieldsController {
 
     if (
       error.message.endsWith("is required") ||
-      error.message.startsWith("Invalid ")
+      error.message.startsWith("Invalid ") ||
+      this.isTextValidationError(error.message)
     ) {
       const field = error.message
         .replace(" is required", "")
-        .replace("Invalid ", "");
+        .replace("Invalid ", "")
+        .replace(/ must .*/, "");
 
       return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
         success: false,
@@ -160,5 +162,9 @@ export class CustomFieldsController {
     }
 
     return next(error);
+  }
+
+  private isTextValidationError(message: string): boolean {
+    return message.includes(" must be ") || message.includes(" must not contain ");
   }
 }

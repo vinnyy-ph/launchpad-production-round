@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   Button,
   Combobox,
+  DatePicker,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -35,6 +36,23 @@ interface InitiateOffboardingDialogProps {
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Parses a "yyyy-MM-dd" string into a local Date (undefined when empty/invalid). */
+function isoToDate(iso: string): Date | undefined {
+  if (!iso) return undefined;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  return new Date(y, m - 1, d);
+}
+
+/** Formats a Date back to the "yyyy-MM-dd" string the offboarding API expects. */
+function dateToIso(date?: Date): string {
+  if (!date) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /**
@@ -188,24 +206,24 @@ export function InitiateOffboardingDialog({
             />
           </FormField>
 
-          <FormField label="Tender date" htmlFor="off-tender">
-            <Input
-              id="off-tender"
-              type="date"
-              value={tenderDate}
-              onChange={(e) => setTenderDate(e.target.value)}
-            />
-          </FormField>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Tender date" htmlFor="off-tender">
+              <DatePicker
+                value={isoToDate(tenderDate)}
+                onChange={(d) => setTenderDate(dateToIso(d))}
+                placeholder="Pick a date"
+              />
+            </FormField>
 
-          <FormField label="Effective date" htmlFor="off-effective" required error={errors.effective}>
-            <Input
-              id="off-effective"
-              type="date"
-              min={tenderDate || todayIso()}
-              value={effectiveDate}
-              onChange={(e) => setEffectiveDate(e.target.value)}
-            />
-          </FormField>
+            <FormField label="Effective date" htmlFor="off-effective" required error={errors.effective}>
+              <DatePicker
+                value={isoToDate(effectiveDate)}
+                onChange={(d) => setEffectiveDate(dateToIso(d))}
+                placeholder="Pick a date"
+                minDate={isoToDate(tenderDate)}
+              />
+            </FormField>
+          </div>
 
           <FormField label="Clearance version" required error={clearanceError}>
             <Select

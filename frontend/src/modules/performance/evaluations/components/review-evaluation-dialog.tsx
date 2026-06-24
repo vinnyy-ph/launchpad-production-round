@@ -17,7 +17,8 @@ import {
 } from "@/shared/ui";
 import { StatusBadge } from "@/shared/ui/patterns";
 import type { Evaluation } from "../types/evaluations.types";
-import { downloadSupportingDoc } from "../services/evaluations.service";
+import { downloadSupportingDoc, getSupportingDocUrl } from "../services/evaluations.service";
+import { DocumentViewerModal } from "./document-viewer-modal";
 
 // Sentence case (Jia), not the Title Case shared map.
 const GRADE_LABELS: Record<number, string> = {
@@ -111,8 +112,14 @@ export interface ReviewEvaluationDialogProps {
   open: boolean;
   evaluation: Evaluation | null;
   onClose: () => void;
-  onAcknowledge: (evaluationId: string) => void;
+  /** Acknowledge handler. Omitted (or with `readOnly`) for viewers who aren't the reviewee. */
+  onAcknowledge?: (evaluationId: string) => void;
   acknowledging?: boolean;
+  /**
+   * Read-only view for someone who isn't the reviewee (HR, an upward supervisor): hides the
+   * Acknowledge action and uses neutral, third-person status copy.
+   */
+  readOnly?: boolean;
 }
 
 export function ReviewEvaluationDialog({
@@ -121,14 +128,26 @@ export function ReviewEvaluationDialog({
   onClose,
   onAcknowledge,
   acknowledging,
+  readOnly = false,
 }: ReviewEvaluationDialogProps) {
   const [justAcked, setJustAcked] = useState(false);
+  const [viewer, setViewer] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     if (open) setJustAcked(false);
   }, [open, ev?.id]);
 
   if (!ev) return null;
+
+  /** Fetch the signed URL for a document, then preview it in the modal. */
+  async function previewDoc(docIndex: number, name: string): Promise<void> {
+    try {
+      const url = await getSupportingDocUrl(ev!.id, docIndex);
+      setViewer({ url, name });
+    } catch {
+      toast.error("Couldn't open the document. Please try again.");
+    }
+  }
 
   const ack = ev.acknowledgement;
   const isAcknowledged = (!!ack?.acknowledgedAt && !ack.isDeemedAck) || justAcked;
@@ -147,7 +166,9 @@ export function ReviewEvaluationDialog({
       : `Acknowledged on ${fmtDate(ack?.acknowledgedAt)}.`
     : isAutoAck
       ? `Auto-acknowledged on ${fmtDate(ev.ackDeadline)}.`
-      : `Confirm you've read this evaluation by ${fmtDate(ev.ackDeadline)}.`;
+      : readOnly
+        ? `Awaiting acknowledgement — due ${fmtDate(ev.ackDeadline)}.`
+        : `Confirm you've read this evaluation by ${fmtDate(ev.ackDeadline)}.`;
 
   const revieweeName = ev.reviewee?.fullName ?? "you";
 
@@ -306,7 +327,7 @@ export function ReviewEvaluationDialog({
                     <div className="flex flex-none items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => openDoc(ev.id, index)}
+                        onClick={() => previewDoc(index, extractFilename(publicId))}
                         aria-label={`Preview ${extractFilename(publicId)}`}
                         className="flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border-secondary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
@@ -328,8 +349,9 @@ export function ReviewEvaluationDialog({
           )}
         </div>
 
-        {/* Footer — Acknowledge action (pending only). Acknowledged / auto-acknowledged close via the X. */}
-        {isPending && (
+        {/* Footer — Acknowledge action (pending only). Acknowledged / auto-acknowledged close via the X.
+            Hidden for read-only viewers (HR / upward supervisors) who can't acknowledge. */}
+        {isPending && !readOnly && (
           <div className="flex flex-none items-center justify-end gap-3 border-t border-[color:var(--border-primary)] px-8 py-[18px]">
             <Button variant="secondary" type="button" onClick={onClose}>
               Close
@@ -337,7 +359,7 @@ export function ReviewEvaluationDialog({
             <Button
               type="button"
               onClick={() => {
-                onAcknowledge(ev.id);
+                onAcknowledge?.(ev.id);
                 setJustAcked(true);
               }}
               disabled={acknowledging}
@@ -348,6 +370,12 @@ export function ReviewEvaluationDialog({
           </div>
         )}
       </DialogContent>
+      <DocumentViewerModal
+        open={!!viewer}
+        onClose={() => setViewer(null)}
+        fileUrl={viewer?.url ?? null}
+        documentName={viewer?.name}
+      />
     </Dialog>
   );
 }

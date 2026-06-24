@@ -8,20 +8,16 @@ import { StatusBadge } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
 import {
   fileAcceptAttribute,
+  formatOnboardingFileSize,
   MAX_ONBOARDING_FILE_SIZE_BYTES,
   parseAllowedFileTypes,
+  validateOnboardingFile,
 } from "../../constants/allowed-file-types";
 import type { OnboardingDocStatus } from "../../types/onboarding.types";
 
 function fileExtension(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  const mb = bytes / (1024 * 1024);
-  return `${Number.isInteger(mb) ? mb : mb.toFixed(1)} MB`;
 }
 
 export function DocumentUploadRow({
@@ -70,17 +66,13 @@ export function DocumentUploadRow({
     return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
 
-  function handleFileChange(file: File | undefined) {
+  async function handleFileChange(file: File | undefined) {
     if (!file) return;
 
-    if (file.size > MAX_ONBOARDING_FILE_SIZE_BYTES) {
-      toast.error(`File is too large. Maximum size is ${formatFileSize(MAX_ONBOARDING_FILE_SIZE_BYTES)}.`);
-      return;
-    }
-
-    const ext = fileExtension(file.name);
-    if (!allowed.includes(ext as (typeof allowed)[number])) {
-      toast.error(`This file type is not allowed. Use: ${allowed.join(", ")}`);
+    const validationError = await validateOnboardingFile(file, allowed);
+    if (validationError) {
+      toast.error(validationError);
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
 
@@ -141,7 +133,7 @@ export function DocumentUploadRow({
           type="file"
           accept={accept}
           className="sr-only"
-          onChange={(event) => handleFileChange(event.target.files?.[0])}
+          onChange={(event) => void handleFileChange(event.target.files?.[0])}
         />
       ) : null}
 
@@ -171,7 +163,7 @@ export function DocumentUploadRow({
               {selectedFile.name}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[color:var(--text-tertiary)]">
-              <span>{formatFileSize(selectedFile.size)}</span>
+              <span>{formatOnboardingFileSize(selectedFile.size)}</span>
               <span aria-hidden="true">-</span>
               <span className="flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success-600)]" />
@@ -235,7 +227,7 @@ export function DocumentUploadRow({
             onDrop={(event) => {
               event.preventDefault();
               setDragActive(false);
-              handleFileChange(event.dataTransfer.files?.[0]);
+              void handleFileChange(event.dataTransfer.files?.[0]);
             }}
           >
             <span className="flex items-center justify-center gap-2 text-sm text-[color:var(--text-tertiary)]">
@@ -251,7 +243,7 @@ export function DocumentUploadRow({
           </button>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-[color:var(--text-tertiary)]">
             <span>Files Supported: {allowed.map((type) => type.toUpperCase()).join(", ")}</span>
-            <span>Max size: {formatFileSize(MAX_ONBOARDING_FILE_SIZE_BYTES)}</span>
+            <span>Max size: {formatOnboardingFileSize(MAX_ONBOARDING_FILE_SIZE_BYTES)}</span>
           </div>
         </div>
       ) : null}

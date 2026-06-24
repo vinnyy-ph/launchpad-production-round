@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList } from "lucide-react";
-import { Input } from "@/shared/ui/primitives/input";
 import { Progress } from "@/shared/ui/primitives/progress";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import {
@@ -17,6 +16,7 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  SearchInput,
   StatCard,
   StatusBadge,
   type Column,
@@ -86,7 +86,7 @@ function deriveStuckAt(row: {
   if (row.invitationStatus === "pending") return "Awaiting invite acceptance";
   if (row.documentsApproved < row.documentsRequired) return "Documents pending";
   if (row.customFieldsFilled < row.customFieldsRequired) return "Profile fields pending";
-  return "Ready for HR review";
+  return "Onboarded";
 }
 
 /**
@@ -155,7 +155,7 @@ export function OnboardingCasesTable() {
     (row) => row.invitationStatus === "expired" || row.invitationStatus === "failed_delivery",
   ).length;
   const inProgress = rows.filter((row) => row.invitationStatus === "accepted").length;
-  const readyForReview = rows.filter((row) => row.stuckAt === "Ready for HR review").length;
+  const onboarded = rows.filter((row) => row.stuckAt === "Onboarded").length;
 
   const columns: Column<CaseRow>[] = [
     {
@@ -227,17 +227,16 @@ export function OnboardingCasesTable() {
         <StatCard label="Pending invites" value={pendingInvites} loading={loading} variant="warn" />
         <StatCard label="Invite issues" value={inviteIssues} loading={loading} variant={inviteIssues > 0 ? "alert" : "default"} />
         <StatCard label="In progress" value={inProgress} loading={loading} variant="brand" />
-        <StatCard label="Ready for review" value={readyForReview} loading={loading} />
+        <StatCard label="Onboarded" value={onboarded} loading={loading} />
       </div>
 
       <FilterBar aria-label="Filter onboarding cases">
-        <Input
-          type="text"
+        <SearchInput
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onValueChange={setSearch}
           placeholder="Search by name or email…"
           aria-label="Search onboarding cases"
-          className="sm:max-w-[320px]"
+          containerClassName="sm:max-w-[320px]"
         />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="sm:w-[200px]" aria-label="Filter by invite status">

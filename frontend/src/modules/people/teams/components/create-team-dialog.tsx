@@ -21,8 +21,13 @@ import {
   FormField,
   Input,
 } from "@/shared/ui";
+import { ApiError } from "@/shared/lib/api-client";
+import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import { useCreateTeam } from "../hooks/use-create-team";
 import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
+
+const TEAM_NAME_INVALID_MESSAGE =
+  "Please enter a valid team name using letters, numbers, spaces, and common punctuation only.";
 
 interface CreateTeamDialogProps {
   open: boolean;
@@ -77,14 +82,22 @@ export function CreateTeamDialog({
     });
   }
 
+  function validateTeamName(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) return "Team name is required.";
+    const textError = validatePeopleText(trimmed, "Team name", PEOPLE_TEXT_LIMITS.TEAM_NAME);
+    if (textError) return TEAM_NAME_INVALID_MESSAGE;
+    if (existingNames.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
+      return "A team with this name already exists.";
+    }
+    return null;
+  }
+
   async function handleSubmit() {
     const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Team name is required.");
-      return;
-    }
-    if (existingNames.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
-      setError("A team with this name already exists.");
+    const nameError = validateTeamName(name);
+    if (nameError) {
+      setError(nameError);
       return;
     }
     if (!leaderId) {
@@ -102,6 +115,13 @@ export function CreateTeamDialog({
       onOpenChange(false);
       onCreated();
     } catch (err) {
+      if (err instanceof ApiError) {
+        const fieldMessage =
+          err.fieldErrors.find((fieldError) => fieldError.field === "team")?.message ??
+          err.fieldErrors[0]?.message;
+        setError(fieldMessage ?? err.message);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Could not create the team.");
     }
   }
@@ -122,11 +142,13 @@ export function CreateTeamDialog({
               id="team-name"
               value={name}
               onChange={(e) => {
-                setName(e.target.value);
-                setError(null);
+                const nextName = e.target.value;
+                setName(nextName);
+                setError(validateTeamName(nextName));
               }}
               placeholder="e.g. Customer success"
               autoFocus
+              maxLength={PEOPLE_TEXT_LIMITS.TEAM_NAME}
             />
           </FormField>
 

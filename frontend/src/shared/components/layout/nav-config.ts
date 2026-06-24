@@ -95,6 +95,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: "people", label: "People", icon: Users01, href: "/hr/directory" },
       { id: "orgchart", label: "Structure", icon: Dataflow03, href: "/hr/teams" },
       { id: "surveys", label: "Surveys", icon: MessageSquare01, href: "/hr/surveys" },
+      { id: "hr-evaluations", label: "Evaluations", icon: ClipboardCheck, href: "/hr/evaluations" },
       { id: "configurations", label: "Configurations", icon: Settings01, href: "/hr/configurations" },
     ],
   },
@@ -120,6 +121,10 @@ export const SCREEN_HEADERS: Record<string, { title: string; subtitle: string }>
   people: { title: "People", subtitle: "The {workspaceName} employee directory." },
   orgchart: { title: "Structure", subtitle: "Reporting lines and team structure." },
   surveys: { title: "Surveys", subtitle: "Engagement and pulse surveys." },
+  "hr-evaluations": {
+    title: "Evaluations",
+    subtitle: "Every sent performance evaluation across {workspaceName}.",
+  },
   configurations: {
     title: "Configurations",
     subtitle: "Organization-wide setup for {workspaceName}.",

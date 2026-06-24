@@ -3,11 +3,13 @@ import { HTTP_STATUS_CODES, API_ERROR_MESSAGES } from "../../../../core/globals"
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { ResultsService } from "./results.service";
 import { ShareService } from "./share.service";
+import { NoteSuggestionsService } from "./note-suggestions.service";
 
 export class ResultsController {
   constructor(
     private readonly service = new ResultsService(),
     private readonly shareService = new ShareService(),
+    private readonly noteSuggestionsService = new NoteSuggestionsService(),
   ) {}
 
   getSurveyResults = async (
@@ -107,9 +109,14 @@ export class ResultsController {
       }
 
       const { id } = req.params;
-      const body = (req.body ?? {}) as { teamId?: unknown; occurrenceId?: unknown };
+      const body = (req.body ?? {}) as {
+        teamId?: unknown;
+        occurrenceId?: unknown;
+        message?: unknown;
+      };
       const teamId = body.teamId ? String(body.teamId) : null;
       const occurrenceId = body.occurrenceId ? String(body.occurrenceId) : null;
+      const message = typeof body.message === "string" ? body.message : "";
 
       if (!teamId) {
         res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
@@ -125,7 +132,56 @@ export class ResultsController {
         occurrenceId,
         teamId,
         req.user.id,
+        message,
       );
+
+      res.status(HTTP_STATUS_CODES.OK).json(result);
+    } catch (error) {
+      this.handleError(error, res, next);
+    }
+  };
+
+  /**
+   * POST /:id/results/note-suggestions — HR-only. Returns 3 AI-drafted note options for the
+   * small-team supervisor, built from the team's AGGREGATE results (never raw responses). Same
+   * context gates as the share (anonymous + small team + resolvable supervisor), enforced in
+   * NoteSuggestionsService. 503 AI_UNAVAILABLE if the model call fails.
+   */
+  suggestNotes = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(HTTP_STATUS_CODES.UNAUTHORIZED).json({
+          success: false,
+          message: API_ERROR_MESSAGES.UNAUTHORIZED,
+        });
+        return;
+      }
+
+      const { id } = req.params;
+      const body = (req.body ?? {}) as { teamId?: unknown; occurrenceId?: unknown };
+      const teamId = body.teamId ? String(body.teamId) : null;
+      const occurrenceId = body.occurrenceId ? String(body.occurrenceId) : null;
+
+      if (!teamId) {
+        res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: "teamId is required",
+          errorCode: "TEAM_ID_REQUIRED",
+        });
+        return;
+      }
+
+      const result = await this.noteSuggestionsService.suggest({
+        surveyId: id,
+        occurrenceIdParam: occurrenceId,
+        teamId,
+        userId: req.user.id,
+        role: req.user.role,
+      });
 
       res.status(HTTP_STATUS_CODES.OK).json(result);
     } catch (error) {
@@ -238,6 +294,28 @@ export class ResultsController {
           success: false,
           message: SURVEY_ERROR_MESSAGES.SHARE_ACTOR_NOT_EMPLOYEE,
           errorCode: "SHARE_ACTOR_NOT_EMPLOYEE",
+        });
+        return;
+      }
+      if (
+        error.message === SURVEY_ERROR_MESSAGES.SHARE_MESSAGE_REQUIRED ||
+        error.message === SURVEY_ERROR_MESSAGES.SHARE_MESSAGE_TOO_LONG
+      ) {
+        res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: error.message,
+          errorCode:
+            error.message === SURVEY_ERROR_MESSAGES.SHARE_MESSAGE_REQUIRED
+              ? "SHARE_MESSAGE_REQUIRED"
+              : "SHARE_MESSAGE_TOO_LONG",
+        });
+        return;
+      }
+      if (error.message === SURVEY_ERROR_MESSAGES.AI_UNAVAILABLE) {
+        res.status(HTTP_STATUS_CODES.SERVICE_UNAVAILABLE).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.AI_UNAVAILABLE,
+          errorCode: "AI_UNAVAILABLE",
         });
         return;
       }

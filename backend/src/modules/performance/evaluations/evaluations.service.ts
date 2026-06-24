@@ -150,7 +150,7 @@ export class EvaluationsService {
         evaluation.revieweeId,
         evaluation.id,
       );
-      await this.sendEvaluationEmail(evaluation.revieweeId);
+      await this.sendEvaluationEmail(evaluation.revieweeId, evaluation.id);
     }
 
     return {
@@ -229,7 +229,7 @@ export class EvaluationsService {
         updated.revieweeId,
         evaluationId,
       );
-      await this.sendEvaluationEmail(updated.revieweeId);
+      await this.sendEvaluationEmail(updated.revieweeId, evaluationId);
     }
 
     return {
@@ -278,7 +278,7 @@ export class EvaluationsService {
       evaluation.revieweeId,
       evaluationId,
     );
-    await this.sendEvaluationEmail(evaluation.revieweeId);
+    await this.sendEvaluationEmail(evaluation.revieweeId, evaluationId);
 
     return {
       success: true,
@@ -292,7 +292,7 @@ export class EvaluationsService {
    * link to their Performance page. Mirrors `notifyNewEvaluation`: fire-and-forget, so
    * sending the evaluation is never blocked by an email delivery failure.
    */
-  private async sendEvaluationEmail(revieweeId: string): Promise<void> {
+  private async sendEvaluationEmail(revieweeId: string, evaluationId: string): Promise<void> {
     try {
       const reviewee = await prisma.employee.findUnique({
         where: { id: revieweeId },
@@ -303,9 +303,9 @@ export class EvaluationsService {
         return;
       }
 
-      // Evaluations open in a modal rather than a dedicated page, and share a tab with
-      // surveys, so link to the same employee surveys page.
-      const evaluationUrl = `${this.resolveAppUrl()}/employee/surveys`;
+      // Deep-link to the exact evaluation on the shared surveys page, matching the
+      // in-app notification link (`?tab=acknowledgements&eval=<evaluationId>`).
+      const evaluationUrl = `${this.resolveAppUrl()}/employee/surveys?tab=acknowledgements&eval=${evaluationId}`;
 
       await this.emailService.sendEmail({
         to: reviewee.companyEmail,

@@ -9,6 +9,8 @@ import type {
   UpdateEmployeeProfileParamsDto,
   UpdateEmployeeProfileRequestDto,
 } from "./dto";
+import { assertSafeText } from "../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../people-text-limits";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -84,10 +86,10 @@ export class EmployeesValidation {
   parseSelfUpdateProfileBody(body: Record<string, unknown>): UpdateEmployeeProfileRequestDto {
     const update: Record<string, unknown> = {};
 
-    this.assignOptionalString(update, "firstName", body.firstName);
-    this.assignOptionalString(update, "lastName", body.lastName);
-    this.assignOptionalNullableString(update, "middleName", body.middleName);
-    this.assignOptionalNullableString(update, "personalEmail", body.personalEmail);
+    this.assignOptionalString(update, "firstName", body.firstName, PEOPLE_TEXT_LIMITS.NAME);
+    this.assignOptionalString(update, "lastName", body.lastName, PEOPLE_TEXT_LIMITS.NAME);
+    this.assignOptionalNullableString(update, "middleName", body.middleName, PEOPLE_TEXT_LIMITS.NAME);
+    this.assignOptionalNullableString(update, "personalEmail", body.personalEmail, PEOPLE_TEXT_LIMITS.EMAIL);
     this.assignOptionalNullableDate(update, "birthday", body.birthday);
     this.assignOptionalNullableAddress(update, "address", body.address);
     this.assignOptionalNullableEmergencyContact(update, "emergencyContact", body.emergencyContact);
@@ -106,16 +108,16 @@ export class EmployeesValidation {
   parseUpdateProfileBody(body: Record<string, unknown>): UpdateEmployeeProfileRequestDto {
     const update: Record<string, unknown> = {};
 
-    this.assignOptionalString(update, "companyEmail", body.companyEmail);
-    this.assignOptionalString(update, "firstName", body.firstName);
-    this.assignOptionalString(update, "lastName", body.lastName);
-    this.assignOptionalNullableString(update, "middleName", body.middleName);
-    this.assignOptionalNullableString(update, "personalEmail", body.personalEmail);
+    this.assignOptionalString(update, "companyEmail", body.companyEmail, PEOPLE_TEXT_LIMITS.EMAIL);
+    this.assignOptionalString(update, "firstName", body.firstName, PEOPLE_TEXT_LIMITS.NAME);
+    this.assignOptionalString(update, "lastName", body.lastName, PEOPLE_TEXT_LIMITS.NAME);
+    this.assignOptionalNullableString(update, "middleName", body.middleName, PEOPLE_TEXT_LIMITS.NAME);
+    this.assignOptionalNullableString(update, "personalEmail", body.personalEmail, PEOPLE_TEXT_LIMITS.EMAIL);
     this.assignOptionalNullableDate(update, "birthday", body.birthday);
     this.assignOptionalNullableAddress(update, "address", body.address);
     this.assignOptionalNullableEmergencyContact(update, "emergencyContact", body.emergencyContact);
-    this.assignOptionalNullableString(update, "jobTitle", body.jobTitle);
-    this.assignOptionalNullableString(update, "department", body.department);
+    this.assignOptionalNullableString(update, "jobTitle", body.jobTitle, PEOPLE_TEXT_LIMITS.JOB_TITLE);
+    this.assignOptionalNullableString(update, "department", body.department, PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME);
     this.assignOptionalNullableString(update, "supervisorId", body.supervisorId);
 
     if (body.status !== undefined) {
@@ -238,6 +240,7 @@ export class EmployeesValidation {
     target: T,
     key: keyof T,
     value: unknown,
+    maxLen?: number,
   ) {
     if (value === undefined) {
       return;
@@ -249,6 +252,10 @@ export class EmployeesValidation {
       throw new Error("Invalid employee profile update");
     }
 
+    if (maxLen !== undefined) {
+      assertSafeText(parsed, String(key), maxLen);
+    }
+
     target[key] = parsed as T[keyof T];
   }
 
@@ -257,6 +264,7 @@ export class EmployeesValidation {
     target: T,
     key: keyof T,
     value: unknown,
+    maxLen?: number,
   ) {
     if (value === undefined) {
       return;
@@ -268,6 +276,9 @@ export class EmployeesValidation {
     }
 
     const parsed = this.parseOptionalString(value);
+    if (parsed && maxLen !== undefined) {
+      assertSafeText(parsed, String(key), maxLen);
+    }
     target[key] = (parsed ?? null) as T[keyof T];
   }
 
@@ -316,10 +327,10 @@ export class EmployeesValidation {
 
     const source = this.parseObject(value);
     const parsed: Record<string, unknown> = {};
-    this.assignOptionalNullableString(parsed, "address", source.address);
-    this.assignOptionalNullableString(parsed, "city", source.city);
-    this.assignOptionalNullableString(parsed, "province", source.province);
-    this.assignOptionalNullableString(parsed, "country", source.country);
+    this.assignOptionalNullableString(parsed, "address", source.address, PEOPLE_TEXT_LIMITS.ADDRESS_LINE);
+    this.assignOptionalNullableString(parsed, "city", source.city, PEOPLE_TEXT_LIMITS.LOCATION);
+    this.assignOptionalNullableString(parsed, "province", source.province, PEOPLE_TEXT_LIMITS.LOCATION);
+    this.assignOptionalNullableString(parsed, "country", source.country, PEOPLE_TEXT_LIMITS.LOCATION);
 
     if (Object.keys(parsed).length === 0) {
       throw new Error("Invalid employee profile update");
@@ -349,11 +360,13 @@ export class EmployeesValidation {
       parsed,
       "emergencyContactName",
       source.emergencyContactName,
+      PEOPLE_TEXT_LIMITS.NAME,
     );
     this.assignOptionalNullableString(
       parsed,
       "emergencyContactNumber",
       source.emergencyContactNumber,
+      PEOPLE_TEXT_LIMITS.PHONE_DISPLAY,
     );
 
     if (Object.keys(parsed).length === 0) {

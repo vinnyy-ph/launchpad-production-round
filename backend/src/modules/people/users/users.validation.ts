@@ -1,6 +1,8 @@
 import { Role } from "@prisma/client";
 import type { AddUserRequestDto, GetUserParamsDto, ListUsersQueryDto, UpdateRoleRequestDto } from "./dto";
 import { ADD_USER_ALLOWED_ROLES, UPDATE_ROLE_ALLOWED_ROLES, USER_FIELDS, USER_SORT_FIELDS, USER_SORT_ORDERS } from "./users.constants";
+import { assertSafeText } from "../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../people-text-limits";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -22,6 +24,9 @@ export class UsersValidation {
     if (!EMAIL_PATTERN.test(normalizedEmail)) {
       throw new Error(`Invalid ${USER_FIELDS.EMAIL}`);
     }
+    assertSafeText(normalizedEmail, USER_FIELDS.EMAIL, PEOPLE_TEXT_LIMITS.EMAIL);
+    assertSafeText(firstName, USER_FIELDS.FIRST_NAME, PEOPLE_TEXT_LIMITS.NAME);
+    assertSafeText(lastName, USER_FIELDS.LAST_NAME, PEOPLE_TEXT_LIMITS.NAME);
 
     return {
       email: normalizedEmail,

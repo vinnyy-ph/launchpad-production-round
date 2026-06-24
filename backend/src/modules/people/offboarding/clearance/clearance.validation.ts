@@ -2,6 +2,8 @@ import type {
   RejectClearanceRequestDto,
   SignClearanceRequestDto,
 } from "./dto";
+import { assertSafeText } from "../../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 
 /**
  * Parses and validates clearance request bodies and route params.
@@ -51,6 +53,9 @@ export class ClearanceValidation {
     }
 
     const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      assertSafeText(trimmed, "note", PEOPLE_TEXT_LIMITS.NOTE);
+    }
     return trimmed.length === 0 ? undefined : trimmed;
   }
 }

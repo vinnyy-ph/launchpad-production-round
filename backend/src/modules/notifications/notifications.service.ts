@@ -573,6 +573,7 @@ export class NotificationsService {
     surveyId: string,
     occurrenceId: string,
     teamId: string,
+    message: string,
   ): Promise<void> {
     try {
       const supervisor =
@@ -582,14 +583,17 @@ export class NotificationsService {
         return;
       }
 
-      // Carries the team + round so the supervisor lands on the exact granted breakdown.
+      // Carries the team + round so the supervisor lands on the exact note HR shared.
       const linkUrl = `/surveys/${surveyId}/results?teamId=${teamId}&occurrenceId=${occurrenceId}`;
+
+      // In-app body previews HR's note (the full note is on the page + in the email).
+      const preview = message.length > 180 ? `${message.slice(0, 180).trimEnd()}…` : message;
 
       const notification = await this.notificationsRepository.create({
         recipientId: supervisor.id,
         type: "PULSE_RESULTS_SHARED",
         subject: "Pulse results shared with you",
-        body: `HR shared the results of "${surveyName}" for your team ${teamName}. Because this is a small team, please treat the responses sensitively.`,
+        body: `HR shared a note about your team ${teamName}'s "${surveyName}" results: "${preview}"`,
         linkUrl,
         sourceType: "PulseSurvey",
         sourceId: surveyId,
@@ -608,6 +612,7 @@ export class NotificationsService {
           lastName: supervisor.lastName,
           surveyName,
           teamName,
+          message,
           resultsUrl: `${this.resolveAppUrl()}${linkUrl}`,
         }),
       });
@@ -672,7 +677,7 @@ export class NotificationsService {
           firstName: recipient.firstName,
           lastName: recipient.lastName,
           surveyName,
-          surveyUrl: `${this.resolveAppUrl()}/employee/surveys`,
+          surveyUrl: `${this.resolveAppUrl()}/employee/surveys?tab=survey&pulse=${occurrenceId}`,
         }),
       });
     } catch {
@@ -732,7 +737,7 @@ export class NotificationsService {
         html: buildEvaluationReminderEmailHtml({
           firstName: recipient.firstName,
           lastName: recipient.lastName,
-          evaluationUrl: `${this.resolveAppUrl()}/employee/surveys`,
+          evaluationUrl: `${this.resolveAppUrl()}/employee/surveys?tab=acknowledgements&eval=${evaluationId}`,
         }),
       });
     } catch {

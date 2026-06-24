@@ -7,6 +7,8 @@ import {
   ALLOWED_FILE_EXTENSIONS,
   DOCUMENT_FIELDS,
 } from "./documents.constants";
+import { assertSafeText } from "../../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 
 /**
  * Validates and normalizes incoming required-documents API payloads.
@@ -19,8 +21,13 @@ export class DocumentsValidation {
     const documentName = this.parseRequiredString(
       body.documentName,
       DOCUMENT_FIELDS.DOCUMENT_NAME,
+      PEOPLE_TEXT_LIMITS.DOCUMENT_NAME,
     );
-    const instructions = this.parseOptionalString(body.instructions);
+    const instructions = this.parseOptionalString(
+      body.instructions,
+      DOCUMENT_FIELDS.INSTRUCTIONS,
+      PEOPLE_TEXT_LIMITS.DOCUMENT_INSTRUCTIONS,
+    );
     const allowedFileTypes = this.parseAllowedFileTypes(body.allowedFileTypes);
     const isRequired = this.parseOptionalBoolean(body.isRequired) ?? true;
 
@@ -77,15 +84,19 @@ export class DocumentsValidation {
     return [...new Set(extensions)].join(",");
   }
 
-  private parseRequiredString(value: unknown, fieldName: string): string {
+  private parseRequiredString(value: unknown, fieldName: string, maxLen?: number): string {
     if (typeof value !== "string" || value.trim().length === 0) {
       throw new Error(`${fieldName} is required`);
     }
 
-    return value.trim();
+    const parsed = value.trim();
+    if (maxLen !== undefined) {
+      assertSafeText(parsed, fieldName, maxLen);
+    }
+    return parsed;
   }
 
-  private parseOptionalString(value: unknown): string | undefined {
+  private parseOptionalString(value: unknown, fieldName: string, maxLen: number): string | undefined {
     if (value === undefined || value === null) {
       return undefined;
     }
@@ -95,6 +106,9 @@ export class DocumentsValidation {
     }
 
     const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      assertSafeText(trimmed, fieldName, maxLen);
+    }
 
     return trimmed.length > 0 ? trimmed : undefined;
   }

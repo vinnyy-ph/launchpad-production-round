@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { Input } from "@/shared/ui/primitives/input";
 import {
   Select,
   SelectContent,
@@ -11,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/primitives/select";
-import { DataTable, EmptyState, FilterBar, StatusBadge, type Column } from "@/shared/ui/patterns";
+import { DataTable, EmptyState, FilterBar, SearchInput, StatusBadge, type Column } from "@/shared/ui/patterns";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { useDebounce } from "@/shared/hooks/use-debounce";
 import { matchesSearchTerms } from "@/shared/lib/search";
@@ -132,13 +131,12 @@ export function OffboardingCasesTable() {
   return (
     <>
       <FilterBar aria-label="Filter offboarding cases">
-        <Input
-          type="text"
+        <SearchInput
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onValueChange={setSearch}
           placeholder="Search by name…"
           aria-label="Search employees"
-          className="sm:max-w-[320px]"
+          containerClassName="sm:max-w-[320px]"
         />
         <Select
           value={statusFilter}
