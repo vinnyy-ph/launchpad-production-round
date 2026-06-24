@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import {
   AlertCircle,
   RefreshCw,
-  Bell,
   Users,
   ClipboardCheck,
   CheckCircle2,
@@ -17,9 +16,6 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
-import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
-import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
-import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { useAssignedClearances, AssignedClearancesSection } from "@/modules/people/offboarding";
 import { KpiCard } from "@/shared/ui/patterns";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
@@ -33,7 +29,6 @@ import {
   buildDashboardAttention,
   dashboardPrimaryAction,
   buildGlanceCards,
-  groupNotifications,
   type DashAttentionItem,
 } from "./home.logic";
 
@@ -48,9 +43,6 @@ const GLANCE_ICONS: Record<string, LucideIcon> = {
 export default function HomePage() {
   const { appUser } = useAuth();
   const { stats, loading: statsLoading, error: statsError, reload: loadStats } = useDashboard();
-
-  const { notifications, loading: notifLoading, error: notifError, reload: reloadNotifs } = useNotifications(5);
-  const { markRead } = useMarkRead(() => void reloadNotifs());
 
   // Clearances the signed-in user must sign — surfaced only when something is pending.
   const { clearances: assignedClearances } = useAssignedClearances(Boolean(appUser?.employeeId));
@@ -172,59 +164,6 @@ export default function HomePage() {
         teams={myTeams}
         loading={statsLoading || teamsLoading}
       />
-
-      {/* Recent notifications */}
-      <section>
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          Recent notifications
-        </h2>
-        <div
-          className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        >
-          {notifLoading ? (
-            <div>
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="flex gap-3 px-4 py-3 border-b border-[color:var(--border-primary)] last:border-0">
-                  <div className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-3/4 rounded bg-[color:var(--bg-tertiary)]" />
-                    <div className="h-2.5 w-1/2 rounded bg-[color:var(--bg-tertiary)]" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : notifError ? (
-            <div className="flex items-center gap-3 p-4">
-              <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-              <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{notifError}</span>
-              <button
-                onClick={() => void reloadNotifs()}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-              >
-                <RefreshCw size={12} /> Retry
-              </button>
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10">
-              <Bell size={20} className="text-[color:var(--text-quaternary)]" />
-              <p className="text-sm text-[color:var(--text-tertiary)]">No notifications yet</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[color:var(--border-primary)]">
-              {groupNotifications(notifications).map((g) => (
-                <NotificationItem
-                  key={g.notification.id}
-                  notification={g.notification}
-                  groupCount={g.count}
-                  onRead={markRead}
-                  tone="reminder"
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
     </div>
   );
 }

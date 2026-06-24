@@ -4,11 +4,9 @@ import {
   buildDashboardAttention,
   dashboardPrimaryAction,
   buildGlanceCards,
-  groupNotifications,
 } from "@/screens/home.logic";
 import type { DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
 import type { AppUser } from "@/modules/auth/types/auth.types";
-import type { Notification } from "@/modules/notifications/types/notifications.types";
 
 function stats(over: Partial<DashboardStats> = {}): DashboardStats {
   return { ...over };
@@ -96,54 +94,6 @@ describe("buildGlanceCards", () => {
   it("omits actionable items (no surveys/acks/pending cards)", () => {
     const cards = buildGlanceCards({ role: "HR", isSupervisor: true, employeeStatus: "ACTIVE", stats: stats({ unreadSurveys: 9, pendingEvaluations: 9, pendingOnboarding: 9, directReports: 1, activeEmployees: 1 }) });
     expect(cards.map((c) => c.id).sort()).toEqual(["active-employees", "direct-reports"]);
-  });
-});
-
-describe("groupNotifications", () => {
-  function notif(over: Partial<Notification> = {}): Notification {
-    return {
-      id: "n1",
-      type: "PULSE_REMINDER",
-      subject: "Weekly Pulse survey",
-      body: "Answer the Weekly Team Pulse",
-      linkUrl: "/surveys/1",
-      isRead: false,
-      createdAt: "2026-06-24T08:00:00.000Z",
-      ...over,
-    };
-  }
-
-  it("collapses same subject+body into one row, keeping the most recent and a count", () => {
-    const rows = groupNotifications([
-      notif({ id: "a", createdAt: "2026-06-24T10:00:00.000Z" }),
-      notif({ id: "b", createdAt: "2026-06-24T08:00:00.000Z" }),
-    ]);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].count).toBe(2);
-    expect(rows[0].notification.id).toBe("a"); // newest kept
-  });
-
-  it("keeps distinct notifications separate with count 1", () => {
-    const rows = groupNotifications([
-      notif({ id: "a", subject: "Weekly Pulse survey" }),
-      notif({ id: "b", subject: "Evaluation ready", body: "Acknowledge your review" }),
-    ]);
-    expect(rows.map((r) => r.notification.id)).toEqual(["a", "b"]);
-    expect(rows.every((r) => r.count === 1)).toBe(true);
-  });
-
-  it("preserves first-appearance order of a newest-first feed", () => {
-    const rows = groupNotifications([
-      notif({ id: "a", subject: "A" }),
-      notif({ id: "b", subject: "B" }),
-      notif({ id: "c", subject: "A" }),
-    ]);
-    expect(rows.map((r) => r.notification.subject)).toEqual(["A", "B"]);
-    expect(rows[0].count).toBe(2);
-  });
-
-  it("returns an empty list for no notifications", () => {
-    expect(groupNotifications([])).toEqual([]);
   });
 });
 

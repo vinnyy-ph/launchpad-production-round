@@ -2,28 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { parseISO, isToday, isYesterday, format, differenceInMinutes } from "date-fns";
-import { cn } from "@/shared/lib/utils";
 import type { Notification } from "../types/notifications.types";
-
-/** Compact relative time: "Just now", "5m ago", "3h ago", "Yesterday", else "Jun 18". */
-function relativeTime(iso: string): string {
-  const d = parseISO(iso);
-  const mins = differenceInMinutes(new Date(), d);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  if (isToday(d)) return `${Math.round(mins / 60)}h ago`;
-  if (isYesterday(d)) return "Yesterday";
-  return format(d, "MMM d");
-}
 
 interface Props {
   notification: Notification;
   onRead: (id: string) => void;
-  /** When >1, the row stands in for this many identical notifications (e.g. repeated reminders). */
-  groupCount?: number;
-  /** "reminder" gives unread rows a warning-amber treatment so they read as a nudge, not a log. */
-  tone?: "default" | "reminder";
 }
 
 // The backend stamps `linkUrl`s that don't match the client routes (e.g.
@@ -79,9 +62,8 @@ function resolveRoute(n: Notification): string | null {
   }
 }
 
-export function NotificationItem({ notification, onRead, groupCount, tone = "default" }: Props) {
+export function NotificationItem({ notification, onRead }: Props) {
   const router = useRouter();
-  const isReminder = tone === "reminder" && !notification.isRead;
 
   const handleClick = () => {
     if (!notification.isRead) onRead(notification.id);
@@ -89,43 +71,27 @@ export function NotificationItem({ notification, onRead, groupCount, tone = "def
     if (route) router.push(route);
   };
 
-  const subject =
-    groupCount && groupCount > 1 ? `${notification.subject} — ${groupCount} reminders` : notification.subject;
-
   return (
     <button
       onClick={handleClick}
-      className={cn(
-        "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors",
-        isReminder
-          ? "bg-[color:var(--color-warning-50)] hover:brightness-[0.97]"
-          : "hover:bg-[color:var(--bg-secondary)]",
-      )}
+      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[color:var(--bg-secondary)]"
     >
       <span
         className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full"
         style={{
-          background: isReminder
-            ? "var(--color-warning-600)"
-            : notification.isRead
-              ? "var(--border-secondary)"
-              : "var(--gray-neutral-900)",
+          background: notification.isRead
+            ? "var(--border-secondary)"
+            : "var(--gray-neutral-900)",
         }}
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
-          {subject}
+          {notification.subject}
         </p>
         <p className="truncate text-xs text-[color:var(--text-tertiary)]">
           {notification.body}
         </p>
       </div>
-      <time
-        dateTime={notification.createdAt}
-        className="mt-px flex-shrink-0 whitespace-nowrap text-[11px] text-[color:var(--text-quaternary)]"
-      >
-        {relativeTime(notification.createdAt)}
-      </time>
       <ChevronRight size={16} className="mt-0.5 flex-shrink-0 text-[color:var(--text-quaternary)]" />
     </button>
   );
