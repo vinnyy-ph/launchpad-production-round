@@ -5,13 +5,11 @@ import {
   BriefcaseBusiness,
   Check,
   Eye,
-  ExternalLink,
   FileText,
   History,
   LogOut,
   MapPin,
   Phone,
-  Mail,
   Send,
   UserRound,
   Users,
@@ -28,7 +26,7 @@ import {
 } from "@/shared/ui/primitives/dialog";
 import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { Input } from "@/shared/ui/primitives/input";
-import { PhoneInput, Skeleton } from "@/shared/ui";
+import { PhoneInput } from "@/shared/ui";
 import {
   Select,
   SelectContent,
@@ -141,11 +139,14 @@ const PROFILE_LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
 const PROFILE_JOB_TITLE_RE = /^[A-Za-z0-9\s.,'’/&()-]+$/;
 const PROFILE_STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'’/&()-]+$/;
 
-const PROFILE_FIELD_MESSAGES: Partial<Record<keyof EditDraft, string>> = {
+const PROFILE_FIELD_MESSAGES: Partial<Record<keyof EditDraft | "firstNameRequired" | "lastNameRequired" | "companyEmailRequired", string>> = {
+  firstNameRequired: "First name is required.",
   firstName: "Please enter a valid first name using letters only.",
   middleName: "Please enter a valid middle name using letters only.",
+  lastNameRequired: "Last name is required.",
   lastName: "Please enter a valid last name using letters only.",
   personalEmail: "Please enter a valid personal email address.",
+  companyEmailRequired: "Company email is required.",
   companyEmail: "Please enter a valid company email address (e.g., name@company.com).",
   address:
     "Please enter a valid street address using letters, numbers, and standard address characters only.",
@@ -160,8 +161,8 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
   const trimmed = value.trim();
 
   if (field === "firstName") {
-    return !trimmed ||
-      !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
+    if (!trimmed) return PROFILE_FIELD_MESSAGES.firstNameRequired;
+    return !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
       validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.firstName
       : undefined;
@@ -176,8 +177,8 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
   }
 
   if (field === "lastName") {
-    return !trimmed ||
-      !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
+    if (!trimmed) return PROFILE_FIELD_MESSAGES.lastNameRequired;
+    return !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
       validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.lastName
       : undefined;
@@ -192,6 +193,7 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
   }
 
   if (field === "companyEmail") {
+    if (!trimmed) return PROFILE_FIELD_MESSAGES.companyEmailRequired;
     return !PROFILE_EMAIL_RE.test(trimmed) ||
       validatePeopleText(trimmed, "Company email", PEOPLE_TEXT_LIMITS.EMAIL)
       ? PROFILE_FIELD_MESSAGES.companyEmail
@@ -393,14 +395,6 @@ function isImageUrl(url: string): boolean {
   return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(url.split("?")[0]);
 }
 
-function isPdfUrl(url: string): boolean {
-  try {
-    return decodeURIComponent(new URL(url).pathname).toLowerCase().includes(".pdf");
-  } catch {
-    return decodeURIComponent(url.split("?")[0]).toLowerCase().includes(".pdf");
-  }
-}
-
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
   return (
     <section className="pb-9">
@@ -571,7 +565,6 @@ export function EmployeeDetailsModal({
   const [contactNumberError, setContactNumberError] = useState<string | null>(null);
   const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
-  const [documentImageFailed, setDocumentImageFailed] = useState(false);
   const unsavedToastIdRef = useRef<string | number | null>(null);
   // Scroll container + the section currently in view, so the sidebar can highlight the active tab.
   const scrollContainerRef = useRef<HTMLElement>(null);
@@ -656,10 +649,6 @@ export function EmployeeDetailsModal({
     // `open` is a dependency so the observer re-attaches to the freshly mounted section nodes
     // each time the modal reopens (the dialog content unmounts while closed).
   }, [profile, loading, error, open]);
-  useEffect(() => {
-    setDocumentImageFailed(false);
-  }, [viewingDocument?.fileUrl]);
-
   function scrollToSection(section: EmployeeDetailsSection) {
     sectionRefs.current[section]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }

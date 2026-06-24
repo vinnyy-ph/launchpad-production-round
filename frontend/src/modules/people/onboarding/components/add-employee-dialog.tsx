@@ -571,9 +571,11 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   value={department}
                   onValueChange={(value) => {
                     setDepartment(value);
+                    setFieldError("department", value ? undefined : "Select a department.");
                     // The current supervisor may no longer belong to the new department —
                     // clear it so the user re-picks from the scoped list.
                     setSupervisorId("");
+                    setFieldError("supervisorId", "Select a supervisor.");
                   }}
                 >
                   <SelectTrigger aria-label="Select department">
@@ -595,7 +597,10 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   <Combobox
                     options={supervisorOptions}
                     value={supervisorId}
-                    onChange={(value) => setSupervisorId(value || "")}
+                    onChange={(value) => {
+                      setSupervisorId(value || "");
+                      setFieldError("supervisorId", value ? undefined : "Select a supervisor.");
+                    }}
                     placeholder="Select a supervisor…"
                     searchPlaceholder="Search employees…"
                     emptyText={`No active employees in ${department}.`}
