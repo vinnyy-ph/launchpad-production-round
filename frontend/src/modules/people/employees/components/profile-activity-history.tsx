@@ -1,4 +1,10 @@
+import { useState } from "react";
+import { format, isToday, isYesterday } from "date-fns";
+import { Button } from "@/shared/ui/primitives/button";
 import type { ActivityLogEntry } from "../services/employees.service";
+
+/** Number of most recent entries shown before the user expands the full history. */
+const DEFAULT_VISIBLE_COUNT = 5;
 
 /** Human-readable labels for the audited profile fields (keyed by the stored field name). */
 const FIELD_LABELS: Record<string, string> = {
@@ -24,15 +30,16 @@ function formatFieldName(fieldName: string): string {
   return FIELD_LABELS[fieldName] ?? fieldName;
 }
 
+/**
+ * Formats a change timestamp relative to today, e.g. "Today at 11:43 AM",
+ * "Yesterday at 11:43 AM", or "Jun 24, 2026 at 11:43 AM" for older entries.
+ */
 function formatActivityDate(timestamp: string): string {
   const date = new Date(timestamp);
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const time = format(date, "h:mm a");
+  if (isToday(date)) return `Today at ${time}`;
+  if (isYesterday(date)) return `Yesterday at ${time}`;
+  return `${format(date, "MMM d, yyyy")} at ${time}`;
 }
 
 interface ProfileActivityHistoryProps {
@@ -45,9 +52,25 @@ interface ProfileActivityHistoryProps {
  * the employee's own "My profile" page so both render an identical activity history.
  */
 export function ProfileActivityHistory({ logs, loading }: ProfileActivityHistoryProps) {
+  const [showAll, setShowAll] = useState(false);
+  const visibleLogs = showAll ? logs : logs.slice(0, DEFAULT_VISIBLE_COUNT);
+
   return (
     <div className="space-y-4">
-      <p className="text-xs font-bold text-[color:var(--text-tertiary)]">Profile Field Changes</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-[color:var(--text-tertiary)]">Profile Field Changes</p>
+        {logs.length > DEFAULT_VISIBLE_COUNT ? (
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto p-0 text-xs font-semibold"
+            onClick={() => setShowAll((current) => !current)}
+          >
+            {showAll ? "View less" : "View all"}
+          </Button>
+        ) : null}
+      </div>
       {loading ? (
         <div className="space-y-6 pl-5">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -63,14 +86,14 @@ export function ProfileActivityHistory({ logs, loading }: ProfileActivityHistory
         </div>
       ) : (
         <div>
-          {logs.map((log, index) => (
+          {visibleLogs.map((log, index) => (
             <div key={log.id} className="relative flex gap-4">
               <div className="flex flex-col items-center">
                 <span
                   className="z-10 mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
                 />
-                {index < logs.length - 1 && (
+                {index < visibleLogs.length - 1 && (
                   <div
                     className="mt-1 w-0.5 flex-1"
                     style={{ background: "linear-gradient(180deg, var(--brand-pink), var(--brand-peach))" }}
@@ -78,8 +101,12 @@ export function ProfileActivityHistory({ logs, loading }: ProfileActivityHistory
                 )}
               </div>
               <div className="pb-6 min-w-0">
-                <p className="text-sm font-bold text-[color:var(--text-primary)]">
-                  {formatFieldName(log.fieldName)} changed
+                <p className="text-sm text-[color:var(--text-primary)]">
+                  <span className="font-bold">{log.editorName}</span> changed the{" "}
+                  {formatFieldName(log.fieldName)}{" "}
+                  <span className="text-[color:var(--text-tertiary)]">
+                    • {formatActivityDate(log.timestamp)}
+                  </span>
                 </p>
                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[color:var(--text-secondary)]">
                   <span className="max-w-[160px] truncate">{log.oldValue ?? "—"}</span>
@@ -88,12 +115,6 @@ export function ProfileActivityHistory({ logs, loading }: ProfileActivityHistory
                     {log.newValue ?? "—"}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
-                  {formatActivityDate(log.timestamp)}
-                </p>
-                <p className="mt-0.5 text-xs text-[color:var(--text-tertiary)]">
-                  Updated by {log.editorName}
-                </p>
               </div>
             </div>
           ))}
