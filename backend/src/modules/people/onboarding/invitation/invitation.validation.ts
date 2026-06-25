@@ -4,6 +4,8 @@ import type {
   SendInvitationParamsDto,
   UpdateInvitationEmailRequestDto,
 } from "./dto";
+import { assertSafeText } from "../../../../core/validation/text-input";
+import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -67,6 +69,8 @@ export class InvitationValidation {
     if (!EMAIL_PATTERN.test(email)) {
       throw new Error("Invalid email");
     }
+
+    assertSafeText(email, field, PEOPLE_TEXT_LIMITS.EMAIL);
 
     return email;
   }

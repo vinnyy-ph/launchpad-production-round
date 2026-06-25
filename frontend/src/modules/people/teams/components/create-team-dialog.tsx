@@ -23,7 +23,11 @@ import {
   UserAvatar,
 } from "@/shared/ui";
 import { ApiError } from "@/shared/lib/api-client";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleFieldText,
+  mapPeopleFieldTextError,
+} from "@/modules/people/people-text";
 import { useCreateTeam } from "../hooks/use-create-team";
 import {
   EMPLOYEE_AVATAR_FALLBACK_STYLE,
@@ -107,8 +111,11 @@ export function CreateTeamDialog({
   function validateTeamName(value: string): string | null {
     const trimmed = value.trim();
     if (!trimmed) return "Team name is required.";
-    const textError = validatePeopleText(trimmed, "Team name", PEOPLE_TEXT_LIMITS.TEAM_NAME);
-    if (textError) return TEAM_NAME_INVALID_MESSAGE;
+    const textError = mapPeopleFieldTextError(
+      validatePeopleFieldText(trimmed, "Team name", PEOPLE_TEXT_LIMITS.TEAM_NAME),
+      TEAM_NAME_INVALID_MESSAGE,
+    );
+    if (textError) return textError;
     if (existingNames.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
       return "A team with this name already exists.";
     }
@@ -263,7 +270,7 @@ export function CreateTeamDialog({
           <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => void handleSubmit()} disabled={saving}>
+          <Button onClick={() => void handleSubmit()} disabled={saving} loading={saving}>
             {saving ? "Creating…" : "Create team"}
           </Button>
         </DialogFooter>

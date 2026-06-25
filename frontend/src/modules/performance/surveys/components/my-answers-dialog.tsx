@@ -149,19 +149,36 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
             </div>
           )}
 
-          {data && data.submitted && isAnonymous && (
+          {/* Anonymous + recoverable: anonymity protects your answers from OTHERS, not from
+              you — reassure, then show them. */}
+          {data && data.submitted && isAnonymous && data.answers.length > 0 && (
             <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] px-4 py-3 text-[14px] text-[color:var(--color-success-700)]">
               <ShieldCheck size={17} className="mt-0.5 flex-none" aria-hidden="true" />
               <span>
-                This pulse was anonymous. To protect anonymity, your answers aren&apos;t linked
-                to you — so they can&apos;t be shown back here. Others only ever see aggregates.
+                This pulse is anonymous. Only you can see your own responses here — others only
+                ever see aggregates, never who answered what.
+              </span>
+            </div>
+          )}
+
+          {/* Anonymous response submitted before private self-view existed — its author link
+              was never stored, so it is unrecoverable by design. */}
+          {data && data.submitted && isAnonymous && data.answers.length === 0 && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[14px] text-[color:var(--text-secondary)]">
+              <ShieldCheck
+                size={17}
+                className="mt-0.5 flex-none text-[color:var(--text-tertiary)]"
+                aria-hidden="true"
+              />
+              <span>
+                This anonymous response was submitted before private self-view was available, so
+                it can&apos;t be shown back here. Others only ever see aggregates.
               </span>
             </div>
           )}
 
           {data &&
             data.submitted &&
-            !isAnonymous &&
             data.answers.map((a) => (
               <div key={a.questionId}>
                 <p className="mb-1.5 text-sm font-semibold text-[color:var(--text-primary)]">

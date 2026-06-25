@@ -18,7 +18,7 @@ import {
 import { DatePicker } from "@/shared/ui/primitives/date-picker";
 import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
 import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import { PEOPLE_TEXT_LIMITS, getLatestAllowedEmployeeBirthday, validateEmployeeBirthday, validatePeopleText } from "@/modules/people/people-text";
 import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
 import { useUpdateMyProfile } from "../hooks/use-update-my-profile";
 import type { EmployeeProfile, MyProfileUpdateInput } from "../types/employees.types";
@@ -35,9 +35,11 @@ const PH_COUNTRY = "Philippines";
 const LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
 const STREET_ADDRESS_RE = /^[A-Za-z0-9\s.,#'’/&()-]+$/;
 
-const PROFILE_FIELD_MESSAGES: Partial<Record<keyof Draft | "contact", string>> = {
+const PROFILE_FIELD_MESSAGES: Record<string, string> = {
+  firstNameRequired: "First name is required.",
   firstName: "Please enter a valid first name using letters only.",
   middleName: "Please enter a valid middle name using letters only.",
+  lastNameRequired: "Last name is required.",
   lastName: "Please enter a valid last name using letters only.",
   personalEmail: "Please enter a valid personal email address.",
   address:
@@ -87,8 +89,8 @@ function validateProfileField(field: keyof Draft | "contact", value: string): st
   const trimmed = value.trim();
 
   if (field === "firstName") {
-    return !trimmed ||
-      !LETTERS_ONLY_RE.test(trimmed) ||
+    if (!trimmed) return PROFILE_FIELD_MESSAGES.firstNameRequired;
+    return !LETTERS_ONLY_RE.test(trimmed) ||
       validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.firstName
       : undefined;
@@ -103,8 +105,8 @@ function validateProfileField(field: keyof Draft | "contact", value: string): st
   }
 
   if (field === "lastName") {
-    return !trimmed ||
-      !LETTERS_ONLY_RE.test(trimmed) ||
+    if (!trimmed) return PROFILE_FIELD_MESSAGES.lastNameRequired;
+    return !LETTERS_ONLY_RE.test(trimmed) ||
       validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.lastName
       : undefined;
@@ -116,6 +118,10 @@ function validateProfileField(field: keyof Draft | "contact", value: string): st
         validatePeopleText(trimmed, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL))
       ? PROFILE_FIELD_MESSAGES.personalEmail
       : undefined;
+  }
+
+  if (field === "birthday") {
+    return validateEmployeeBirthday(trimmed);
   }
 
   if (field === "address") {
@@ -157,6 +163,7 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
   const { update, saving } = useUpdateMyProfile(profile.id);
   const [draft, setDraft] = useState<Draft>(() => draftFromProfile(profile));
   const [errors, setErrors] = useState<Partial<Record<keyof Draft | "contact", string>>>({});
+  const latestAllowedBirthday = useMemo(() => getLatestAllowedEmployeeBirthday(), []);
 
   // Re-seed the form each time it opens so a cancelled edit never leaks into the next open.
   useEffect(() => {
@@ -289,9 +296,10 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
                 maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
               />
             </FormField>
-            <FormField label="Date of birth">
+            <FormField label="Date of birth" error={errors.birthday}>
               <DatePicker
                 disableFuture
+                maxDate={latestAllowedBirthday}
                 value={draft.birthday ? new Date(`${draft.birthday}T00:00:00`) : undefined}
                 onChange={(next) => set("birthday", next ? format(next, "yyyy-MM-dd") : "")}
                 className="w-full"
@@ -364,7 +372,7 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
           <Button variant="secondary" onClick={() => guard.handleOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => void handleSave()} disabled={saving}>
+          <Button onClick={() => void handleSave()} disabled={saving} loading={saving}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
         </DialogFooter>

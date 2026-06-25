@@ -17,6 +17,11 @@ export interface DatePickerProps {
    * can jump back many years quickly.
    */
   disableFuture?: boolean;
+  /**
+   * Latest selectable date (e.g. today minus minimum employment age). When set with
+   * `disableFuture`, dates after this day are disabled in the calendar.
+   */
+  maxDate?: Date;
   /** When true, the calendar popover matches the trigger button's width. */
   matchTriggerWidth?: boolean;
   /** Disables (greys out, unselectable) all dates before this one in the calendar. */
@@ -39,16 +44,18 @@ export function DatePicker({
   placeholder = "Pick a date",
   disabled,
   disableFuture,
+  maxDate,
   matchTriggerWidth,
   minDate,
   className,
 }: DatePickerProps) {
   const today = startOfToday();
+  const birthdateUpperBound = maxDate ?? today;
 
   // Birthdate mode disables future days; otherwise an optional minDate disables earlier days.
   // The two are not combined in practice.
   const disabledDays = disableFuture
-    ? { after: today }
+    ? { after: birthdateUpperBound }
     : minDate
       ? { before: minDate }
       : undefined;
@@ -58,7 +65,7 @@ export function DatePicker({
   const startMonth = disableFuture
     ? BIRTHDATE_START
     : (minDate ?? new Date(today.getFullYear() - 10, 0, 1));
-  const endMonth = disableFuture ? today : new Date(today.getFullYear() + 10, 11, 31);
+  const endMonth = disableFuture ? birthdateUpperBound : new Date(today.getFullYear() + 10, 11, 31);
 
   return (
     <Popover>

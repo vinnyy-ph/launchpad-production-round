@@ -53,6 +53,16 @@ const employeeProfileInclude = {
       emergencyContactNumber: true,
     },
   },
+  onboardingRecord: {
+    include: {
+      template: {
+        include: {
+          customFields: { orderBy: { createdAt: "asc" } },
+        },
+      },
+      customFieldValues: true,
+    },
+  },
   directReports: {
     select: {
       id: true,

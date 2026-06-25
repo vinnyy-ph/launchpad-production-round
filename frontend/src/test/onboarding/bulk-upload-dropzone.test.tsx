@@ -49,6 +49,30 @@ jest.mock("@/modules/people/onboarding/hooks/use-bulk-upload", () => ({
   }),
 }));
 
+function xlsxTestFile(): File {
+  const bytes = new Uint8Array(128);
+  bytes[0] = 0x50;
+  bytes[1] = 0x4b;
+  bytes[2] = 0x03;
+  bytes[3] = 0x04;
+  const marker = "[Content_Types].xml";
+  for (let index = 0; index < marker.length; index += 1) {
+    bytes[30 + index] = marker.charCodeAt(index);
+  }
+
+  const file = new File([bytes], "bulk.xlsx", {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  Object.defineProperty(file, "arrayBuffer", {
+    value: jest.fn().mockResolvedValue(bytes.buffer),
+  });
+  Object.defineProperty(file, "slice", {
+    value: (_start?: number, _end?: number) => file,
+  });
+
+  return file;
+}
+
 function renderDropzone(preview: BulkOnboardingPreviewResult) {
   mutatePreview.mockImplementation((_rows, options) => {
     options.onSuccess(preview);
@@ -56,12 +80,7 @@ function renderDropzone(preview: BulkOnboardingPreviewResult) {
 
   render(<BulkUploadDropzone open onOpenChange={jest.fn()} />);
   const input = document.querySelector("input[type='file']") as HTMLInputElement;
-  const file = new File(["content"], "bulk.xlsx", {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  Object.defineProperty(file, "arrayBuffer", {
-    value: jest.fn().mockResolvedValue(new ArrayBuffer(8)),
-  });
+  const file = xlsxTestFile();
 
   fireEvent.change(input, { target: { files: [file] } });
 

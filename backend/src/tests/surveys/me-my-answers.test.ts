@@ -54,6 +54,7 @@ function makeRepo(over: Record<string, unknown> = {}) {
       { questionId: "q1", answerText: "Good", answerData: null },
       { questionId: "q2", answerText: null, answerData: 4 },
     ]),
+    findMyAnonymousAnswers: jest.fn().mockResolvedValue([]),
     ...over,
   } as unknown as MeRepository;
 }
@@ -77,9 +78,14 @@ describe("MeService.getMyAnswers", () => {
     expect(result.answers[1]).toMatchObject({ questionId: "q2", answerData: 4 });
     // identity comes from the session-resolved employee, never the caller
     expect((repo.findMyAnswers as jest.Mock)).toHaveBeenCalledWith("occ-1", "emp-1");
+    // a named survey uses the response.employeeId path, never the anonymous completion link
+    expect((repo.findMyAnonymousAnswers as jest.Mock)).not.toHaveBeenCalled();
   });
 
-  it("never returns content for an anonymous survey — returns the flag and no answers", async () => {
+  it("returns the caller's OWN answers for an anonymous survey via the self-scoped completion link", async () => {
+    // Anonymity protects answers from OTHERS, not from yourself. The response carries no
+    // employeeId (firewall), so self-view recovers the answers through the caller's own
+    // completion→response link — keyed by the session-resolved employee, never the request.
     const repo = makeRepo({
       findOccurrenceForMyAnswers: jest.fn().mockResolvedValue({
         surveyId: "s1",
@@ -88,6 +94,40 @@ describe("MeService.getMyAnswers", () => {
         isAnonymous: true,
         questions,
       }),
+      findMyAnonymousAnswers: jest.fn().mockResolvedValue([
+        { questionId: "q1", answerText: "Felt good", answerData: null },
+        { questionId: "q2", answerText: null, answerData: 3 },
+      ]),
+    });
+    const result = await new MeService(repo).getMyAnswers("user-1", "occ-1");
+
+    expect(result.isAnonymous).toBe(true);
+    expect(result.submitted).toBe(true);
+    expect(result.answers).toHaveLength(2);
+    expect(result.answers[0]).toMatchObject({
+      questionId: "q1",
+      questionText: "How are you?",
+      answerText: "Felt good",
+    });
+    expect(result.answers[1]).toMatchObject({ questionId: "q2", answerData: 3 });
+    // self-scoped recovery via the completion link, keyed by the session employee
+    expect((repo.findMyAnonymousAnswers as jest.Mock)).toHaveBeenCalledWith("occ-1", "emp-1");
+    // never the response.employeeId path — it is null for anonymous responses
+    expect((repo.findMyAnswers as jest.Mock)).not.toHaveBeenCalled();
+  });
+
+  it("anonymous survey with no recoverable link (legacy response) returns submitted with no answers", async () => {
+    // Responses submitted before the self-view link existed have no completion→response link
+    // and are unrecoverable by design — surface as a clean "submitted, nothing to show".
+    const repo = makeRepo({
+      findOccurrenceForMyAnswers: jest.fn().mockResolvedValue({
+        surveyId: "s1",
+        surveyName: "Anon Pulse",
+        occurrenceNumber: 1,
+        isAnonymous: true,
+        questions,
+      }),
+      findMyAnonymousAnswers: jest.fn().mockResolvedValue([]),
     });
     const result = await new MeService(repo).getMyAnswers("user-1", "occ-1");
 

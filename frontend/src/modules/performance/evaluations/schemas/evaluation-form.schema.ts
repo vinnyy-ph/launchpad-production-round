@@ -9,9 +9,9 @@ export const EVAL_TEXT_LIMITS = {
 } as const;
 
 /**
- * Validates the free-text fields of the evaluation editor. Required/structural
- * checks (reviewee, period, grade) stay in the form's own validate(); this
- * schema only covers length + content safety of the text fields.
+ * Zod mirror of backend length + XSS rules. The evaluation editor UI uses
+ * `validateEvaluationTextFields` in `lib/evaluation-form-text.ts` for profanity
+ * screening and user-friendly error copy.
  */
 export const evaluationTextSchema = z.object({
   evaluation: safeText("Overall summary", EVAL_TEXT_LIMITS.EVALUATION),

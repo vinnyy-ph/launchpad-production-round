@@ -12,8 +12,15 @@ import type {
   OffboardingListResponseDto,
   ReassignResponseDto,
 } from "./dto";
+import { validateOnboardingUploadFile } from "../onboarding/employee-onboarding/onboarding-file-validation";
 import { OffboardingService } from "./offboarding.service";
 import { OffboardingValidation } from "./offboarding.validation";
+
+/**
+ * Offboarding attachments accept the same file types as onboarding documents.
+ * Used to re-validate uploads (extension + MIME + magic bytes) beyond multer's MIME gate.
+ */
+const OFFBOARDING_ATTACHMENT_ALLOWED_TYPES = "pdf,jpg,jpeg,png";
 
 /**
  * HTTP controller for the offboarding lifecycle endpoints.
@@ -37,14 +44,20 @@ export class OffboardingController {
       const files = (req.files as Express.Multer.File[] | undefined) ?? [];
       if (files.length > 0) {
         body.attachments = await Promise.all(
-          files.map(async (file) => ({
-            url: await this.cloudinaryService.uploadOnboardingDocument(
-              file.buffer,
-              file.originalname,
-              file.mimetype,
-            ),
-            fileName: file.originalname,
-          })),
+          files.map(async (file) => {
+            // Re-validate beyond multer's coarse MIME gate: extension + declared MIME +
+            // magic bytes, mirroring the onboarding document upload's defense against
+            // spoofed file types. Throws "Invalid file type" → mapped to 400 by the router.
+            validateOnboardingUploadFile(file, OFFBOARDING_ATTACHMENT_ALLOWED_TYPES);
+            return {
+              url: await this.cloudinaryService.uploadOnboardingDocument(
+                file.buffer,
+                file.originalname,
+                file.mimetype,
+              ),
+              fileName: file.originalname,
+            };
+          }),
         );
       }
       const result = await this.offboardingService.initiateOffboarding(

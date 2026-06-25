@@ -4,18 +4,23 @@ import { SurveysController } from "./surveys.controller";
 import { ResultsController } from "./results/results.controller";
 import { InsightsController } from "./insights/insights.controller";
 import { RespondentsController } from "./respondents";
+import { AiQuestionsController } from "./ai-questions";
 
 const router = Router();
 const controller = new SurveysController();
 const resultsController = new ResultsController();
 const insightsController = new InsightsController();
 const respondentsController = new RespondentsController();
+const aiQuestionsController = new AiQuestionsController();
 
 /** GET /api/v1/pulse/surveys/audience/options — HR only. Supervisors + teams for the audience picker. */
 router.get("/audience/options", requireRole("HR"), controller.getAudienceOptions);
 
 /** POST /api/v1/pulse/surveys/audience/preview — HR only. Resolves who would receive a survey for a given audience spec (dry run). */
 router.post("/audience/preview", requireRole("HR"), controller.previewAudience);
+
+/** POST /api/v1/pulse/surveys/ai/questions — HR only. Generates draft questions from a goal + count. */
+router.post("/ai/questions", requireRole("HR"), aiQuestionsController.generateQuestions);
 
 /** GET /api/v1/pulse/surveys/occurrences/:occurrenceId/results — Returns aggregated results for an occurrence. */
 router.get("/occurrences/:occurrenceId/results", resultsController.getOccurrenceResults);

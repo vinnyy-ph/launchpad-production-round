@@ -108,10 +108,11 @@ export function DocumentViewerModal({
                     className="border-[color:var(--color-error-200)] text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]"
                     onClick={onReject}
                     disabled={rejectPending}
+                    loading={rejectPending}
                   >
                     Reject
                   </Button>
-                  <Button onClick={onApprove} disabled={approvePending}>
+                  <Button onClick={onApprove} disabled={approvePending} loading={approvePending}>
                     <CheckCircle2 aria-hidden="true" />
                     {approvePending ? "Approving…" : "Approve"}
                   </Button>

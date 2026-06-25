@@ -7,7 +7,11 @@ import { PageHeader } from "@/shared/components/layout/page-header";
 import { ApiError } from "@/shared/lib/api-client";
 import { cn } from "@/shared/lib/utils";
 import { useAuth } from "@/modules/auth";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleNameLanguage,
+  validatePeopleText,
+} from "@/modules/people/people-text";
 import {
   useUsers,
   useAddUser,
@@ -682,21 +686,31 @@ function InviteUserDialog({
     const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim();
 
-    if (
-      !trimmedFirstName ||
+    if (!trimmedFirstName) {
+      next.firstName = ADD_USER_FIELD_MESSAGES.firstName;
+    } else if (validatePeopleNameLanguage(trimmedFirstName)) {
+      next.firstName = validatePeopleNameLanguage(trimmedFirstName);
+    } else if (
       !LETTERS_ONLY_RE.test(trimmedFirstName) ||
       validatePeopleText(trimmedFirstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
     ) {
       next.firstName = ADD_USER_FIELD_MESSAGES.firstName;
     }
-    if (
-      !trimmedLastName ||
+    if (!trimmedLastName) {
+      next.lastName = ADD_USER_FIELD_MESSAGES.lastName;
+    } else if (validatePeopleNameLanguage(trimmedLastName)) {
+      next.lastName = validatePeopleNameLanguage(trimmedLastName);
+    } else if (
       !LETTERS_ONLY_RE.test(trimmedLastName) ||
       validatePeopleText(trimmedLastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
     ) {
       next.lastName = ADD_USER_FIELD_MESSAGES.lastName;
     }
-    if (
+    if (!trimmedEmail) {
+      next.email = ADD_USER_FIELD_MESSAGES.email;
+    } else if (validatePeopleNameLanguage(trimmedEmail)) {
+      next.email = validatePeopleNameLanguage(trimmedEmail);
+    } else if (
       !EMAIL_RE.test(trimmedEmail) ||
       validatePeopleText(trimmedEmail, "Email", PEOPLE_TEXT_LIMITS.EMAIL)
     ) {
@@ -710,22 +724,29 @@ function InviteUserDialog({
     const trimmed = value.trim();
 
     if (field === "firstName") {
-      return !trimmed ||
-        !LETTERS_ONLY_RE.test(trimmed) ||
+      if (!trimmed) return ADD_USER_FIELD_MESSAGES.firstName;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_USER_FIELD_MESSAGES.firstName
         : undefined;
     }
 
     if (field === "lastName") {
-      return !trimmed ||
-        !LETTERS_ONLY_RE.test(trimmed) ||
+      if (!trimmed) return ADD_USER_FIELD_MESSAGES.lastName;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_USER_FIELD_MESSAGES.lastName
         : undefined;
     }
 
     if (field === "email") {
+      if (!trimmed) return ADD_USER_FIELD_MESSAGES.email;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
       return !EMAIL_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Email", PEOPLE_TEXT_LIMITS.EMAIL)
         ? ADD_USER_FIELD_MESSAGES.email

@@ -236,6 +236,40 @@ export default function ProfilePage() {
       </PageSection>
 
       {/* Activity history — same timeline used in the HR employee details modal */}
+      {profile.customFields !== undefined && (
+        <PageSection title="Custom fields">
+          <div
+            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+            style={{ boxShadow: "var(--shadow-xs)" }}
+          >
+            {profile.customFields.length === 0 ? (
+              <FieldRow label="Answers" value="No custom fields defined." />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {profile.customFields.map((field) => {
+                  const answer = field.value?.trim();
+                  return (
+                    <FieldRow
+                      key={field.id}
+                      label={field.fieldLabel}
+                      value={
+                        answer ? (
+                          answer
+                        ) : (
+                          <span className="italic text-[color:var(--text-tertiary)]">
+                            {field.isRequired ? "Awaiting answer (required)" : "Not answered"}
+                          </span>
+                        )
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </PageSection>
+      )}
+
       <PageSection title="Activity history">
         <ProfileActivityHistory logs={activityLogs} loading={activityLoading} />
       </PageSection>

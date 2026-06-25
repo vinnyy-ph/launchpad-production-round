@@ -8,6 +8,8 @@ import { DocumentReviewsValidation } from "../../modules/people/onboarding/docum
 import { ClearanceValidation } from "../../modules/people/offboarding/clearance/clearance.validation";
 import { ClearanceTemplatesValidation } from "../../modules/people/offboarding/clearance-templates/clearance-templates.validation";
 
+const SIGNATURE_IMAGE = "data:image/png;base64,iVBORw0KGgo=";
+
 describe("people module text validation", () => {
   it("rejects HTML-like profile text while allowing benign comparison text", () => {
     const validation = new EmployeesValidation();
@@ -84,8 +86,14 @@ describe("people module text validation", () => {
     expect(() =>
       teams.parseCreateTeamBody({ name: "</div>", leaderId: "emp-1", memberIds: [] }),
     ).toThrow("name must not contain HTML or control characters");
-    expect(() => clearance.parseSignBody({ note: "<script>alert(1)</script>" })).toThrow(
-      "note must not contain HTML or control characters",
+    expect(() =>
+      clearance.parseSignBody({
+        signatureImage: SIGNATURE_IMAGE,
+        note: "<script>alert(1)</script>",
+      }),
+    ).toThrow("note must not contain HTML or control characters");
+    expect(() => clearance.parseSignBody({ signatureImage: "typed:Ana" })).toThrow(
+      "signatureImage must be a PNG data URL",
     );
     expect(() =>
       templates.parseCreateBody({

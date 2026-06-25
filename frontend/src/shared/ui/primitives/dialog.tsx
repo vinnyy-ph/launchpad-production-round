@@ -29,13 +29,15 @@ const DialogContent = React.forwardRef<
     closeDisabled?: boolean;
     /** Suppress the built-in top-right close button (e.g. when the content renders its own). */
     hideClose?: boolean;
+    /** Optional classes for the backdrop behind this dialog. */
+    overlayClassName?: string;
     /** Click handler for the dim backdrop — for close-on-backdrop while Radix's own
      *  outside-dismiss is blocked (so portaled popovers don't close the dialog). */
     onOverlayClick?: React.MouseEventHandler<HTMLDivElement>;
   }
->(({ className, children, closeDisabled, hideClose, onEscapeKeyDown, onOverlayClick, ...props }, ref) => (
+>(({ className, children, closeDisabled, hideClose, overlayClassName, onEscapeKeyDown, onOverlayClick, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay onClick={onOverlayClick} />
+    <DialogOverlay className={overlayClassName} onClick={onOverlayClick} />
     <DialogPrimitive.Content
       ref={ref}
       onEscapeKeyDown={(e) => {

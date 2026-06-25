@@ -2,14 +2,13 @@
 model SurveyAudienceConfig {
   id           String      @id @default(uuid())
   surveyId     String
-  survey       PulseSurvey @relation(fields: [surveyId], references: [id])
   supervisorId String?
-  supervisor   Employee?   @relation(fields: [supervisorId], references: [id])
   teamId       String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  supervisor   Employee?   @relation(fields: [supervisorId], references: [id])
+  survey       PulseSurvey @relation(fields: [surveyId], references: [id])
   team         Team?       @relation(fields: [teamId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@map("survey_audience_configs")
 }

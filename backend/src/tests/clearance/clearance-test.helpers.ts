@@ -8,6 +8,7 @@ export const HR_USER_ID = "hr-user-id";
 export const REQUEST_ID = "request-id";
 export const OFFBOARDING_ID = "offboarding-id";
 export const OFFBOARDEE_ID = "offboardee-employee-id";
+export const SIGNATURE_IMAGE = "data:image/png;base64,iVBORw0KGgo=";
 
 export function buildSignatoryUser() {
   return {
@@ -33,8 +34,16 @@ export function buildHrUser() {
   };
 }
 
-/** A signature request (with offboarding context) as the include returns it. */
+/**
+ * A signature request (with offboarding context) as the include returns it. Top-level
+ * fields are overridable via `overrides`; pass `overrides.offboarding` to override nested
+ * offboarding fields (e.g. `effectiveDate`) without restating the whole object.
+ */
 export function buildSignatureRequest(overrides: Record<string, unknown> = {}) {
+  const { offboarding: offboardingOverride, ...rest } = overrides as {
+    offboarding?: Record<string, unknown>;
+  };
+
   return {
     id: REQUEST_ID,
     offboardingId: OFFBOARDING_ID,
@@ -43,6 +52,7 @@ export function buildSignatureRequest(overrides: Record<string, unknown> = {}) {
     requirements: "Confirm handover.",
     status: "PENDING",
     note: null,
+    signatureImage: null,
     actionAt: null,
     offboarding: {
       id: OFFBOARDING_ID,
@@ -56,7 +66,8 @@ export function buildSignatureRequest(overrides: Record<string, unknown> = {}) {
         jobTitle: "Engineer",
         department: { name: "Engineering" },
       },
+      ...offboardingOverride,
     },
-    ...overrides,
+    ...rest,
   };
 }

@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { AlertCircle, ChevronDown, RotateCcw, LogOut, UserCog } from "lucide-react";
+import { AlertCircle, ChevronDown, Eye, FileText, RotateCcw, LogOut, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -36,7 +36,14 @@ import {
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
-import type { OffboardingDetail, SignatureRequest } from "@/modules/people/offboarding";
+import { DocumentViewerModal } from "@/modules/people/onboarding/components/documents/document-viewer-modal";
+import { buildClearancePdf } from "@/modules/people/offboarding/utils/clearance-pdf";
+import { ClearancePdfPreviewModal } from "@/modules/people/offboarding/components/clearance-pdf-preview-modal";
+import type {
+  OffboardingAttachment,
+  OffboardingDetail,
+  SignatureRequest,
+} from "@/modules/people/offboarding";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -132,6 +139,12 @@ function OffboardingDetailInner() {
   const { reset, resetting } = useResetClearance();
   const confirm = useConfirm();
   const [replaceTarget, setReplaceTarget] = useState<SignatureRequest | null>(null);
+  // The attachment currently shown in the document preview modal (null when closed).
+  const [previewAttachment, setPreviewAttachment] = useState<OffboardingAttachment | null>(null);
+  // The generated clearance-form PDF awaiting preview/download (null when the modal is closed).
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string } | null>(null);
+  // True while the clearance-form PDF is being generated (signature images are preloaded).
+  const [preparingPdf, setPreparingPdf] = useState(false);
 
   // Topbar breadcrumb: Organization › People › Offboarding › {employee}.
   usePageBreadcrumb(offboarding ? [fullName(offboarding.employee)] : []);
@@ -190,6 +203,37 @@ function OffboardingDetailInner() {
     }
   }
 
+  // Generates the PDF and opens it in the preview modal; the download happens from there.
+  async function handleOpenPdfPreview() {
+    if (!offboarding) return;
+    setPreparingPdf(true);
+    try {
+      const { blob, filename } = await buildClearancePdf(offboarding);
+      setPdfPreview({ url: URL.createObjectURL(blob), filename });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate the clearance form.");
+    } finally {
+      setPreparingPdf(false);
+    }
+  }
+
+  function closePdfPreview() {
+    setPdfPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  }
+
+  function downloadPreviewedPdf() {
+    if (!pdfPreview) return;
+    const link = document.createElement("a");
+    link.href = pdfPreview.url;
+    link.download = pdfPreview.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
   return (
     <div>
       {/* Header */}
@@ -205,16 +249,30 @@ function OffboardingDetailInner() {
             }}
           />
           <div>
-            <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
-              {employeeName}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
+                {employeeName}
+              </h1>
+              <StatusBadge status={offboarding.status} />
+            </div>
             <p className="text-sm text-[color:var(--text-tertiary)]">
               {employee.jobTitle ?? "—"}
               {employee.department ? ` · ${employee.department}` : ""}
             </p>
           </div>
         </div>
-        <StatusBadge status={offboarding.status} />
+        <div className="flex items-center gap-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void handleOpenPdfPreview()}
+            disabled={preparingPdf}
+            loading={preparingPdf}
+          >
+            <Eye className="h-4 w-4" />
+            {preparingPdf ? "Preparing…" : "View form"}
+          </Button>
+        </div>
       </div>
 
       {/* Meta card */}
@@ -257,6 +315,52 @@ function OffboardingDetailInner() {
           </div>
         </div>
       </div>
+
+      {/* Attachments section (only when HR uploaded supporting documents) */}
+      {offboarding.attachments.length > 0 && (
+        <div
+          className="mb-6 rounded-xl border border-[color:var(--border-primary)] bg-white"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <div className="px-5 py-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+              Attachments
+            </p>
+          </div>
+          <Separator />
+          <ul className="divide-y divide-[color:var(--border-primary)]">
+            {offboarding.attachments.map((attachment) => (
+              <li
+                key={attachment.id}
+                className="flex items-center justify-between gap-3 px-5 py-4"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <FileText
+                    className="h-5 w-5 flex-shrink-0 text-[color:var(--text-tertiary)]"
+                    strokeWidth={1.7}
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="truncate text-sm font-medium text-[color:var(--text-primary)]"
+                    title={attachment.fileName}
+                  >
+                    {attachment.fileName}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-shrink-0"
+                  onClick={() => setPreviewAttachment(attachment)}
+                >
+                  <Eye className="h-4 w-4" />
+                  View
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Clearances section */}
       <div
@@ -314,6 +418,7 @@ function OffboardingDetailInner() {
                         size="sm"
                         disabled={resetting}
                         onClick={() => void handleReset(req)}
+                        loading={resetting}
                       >
                         <RotateCcw className="h-4 w-4" />
                         Reset
@@ -336,6 +441,21 @@ function OffboardingDetailInner() {
         request={replaceTarget}
         offboardeeId={employee.id}
         onClose={() => setReplaceTarget(null)}
+      />
+
+      <DocumentViewerModal
+        open={previewAttachment !== null}
+        onClose={() => setPreviewAttachment(null)}
+        fileUrl={previewAttachment?.url ?? null}
+        documentName={previewAttachment?.fileName}
+      />
+
+      <ClearancePdfPreviewModal
+        open={pdfPreview !== null}
+        onClose={closePdfPreview}
+        fileUrl={pdfPreview?.url ?? null}
+        fileName={pdfPreview?.filename ?? "Clearance form"}
+        onDownload={downloadPreviewedPdf}
       />
     </div>
   );
@@ -414,7 +534,7 @@ function ReplaceSignatoryDialog({
           <Button variant="secondary" onClick={onClose} disabled={replacing}>
             Cancel
           </Button>
-          <Button onClick={() => void handleReplace()} disabled={!newSignatoryId || replacing}>
+          <Button onClick={() => void handleReplace()} disabled={!newSignatoryId || replacing} loading={replacing}>
             {replacing ? "Replacing…" : "Replace signatory"}
           </Button>
         </DialogFooter>
@@ -570,6 +690,7 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
           onClick={() => void handleReassign()}
           disabled={!newSupervisorId || reassigning}
           className="flex-shrink-0"
+          loading={reassigning}
         >
           {reassigning ? "Reassigning…" : "Reassign reports"}
         </Button>

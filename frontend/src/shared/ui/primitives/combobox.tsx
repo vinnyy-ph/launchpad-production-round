@@ -101,7 +101,8 @@ export function Combobox({
       </PopoverTrigger>
       <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          {/* Drop the global focus ring on the auto-focused search input when the popover opens. */}
+          <CommandInput placeholder={searchPlaceholder} className="focus-visible:shadow-none" />
           {/*
            * Stop wheel/touch from bubbling to the dialog's scroll lock (react-remove-scroll),
            * which otherwise swallows these events on the portaled popover and blocks scrolling

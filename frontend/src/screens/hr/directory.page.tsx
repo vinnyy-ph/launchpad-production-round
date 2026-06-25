@@ -40,7 +40,7 @@ import {
   AddEmployeeDialog,
   OnboardingCasesTable,
 } from "@/modules/people/onboarding";
-import { InitiateOffboardingDialog, OffboardingCasesTable } from "@/modules/people/offboarding";
+import { OffboardingCasesTable } from "@/modules/people/offboarding";
 import type {
   EmployeeListItem,
   EmployeeSortBy,
@@ -153,7 +153,6 @@ export default function DirectoryPage() {
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [initiateOpen, setInitiateOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null);
   const [sort, setSort] = useState<DataTableSort>({
     key: "employeeName",
@@ -332,30 +331,6 @@ export default function DirectoryPage() {
         level="page"
         title="People"
         subtitle="Everyone at DG Technologies, from new hires to active staff."
-        action={
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {tab === "all" ? (
-              <Button className="w-full sm:w-auto" onClick={() => setInitiateOpen(true)}>
-                <Plus /> Initiate offboarding
-              </Button>
-            ) : null}
-            {/* Adding a person always starts an onboarding case, so the action lives on that tab. */}
-            {tab === "onboarding" ? (
-              <>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => setBulkOpen(true)}
-                >
-                  <FileSpreadsheet aria-hidden="true" /> Bulk upload
-                </Button>
-                <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
-                  <Plus /> Onboard new employee
-                </Button>
-              </>
-            ) : null}
-          </div>
-        }
       />
 
       <PageTabs
@@ -365,6 +340,23 @@ export default function DirectoryPage() {
           router.replace(hrDirectoryHref(nextTab as DirectoryTab));
           setPage(1);
         }}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0"
+              onClick={() => setBulkOpen(true)}
+            >
+              <FileSpreadsheet aria-hidden="true" />
+              Bulk onboard
+            </Button>
+            <Button size="sm" className="h-9 shrink-0" onClick={() => setAddOpen(true)}>
+              <Plus aria-hidden="true" />
+              Onboard employee
+            </Button>
+          </>
+        }
         items={[
           { value: "all", label: "All", count: counts.all, icon: Users },
           { value: "onboarding", label: "Onboarding", count: counts.onboarding, icon: UserRoundPlus },
@@ -455,14 +447,6 @@ export default function DirectoryPage() {
       />
 
       {bulkOpen ? <BulkUploadDropzone open={bulkOpen} onOpenChange={setBulkOpen} /> : null}
-
-      {tab === "all" ? (
-        <InitiateOffboardingDialog
-          open={initiateOpen}
-          onOpenChange={setInitiateOpen}
-          onInitiated={(caseId) => router.push(`/hr/directory/offboarding/${caseId}`)}
-        />
-      ) : null}
 
       <EmployeeDetailsModal
         employeeId={selectedEmployee?.id ?? null}

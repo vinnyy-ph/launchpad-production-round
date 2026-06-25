@@ -110,6 +110,10 @@ export class BulkOnboardingValidation {
       return "birthday";
     }
 
+    if (error.message === "Employee must meet the minimum employment age.") {
+      return "birthday";
+    }
+
     if (error.message === "Invalid emergency contact phone number") {
       return "emergencyContact";
     }

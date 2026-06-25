@@ -68,6 +68,7 @@ export function CustomFieldBuilder({
                   className="border-[color:var(--color-error-200)] text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]"
                   onClick={() => onDelete(field)}
                   disabled={deletingId === field.id}
+                  loading={deletingId === field.id}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete
