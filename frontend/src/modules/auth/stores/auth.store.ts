@@ -62,6 +62,42 @@ async function readSessionError(res: Response): Promise<string> {
   return "We couldn't complete your sign-in. Please try again or contact your admin.";
 }
 
+async function syncAppUserFromFirebase(
+  firebaseUser: import("firebase/auth").User,
+): Promise<void> {
+  try {
+    const token = await firebaseUser.getIdToken();
+    const res = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) {
+      // Not invited / deactivated / token rejected — treat as signed-out.
+      const authError = await readSessionError(res);
+      const { signOut } = await import("firebase/auth");
+      const { getFirebaseAuth } = await import("@/shared/lib/firebase");
+      await signOut(getFirebaseAuth()).catch(() => undefined);
+      useAuthStore.setState({ appUser: null, loading: false, authError });
+      return;
+    }
+    const session = (await res.json()) as SessionResponse;
+    useAuthStore.setState({
+      appUser: toAppUser(session, firebaseUser.photoURL),
+      loading: false,
+      authError: null,
+    });
+  } catch {
+    useAuthStore.setState({
+      appUser: null,
+      loading: false,
+      authError: "We couldn't complete your sign-in. Please try again.",
+    });
+  }
+}
+
 /** Subscribe to Firebase auth state (called once by AuthProvider). On sign-in, exchange
  * the Firebase ID token for the real backend session; on sign-out, clear. */
 export function initAuthListener(): void {
@@ -72,42 +108,25 @@ export function initAuthListener(): void {
     try {
       const { onAuthStateChanged } = await import("firebase/auth");
       const { getFirebaseAuth } = await import("@/shared/lib/firebase");
-      onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
+      const auth = getFirebaseAuth();
+      let persistenceReady = false;
+
+      onAuthStateChanged(auth, (firebaseUser) => {
         if (!firebaseUser) {
+          // Firebase may emit null once before restoring a persisted session in a
+          // new tab — ignore that until authStateReady() confirms there is no user.
+          if (!persistenceReady) return;
           useAuthStore.setState({ appUser: null, loading: false });
           return;
         }
-        try {
-          const token = await firebaseUser.getIdToken();
-          const res = await fetch("/api/auth/session", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          if (!res.ok) {
-            // Not invited / deactivated / token rejected — treat as signed-out.
-            const authError = await readSessionError(res);
-            const { signOut } = await import("firebase/auth");
-            await signOut(getFirebaseAuth()).catch(() => undefined);
-            useAuthStore.setState({ appUser: null, loading: false, authError });
-            return;
-          }
-          const session = (await res.json()) as SessionResponse;
-          useAuthStore.setState({
-            appUser: toAppUser(session, firebaseUser.photoURL),
-            loading: false,
-            authError: null,
-          });
-        } catch {
-          useAuthStore.setState({
-            appUser: null,
-            loading: false,
-            authError: "We couldn't complete your sign-in. Please try again.",
-          });
-        }
+        void syncAppUserFromFirebase(firebaseUser);
       });
+
+      await auth.authStateReady();
+      persistenceReady = true;
+      if (!auth.currentUser) {
+        useAuthStore.setState({ appUser: null, loading: false });
+      }
     } catch {
       // Firebase failed to initialize (e.g. missing env) — drop to the login form.
       useAuthStore.setState({ appUser: null, loading: false });
