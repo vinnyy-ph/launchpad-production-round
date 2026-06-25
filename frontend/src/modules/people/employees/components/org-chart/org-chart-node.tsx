@@ -21,7 +21,6 @@ function Avatar({ name, src, size = 7 }: { name: string; src?: string | null; si
       fallback={initials(name)}
       className={`flex-shrink-0 ${dim}`}
       fallbackClassName={`${textSize} font-bold text-white`}
-      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
 }

@@ -263,7 +263,6 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
               fallback={initials}
               className="h-9 w-9"
               fallbackClassName="text-[12px] font-bold tracking-[0.01em] text-white"
-              fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
             />
             <span className="hidden min-w-0 text-left md:block">
               <span className="block max-w-[180px] truncate text-[14px] font-semibold leading-4 text-[color:var(--text-primary)]">

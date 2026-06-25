@@ -56,7 +56,6 @@ function SnapshotRow({ s }: { s: ReportSnapshotModel }) {
         fallback={initials(s.name)}
         className="h-9 w-9 flex-none"
         fallbackClassName="text-xs font-bold text-white"
-        fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{s.name}</p>

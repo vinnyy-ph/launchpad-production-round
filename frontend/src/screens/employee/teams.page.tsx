@@ -25,7 +25,6 @@ function Avatar({ name, src, className }: { name: string; src?: string | null; c
       fallback={initials(name)}
       className={cn("h-9 w-9", className)}
       fallbackClassName="text-[12px] font-bold text-white"
-      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
 }

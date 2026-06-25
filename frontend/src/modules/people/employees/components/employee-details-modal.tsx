@@ -570,7 +570,6 @@ function TeamPill({ team, className }: { team: EmployeeTeam; className: string }
         fallback={(team.name.trim()[0] ?? "?").toUpperCase()}
         className="h-7 w-7 shrink-0"
         fallbackClassName="text-sm font-bold text-white"
-        fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
       />
       <span className="truncate">{team.name}</span>
     </Link>
