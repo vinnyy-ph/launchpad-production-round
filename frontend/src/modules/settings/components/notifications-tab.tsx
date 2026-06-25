@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, Bell, Check, Lock, Mail, Smartphone } from "lucide-react";
+import { AlertCircle, Bell, Check, Mail } from "lucide-react";
 
 import { Button, Switch } from "@/shared/ui";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
@@ -92,7 +92,6 @@ function pickEditable(prefs: NotificationPreferences): NotificationPreferencesUp
 // ─── Toggle control ──────────────────────────────────────────────────────────────
 
 function ToggleControl({
-  icon,
   label,
   checked,
   disabled,
@@ -100,7 +99,6 @@ function ToggleControl({
   caption,
   onChange,
 }: {
-  icon: React.ReactNode;
   label: string;
   checked: boolean;
   disabled?: boolean;
@@ -110,11 +108,6 @@ function ToggleControl({
 }) {
   return (
     <div className="flex w-[112px] flex-col items-start gap-1">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-[color:var(--text-secondary)]">
-        {icon}
-        {label}
-        {locked && <Lock size={11} aria-hidden="true" className="text-[color:var(--text-tertiary)]" />}
-      </div>
       <Switch
         checked={checked}
         disabled={disabled || locked}
@@ -212,7 +205,7 @@ export function NotificationsTab() {
         </p>
 
         {/* Master: pause all email */}
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-5 py-4">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-4">
           <div className="flex items-start gap-3">
             <Mail size={18} className="mt-0.5 flex-shrink-0 text-[color:var(--text-secondary)]" aria-hidden="true" />
             <div>
@@ -263,7 +256,6 @@ export function NotificationsTab() {
                 </div>
                 <div className="flex gap-0">
                   <ToggleControl
-                    icon={<Smartphone size={13} aria-hidden="true" />}
                     label="In-app"
                     checked={draft[category.inAppField]}
                     locked={category.inAppLocked}
@@ -275,7 +267,6 @@ export function NotificationsTab() {
                     }
                   />
                   <ToggleControl
-                    icon={<Mail size={13} aria-hidden="true" />}
                     label="Email"
                     checked={!emailDisabled && draft[category.emailField]}
                     disabled={emailDisabled}
