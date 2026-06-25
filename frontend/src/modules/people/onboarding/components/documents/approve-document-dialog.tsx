@@ -44,7 +44,7 @@ export function ApproveDocumentDialog({
           <Button variant="secondary" onClick={onCancel} disabled={pending}>
             Cancel
           </Button>
-          <Button onClick={onSubmit} disabled={pending}>
+          <Button onClick={onSubmit} disabled={pending} loading={pending}>
             {pending ? "Approving…" : "Approve document"}
           </Button>
         </DialogFooter>

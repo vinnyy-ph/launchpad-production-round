@@ -270,7 +270,7 @@ export function CreateTeamDialog({
           <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => void handleSubmit()} disabled={saving}>
+          <Button onClick={() => void handleSubmit()} disabled={saving} loading={saving}>
             {saving ? "Creating…" : "Create team"}
           </Button>
         </DialogFooter>

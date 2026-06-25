@@ -87,7 +87,7 @@ export function RejectDocumentDialog({
           <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
-          <Button onClick={onSubmit} disabled={pending || Boolean(noteError)}>
+          <Button onClick={onSubmit} disabled={pending || Boolean(noteError)} loading={pending}>
             {pending ? "Rejecting…" : "Reject document"}
           </Button>
         </DialogFooter>

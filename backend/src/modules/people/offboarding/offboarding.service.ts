@@ -68,6 +68,7 @@ export function toOffboardingDetailDto(
       requirements: request.requirements,
       status: request.status,
       note: request.note,
+      signatureImage: request.signatureImage,
       actionAt: request.actionAt?.toISOString() ?? null,
     })),
   };

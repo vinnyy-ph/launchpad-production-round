@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileCheck, CheckCircle2, XCircle } from "lucide-react";
+import { FileCheck, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import {
@@ -12,16 +12,8 @@ import {
 import type { AssignedClearance, ClearanceAction } from "../types/offboarding.types";
 import { EmptyState, ErrorState, StatusBadge, PageSection } from "@/shared/ui/patterns";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  Textarea,
-} from "@/shared/ui";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import { Button } from "@/shared/ui";
+import { ClearanceReviewModal } from "./clearance-review-modal";
 
 function fullName(p: { firstName: string; lastName: string }): string {
   return `${p.firstName} ${p.lastName}`.trim();
@@ -36,8 +28,7 @@ function LoadingSkeleton() {
             <Skeleton className="h-3.5 w-40" />
             <Skeleton className="h-3 w-24" />
           </div>
-          <Skeleton className="h-8 w-16 rounded-lg" />
-          <Skeleton className="h-8 w-16 rounded-lg" />
+          <Skeleton className="h-8 w-20 rounded-lg" />
         </div>
       ))}
     </div>
@@ -45,9 +36,10 @@ function LoadingSkeleton() {
 }
 
 /**
- * Clearances awaiting the signed-in employee's signature: sign (with a confirmation step and
- * optional note) or reject (required note). Self-contained — owns its data fetch, the sign and
- * reject dialogs, and every state. Callers provide the surrounding heading.
+ * Clearances awaiting the signed-in employee's signature. Each pending row opens a review
+ * modal showing the offboardee's details and uploaded documents, from which the signatory
+ * signs (required signature + optional note) or rejects (required note). Self-contained —
+ * owns its data fetch, the review modal, and every state. Callers provide the surrounding heading.
  */
 export function AssignedClearancesSection() {
   const { appUser } = useAuth();
@@ -55,62 +47,38 @@ export function AssignedClearancesSection() {
   const { sign, signing } = useSignClearance();
   const { reject, rejecting } = useRejectClearance();
 
-  // Sign confirmation dialog state (optional note per the clearance spec).
-  const [signTarget, setSignTarget] = useState<AssignedClearance | null>(null);
-  const [signNote, setSignNote] = useState("");
-
-  // Reject dialog state (note required).
-  const [rejectTarget, setRejectTarget] = useState<AssignedClearance | null>(null);
-  const [rejectNote, setRejectNote] = useState("");
+  // The clearance currently open in the review modal (null when closed).
+  const [reviewTarget, setReviewTarget] = useState<AssignedClearance | null>(null);
 
   function surfaceCompletion(action: ClearanceAction) {
-    if (action.offboardingCompleted || action.employeeInactivated) {
+    if (action.employeeInactivated) {
       toast.success("Offboarding complete — employee deactivated.");
+    } else if (action.offboardingCompleted) {
+      // All signatures are in, but the employee stays active until the effective date.
+      toast.success("Clearance complete — employee deactivates on the effective date.");
     }
   }
 
-  function openSign(item: AssignedClearance) {
-    setSignTarget(item);
-    setSignNote("");
-  }
-
-  async function handleSignConfirm() {
-    if (!signTarget) return;
-    const item = signTarget;
-    const note = signNote.trim();
-    const noteError = note ? validatePeopleText(note, "Note", PEOPLE_TEXT_LIMITS.NOTE) : undefined;
-    if (noteError) {
-      toast.error(noteError);
-      return;
-    }
+  async function handleSign(signatureImage: string, note?: string) {
+    if (!reviewTarget) return;
+    const item = reviewTarget;
     try {
-      const action = await sign({ requestId: item.requestId, note: note || undefined });
+      const action = await sign({ requestId: item.requestId, signatureImage, note });
       toast.success(`${item.purpose} clearance signed for ${fullName(item.offboardee)}.`);
-      setSignTarget(null);
-      setSignNote("");
+      setReviewTarget(null);
       surfaceCompletion(action);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not sign clearance.");
     }
   }
 
-  function openReject(item: AssignedClearance) {
-    setRejectTarget(item);
-    setRejectNote("");
-  }
-
-  async function handleRejectConfirm() {
-    if (!rejectTarget || !rejectNote.trim()) return;
-    const noteError = validatePeopleText(rejectNote.trim(), "Rejection reason", PEOPLE_TEXT_LIMITS.NOTE);
-    if (noteError) {
-      toast.error(noteError);
-      return;
-    }
+  async function handleReject(note: string) {
+    if (!reviewTarget) return;
+    const item = reviewTarget;
     try {
-      await reject({ requestId: rejectTarget.requestId, note: rejectNote.trim() });
-      toast.success(`${rejectTarget.purpose} clearance rejected.`);
-      setRejectTarget(null);
-      setRejectNote("");
+      await reject({ requestId: item.requestId, note });
+      toast.success(`${item.purpose} clearance rejected.`);
+      setReviewTarget(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not reject clearance.");
     }
@@ -124,12 +92,6 @@ export function AssignedClearancesSection() {
 
   const pending = clearances.filter((i) => i.status === "PENDING");
   const resolved = clearances.filter((i) => i.status !== "PENDING");
-  const signNoteError = signNote.trim()
-    ? validatePeopleText(signNote.trim(), "Note", PEOPLE_TEXT_LIMITS.NOTE)
-    : undefined;
-  const rejectNoteError = rejectNote.trim()
-    ? validatePeopleText(rejectNote.trim(), "Rejection reason", PEOPLE_TEXT_LIMITS.NOTE)
-    : undefined;
 
   return (
     <div className="space-y-6">
@@ -157,13 +119,9 @@ export function AssignedClearancesSection() {
                         {item.requirements ?? "Department clearance"}
                       </p>
                     </div>
-                    <Button size="sm" disabled={signing} onClick={() => openSign(item)}>
-                      <CheckCircle2 size={14} className="mr-1" />
-                      Sign
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => openReject(item)}>
-                      <XCircle size={14} className="mr-1" />
-                      Reject
+                    <Button size="sm" onClick={() => setReviewTarget(item)}>
+                      <Eye size={14} className="mr-1" />
+                      Review
                     </Button>
                   </li>
                 ))}
@@ -200,78 +158,14 @@ export function AssignedClearancesSection() {
         </>
       )}
 
-      {/* Sign confirmation dialog — confirm before signing, with an optional short note. */}
-      <Dialog open={!!signTarget} onOpenChange={(open) => !open && setSignTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sign clearance</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-[color:var(--text-secondary)]">
-            You&apos;re about to sign the <strong>{signTarget?.purpose}</strong> clearance for{" "}
-            <strong>{signTarget ? fullName(signTarget.offboardee) : ""}</strong>. This confirms you
-            have completed the required checks.
-          </p>
-          <Textarea
-            placeholder="Add a note (optional)"
-            value={signNote}
-            onChange={(e) => setSignNote(e.target.value)}
-            rows={3}
-            className="mt-1"
-            maxLength={PEOPLE_TEXT_LIMITS.NOTE}
-          />
-          {signNoteError ? (
-            <p className="text-xs text-[color:var(--color-error-500)]">{signNoteError}</p>
-          ) : null}
-          <DialogFooter className="mt-2">
-            <Button variant="secondary" onClick={() => setSignTarget(null)} disabled={signing}>
-              Cancel
-            </Button>
-            <Button onClick={() => void handleSignConfirm()} disabled={signing || Boolean(signNoteError)}>
-              <CheckCircle2 size={14} className="mr-1" />
-              Confirm &amp; sign
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject dialog — a note is required. */}
-      <Dialog open={!!rejectTarget} onOpenChange={(open) => !open && setRejectTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject clearance</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-[color:var(--text-secondary)]">
-            Provide a reason for rejecting the{" "}
-            <strong>{rejectTarget?.purpose}</strong> clearance for{" "}
-            <strong>{rejectTarget ? fullName(rejectTarget.offboardee) : ""}</strong>.
-          </p>
-          <Textarea
-            placeholder="Rejection reason (required)"
-            value={rejectNote}
-            onChange={(e) => setRejectNote(e.target.value)}
-            rows={3}
-            className="mt-1"
-            maxLength={PEOPLE_TEXT_LIMITS.NOTE}
-          />
-          {rejectNote.trim() === "" && rejectTarget ? (
-            <p className="text-xs text-[color:var(--color-error-500)]">A reason is required to reject.</p>
-          ) : rejectNoteError ? (
-            <p className="text-xs text-[color:var(--color-error-500)]">{rejectNoteError}</p>
-          ) : null}
-          <DialogFooter className="mt-2">
-            <Button variant="secondary" onClick={() => setRejectTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => void handleRejectConfirm()}
-              disabled={rejectNote.trim() === "" || rejecting || Boolean(rejectNoteError)}
-            >
-              Confirm reject
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ClearanceReviewModal
+        clearance={reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        onSign={handleSign}
+        onReject={handleReject}
+        signing={signing}
+        rejecting={rejecting}
+      />
     </div>
   );
 }

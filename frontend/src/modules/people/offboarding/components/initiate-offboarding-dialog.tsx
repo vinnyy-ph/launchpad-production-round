@@ -22,6 +22,11 @@ import {
   UserAvatar,
 } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
+import {
+  ONBOARDING_ALLOWED_FILE_TYPES,
+  fileAcceptAttribute,
+  validateOnboardingFile,
+} from "@/modules/people/onboarding/constants/allowed-file-types";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
@@ -60,10 +65,12 @@ function dateToIso(date?: Date): string {
 }
 
 // Attachment upload limits — kept in sync with the backend offboarding upload middleware.
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENTS = 10;
-const ALLOWED_ATTACHMENT_TYPES = ["image/png", "image/jpeg", "application/pdf"];
-const ATTACHMENT_ACCEPT = ".png,.jpg,.jpeg,.pdf";
+// File-type security mirrors the onboarding document upload: each file is validated for
+// extension, declared MIME type, and magic-byte signature (size capped inside
+// validateOnboardingFile) so spoofed file types are rejected before upload.
+const ATTACHMENT_ALLOWED_TYPES = ONBOARDING_ALLOWED_FILE_TYPES.map((type) => type.value);
+const ATTACHMENT_ACCEPT = fileAcceptAttribute(ATTACHMENT_ALLOWED_TYPES.join(","));
 
 /** Formats a byte count into a short human-readable size (e.g. "1.2 MB"). */
 function formatFileSize(bytes: number): string {
@@ -220,20 +227,20 @@ export function InitiateOffboardingDialog({
   }
 
   /**
-   * Validates newly picked files (type + size + count), appends the valid ones to the
-   * current selection (de-duplicated by name + size), and surfaces a message for any rejects.
+   * Validates newly picked files (extension + MIME + magic bytes + size + count), appends the
+   * valid ones to the current selection (de-duplicated by name + size), and surfaces a message
+   * for any rejects. Validation mirrors the onboarding document upload to block spoofed files.
    */
-  function handleFilesSelected(fileList: FileList | null) {
+  async function handleFilesSelected(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
 
     const rejected: string[] = [];
     const accepted: File[] = [];
 
     for (const file of Array.from(fileList)) {
-      if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
-        rejected.push(`${file.name} (unsupported type)`);
-      } else if (file.size > MAX_ATTACHMENT_BYTES) {
-        rejected.push(`${file.name} (over 5 MB)`);
+      const validationError = await validateOnboardingFile(file, ATTACHMENT_ALLOWED_TYPES);
+      if (validationError) {
+        rejected.push(`${file.name} (${validationError})`);
       } else {
         accepted.push(file);
       }
@@ -451,7 +458,7 @@ export function InitiateOffboardingDialog({
                 multiple
                 accept={ATTACHMENT_ACCEPT}
                 className="sr-only"
-                onChange={(event) => handleFilesSelected(event.target.files)}
+                onChange={(event) => void handleFilesSelected(event.target.files)}
               />
 
               {attachments.length < MAX_ATTACHMENTS ? (
@@ -477,7 +484,7 @@ export function InitiateOffboardingDialog({
                   onDrop={(event) => {
                     event.preventDefault();
                     setDragActive(false);
-                    handleFilesSelected(event.dataTransfer.files);
+                    void handleFilesSelected(event.dataTransfer.files);
                   }}
                 >
                   <span className="flex items-center justify-center gap-2 text-sm text-[color:var(--text-tertiary)]">
@@ -667,6 +674,7 @@ export function InitiateOffboardingDialog({
           <Button
             onClick={() => void handleSubmit()}
             disabled={creating || profileLoading || templatesLoading || templates.length === 0}
+            loading={creating}
           >
             {creating ? (lockedEmployeeId ? "Processing…" : "Initiating…") : submitLabel}
           </Button>

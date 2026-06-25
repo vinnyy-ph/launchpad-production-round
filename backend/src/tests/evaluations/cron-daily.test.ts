@@ -2,6 +2,9 @@ jest.mock("../../core/database/prisma.service", () => ({ prisma: {} }));
 jest.mock("../../jobs/deemed-ack.job", () => ({ runDeemedAckSweep: jest.fn() }));
 jest.mock("../../jobs/eval-ack-reminder.job", () => ({ runEvalAckReminderSweep: jest.fn() }));
 jest.mock("../../jobs/survey-reminder.job", () => ({ runSurveyReminderSweep: jest.fn() }));
+jest.mock("../../jobs/offboarding-inactivation.job", () => ({
+  runOffboardingInactivationSweep: jest.fn(),
+}));
 jest.mock("../../modules/performance/surveys/occurrences/occurrence-scheduler", () => ({
   advanceDueOccurrences: jest.fn(),
 }));
@@ -10,11 +13,13 @@ import { runDailyCron } from "../../jobs/cron-daily";
 import { runDeemedAckSweep } from "../../jobs/deemed-ack.job";
 import { runEvalAckReminderSweep } from "../../jobs/eval-ack-reminder.job";
 import { runSurveyReminderSweep } from "../../jobs/survey-reminder.job";
+import { runOffboardingInactivationSweep } from "../../jobs/offboarding-inactivation.job";
 import { advanceDueOccurrences } from "../../modules/performance/surveys/occurrences/occurrence-scheduler";
 
 const deemedAck = runDeemedAckSweep as jest.Mock;
 const evalReminder = runEvalAckReminderSweep as jest.Mock;
 const surveyReminder = runSurveyReminderSweep as jest.Mock;
+const offboardingInactivation = runOffboardingInactivationSweep as jest.Mock;
 const advanceOccurrences = advanceDueOccurrences as jest.Mock;
 
 describe("runDailyCron", () => {
@@ -22,6 +27,7 @@ describe("runDailyCron", () => {
     deemedAck.mockReset();
     evalReminder.mockReset();
     surveyReminder.mockReset();
+    offboardingInactivation.mockReset();
     advanceOccurrences.mockReset();
     jest.spyOn(console, "log").mockImplementation(() => undefined);
     jest.spyOn(console, "error").mockImplementation(() => undefined);

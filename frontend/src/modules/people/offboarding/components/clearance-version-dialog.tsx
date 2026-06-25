@@ -352,7 +352,7 @@ export function ClearanceVersionDialog({
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={saving}>
+          <Button onClick={handleSubmit} disabled={saving} loading={saving}>
             {saving ? "Saving…" : isEdit ? "Save changes" : "Create version"}
           </Button>
         </DialogFooter>
