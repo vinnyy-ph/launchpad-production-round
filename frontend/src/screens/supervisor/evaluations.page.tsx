@@ -457,12 +457,35 @@ interface LinkPickerProps {
     slotsLeft: number;
 }
 
+/** True if `value` contains `<` or `>` at any percent-encoding depth (HTML/script-injection guard). */
+function containsAngleBrackets(value: string): boolean {
+    let current = value;
+    for (let depth = 0; depth < 3; depth++) {
+        if (/[<>]/.test(current)) return true;
+        let next: string;
+        try {
+            next = decodeURIComponent(current);
+        } catch {
+            return /%3c|%3e/i.test(current);
+        }
+        if (next === current) break;
+        current = next;
+    }
+    return /[<>]/.test(current);
+}
+
 function isHttpsUrl(value: string): boolean {
+    const trimmed = value.trim();
+    let parsed: URL;
     try {
-        return new URL(value.trim()).protocol === "https:";
+        parsed = new URL(trimmed);
     } catch {
         return false;
     }
+    if (parsed.protocol !== "https:") return false;
+    // Mirror the backend: reject links carrying HTML/script-injection payloads.
+    if (containsAngleBrackets(parsed.href) || containsAngleBrackets(trimmed)) return false;
+    return true;
 }
 
 function LinkPicker({ links, onChange, slotsLeft }: LinkPickerProps) {
