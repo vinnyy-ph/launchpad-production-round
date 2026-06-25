@@ -49,7 +49,7 @@ export function proxy() {
     "default-src 'self'",
     `script-src ${scriptSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    "img-src 'self' data: https: blob:",
     "font-src 'self'",
     `connect-src ${connectSrc.join(" ")}`,
     `frame-src ${frameSrc.join(" ")}`,

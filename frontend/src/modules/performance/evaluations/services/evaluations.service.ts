@@ -81,9 +81,9 @@ export async function acknowledgeEvaluation(id: string): Promise<Evaluation> {
 }
 
 /**
- * Resolves a supporting document's short-lived signed Cloudinary URL. The backend
- * authorizes the request (the docs aren't publicly accessible) and returns the signed URL,
- * used to preview the document in a modal or open it in a new tab.
+ * Resolves a supporting document's short-lived same-origin proxy URL. The backend
+ * authorizes the request (the docs aren't publicly accessible) and returns a tokenized
+ * proxy path, used to preview the document inline in a modal or open it in a new tab.
  */
 export async function getSupportingDocUrl(evaluationId: string, docIndex: number): Promise<string> {
   const { url } = await apiFetch<{ url: string }>(`${BASE}/${evaluationId}/documents/${docIndex}/download`);
