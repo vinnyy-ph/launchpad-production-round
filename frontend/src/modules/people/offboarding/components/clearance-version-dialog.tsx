@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   Button,
@@ -18,6 +18,7 @@ import {
 } from "@/shared/ui";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
+import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
 import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
 import type {
   ClearanceSignatoryInput,
@@ -114,6 +115,43 @@ export function ClearanceVersionDialog({
     setErrors({});
     setRowErrors({});
   }, [open, template]);
+
+  // Guard against closing with unsaved edits — compares the form to its initial (template) state.
+  const initialSnapshot = useMemo(
+    () =>
+      JSON.stringify(
+        template
+          ? {
+              name: template.name,
+              isDefault: template.isDefault,
+              rows: template.signatories.map((s) => ({
+                employeeId: s.employee.id,
+                purpose: s.purpose,
+                requirements: s.requirements,
+              })),
+            }
+          : { name: "", isDefault: false, rows: [{ employeeId: "", purpose: "", requirements: "" }] },
+      ),
+    [template],
+  );
+  const currentSnapshot = JSON.stringify({
+    name,
+    isDefault,
+    rows: rows.map((r) => ({
+      employeeId: r.employeeId,
+      purpose: r.purpose,
+      requirements: r.requirements,
+    })),
+  });
+  const hasUnsavedChanges = open && currentSnapshot !== initialSnapshot;
+
+  const guard = useUnsavedGuard({
+    hasUnsavedChanges,
+    onOpenChange: (next) => {
+      if (saving) return;
+      onOpenChange(next);
+    },
+  });
 
   const employeeOptions = employees.map(toEmployeeOption);
 
@@ -234,14 +272,13 @@ export function ClearanceVersionDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (saving) return;
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
+      <DialogContent
+        className={`max-h-[90vh] overflow-y-auto sm:max-w-2xl ${guard.shakeClass}`}
+        onAnimationEnd={guard.onAnimationEnd}
+        onEscapeKeyDown={guard.onEscapeKeyDown}
+        onInteractOutside={guard.onInteractOutside}
+      >
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit clearance version" : "New clearance version"}</DialogTitle>
           <DialogDescription>
@@ -341,7 +378,7 @@ export function ClearanceVersionDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="secondary" onClick={() => guard.handleOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
