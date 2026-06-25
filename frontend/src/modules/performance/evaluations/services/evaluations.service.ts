@@ -35,6 +35,13 @@ function buildEvaluationFormData(input: Partial<EvaluationInput> & { send?: bool
   if (input.recommendation) fd.append("recommendation", input.recommendation);
   if (input.send !== undefined) fd.append("send", String(input.send));
   files.forEach((f) => fd.append("files", f));
+  (input.links ?? []).forEach((l) =>
+    fd.append("links", JSON.stringify({ url: l.url, ...(l.label ? { label: l.label } : {}) })),
+  );
+  (input.keepFiles ?? []).forEach((url) => fd.append("keepFiles", url));
+  // The editor always owns the docs section; this tells the backend to rebuild the doc set
+  // (even to empty = all docs removed) rather than leave existing docs untouched.
+  fd.append("docsManaged", "1");
   return fd;
 }
 

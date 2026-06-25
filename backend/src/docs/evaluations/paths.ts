@@ -36,11 +36,21 @@
  *         recommendation:
  *           type: string
  *           nullable: true
- *         supportingDocUrls:
+ *         supportingDocs:
  *           type: array
+ *           description: Attached supporting documents — uploaded files and/or external links.
  *           items:
- *             type: string
- *           description: Cloudinary public_ids of attached supporting documents.
+ *             type: object
+ *             properties:
+ *               kind:
+ *                 type: string
+ *                 enum: [file, link]
+ *               url:
+ *                 type: string
+ *                 description: Cloudinary public_id (kind=file) or the external https URL (kind=link).
+ *               label:
+ *                 type: string
+ *                 description: Display name — original filename (file) or user label / hostname (link).
  *         isSent:
  *           type: boolean
  *           example: false
@@ -98,13 +108,19 @@
  *           type: string
  *         recommendation:
  *           type: string
- *         supportingDocUrls:
+ *         files:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: binary
+ *           description: New PDF uploads (multipart). Max 5 supporting docs total (files + links), 10MB each.
+ *         links:
  *           type: array
  *           items:
  *             type: string
  *           description: >-
- *             Public_ids of supporting documents. Documents are uploaded as multipart
- *             `files` (PDF, max 5, 10MB each); this array holds the resulting public_ids.
+ *             Supporting links, each a JSON string `{"url":"https://…","label":"…"}` (label optional,
+ *             defaults to the hostname). URLs must be https.
  *         send:
  *           type: boolean
  *           default: false
@@ -129,13 +145,32 @@
  *           type: string
  *         recommendation:
  *           type: string
- *         supportingDocUrls:
+ *         files:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: binary
+ *           description: New PDF uploads (multipart). Max 5 supporting docs total (files + links + kept), 10MB each.
+ *         links:
  *           type: array
  *           items:
  *             type: string
  *           description: >-
- *             Public_ids of supporting documents. Documents are uploaded as multipart
- *             `files` (PDF, max 5, 10MB each); this array holds the resulting public_ids.
+ *             Full set of supporting links, each a JSON string `{"url":"https://…","label":"…"}`
+ *             (label optional). URLs must be https.
+ *         keepFiles:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: >-
+ *             public_ids of already-attached file documents to retain (full-set contract). Existing
+ *             file docs whose public_id is omitted here are removed. Only docs already on this
+ *             evaluation are honored.
+ *         docsManaged:
+ *           type: string
+ *           description: >-
+ *             Set to "1" when the supporting-docs section is being managed, so the server rebuilds
+ *             the doc set (even to empty) from files/links/keepFiles. Omit to leave existing docs untouched.
  *         send:
  *           type: boolean
  *           description: When true, sends the evaluation (irreversible).

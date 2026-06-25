@@ -282,7 +282,7 @@ describe("POST /api/v1/evaluations", () => {
     expect(createCall[0].data.ackDeadline).toBeDefined();
   });
 
-  it("uploads up to 5 PDF files and returns their URLs in supportingDocUrls", async () => {
+  it("uploads up to 5 PDF files and returns their docs in supportingDocs", async () => {
     const reviewer = buildReviewerEmployee();
     const reviewee = buildRevieweeEmployee(reviewer.id);
     const evaluation = buildEvaluationRecord({ reviewerId: reviewer.id, revieweeId: reviewee.id });
@@ -290,12 +290,12 @@ describe("POST /api/v1/evaluations", () => {
     employeeFindUniqueMock
       .mockResolvedValueOnce(reviewer)
       .mockResolvedValueOnce(reviewee);
-    evalCreateMock.mockResolvedValue({ ...evaluation, supportingDocUrls: [
-      "https://res.cloudinary.com/test/supporting_docs/doc1.pdf",
-      "https://res.cloudinary.com/test/supporting_docs/doc2.pdf",
-      "https://res.cloudinary.com/test/supporting_docs/doc3.pdf",
-      "https://res.cloudinary.com/test/supporting_docs/doc4.pdf",
-      "https://res.cloudinary.com/test/supporting_docs/doc5.pdf",
+    evalCreateMock.mockResolvedValue({ ...evaluation, supportingDocs: [
+      { kind: "file", url: "https://res.cloudinary.com/test/supporting_docs/doc1.pdf", label: "doc1.pdf" },
+      { kind: "file", url: "https://res.cloudinary.com/test/supporting_docs/doc2.pdf", label: "doc2.pdf" },
+      { kind: "file", url: "https://res.cloudinary.com/test/supporting_docs/doc3.pdf", label: "doc3.pdf" },
+      { kind: "file", url: "https://res.cloudinary.com/test/supporting_docs/doc4.pdf", label: "doc4.pdf" },
+      { kind: "file", url: "https://res.cloudinary.com/test/supporting_docs/doc5.pdf", label: "doc5.pdf" },
     ]});
 
     const response = await request(app)
@@ -311,7 +311,67 @@ describe("POST /api/v1/evaluations", () => {
       .attach("files", Buffer.from("%PDF-1.4 test"), "doc5.pdf")
       .expect(201);
 
-    expect(response.body.data.supportingDocUrls).toHaveLength(5);
+    expect(response.body.data.supportingDocs).toHaveLength(5);
+  });
+
+  it("accepts a valid link and persists it as a link doc", async () => {
+    const reviewer = buildReviewerEmployee();
+    const reviewee = buildRevieweeEmployee(reviewer.id);
+    const evaluation = buildEvaluationRecord({ reviewerId: reviewer.id, revieweeId: reviewee.id });
+
+    employeeFindUniqueMock
+      .mockResolvedValueOnce(reviewer)
+      .mockResolvedValueOnce(reviewee);
+    evalCreateMock.mockResolvedValue(evaluation);
+
+    await request(app)
+      .post("/api/v1/evaluations")
+      .field("revieweeId", "emp-reviewee-id")
+      .field("periodStart", "2026-01-01")
+      .field("periodEnd", "2026-03-31")
+      .field("grade", "4")
+      .field("links", JSON.stringify({ url: "https://drive.google.com/x", label: "Plan" }))
+      .expect(201);
+
+    const created = evalCreateMock.mock.calls[0][0].data;
+    expect(created.supportingDocs).toContainEqual({
+      kind: "link",
+      url: "https://drive.google.com/x",
+      label: "Plan",
+    });
+  });
+
+  it("returns 400 INVALID_URL when a link uses http and does not call create", async () => {
+    const response = await request(app)
+      .post("/api/v1/evaluations")
+      .field("revieweeId", "emp-reviewee-id")
+      .field("periodStart", "2026-01-01")
+      .field("periodEnd", "2026-03-31")
+      .field("grade", "4")
+      .field("links", JSON.stringify({ url: "http://insecure.com" }))
+      .expect(400);
+
+    expect(response.body.message).toBe("Supporting link must be a valid https URL");
+    expect(evalCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 TOO_MANY_DOCS when files + links exceed 5", async () => {
+    const response = await request(app)
+      .post("/api/v1/evaluations")
+      .field("revieweeId", "emp-reviewee-id")
+      .field("periodStart", "2026-01-01")
+      .field("periodEnd", "2026-03-31")
+      .field("grade", "4")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc1.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc2.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc3.pdf")
+      .attach("files", Buffer.from("%PDF-1.4 test"), "doc4.pdf")
+      .field("links", JSON.stringify({ url: "https://example.com/a" }))
+      .field("links", JSON.stringify({ url: "https://example.com/b" }))
+      .expect(400);
+
+    expect(response.body.message).toBe("Too many supporting documents — maximum 5 (files + links) allowed");
+    expect(evalCreateMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when more than 5 files are attached", async () => {

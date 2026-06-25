@@ -1,3 +1,7 @@
+export type SupportingDoc =
+  | { kind: "file"; url: string; label: string }
+  | { kind: "link"; url: string; label: string };
+
 // Mirrors the backend EvaluationResponseDto. Dates arrive as ISO strings over JSON.
 export interface Evaluation {
   id: string;
@@ -12,7 +16,7 @@ export interface Evaluation {
   lowlights: string[];
   evaluation: string | null;
   recommendation: string | null;
-  supportingDocUrls: string[];
+  supportingDocs: SupportingDoc[];
   isSent: boolean;
   sentAt: string | null;
   ackDeadline: string | null;
@@ -38,6 +42,9 @@ export interface EvaluationInput {
   lowlights?: string[];
   evaluation?: string;
   recommendation?: string;
+  links?: { url: string; label?: string }[];
+  /** Cloudinary urls of existing file docs to retain on update (full-set contract). */
+  keepFiles?: string[];
 }
 
 export const GRADE_LABELS: Record<number, string> = {

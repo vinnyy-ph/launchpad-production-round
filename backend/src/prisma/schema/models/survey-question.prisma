@@ -1,21 +1,19 @@
 model SurveyQuestion {
-  id            String       @id @default(uuid())
+  id            String         @id @default(uuid())
   surveyId      String
-  survey        PulseSurvey  @relation(fields: [surveyId], references: [id])
   type          QuestionType
   questionText  String
-  isRequired    Boolean      @default(true)
-  options       Json? // choices for MULTIPLE_CHOICE / CHECKBOX
-  scaleMin      Int? // LINEAR_SCALE lower bound
-  scaleMax      Int? // LINEAR_SCALE upper bound
+  isRequired    Boolean        @default(true)
+  options       Json?
+  scaleMin      Int?
+  scaleMax      Int?
   scaleMinLabel String?
   scaleMaxLabel String?
   orderIndex    Int
-
-  answers SurveyAnswer[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  answers       SurveyAnswer[]
+  survey        PulseSurvey    @relation(fields: [surveyId], references: [id])
 
   @@map("survey_questions")
 }

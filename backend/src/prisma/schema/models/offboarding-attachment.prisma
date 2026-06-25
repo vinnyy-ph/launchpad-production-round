@@ -1,12 +1,12 @@
+
 model OffboardingAttachment {
   id            String            @id @default(uuid())
   offboardingId String
-  offboarding   OffboardingRecord @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
-  // Cloudinary storage key (`public_id|resource_type`), resolved to a signed view URL on read.
   url           String
-  // Original file name as uploaded, used for display in the UI.
   fileName      String
   createdAt     DateTime          @default(now())
+  offboarding   OffboardingRecord @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
 
+  @@index([offboardingId])
   @@map("offboarding_attachments")
 }
