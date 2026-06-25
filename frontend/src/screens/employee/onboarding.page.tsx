@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isToday } from "date-fns";
@@ -36,10 +36,21 @@ import {
   parseAllowedFileTypes,
   validateOnboardingFile,
 } from "@/modules/people/onboarding/constants/allowed-file-types";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  getLatestAllowedEmployeeBirthday,
+  validateEmployeeBirthday,
+  validatePeopleNameLanguage,
+  validatePeopleText,
+} from "@/modules/people/people-text";
 
 import { queryKeys } from "@/shared/lib/query-keys";
-import { isStrictPhilippineMobile, toE164 } from "@/shared/lib/phone";
+import {
+  formatPhilippinePhoneDisplay,
+  isStrictPhilippineMobile,
+  isValidPhilippinePhone,
+  toPhilippineE164,
+} from "@/shared/lib/phone";
 
 import { EmptyState } from "@/shared/ui/patterns/empty-state";
 import { FormField } from "@/shared/ui/patterns/form-field";
@@ -80,16 +91,25 @@ type ProfileDraft = {
 };
 
 const ONBOARDING_PROFILE_FIELD_MESSAGES = {
+  firstNameRequired: "First name is required.",
   firstName: "Please enter a valid first name using letters only.",
   middleName: "Please enter a valid middle name using letters only.",
+  lastNameRequired: "Last name is required.",
   lastName: "Please enter a valid last name using letters only.",
+  personalEmailRequired: "Personal email is required.",
   personalEmail: "Please enter a valid personal email address.",
+  addressRequired: "Street address is required.",
   address:
     "Please enter a valid street address using letters, numbers, and standard address characters only.",
+  cityRequired: "City is required.",
   city: "Please select a valid city.",
+  provinceRequired: "Province is required.",
   province: "Please select a valid province.",
+  countryRequired: "Country is required.",
   country: "Please select a valid country.",
+  emergencyContactNameRequired: "Contact name is required.",
   emergencyContactName: "Please enter a valid contact name using letters only.",
+  emergencyContactRequired: "Contact number is required.",
   emergencyContact: "Please enter a valid emergency contact number.",
 } as const;
 
@@ -135,71 +155,120 @@ function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
   const emergencyContactName = draft.emergencyContactName.trim();
   const emergencyContact = draft.emergencyContact.trim();
 
-  if (
-    !firstName ||
-    !LETTERS_ONLY_RE.test(firstName) ||
-    validatePeopleText(firstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
-  ) {
-    next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstName;
+  if (!firstName) {
+    next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstNameRequired;
+  } else {
+    const firstNameLanguageError = validatePeopleNameLanguage(firstName);
+    if (firstNameLanguageError) {
+      next.firstName = firstNameLanguageError;
+    } else if (
+      !LETTERS_ONLY_RE.test(firstName) ||
+      validatePeopleText(firstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstName;
+    }
   }
   if (
     middleName &&
-    (!LETTERS_ONLY_RE.test(middleName) ||
+    (validatePeopleNameLanguage(middleName) ||
+      !LETTERS_ONLY_RE.test(middleName) ||
       validatePeopleText(middleName, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
   ) {
-    next.middleName = ONBOARDING_PROFILE_FIELD_MESSAGES.middleName;
+    next.middleName =
+      validatePeopleNameLanguage(middleName) ?? ONBOARDING_PROFILE_FIELD_MESSAGES.middleName;
   }
-  if (
-    !lastName ||
-    !LETTERS_ONLY_RE.test(lastName) ||
-    validatePeopleText(lastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
-  ) {
-    next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastName;
+  if (!lastName) {
+    next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastNameRequired;
+  } else {
+    const lastNameLanguageError = validatePeopleNameLanguage(lastName);
+    if (lastNameLanguageError) {
+      next.lastName = lastNameLanguageError;
+    } else if (
+      !LETTERS_ONLY_RE.test(lastName) ||
+      validatePeopleText(lastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastName;
+    }
   }
-  if (
-    !personalEmail ||
-    !EMAIL_RE.test(personalEmail) ||
-    validatePeopleText(personalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL)
-  ) {
-    next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmail;
+  if (!personalEmail) {
+    next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmailRequired;
+  } else {
+    const personalEmailLanguageError = validatePeopleNameLanguage(personalEmail);
+    if (personalEmailLanguageError) {
+      next.personalEmail = personalEmailLanguageError;
+    } else if (
+      !EMAIL_RE.test(personalEmail) ||
+      validatePeopleText(personalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL)
+    ) {
+      next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmail;
+    }
   }
-  if (
-    !address ||
-    !STREET_ADDRESS_RE.test(address) ||
-    validatePeopleText(address, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE)
-  ) {
-    next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.address;
+  if (!address) {
+    next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.addressRequired;
+  } else {
+    const addressLanguageError = validatePeopleNameLanguage(address);
+    if (addressLanguageError) {
+      next.address = addressLanguageError;
+    } else if (
+      !STREET_ADDRESS_RE.test(address) ||
+      validatePeopleText(address, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE)
+    ) {
+      next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.address;
+    }
   }
-  if (
-    !city ||
-    !LOCATION_RE.test(city) ||
-    validatePeopleText(city, "City", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.city;
+  if (!city) {
+    next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.cityRequired;
+  } else {
+    const cityLanguageError = validatePeopleNameLanguage(city);
+    if (cityLanguageError) {
+      next.city = cityLanguageError;
+    } else if (
+      !LOCATION_RE.test(city) ||
+      validatePeopleText(city, "City", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.city;
+    }
   }
-  if (
-    !province ||
-    !LOCATION_RE.test(province) ||
-    validatePeopleText(province, "Province", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.province;
+  if (!province) {
+    next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.provinceRequired;
+  } else {
+    const provinceLanguageError = validatePeopleNameLanguage(province);
+    if (provinceLanguageError) {
+      next.province = provinceLanguageError;
+    } else if (
+      !LOCATION_RE.test(province) ||
+      validatePeopleText(province, "Province", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.province;
+    }
   }
-  if (
-    !country ||
-    !LOCATION_RE.test(country) ||
-    validatePeopleText(country, "Country", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.country;
+  if (!country) {
+    next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.countryRequired;
+  } else {
+    const countryLanguageError = validatePeopleNameLanguage(country);
+    if (countryLanguageError) {
+      next.country = countryLanguageError;
+    } else if (
+      !LOCATION_RE.test(country) ||
+      validatePeopleText(country, "Country", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.country;
+    }
   }
-  if (
-    !emergencyContactName ||
+  if (!emergencyContactName) {
+    next.emergencyContactName = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactNameRequired;
+  } else if (
+    validatePeopleNameLanguage(emergencyContactName) ||
     !LETTERS_ONLY_RE.test(emergencyContactName) ||
     validatePeopleText(emergencyContactName, "Contact name", PEOPLE_TEXT_LIMITS.NAME)
   ) {
-    next.emergencyContactName = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactName;
+    next.emergencyContactName =
+      validatePeopleNameLanguage(emergencyContactName) ??
+      ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactName;
   }
-  if (
-    !emergencyContact ||
+  if (!emergencyContact) {
+    next.emergencyContact = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactRequired;
+  } else if (
     !isStrictPhilippineMobile(emergencyContact) ||
     validatePeopleText(emergencyContact, "Contact number", PEOPLE_TEXT_LIMITS.PHONE_DISPLAY)
   ) {
@@ -207,20 +276,28 @@ function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
   }
   if (!draft.birthday) next.birthday = "Birthday is required.";
   else {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selected = new Date(draft.birthday);
-    selected.setHours(0, 0, 0, 0);
-    if (selected > today) next.birthday = "Birthday cannot be in the future.";
+    const birthdayError = validateEmployeeBirthday(draft.birthday, { required: true });
+    if (birthdayError) next.birthday = birthdayError;
   }
   return next;
 }
 
 function customFieldValueError(value: string): string | undefined {
   if (!value) return undefined;
+  const languageError = validatePeopleNameLanguage(value);
+  if (languageError) return languageError;
   return validatePeopleText(value, "Answer", PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_VALUE)
-    ? "Please enter a valid answer without HTML or special characters."
+    ? "Please enter a valid answer using letters, numbers, spaces, and common punctuation only."
     : undefined;
+}
+
+function customFieldInputError(
+  field: OnboardingCustomFieldStatus,
+  touched: boolean,
+): string | undefined {
+  const value = (field.value ?? "").trim();
+  if (touched && field.isRequired && value === "") return "This question is required.";
+  return customFieldValueError(value);
 }
 
 function fileNameFromUrl(url?: string | null): string | null {
@@ -557,16 +634,25 @@ function AccountUnderReviewStatus({
     .at(-1);
 
   const actionNeeded = docsRejected > 0;
-  const activated = isComplete || allDocsApproved;
-  const documentReviewState: TimelineStepState = actionNeeded ? "alert" : activated ? "complete" : "active";
-  const activationState: TimelineStepState = activated ? "complete" : "pending";
+  const awaitingHrCompletion = allDocsApproved && !isComplete;
+  const activated = isComplete;
+  const documentReviewState: TimelineStepState = actionNeeded
+    ? "alert"
+    : allDocsApproved
+      ? "complete"
+      : "active";
+  const activationState: TimelineStepState = activated
+    ? "complete"
+    : awaitingHrCompletion
+      ? "active"
+      : "pending";
 
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col">
       <section className={`ob-review-hero ${activated ? "ob-review-hero--success" : actionNeeded ? "ob-review-hero--warning" : ""}`}>
-        {activated || actionNeeded ? (
+        {activated || awaitingHrCompletion || actionNeeded ? (
           <span className="ob-review-hero-icon">
-            {activated ? (
+            {activated || awaitingHrCompletion ? (
               <Check className="h-7 w-7" strokeWidth={2.4} aria-hidden="true" />
             ) : (
               <AlertCircle className="h-[26px] w-[26px]" strokeWidth={1.8} aria-hidden="true" />
@@ -576,6 +662,8 @@ function AccountUnderReviewStatus({
         <h1>
           {activated
             ? "You're all set"
+            : awaitingHrCompletion
+              ? "Awaiting HR completion"
             : actionNeeded
               ? docsRejected === 1
                 ? "One document needs your attention"
@@ -585,6 +673,8 @@ function AccountUnderReviewStatus({
         <p>
           {activated
             ? "Your account is active. Head to your dashboard to get started."
+            : awaitingHrCompletion
+              ? "HR approved your documents. They still need to mark your onboarding as complete before your account is activated."
             : actionNeeded
               ? "HR asked for a change before they can finish reviewing. Re-upload the document below to continue."
               : "HR is reviewing each of your documents. You'll get an email when there's an update — no need to wait here."}
@@ -614,13 +704,13 @@ function AccountUnderReviewStatus({
           <ReviewTimelineStep
             state={documentReviewState}
             title="Document review"
-            meta={activated ? formatReviewDateLabel(reviewedAt) : undefined}
+            meta={allDocsApproved ? formatReviewDateLabel(reviewedAt) : undefined}
             description={
               actionNeeded
                 ? docsRejected === 1
                   ? "1 document needs changes before HR can continue."
                   : `${docsRejected} documents need changes before HR can continue.`
-                : activated
+                : allDocsApproved
                   ? "All documents approved by HR."
                   : docsTotal === 0
                 ? "HR is reviewing your submission."
@@ -630,9 +720,15 @@ function AccountUnderReviewStatus({
           />
           <ReviewTimelineStep
             state={activationState}
-            title="Account activated"
+            title={awaitingHrCompletion ? "Awaiting HR completion" : "Account activated"}
             meta={activated ? "Today" : undefined}
-            description={activated ? "Your Manage Jia account is ready." : "You'll get an email the moment your account is ready."}
+            description={
+              activated
+                ? "Your Manage Jia account is ready."
+                : awaitingHrCompletion
+                  ? "HR needs to mark your onboarding as complete."
+                  : "You'll get an email the moment your account is ready."
+            }
             isLast
           />
         </div>
@@ -691,6 +787,7 @@ export default function EmployeeOnboardingPage() {
   const [lastName, setLastName] = useState("");
   const [personalEmail, setPersonalEmail] = useState("");
   const [birthday, setBirthday] = useState<Date | undefined>();
+  const latestAllowedBirthday = useMemo(() => getLatestAllowedEmployeeBirthday(), []);
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
@@ -722,7 +819,7 @@ export default function EmployeeOnboardingPage() {
     // PH-only deployment: default an empty country to Philippines so the address dropdowns resolve.
     setCountry(profile.address?.country?.trim() || "Philippines");
     setEmergencyContactName(profile.emergencyContact?.emergencyContactName ?? "");
-    void toE164(profile.emergencyContact?.emergencyContactNumber ?? "").then(setEmergencyContact);
+    setEmergencyContact(toPhilippineE164(profile.emergencyContact?.emergencyContactNumber ?? ""));
     setBirthday(profile.birthday ? new Date(`${profile.birthday}T00:00:00`) : undefined);
 
     // Resume the wizard at the first incomplete step — only on first load.
@@ -788,7 +885,7 @@ export default function EmployeeOnboardingPage() {
       province: province.trim(),
       country: country.trim(),
       emergencyContactName: emergencyContactName.trim(),
-      emergencyContact: emergencyContact.trim(),
+      emergencyContact: toPhilippineE164(emergencyContact.trim()),
     };
   }
 
@@ -802,6 +899,15 @@ export default function EmployeeOnboardingPage() {
 
   function handleContinueFromFields(): void {
     if (!fieldsCanContinue) {
+      setTouchedCustomFields((prev) => {
+        const next = { ...prev };
+        for (const field of fields) {
+          if (field.isRequired && !(field.value ?? "").trim()) {
+            next[field.id] = true;
+          }
+        }
+        return next;
+      });
       toast.error("Please answer the required question(s).");
       return;
     }
@@ -848,13 +954,22 @@ export default function EmployeeOnboardingPage() {
       setStep(1);
       return;
     }
-    if (!isStrictPhilippineMobile(emergencyContact)) {
+    if (!(await isValidPhilippinePhone(emergencyContact))) {
       setProfileErrors({ emergencyContact: ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContact });
       toast.error("Enter a valid emergency contact number before submitting.");
       setStep(1);
       return;
     }
     if (!fieldsCanContinue) {
+      setTouchedCustomFields((prev) => {
+        const next = { ...prev };
+        for (const field of fields) {
+          if (field.isRequired && !(field.value ?? "").trim()) {
+            next[field.id] = true;
+          }
+        }
+        return next;
+      });
       toast.error("Answer the quick questions before submitting.");
       setStep(2);
       return;
@@ -1116,6 +1231,7 @@ export default function EmployeeOnboardingPage() {
                 >
                   <DatePicker
                     disableFuture
+                    maxDate={latestAllowedBirthday}
                     value={birthday}
                     onChange={(next) => {
                       touchProfileField("birthday");
@@ -1307,10 +1423,7 @@ export default function EmployeeOnboardingPage() {
             <div className="grid grid-cols-1 gap-4">
               {fields.map((field, idx) => {
                 const fieldId = `custom-field-${field.id}`;
-                const fieldError =
-                  touchedCustomFields[field.id] && field.isRequired && !(field.value ?? "").trim()
-                    ? "This question is required."
-                    : customFieldValueError((field.value ?? "").trim());
+                const fieldError = customFieldInputError(field, Boolean(touchedCustomFields[field.id]));
                 return (
                   <FormField
                     key={field.id}
@@ -1343,7 +1456,7 @@ export default function EmployeeOnboardingPage() {
             <Button variant="secondary" onClick={back}>
               Back
             </Button>
-            <Button onClick={handleContinueFromFields} disabled={!fieldsCanContinue}>
+            <Button onClick={handleContinueFromFields}>
               Continue
             </Button>
           </div>
@@ -1422,7 +1535,12 @@ export default function EmployeeOnboardingPage() {
                   </ReviewField>
                   <ReviewField label="Emergency contact" className="sm:col-span-2">
                     <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-                      {[emergencyContactName, emergencyContact].filter(Boolean).join(" · ")}
+                      {[
+                        emergencyContactName,
+                        formatPhilippinePhoneDisplay(emergencyContact) ?? emergencyContact,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </ReviewField>
                   <ReviewField label="Job title">

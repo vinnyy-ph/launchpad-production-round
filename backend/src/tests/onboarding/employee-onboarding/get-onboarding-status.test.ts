@@ -3,6 +3,7 @@ import { app } from "../../../app";
 import {
   buildEmployeeUser,
   buildOnboardingRecord,
+  buildSubmissionRecord,
   onboardingRecordFindFirstMock,
   resetEmployeeOnboardingMocks,
 } from "./employee-onboarding-test.helpers";
@@ -63,6 +64,25 @@ describe("GET /api/v1/employee-onboarding/status", () => {
           },
         ],
       },
+    });
+  });
+
+  it("returns status when the latest submission has a legacy external file URL", async () => {
+    const legacyUrl = "https://storage.example.com/onboarding/nbi-clearance.pdf";
+    onboardingRecordFindFirstMock.mockResolvedValue(
+      buildOnboardingRecord({
+        documentSubmissions: [buildSubmissionRecord({ fileUrl: legacyUrl })],
+      }),
+    );
+
+    const response = await request(app)
+      .get("/api/v1/employee-onboarding/status")
+      .expect(200);
+
+    expect(response.body.data.documents[0].latestSubmission).toMatchObject({
+      id: "submission-id",
+      fileUrl: legacyUrl,
+      status: "pending",
     });
   });
 

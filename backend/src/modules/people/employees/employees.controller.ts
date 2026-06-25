@@ -237,6 +237,7 @@ export class EmployeesController {
           "Another employee is already the root node",
           "Supervisor must belong to the same department",
           "Invalid employee birthday",
+          "Employee must meet the minimum employment age.",
           "Invalid employee profile update",
           "Invalid employee status",
         ].includes(error.message) ||
@@ -268,7 +269,7 @@ export class EmployeesController {
 
   /** Maps known employee update validation failures to the field clients can correct. */
   private resolveUpdateErrorField(message: string) {
-    if (message === "Invalid employee birthday") {
+    if (message === "Invalid employee birthday" || message === "Employee must meet the minimum employment age.") {
       return EMPLOYEE_QUERY_FIELDS.BIRTHDAY;
     }
 

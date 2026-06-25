@@ -18,7 +18,11 @@ import {
 } from "@/shared/ui";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_NAME_LANGUAGE_MESSAGE,
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleFieldText,
+} from "@/modules/people/people-text";
 import type {
   ClearanceSignatoryInput,
   ClearanceTemplate,
@@ -64,7 +68,12 @@ function validateClearanceText(
   field: keyof typeof CLEARANCE_FIELD_MESSAGES,
   maxLen: number,
 ): string | undefined {
-  if (validatePeopleText(value, field, maxLen)) return CLEARANCE_FIELD_MESSAGES[field];
+  const textError = validatePeopleFieldText(value, field, maxLen);
+  if (textError) {
+    if (textError === PEOPLE_NAME_LANGUAGE_MESSAGE) return textError;
+    if (textError.includes("characters or fewer")) return textError;
+    return CLEARANCE_FIELD_MESSAGES[field];
+  }
   if (value && !CLEARANCE_TEXT_RE.test(value)) return CLEARANCE_FIELD_MESSAGES[field];
   return undefined;
 }

@@ -72,13 +72,15 @@ export class CloudinaryService {
 
   /**
    * Mints a short-lived signed view URL for an onboarding submission.
-   * Legacy Cloudinary URLs are parsed and re-signed instead of returned as-is.
+   * Legacy Cloudinary URLs are parsed and re-signed when possible. Other
+   * legacy external URLs are preserved because they cannot be signed by
+   * Cloudinary, and old records should not break status/review responses.
    */
   resolveOnboardingDocumentViewUrl(storedValue: string): string {
     if (isLegacyOnboardingDocumentUrl(storedValue)) {
       const legacyDocument = parseLegacyCloudinaryDocumentUrl(storedValue);
       if (!legacyDocument) {
-        throw new Error("Legacy public document URL cannot be signed");
+        return storedValue;
       }
 
       return this.getExpiringDocumentDownloadUrl(

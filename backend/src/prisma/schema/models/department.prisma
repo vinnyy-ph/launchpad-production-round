@@ -2,12 +2,11 @@
 model Department {
   id        String     @id @default(uuid())
   name      String     @unique
-  employees Employee[]
   createdAt DateTime   @default(now())
-
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime   @updatedAt
   /// Soft-delete marker. Null = active; a timestamp hides the row from HR listings.
   deletedAt DateTime?
+  employees Employee[]
 
   @@map("departments")
 }

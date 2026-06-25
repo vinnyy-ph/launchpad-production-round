@@ -7,6 +7,8 @@ import {
   buildOnboardingRecord,
   mockSuccessfulInvitationUpdate,
   onboardingInvitationCreateMock,
+  onboardingInvitationResendAttemptCountMock,
+  onboardingInvitationResendAttemptCreateMock,
   onboardingRecordFindFirstMock,
   resetInvitationMocks,
 } from "./invitation-test.helpers";
@@ -46,7 +48,11 @@ describe("POST /api/v1/onboarding/invitations/:recordId/send", () => {
   });
 
   it("sends an invitation and returns 201", async () => {
-    onboardingRecordFindFirstMock.mockResolvedValue(buildOnboardingRecord());
+    onboardingRecordFindFirstMock.mockResolvedValue(
+      buildOnboardingRecord({
+        invitations: [buildInvitationRecord({ sentAt: new Date() })],
+      }),
+    );
     mockSuccessfulInvitationUpdate();
 
     const response = await request(app)
@@ -63,6 +69,8 @@ describe("POST /api/v1/onboarding/invitations/:recordId/send", () => {
         status: "pending",
       },
     });
+    expect(onboardingInvitationResendAttemptCountMock).not.toHaveBeenCalled();
+    expect(onboardingInvitationResendAttemptCreateMock).not.toHaveBeenCalled();
   });
 
   it("creates an invitation when none exists yet", async () => {

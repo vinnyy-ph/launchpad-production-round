@@ -4,9 +4,6 @@ enum Role {
   EMPLOYEE
 }
 
-// NOTE: SUPERVISOR and Root Node are DERIVED from the org graph
-// (supervisorId edges), never stored. Do not add them here.
-
 enum EmployeeStatus {
   ONBOARDING
   ACTIVE
@@ -84,9 +81,7 @@ enum ReminderFrequency {
   WEEKLY
 }
 
-// Event type — what happened. Drives the icon, copy, and click-to-land target.
 enum NotificationType {
-  // People Management
   ONBOARDING_INVITE
   ONBOARDING_COMPLETE
   ONBOARDING_STATUS
@@ -94,7 +89,6 @@ enum NotificationType {
   OFFBOARDING_STATUS
   CLEARANCE_SIGN_REQUEST
   CLEARANCE_REJECTED
-  // Performance Management
   NEW_PULSE
   PULSE_REMINDER
   NEW_EVALUATION
@@ -103,7 +97,6 @@ enum NotificationType {
   PULSE_RESULTS_SHARED
 }
 
-// Delivery channel — how it is sent. Was previously (incorrectly) the NotificationType.
 enum NotificationChannel {
   IN_APP
   EMAIL

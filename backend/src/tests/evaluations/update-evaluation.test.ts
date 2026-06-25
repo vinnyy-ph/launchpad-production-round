@@ -215,10 +215,10 @@ describe("PATCH /api/v1/evaluations/:evaluationId", () => {
     expect(response.body).toMatchObject({ success: false, errorCode: "NOT_SUPERVISOR" });
   });
 
-  it("uploads files during update and includes URLs in supportingDocUrls", async () => {
+  it("uploads files during update and includes docs in supportingDocs", async () => {
     const reviewer = buildReviewerEmployee();
     const existing = buildEvaluationRecord({ reviewerId: reviewer.id });
-    const updated = { ...existing, supportingDocUrls: ["https://res.cloudinary.com/test/supporting_docs/doc.pdf"] };
+    const updated = { ...existing, supportingDocs: [{ kind: "file", url: "https://res.cloudinary.com/test/supporting_docs/doc.pdf", label: "doc.pdf" }] };
 
     evalFindFirstMock.mockResolvedValue(existing);
     employeeFindUniqueMock.mockResolvedValue(reviewer);
@@ -230,7 +230,113 @@ describe("PATCH /api/v1/evaluations/:evaluationId", () => {
       .attach("files", Buffer.from("%PDF-1.4 test"), "doc.pdf")
       .expect(200);
 
-    expect(response.body.data.supportingDocUrls).toHaveLength(1);
+    expect(response.body.data.supportingDocs).toHaveLength(1);
+  });
+
+  it("retains kept files and adds a link, drops unreferenced files", async () => {
+    const reviewer = buildReviewerEmployee();
+    const existing = {
+      ...buildEvaluationRecord({ reviewerId: reviewer.id }),
+      supportingDocs: [
+        { kind: "file", url: "supporting_docs/keep", label: "keep.pdf" },
+        { kind: "file", url: "supporting_docs/drop", label: "drop.pdf" },
+      ],
+    };
+    const updated = {
+      ...existing,
+      supportingDocs: [
+        { kind: "file", url: "supporting_docs/keep", label: "keep.pdf" },
+        { kind: "link", url: "https://x.com/a", label: "x.com" },
+      ],
+    };
+
+    evalFindFirstMock.mockResolvedValue(existing);
+    employeeFindUniqueMock.mockResolvedValue(reviewer);
+    evalUpdateMock.mockResolvedValue(updated);
+
+    await request(app)
+      .patch(`/api/v1/evaluations/${EVAL_ID}`)
+      .field("docsManaged", "1")
+      .field("keepFiles", "supporting_docs/keep")
+      .field("links", JSON.stringify({ url: "https://x.com/a" }))
+      .expect(200);
+
+    const updateCall = evalUpdateMock.mock.calls[0][0];
+    expect(updateCall.data.supportingDocs).toEqual([
+      { kind: "file", url: "supporting_docs/keep", label: "keep.pdf" },
+      { kind: "link", url: "https://x.com/a", label: "x.com" },
+    ]);
+  });
+
+  it("ignores a foreign keepUrl — result supportingDocs is empty", async () => {
+    const reviewer = buildReviewerEmployee();
+    const existing = {
+      ...buildEvaluationRecord({ reviewerId: reviewer.id }),
+      supportingDocs: [
+        { kind: "file", url: "supporting_docs/keep", label: "keep.pdf" },
+        { kind: "file", url: "supporting_docs/drop", label: "drop.pdf" },
+      ],
+    };
+    const updated = { ...existing, supportingDocs: [] };
+
+    evalFindFirstMock.mockResolvedValue(existing);
+    employeeFindUniqueMock.mockResolvedValue(reviewer);
+    evalUpdateMock.mockResolvedValue(updated);
+
+    await request(app)
+      .patch(`/api/v1/evaluations/${EVAL_ID}`)
+      .field("docsManaged", "1")
+      .field("keepFiles", "supporting_docs/not-on-this-eval")
+      .expect(200);
+
+    const updateCall = evalUpdateMock.mock.calls[0][0];
+    expect(updateCall.data.supportingDocs).toEqual([]);
+  });
+
+  it("does not include supportingDocs key in update payload when docs are unmanaged", async () => {
+    const reviewer = buildReviewerEmployee();
+    const existing = buildEvaluationRecord({ reviewerId: reviewer.id });
+    const updated = { ...existing, grade: 5 };
+
+    evalFindFirstMock.mockResolvedValue(existing);
+    employeeFindUniqueMock.mockResolvedValue(reviewer);
+    evalUpdateMock.mockResolvedValue(updated);
+
+    await request(app)
+      .patch(`/api/v1/evaluations/${EVAL_ID}`)
+      .send({ grade: 5 })
+      .expect(200);
+
+    const updateCall = evalUpdateMock.mock.calls[0][0];
+    expect(updateCall.data).not.toHaveProperty("supportingDocs");
+  });
+
+  it("returns 400 TOO_MANY_DOCS when keepFiles + links exceed 5 on update", async () => {
+    const reviewer = buildReviewerEmployee();
+    const existing = {
+      ...buildEvaluationRecord({ reviewerId: reviewer.id }),
+      supportingDocs: [
+        { kind: "file", url: "supporting_docs/a", label: "a.pdf" },
+        { kind: "file", url: "supporting_docs/b", label: "b.pdf" },
+        { kind: "file", url: "supporting_docs/c", label: "c.pdf" },
+      ],
+    };
+
+    evalFindFirstMock.mockResolvedValue(existing);
+    employeeFindUniqueMock.mockResolvedValue(reviewer);
+
+    const response = await request(app)
+      .patch(`/api/v1/evaluations/${EVAL_ID}`)
+      .field("docsManaged", "1")
+      .field("keepFiles", "supporting_docs/a")
+      .field("keepFiles", "supporting_docs/b")
+      .field("keepFiles", "supporting_docs/c")
+      .field("links", JSON.stringify({ url: "https://example.com/1" }))
+      .field("links", JSON.stringify({ url: "https://example.com/2" }))
+      .field("links", JSON.stringify({ url: "https://example.com/3" }))
+      .expect(400);
+
+    expect(response.body.message).toBe("Too many supporting documents — maximum 5 (files + links) allowed");
   });
 
   it("marks evaluation as sent when send=true and sets sentAt and ackDeadline", async () => {

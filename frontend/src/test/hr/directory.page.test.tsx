@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { PEOPLE_NAME_LANGUAGE_MESSAGE } from "@/modules/people/people-text";
 import type { EmployeeListItem } from "@/modules/people/employees/types/employees.types";
 
 const mockUseEmployees = jest.fn();
@@ -263,6 +264,25 @@ describe("DirectoryPage", () => {
 
     expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /discard/i })).toBeInTheDocument();
+  });
+
+  it("blocks offensive language when HR edits employee names", async () => {
+    const user = userEvent.setup();
+    mockUseEmployees.mockReturnValue(employeeHookResult());
+    renderPage();
+
+    await user.click(screen.getByText("Ada Byron Lovelace"));
+
+    const firstName = screen.getByLabelText("First name");
+    await user.clear(firstName);
+    await user.type(firstName, "nlgga");
+
+    expect(screen.getByText(PEOPLE_NAME_LANGUAGE_MESSAGE)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    expect(screen.getByText(PEOPLE_NAME_LANGUAGE_MESSAGE)).toBeInTheDocument();
+    expect(mockUpdateEmployee).not.toHaveBeenCalled();
   });
 
   it("lists overflow teams in the team tooltip", async () => {

@@ -43,10 +43,28 @@ import {
   parseAllowedFileTypes,
   serializeAllowedFileTypes,
 } from "@/modules/people/onboarding/constants/allowed-file-types";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleFieldText,
+  mapPeopleFieldTextError,
+} from "@/modules/people/people-text";
 
 const SECTION_TITLE = "Onboarding setup";
 const SECTION_SUBTITLE = "Manage required documents and custom fields for new hires.";
+const DOCUMENT_FORM_MESSAGES = {
+  nameRequired: "Document name is required.",
+  nameInvalid: "Enter a document name using letters, numbers, spaces, or common punctuation.",
+  instructionsInvalid: "Enter instructions using letters, numbers, spaces, or common punctuation.",
+  fileTypesRequired: "Choose at least one allowed file type.",
+  addFailed: "Could not add the document. Please try again.",
+  updateFailed: "Could not update the document. Please try again.",
+} as const;
+
+const CUSTOM_FIELD_FORM_MESSAGES = {
+  labelRequired: "Field label is required.",
+  labelInvalid:
+    "Enter a field label using letters, numbers, spaces, or common punctuation.",
+} as const;
 
 /**
  * Onboarding configuration for the HR Configurations page: required documents and custom
@@ -89,6 +107,42 @@ export function OnboardingSetupPanel() {
   const loading = docsLoading || fieldsLoading;
   const error = docsError || fieldsError;
 
+  function validateDocName(value: string): string | undefined {
+    const trimmed = value.trim();
+    if (!trimmed) return DOCUMENT_FORM_MESSAGES.nameRequired;
+    return mapPeopleFieldTextError(
+      validatePeopleFieldText(trimmed, "Document name", PEOPLE_TEXT_LIMITS.DOCUMENT_NAME),
+      DOCUMENT_FORM_MESSAGES.nameInvalid,
+    );
+  }
+
+  function validateDocInstructions(value: string): string | undefined {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    return mapPeopleFieldTextError(
+      validatePeopleFieldText(trimmed, "Instructions", PEOPLE_TEXT_LIMITS.DOCUMENT_INSTRUCTIONS),
+      DOCUMENT_FORM_MESSAGES.instructionsInvalid,
+    );
+  }
+
+  function validateFieldLabel(value: string): string | undefined {
+    const trimmed = value.trim();
+    if (!trimmed) return CUSTOM_FIELD_FORM_MESSAGES.labelRequired;
+    return mapPeopleFieldTextError(
+      validatePeopleFieldText(trimmed, "Field label", PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_LABEL),
+      CUSTOM_FIELD_FORM_MESSAGES.labelInvalid,
+    );
+  }
+
+  function setDocFieldError(field: keyof typeof docErrors, message: string | undefined) {
+    setDocErrors((current) => {
+      const next = { ...current };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  }
+
   function resetDocForm() {
     setEditingDoc(null);
     setDocName("");
@@ -117,25 +171,11 @@ export function OnboardingSetupPanel() {
     const next: typeof docErrors = {};
     const trimmedDocName = docName.trim();
     const trimmedInstructions = docInstructions.trim();
-    if (!trimmedDocName) {
-      next.documentName = "Document name is required.";
-    } else {
-      const error = validatePeopleText(
-        trimmedDocName,
-        "Document name",
-        PEOPLE_TEXT_LIMITS.DOCUMENT_NAME,
-      );
-      if (error) next.documentName = error;
-    }
-    if (trimmedInstructions) {
-      const error = validatePeopleText(
-        trimmedInstructions,
-        "Instructions",
-        PEOPLE_TEXT_LIMITS.DOCUMENT_INSTRUCTIONS,
-      );
-      if (error) next.instructions = error;
-    }
-    if (docFileTypes.length === 0) next.allowedFileTypes = "Select at least one file type.";
+    const nameError = validateDocName(docName);
+    const instructionsError = validateDocInstructions(docInstructions);
+    if (nameError) next.documentName = nameError;
+    if (instructionsError) next.instructions = instructionsError;
+    if (docFileTypes.length === 0) next.allowedFileTypes = DOCUMENT_FORM_MESSAGES.fileTypesRequired;
     setDocErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -155,8 +195,7 @@ export function OnboardingSetupPanel() {
             setDocDialogOpen(false);
             resetDocForm();
           },
-          onError: (e) =>
-            toast.error(e instanceof Error ? e.message : "Could not update the document."),
+          onError: () => toast.error(DOCUMENT_FORM_MESSAGES.updateFailed),
         },
       );
       return;
@@ -168,7 +207,7 @@ export function OnboardingSetupPanel() {
         setDocDialogOpen(false);
         resetDocForm();
       },
-      onError: (e) => toast.error(e instanceof Error ? e.message : "Could not add the document."),
+      onError: () => toast.error(DOCUMENT_FORM_MESSAGES.addFailed),
     });
   }
 
@@ -210,16 +249,8 @@ export function OnboardingSetupPanel() {
   function submitField() {
     const next: typeof fieldErrors = {};
     const trimmedLabel = fieldLabel.trim();
-    if (!trimmedLabel) {
-      next.fieldLabel = "Field label is required.";
-    } else {
-      const error = validatePeopleText(
-        trimmedLabel,
-        "Field label",
-        PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_LABEL,
-      );
-      if (error) next.fieldLabel = error;
-    }
+    const labelError = validateFieldLabel(fieldLabel);
+    if (labelError) next.fieldLabel = labelError;
     setFieldErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -359,7 +390,11 @@ export function OnboardingSetupPanel() {
               <Input
                 id="doc-name"
                 value={docName}
-                onChange={(e) => setDocName(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDocName(value);
+                  setDocFieldError("documentName", validateDocName(value));
+                }}
                 placeholder="e.g. NBI Clearance"
                 maxLength={PEOPLE_TEXT_LIMITS.DOCUMENT_NAME}
               />
@@ -368,7 +403,11 @@ export function OnboardingSetupPanel() {
               <Textarea
                 id="doc-instructions"
                 value={docInstructions}
-                onChange={(e) => setDocInstructions(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDocInstructions(value);
+                  setDocFieldError("instructions", validateDocInstructions(value));
+                }}
                 placeholder="Tell the employee what to upload."
                 rows={3}
                 maxLength={PEOPLE_TEXT_LIMITS.DOCUMENT_INSTRUCTIONS}
@@ -391,14 +430,19 @@ export function OnboardingSetupPanel() {
                       <Checkbox
                         checked={checked}
                         onCheckedChange={(next) => {
-                          setDocFileTypes((current) => {
-                            if (next === true) {
-                              return current.includes(option.value)
-                                ? current
-                                : [...current, option.value];
-                            }
-                            return current.filter((value) => value !== option.value);
-                          });
+                          const updated =
+                            next === true
+                              ? docFileTypes.includes(option.value)
+                                ? docFileTypes
+                                : [...docFileTypes, option.value]
+                              : docFileTypes.filter((value) => value !== option.value);
+                          setDocFileTypes(updated);
+                          setDocFieldError(
+                            "allowedFileTypes",
+                            updated.length === 0
+                              ? DOCUMENT_FORM_MESSAGES.fileTypesRequired
+                              : undefined,
+                          );
                         }}
                       />
                       <span>{option.label}</span>
@@ -444,7 +488,16 @@ export function OnboardingSetupPanel() {
           <CustomFieldForm
             fieldLabel={fieldLabel}
             isRequired={fieldRequired}
-            onFieldLabelChange={setFieldLabel}
+            onFieldLabelChange={(value) => {
+              setFieldLabel(value);
+              setFieldErrors((current) => {
+                const next = { ...current };
+                const error = validateFieldLabel(value);
+                if (error) next.fieldLabel = error;
+                else delete next.fieldLabel;
+                return next;
+              });
+            }}
             onIsRequiredChange={setFieldRequired}
             errors={fieldErrors}
           />

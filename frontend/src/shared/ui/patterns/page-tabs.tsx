@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
 
 export interface PageTabItem {
@@ -12,18 +13,21 @@ interface PageTabsProps {
   value: string;
   onChange: (value: string) => void;
   ariaLabel?: string;
+  /** Optional actions aligned to the right on the same row as the tabs. */
+  actions?: ReactNode;
 }
 
 /**
  * Underlined page-level tabs with an optional count badge and a --gradient-jia active indicator.
  * Matches the evaluations status tabs; shared across list-master screens so segmentation is consistent.
  */
-export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
+export function PageTabs({ items, value, onChange, ariaLabel, actions }: PageTabsProps) {
   return (
+    <div className="mb-5 flex items-end justify-between gap-4 border-b border-[color:var(--border-primary)]">
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="mb-5 flex items-center gap-6 overflow-x-auto overflow-y-hidden scrollbar-none border-b border-[color:var(--border-primary)]"
+      className="flex min-w-0 flex-1 items-center gap-6 overflow-x-auto overflow-y-hidden scrollbar-none"
     >
       {items.map((item) => {
         const isActive = item.value === value;
@@ -64,6 +68,10 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
           </button>
         );
       })}
+    </div>
+    {actions ? (
+      <div className="flex shrink-0 items-center gap-2 pb-2.5">{actions}</div>
+    ) : null}
     </div>
   );
 }

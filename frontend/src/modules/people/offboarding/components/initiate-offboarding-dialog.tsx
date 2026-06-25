@@ -39,6 +39,8 @@ interface InitiateOffboardingDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Called with the new case id after offboarding is initiated. */
   onInitiated: (caseId: string) => void;
+  /** When set, the employee is pre-selected and cannot be changed (e.g. from the profile modal). */
+  employeeId?: string;
 }
 
 function todayIso(): string {
@@ -132,6 +134,7 @@ export function InitiateOffboardingDialog({
   open,
   onOpenChange,
   onInitiated,
+  employeeId: lockedEmployeeId,
 }: InitiateOffboardingDialogProps) {
   // Only fetch employees while the dialog is open.
   const { employees, loading: employeesLoading } = useAllEmployees({
@@ -181,6 +184,12 @@ export function InitiateOffboardingDialog({
   const needsTeamLeaderReassignment = ledTeamCount > 0;
 
   useEffect(() => {
+    if (open && lockedEmployeeId) {
+      setEmpId(lockedEmployeeId);
+    }
+  }, [open, lockedEmployeeId]);
+
+  useEffect(() => {
     if (!open || clearanceTemplateId || templates.length === 0) return;
     const defaultTemplate = templates.find((template) => template.isDefault) ?? templates[0];
     setClearanceTemplateId(defaultTemplate.id);
@@ -204,7 +213,7 @@ export function InitiateOffboardingDialog({
   }, [attachments]);
 
   function reset() {
-    setEmpId("");
+    setEmpId(lockedEmployeeId ?? "");
     setTenderDate(todayIso());
     setEffectiveDate("");
     setClearanceTemplateId("");
@@ -333,12 +342,17 @@ export function InitiateOffboardingDialog({
 
   const previewFileUrl = previewFile ? previewUrls[fileKey(previewFile)] : undefined;
   const previewIsImage = previewFile?.type.startsWith("image/") ?? false;
+  const lockedEmployee = lockedEmployeeId
+    ? (employees.find((e) => e.id === lockedEmployeeId) ?? selectedEmployeeProfile)
+    : null;
+  const dialogTitle = lockedEmployeeId ? "Process offboarding" : "Initiate offboarding";
+  const submitLabel = lockedEmployeeId ? "Process offboarding" : "Initiate offboarding";
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Initiate offboarding</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>
             Set the tender and effective dates, then run the clearance process.
           </DialogDescription>
@@ -346,14 +360,42 @@ export function InitiateOffboardingDialog({
 
         <div className="min-w-0 space-y-4 py-2">
           <FormField label="Employee" required error={errors.emp}>
-            <Combobox
-              options={empOptions}
-              value={empId}
-              onChange={(v) => setEmpId(v)}
-              placeholder={employeesLoading ? "Loading employees…" : "Select an active employee…"}
-              searchPlaceholder="Search employees…"
-              emptyText="No active employees available."
-            />
+            {lockedEmployeeId ? (
+              lockedEmployee ? (
+                <div className="flex items-center gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3 py-2.5">
+                  <UserAvatar
+                    src={lockedEmployee.avatarUrl}
+                    fallback={initials(lockedEmployee.fullName)}
+                    className="h-9 w-9 shrink-0"
+                    fallbackClassName="text-xs font-bold text-[color:var(--text-primary)]"
+                    fallbackStyle={{
+                      background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                    }}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
+                      {lockedEmployee.fullName}
+                    </p>
+                    <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                      {lockedEmployee.companyEmail}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-[color:var(--text-tertiary)]">
+                  {employeesLoading || profileLoading ? "Loading employee…" : "Employee not found."}
+                </p>
+              )
+            ) : (
+              <Combobox
+                options={empOptions}
+                value={empId}
+                onChange={(v) => setEmpId(v)}
+                placeholder={employeesLoading ? "Loading employees…" : "Select an active employee…"}
+                searchPlaceholder="Search employees…"
+                emptyText="No active employees available."
+              />
+            )}
           </FormField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -633,7 +675,7 @@ export function InitiateOffboardingDialog({
             onClick={() => void handleSubmit()}
             disabled={creating || profileLoading || templatesLoading || templates.length === 0}
           >
-            {creating ? "Initiating…" : "Initiate offboarding"}
+            {creating ? (lockedEmployeeId ? "Processing…" : "Initiating…") : submitLabel}
           </Button>
         </DialogFooter>
 
