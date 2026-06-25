@@ -105,7 +105,7 @@ export function DocumentViewerModal({
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
-                    className="border-[#FECDCA] text-[#B42318] hover:bg-[#FEF3F2]"
+                    className="border-[color:var(--color-error-200)] text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]"
                     onClick={onReject}
                     disabled={rejectPending}
                   >
