@@ -257,10 +257,8 @@ function BarRow({
 
 function QuestionCard({
   q,
-  isAnonymous,
 }: {
   q: QuestionResult;
-  isAnonymous: boolean;
 }) {
   return (
     <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
@@ -300,7 +298,7 @@ function QuestionCard({
       )}
 
       {(q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER") && (
-        <OpenTextBody q={q} isAnonymous={isAnonymous} />
+        <OpenTextBody q={q} />
       )}
     </div>
   );
@@ -333,15 +331,13 @@ const OPEN_TEXT_PAGE_SIZE = 10;
 
 function OpenTextBody({
   q,
-  isAnonymous,
 }: {
   q: Extract<QuestionResult, { type: "SHORT_ANSWER" | "LONG_ANSWER" }>;
-  isAnonymous: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(OPEN_TEXT_PAGE_SIZE);
 
-  const hidden = isAnonymous || q.responses.length === 0;
+  const hidden = q.responses.length === 0;
 
   // Keep each response's original 1-based number stable even while filtered.
   const indexed = q.responses.map((text, i) => ({ text, number: i + 1 }));
@@ -364,11 +360,7 @@ function OpenTextBody({
           {q.responseCount} written {q.responseCount === 1 ? "response" : "responses"}
         </span>
       </div>
-      {isAnonymous ? (
-        <p className="rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[14px] text-[color:var(--text-tertiary)]">
-          Individual answers are hidden for anonymous surveys — only the response count is shown.
-        </p>
-      ) : hidden ? (
+      {hidden ? (
         <p className="text-[14px] text-[color:var(--text-tertiary)]">No responses yet.</p>
       ) : (
         <>
@@ -917,7 +909,7 @@ export function SurveyResults({
           ) : (
             <div className="space-y-4">
               {results.questions.map((q) => (
-                <QuestionCard key={q.questionId} q={q} isAnonymous={results.isAnonymous} />
+                <QuestionCard key={q.questionId} q={q} />
               ))}
             </div>
           )}
