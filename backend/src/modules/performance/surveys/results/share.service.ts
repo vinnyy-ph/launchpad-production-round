@@ -1,4 +1,5 @@
 import { prisma } from "../../../../core/database/prisma.service";
+import { assertSafeText } from "../../../../core/validation/text-input";
 import { SURVEY_ERROR_MESSAGES, SURVEY_TEXT_LIMITS } from "../surveys.constants";
 import { MIN_TEAM_SIZE, shareWindowEnd } from "../rules/results";
 import { NotificationsService } from "../../../notifications/notifications.service";
@@ -41,6 +42,7 @@ export class ShareService {
     if (note.length > SURVEY_TEXT_LIMITS.SHARE_MESSAGE) {
       throw new Error(SURVEY_ERROR_MESSAGES.SHARE_MESSAGE_TOO_LONG);
     }
+    assertSafeText(note, "message", SURVEY_TEXT_LIMITS.SHARE_MESSAGE);
 
     // The HR actor (route is HR-gated; we still resolve their employee row to record sharedBy).
     const actor = await prisma.employee.findUnique({

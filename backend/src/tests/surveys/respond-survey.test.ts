@@ -382,4 +382,30 @@ describe("POST /api/v1/pulse/occurrences/:occurrenceId/respond", () => {
 
     expect(response.body.success).toBe(false);
   });
+
+  it("returns 400 when answerText contains unsafe HTML", async () => {
+    employeeFindUniqueMock.mockResolvedValue({ id: "emp-1", supervisorId: "sup-1", teamMemberships: [] });
+    occurrenceFindUniqueMock.mockResolvedValue({
+      id: "occ-001",
+      isClosed: false,
+      deadline: new Date(Date.now() + 86400000),
+      survey: {
+        isAnonymous: false,
+        questions: [
+          { id: "q-1", type: "SHORT_ANSWER", isRequired: true, options: null, scaleMin: null, scaleMax: null },
+        ],
+      },
+    });
+    audienceMemberFindUniqueMock.mockResolvedValue({ employeeId: "emp-1" });
+    completionFindUniqueMock.mockResolvedValue(null);
+
+    const response = await request(app)
+      .post(URL)
+      .send({ answers: [{ questionId: "q-1", answerText: "<script>alert(1)</script>" }] })
+      .expect(400);
+
+    expect(response.body).toMatchObject({ success: false });
+    expect(response.body.message).toMatch(/must not contain HTML/);
+    expect(responseCreateMock).not.toHaveBeenCalled();
+  });
 });

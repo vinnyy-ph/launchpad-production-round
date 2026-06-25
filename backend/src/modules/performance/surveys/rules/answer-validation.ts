@@ -1,4 +1,6 @@
 import type { QuestionType } from "@prisma/client";
+import { assertSafeText } from "../../../../core/validation/text-input";
+import { SURVEY_TEXT_LIMITS } from "../surveys.constants";
 
 /** The question fields needed to validate a submitted answer against its type. */
 export interface ValidatableQuestion {
@@ -77,6 +79,12 @@ export function validateAnswers(
         if (typeof a.answerText !== "string" || a.answerText.trim() === "") {
           throw new Error(ANSWER_ERRORS.INVALID_TEXT);
         }
+        const trimmed = a.answerText.trim();
+        const maxLen =
+          q.type === "SHORT_ANSWER"
+            ? SURVEY_TEXT_LIMITS.ANSWER_SHORT
+            : SURVEY_TEXT_LIMITS.ANSWER_LONG;
+        assertSafeText(trimmed, "answerText", maxLen);
         break;
       }
       case "LINEAR_SCALE": {

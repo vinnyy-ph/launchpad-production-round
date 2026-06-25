@@ -6,4 +6,5 @@ export const SURVEY_TEXT_LIMITS = {
   OPTION: 200,
   ANSWER_SHORT: 500,
   ANSWER_LONG: 2000,
+  SHARE_MESSAGE: 2000,
 } as const;

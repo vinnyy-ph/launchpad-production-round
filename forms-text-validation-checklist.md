@@ -446,7 +446,7 @@ mapPeopleFieldTextError(
 
 ### 11. HR share small-team survey note
 
-- [ ] **Done**
+- [x] **Done**
 
 
 |            |                                                                                                  |
@@ -485,7 +485,7 @@ Pair backend work with the matching frontend item so API and UI stay aligned.
 
 ### B1. Pulse survey response `answerText`
 
-- [ ] **Done** (pair with frontend **#7**)
+- [x] **Done** (pair with frontend **#7**)
 
 
 |              |                                                                                                                                                   |
@@ -507,7 +507,7 @@ Pair backend work with the matching frontend item so API and UI stay aligned.
 
 ### B2. Share small-team results `message`
 
-- [ ] **Done** (pair with frontend **#10**)
+- [x] **Done** (pair with frontend **#11**)
 
 
 |              |                                                                    |

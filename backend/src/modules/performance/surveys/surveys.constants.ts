@@ -49,4 +49,6 @@ export const SURVEY_TEXT_LIMITS = {
   OPTION: 200,
   /** HR's open-text note shared with a small team's supervisor (SYS-005). */
   SHARE_MESSAGE: 2000,
+  ANSWER_SHORT: 500,
+  ANSWER_LONG: 2000,
 } as const;
