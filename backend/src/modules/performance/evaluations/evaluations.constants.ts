@@ -25,4 +25,6 @@ export const EVAL_UPLOAD_ERROR_MESSAGES = {
   TOO_MANY_FILES: "Too many files — maximum 5 allowed",
   INVALID_FILE_TYPE: "Only PDF files are allowed",
   FILE_TOO_LARGE: "File size exceeds the 10 MB limit",
+  INVALID_URL: "Supporting link must be a valid https URL",
+  TOO_MANY_DOCS: "Too many supporting documents — maximum 5 (files + links) allowed",
 } as const;

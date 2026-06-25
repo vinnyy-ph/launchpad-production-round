@@ -10,6 +10,8 @@ import { CloudinaryService } from "../../../core/cloudinary/cloudinary.service";
 import { EVAL_ERROR_MESSAGES, EVAL_UPLOAD_ERROR_MESSAGES } from "./evaluations.constants";
 import { validateEvaluationUploadFile } from "./evaluation-file-validation";
 import type { EvaluationResponseDto, ListEvaluationsResponseDto } from "./dto";
+import { validateSupportingLink, type SupportingDoc } from "./supporting-doc.types";
+import type { UpdateEvaluationInput } from "./dto";
 import { EvaluationsService } from "./evaluations.service";
 import { EvaluationsValidation } from "./evaluations.validation";
 
@@ -123,18 +125,15 @@ export class EvaluationsController {
       }
 
       const files = (req.files as Express.Multer.File[]) ?? [];
-      files.forEach((f) => validateEvaluationUploadFile(f));
-      let supportingDocUrls: string[] = [];
-      try {
-        supportingDocUrls = await Promise.all(
-          files.map((f) => this.cloudinaryService.uploadSupportingDocument(f.buffer, f.originalname, f.mimetype)),
-        );
-      } catch (uploadError) {
-        return next(uploadError);
+      const linkDocs = this.buildLinkDocs(req.body.links);
+      if (files.length + linkDocs.length > 5) {
+        throw new Error(EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS);
       }
+      const fileDocs = await this.uploadFileDocs(files);
+      const supportingDocs: SupportingDoc[] = [...fileDocs, ...linkDocs];
 
       const input = this.evaluationsValidation.parseCreateBody(req.body);
-      const result = await this.evaluationsService.create({ ...input, supportingDocUrls }, req.user.id);
+      const result = await this.evaluationsService.create({ ...input, supportingDocs }, req.user.id);
 
       return res.status(HTTP_STATUS_CODES.CREATED).json(result);
     } catch (error) {
@@ -167,6 +166,22 @@ export class EvaluationsController {
             message: EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE,
             errorCode: API_ERROR_CODES.VALIDATION_FAILED,
             errors: [{ field: "files", message: EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+        if (error.message === EVAL_UPLOAD_ERROR_MESSAGES.INVALID_URL) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.INVALID_URL,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "links", message: EVAL_UPLOAD_ERROR_MESSAGES.INVALID_URL, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+        if (error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "supportingDocs", message: EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS, code: API_ERROR_CODES.VALIDATION_FAILED }],
           });
         }
       }
@@ -224,21 +239,36 @@ export class EvaluationsController {
       const { evaluationId } = req.params;
 
       const files = (req.files as Express.Multer.File[]) ?? [];
-      let supportingDocUrls: string[] | undefined;
-      if (files.length > 0) {
-        files.forEach((f) => validateEvaluationUploadFile(f));
-        try {
-          supportingDocUrls = await Promise.all(
-            files.map((f) => this.cloudinaryService.uploadSupportingDocument(f.buffer, f.originalname, f.mimetype)),
-          );
-        } catch (uploadError) {
-          return next(uploadError);
+      // The editor owns the docs section and always sends `docsManaged`; absence means
+      // a non-editor caller that isn't touching docs, so leave existing docs untouched.
+      const docsManaged =
+        req.body.docsManaged === "1" ||
+        files.length > 0 ||
+        req.body.links !== undefined ||
+        req.body.keepFiles !== undefined;
+
+      let docsMerge: { keepUrls: string[]; newDocs: SupportingDoc[] } | undefined;
+      if (docsManaged) {
+        const linkDocs = this.buildLinkDocs(req.body.links);
+        const keepUrls = this.normalizeKeepUrls(req.body.keepFiles);
+        if (files.length + linkDocs.length + keepUrls.length > 5) {
+          throw new Error(EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS);
+        }
+        const fileDocs = await this.uploadFileDocs(files);
+        docsMerge = { keepUrls, newDocs: [...fileDocs, ...linkDocs] };
+      }
+
+      // Allow updates that change only supporting docs (no other field).
+      let input: Partial<UpdateEvaluationInput> = {};
+      try {
+        input = this.evaluationsValidation.parseUpdateBody(req.body);
+      } catch (e) {
+        if (!(e instanceof Error && e.message === "No fields provided to update" && docsMerge !== undefined)) {
+          throw e;
         }
       }
 
-      const input = this.evaluationsValidation.parseUpdateBody(req.body);
-      const updateInput = supportingDocUrls !== undefined ? { ...input, supportingDocUrls } : input;
-      const result = await this.evaluationsService.update(evaluationId, updateInput, req.user.id);
+      const result = await this.evaluationsService.update(evaluationId, input, req.user.id, docsMerge);
 
       return res.json(result);
     } catch (error) {
@@ -271,6 +301,22 @@ export class EvaluationsController {
             message: EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE,
             errorCode: API_ERROR_CODES.VALIDATION_FAILED,
             errors: [{ field: "files", message: EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+        if (error.message === EVAL_UPLOAD_ERROR_MESSAGES.INVALID_URL) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.INVALID_URL,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "links", message: EVAL_UPLOAD_ERROR_MESSAGES.INVALID_URL, code: API_ERROR_CODES.VALIDATION_FAILED }],
+          });
+        }
+        if (error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS) {
+          return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+            success: false,
+            message: EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS,
+            errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+            errors: [{ field: "supportingDocs", message: EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS, code: API_ERROR_CODES.VALIDATION_FAILED }],
           });
         }
       }
@@ -529,8 +575,8 @@ export class EvaluationsController {
       const evaluation = await this.evaluationsService.get(evaluationId, req.user);
 
       const index = Number(docIndex);
-      const publicId = evaluation.supportingDocUrls[index];
-      if (!Number.isInteger(index) || !publicId) {
+      const doc = evaluation.supportingDocs[index];
+      if (!Number.isInteger(index) || !doc) {
         return res.status(HTTP_STATUS_CODES.NOT_FOUND).json({
           success: false,
           message: API_ERROR_MESSAGES.EVALUATION_NOT_FOUND,
@@ -538,7 +584,10 @@ export class EvaluationsController {
         });
       }
 
-      const url = this.cloudinaryService.getSupportingDocumentDownloadUrl(publicId);
+      const url =
+        doc.kind === "file"
+          ? this.cloudinaryService.getSupportingDocumentDownloadUrl(doc.url)
+          : doc.url;
       return res.json({ url });
     } catch (error) {
       if (error instanceof Error && error.message === EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND) {
@@ -594,6 +643,48 @@ export class EvaluationsController {
     }
   };
 
+  /** Normalizes the multipart `links` field (absent | string | string[]) into validated link docs. */
+  private buildLinkDocs(raw: unknown): SupportingDoc[] {
+    const arr = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
+    return arr.map((entry) => {
+      let url = "";
+      let label: string | undefined;
+      if (typeof entry === "string") {
+        const trimmed = entry.trim();
+        if (trimmed.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(trimmed) as { url?: unknown; label?: unknown };
+            url = typeof parsed.url === "string" ? parsed.url : "";
+            label = typeof parsed.label === "string" ? parsed.label : undefined;
+          } catch {
+            url = "";
+          }
+        } else {
+          url = trimmed;
+        }
+      }
+      // Empty/garbage url throws INVALID_URL inside validateSupportingLink — the desired behavior.
+      return validateSupportingLink(url, label);
+    });
+  }
+
+  /** Normalizes the multipart `keepFiles` field (absent | string | string[]) into a list of urls to retain. */
+  private normalizeKeepUrls(raw: unknown): string[] {
+    const arr = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
+    return arr.filter((v): v is string => typeof v === "string" && v.length > 0);
+  }
+
+  /** Validates + uploads PDF files to Cloudinary, returning file docs (label = original filename). */
+  private async uploadFileDocs(files: Express.Multer.File[]): Promise<SupportingDoc[]> {
+    files.forEach((f) => validateEvaluationUploadFile(f));
+    const urls = await Promise.all(
+      files.map((f) =>
+        this.cloudinaryService.uploadSupportingDocument(f.buffer, f.originalname, f.mimetype),
+      ),
+    );
+    return urls.map((url, i) => ({ kind: "file" as const, url, label: files[i].originalname }));
+  }
+
   private isValidationError(error: Error): boolean {
     return (
       error.message.endsWith("is required") ||
@@ -609,6 +700,8 @@ export class EvaluationsController {
       error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_FILES ||
       error.message === EVAL_UPLOAD_ERROR_MESSAGES.INVALID_FILE_TYPE ||
       error.message === EVAL_UPLOAD_ERROR_MESSAGES.FILE_TOO_LARGE ||
+      error.message === EVAL_UPLOAD_ERROR_MESSAGES.INVALID_URL ||
+      error.message === EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS ||
       error.message.includes("characters or fewer") ||
       error.message.includes("must not contain HTML")
     );

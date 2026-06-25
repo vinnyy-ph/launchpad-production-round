@@ -1,7 +1,7 @@
 import type { PerformanceEvaluation, EvaluationAcknowledgement, User } from "@prisma/client";
 import { prisma } from "../../../core/database/prisma.service";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
-import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES } from "./evaluations.constants";
+import { EVAL_ACK_DEADLINE_DAYS, EVAL_ERROR_MESSAGES, EVAL_UPLOAD_ERROR_MESSAGES } from "./evaluations.constants";
 import { EvaluationsRepository } from "./evaluations.repository";
 import { NotificationsService } from "../../notifications/notifications.service";
 import { EmailService } from "../../../core/email";
@@ -15,6 +15,7 @@ import type {
   ListRevieweesResponseDto,
   UpdateEvaluationInput,
 } from "./dto";
+import type { SupportingDoc } from "./supporting-doc.types";
 
 type EvaluationWithAck = PerformanceEvaluation & {
   acknowledgement: Pick<EvaluationAcknowledgement, "isDeemedAck" | "acknowledgedAt"> | null;
@@ -125,7 +126,7 @@ export class EvaluationsService {
       lowlights: input.lowlights ?? [],
       evaluation: input.evaluation ?? null,
       recommendation: input.recommendation ?? null,
-      supportingDocUrls: input.supportingDocUrls ?? [],
+      supportingDocs: input.supportingDocs ?? [],
       ...sendFields,
     };
 
@@ -164,6 +165,7 @@ export class EvaluationsService {
     evaluationId: string,
     input: UpdateEvaluationInput,
     userId: string,
+    docsMerge?: { keepUrls: string[]; newDocs: SupportingDoc[] },
   ) {
     const evaluation = await this.evaluationsRepository.findById(evaluationId);
     if (!evaluation) throw new Error(EVAL_ERROR_MESSAGES.EVALUATION_NOT_FOUND);
@@ -178,6 +180,18 @@ export class EvaluationsService {
       const newReviewee = await prisma.employee.findUnique({ where: { id: input.revieweeId } });
       if (!newReviewee) throw new Error(EVAL_ERROR_MESSAGES.REVIEWEE_NOT_FOUND);
       if (newReviewee.supervisorId !== reviewer.id) throw new Error(EVAL_ERROR_MESSAGES.NOT_DIRECT_SUPERVISOR);
+    }
+
+    if (docsMerge) {
+      const existingDocs = (evaluation.supportingDocs ?? []) as unknown as SupportingDoc[];
+      const retained = existingDocs.filter(
+        (d) => d.kind === "file" && docsMerge.keepUrls.includes(d.url),
+      );
+      const merged = [...retained, ...docsMerge.newDocs];
+      if (merged.length > 5) {
+        throw new Error(EVAL_UPLOAD_ERROR_MESSAGES.TOO_MANY_DOCS);
+      }
+      input = { ...input, supportingDocs: merged };
     }
 
     const now = new Date();
@@ -208,7 +222,7 @@ export class EvaluationsService {
             ...(updateData.lowlights !== undefined && { lowlights: updateData.lowlights }),
             ...(updateData.evaluation !== undefined && { evaluation: updateData.evaluation }),
             ...(updateData.recommendation !== undefined && { recommendation: updateData.recommendation }),
-            ...(updateData.supportingDocUrls !== undefined && { supportingDocUrls: updateData.supportingDocUrls }),
+            ...(updateData.supportingDocs !== undefined && { supportingDocs: updateData.supportingDocs }),
             isSent: true,
             sentAt: updateData.sentAt,
             ackDeadline: updateData.ackDeadline,
@@ -458,7 +472,7 @@ export class EvaluationsService {
       lowlights: evaluation.lowlights,
       evaluation: evaluation.evaluation,
       recommendation: evaluation.recommendation,
-      supportingDocUrls: evaluation.supportingDocUrls,
+      supportingDocs: (evaluation.supportingDocs ?? []) as unknown as SupportingDoc[],
       isSent: evaluation.isSent,
       sentAt: evaluation.sentAt,
       ackDeadline: evaluation.ackDeadline,

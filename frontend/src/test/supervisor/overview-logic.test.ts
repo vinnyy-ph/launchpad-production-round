@@ -28,7 +28,7 @@ function ev(over: Partial<Evaluation> & Pick<Evaluation, "id">): Evaluation {
     lowlights: [],
     evaluation: null,
     recommendation: null,
-    supportingDocUrls: [],
+    supportingDocs: [],
     isSent: true,
     sentAt: "2026-06-30T00:00:00Z",
     ackDeadline: null,
