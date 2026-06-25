@@ -44,7 +44,10 @@ const CommandInput = React.forwardRef<
     <CommandPrimitive.Input
       ref={ref}
       className={cn(
-        "flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+        // No focus ring: the search input auto-focuses when the dropdown opens, and the
+        // open popover is already the focus indicator. Overrides the global focus-visible
+        // box-shadow ring in index.css.
+        "flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none focus-visible:shadow-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
