@@ -92,10 +92,19 @@ export class MeService {
       return { ...base, submitted: false, answers: [] };
     }
 
-    // Anonymity firewall: an anonymous response has no employee link, so the content is
-    // unrecoverable by design. Confirm submission, return no answers — never re-identify.
+    // Anonymity protects answers from OTHERS, not from their author. An anonymous response
+    // carries no employeeId (the firewall), so the caller's own answers are recovered through
+    // their OWN completion→response link — self-scoped to the session employee, never the
+    // request. This deliberately does not use findMyAnswers (the response.employeeId path is
+    // null for anonymous and is also the authority-gated drill-down's path, which stays gated).
     if (occurrence.isAnonymous) {
-      return { ...base, submitted: true, answers: [] };
+      const rows = await this.repository.findMyAnonymousAnswers(occurrenceId, employeeId);
+      // Responses submitted before this link existed have no completion→response link and are
+      // unrecoverable by design → surface a clean "submitted, nothing to show".
+      if (rows.length === 0) {
+        return { ...base, submitted: true, answers: [] };
+      }
+      return { ...base, submitted: true, answers: buildAnswerItems(occurrence.questions, rows) };
     }
 
     const rows = await this.repository.findMyAnswers(occurrenceId, employeeId);

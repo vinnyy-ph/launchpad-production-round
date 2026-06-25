@@ -1,3 +1,5 @@
+import type { SupportingDoc } from "../supporting-doc.types";
+
 export interface EvaluationResponseDto {
   id: string;
   reviewerId: string;
@@ -11,7 +13,7 @@ export interface EvaluationResponseDto {
   lowlights: string[];
   evaluation: string | null;
   recommendation: string | null;
-  supportingDocUrls: string[];
+  supportingDocs: SupportingDoc[];
   isSent: boolean;
   sentAt: Date | null;
   ackDeadline: Date | null;

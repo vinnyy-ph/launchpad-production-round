@@ -58,6 +58,10 @@ describe("POST /api/v1/pulse/occurrences/:occurrenceId/respond", () => {
         surveyCompletion: { create: completionCreateMock },
       });
     });
+
+    // The response is created first; its id is linked onto the completion so the author can
+    // later recover their own answers — even for anonymous responses (which have no employeeId).
+    responseCreateMock.mockResolvedValue({ id: "resp-1" });
   });
 
   it("returns 401 if not authenticated", async () => {
@@ -255,6 +259,7 @@ describe("POST /api/v1/pulse/occurrences/:occurrenceId/respond", () => {
       data: {
         occurrenceId: "occ-001",
         employeeId: "emp-1",
+        responseId: "resp-1",
       },
     });
   });
@@ -306,6 +311,7 @@ describe("POST /api/v1/pulse/occurrences/:occurrenceId/respond", () => {
       data: {
         occurrenceId: "occ-001",
         employeeId: "emp-1",
+        responseId: "resp-1",
       },
     });
   });

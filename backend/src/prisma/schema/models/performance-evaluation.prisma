@@ -16,8 +16,7 @@ model PerformanceEvaluation {
   periodEnd         DateTime
   highlights        String[]
   lowlights         String[]
-  supportingDocUrls String[]
-  supportingDocUrl  String?
+  supportingDocs    Json                       @default("[]")
   acknowledgement   EvaluationAcknowledgement?
   reviewee          Employee                   @relation("Reviewee", fields: [revieweeId], references: [id])
   reviewer          Employee                   @relation("Reviewer", fields: [reviewerId], references: [id])
