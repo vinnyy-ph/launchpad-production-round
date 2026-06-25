@@ -60,7 +60,12 @@ export class BulkOnboardingService {
       this.bulkRepository.findEmergencyContactNumbers(),
     ]);
 
-    const seenEmails = new Set<string>();
+    const emailCounts = new Map<string, number>();
+    rows.forEach((row) => {
+      const email = row.companyEmail.toLowerCase();
+      emailCounts.set(email, (emailCounts.get(email) ?? 0) + 1);
+    });
+
     const seenPhones = new Set<string>();
     const resolvedSupervisorsByRow = new Map<
       number,
@@ -74,14 +79,13 @@ export class BulkOnboardingService {
 
     rows.forEach((row) => {
       const email = row.companyEmail.toLowerCase();
-      if (seenEmails.has(email)) {
+      if ((emailCounts.get(email) ?? 0) > 1) {
         errors.push({
           rowNumber: row.rowNumber,
           field: "companyEmail",
           message: "This email appears more than once in the file.",
         });
       }
-      seenEmails.add(email);
 
       if (existingEmails.has(email)) {
         errors.push({
@@ -164,6 +168,7 @@ export class BulkOnboardingService {
 
     const created: BulkOnboardingCommitData["created"] = [];
     const inviteFailures: BulkOnboardingRowError[] = [];
+    const pendingInvites: Array<{ rowNumber: number; recordId: string }> = [];
 
     for (const row of rows) {
       if (!row.supervisorId) {
@@ -175,19 +180,25 @@ export class BulkOnboardingService {
         supervisorId: row.supervisorId,
       });
       created.push(result.data);
-
-      try {
-        await this.invitationService.sendInvitation({
-          recordId: result.data.onboardingRecord.id,
-        });
-      } catch {
-        inviteFailures.push({
-          rowNumber: row.rowNumber,
-          field: "companyEmail",
-          message: "Invitation email could not be delivered.",
-        });
-      }
+      pendingInvites.push({
+        rowNumber: row.rowNumber,
+        recordId: result.data.onboardingRecord.id,
+      });
     }
+
+    await Promise.all(
+      pendingInvites.map(async ({ rowNumber, recordId }) => {
+        try {
+          await this.invitationService.sendInvitation({ recordId });
+        } catch {
+          inviteFailures.push({
+            rowNumber,
+            field: "companyEmail",
+            message: "Invitation email could not be delivered.",
+          });
+        }
+      }),
+    );
 
     return {
       success: true,

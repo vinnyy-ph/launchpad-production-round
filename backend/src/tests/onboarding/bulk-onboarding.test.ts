@@ -180,4 +180,109 @@ describe("bulk onboarding supervisor email resolution", () => {
       ]),
     );
   });
+
+  it("flags every row when the same company email appears more than once in the file", async () => {
+    const parsed = validation.parseRows({
+      rows: [
+        buildRow({ rowNumber: 1, companyEmail: "duplicate@example.com" }),
+        buildRow({
+          rowNumber: 2,
+          companyEmail: "duplicate@example.com",
+          firstName: "Other",
+          lastName: "Person",
+        }),
+      ],
+    });
+    const { service } = buildService();
+
+    const preview = await service.preview(parsed);
+
+    expect(preview.errors).toEqual(
+      expect.arrayContaining([
+        {
+          rowNumber: 1,
+          field: "companyEmail",
+          message: "This email appears more than once in the file.",
+        },
+        {
+          rowNumber: 2,
+          field: "companyEmail",
+          message: "This email appears more than once in the file.",
+        },
+      ]),
+    );
+    expect(preview.rows[0].status).toBe("invalid");
+    expect(preview.rows[1].status).toBe("invalid");
+  });
+
+  it("returns a companyEmail row error when the work email is not a valid email format", async () => {
+    const parsed = validation.parseRows({
+      rows: [buildRow({ companyEmail: "maria.santos" })],
+    });
+    const { service } = buildService();
+
+    const preview = await service.preview(parsed);
+
+    expect(preview.errors).toEqual([
+      {
+        rowNumber: 1,
+        field: "companyEmail",
+        message: "Invalid companyEmail",
+      },
+    ]);
+  });
+
+  it("returns required and empty-space messages for missing bulk fields", () => {
+    const parsed = validation.parseRows({
+      rows: [
+        buildRow({
+          firstName: "",
+          lastName: "   ",
+        }),
+      ],
+    });
+
+    expect(parsed.errors).toEqual(
+      expect.arrayContaining([
+        {
+          rowNumber: 1,
+          field: "firstName",
+          message: "First name is required.",
+        },
+        {
+          rowNumber: 1,
+          field: "lastName",
+          message: "Last name cannot be empty spaces.",
+        },
+      ]),
+    );
+  });
+
+  it("returns a field error for unsafe HTML in a bulk text field", () => {
+    const parsed = validation.parseRows({
+      rows: [buildRow({ jobTitle: "<script>alert(1)</script>" })],
+    });
+
+    expect(parsed.errors).toEqual([
+      {
+        rowNumber: 1,
+        field: "jobTitle",
+        message: "Job title must not contain HTML or control characters",
+      },
+    ]);
+  });
+
+  it("returns a friendly profanity message for bulk text fields", () => {
+    const parsed = validation.parseRows({
+      rows: [buildRow({ firstName: "f*ck" })],
+    });
+
+    expect(parsed.errors).toEqual([
+      {
+        rowNumber: 1,
+        field: "firstName",
+        message: "Please remove any offensive or inappropriate language.",
+      },
+    ]);
+  });
 });
