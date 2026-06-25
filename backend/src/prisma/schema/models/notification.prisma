@@ -1,7 +1,6 @@
 model Notification {
   id          String              @id @default(uuid())
   recipientId String
-  recipient   Employee            @relation(fields: [recipientId], references: [id])
   type        NotificationType
   channel     NotificationChannel @default(IN_APP)
   subject     String
@@ -13,15 +12,15 @@ model Notification {
   sourceId    String?
   isRead      Boolean             @default(false)
   readAt      DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   /// User-pinned to the top of their notification center.
   isPinned    Boolean             @default(false)
   pinnedAt    DateTime?
   /// Soft-delete (archive): cleared notifications stay as the reminder-dedup ledger but
   /// are hidden from the list. Null = visible.
   deletedAt   DateTime?
-  createdAt   DateTime            @default(now())
-
-  updatedAt DateTime @updatedAt
+  recipient   Employee            @relation(fields: [recipientId], references: [id])
 
   @@map("notifications")
 }
