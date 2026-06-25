@@ -746,7 +746,32 @@ export function EmployeeDetailsModal({
     window.requestAnimationFrame(() => setShakeUnsavedAlert(true));
   }
 
+  // The document preview and offboarding dialogs render in their own Radix layer trees
+  // (siblings of this dialog, not children), so dismissing them — via Escape, an outside
+  // click, or their own close button — also routes a close to this parent dialog. Ignore
+  // those while a nested dialog is open so closing it doesn't close the whole modal.
+  //
+  // Closing a nested dialog via its close button is special: it clears the nested state
+  // synchronously, so `nestedDialogOpen` is already false by the time Radix restores focus
+  // to this dialog and that focus restoration arrives here as one last dismiss. The latch
+  // ref stays armed across that teardown (cleared on the next frame) so the trailing event
+  // is still suppressed.
+  const nestedDialogJustClosedRef = useRef(false);
+  const nestedDialogOpen = viewingDocument !== null || offboardingOpen;
+  const shouldIgnoreParentClose = () =>
+    nestedDialogOpen || nestedDialogJustClosedRef.current;
+
+  function closeNestedDialog(close: () => void) {
+    nestedDialogJustClosedRef.current = true;
+    close();
+    window.requestAnimationFrame(() => {
+      nestedDialogJustClosedRef.current = false;
+    });
+  }
+
   function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && shouldIgnoreParentClose()) return;
+
     if (!nextOpen && hasUnsavedChanges) {
       alertUnsavedChanges();
       return;
@@ -827,6 +852,13 @@ export function EmployeeDetailsModal({
                   }`}
                   onAnimationEnd={() => setShakeUnsavedAlert(false)}
                   onInteractOutside={(event) => {
+                      // An interaction with a nested dialog (doc preview / offboarding) isn't
+                      // really an outside-click on this one — ignore it so the preview can close
+                      // on its own without dragging this modal (or its unsaved-changes guard) along.
+                      if (shouldIgnoreParentClose()) {
+                          event.preventDefault();
+                          return;
+                      }
                       if (hasUnsavedChanges) {
                           event.preventDefault();
                           alertUnsavedChanges();
@@ -1704,7 +1736,11 @@ export function EmployeeDetailsModal({
           {offboardingOpen ? (
               <InitiateOffboardingDialog
                   open={offboardingOpen}
-                  onOpenChange={setOffboardingOpen}
+                  onOpenChange={(next) =>
+                      next
+                          ? setOffboardingOpen(true)
+                          : closeNestedDialog(() => setOffboardingOpen(false))
+                  }
                   employeeId={employeeId ?? undefined}
                   onInitiated={(caseId) => {
                       setOffboardingOpen(false);
@@ -1716,7 +1752,7 @@ export function EmployeeDetailsModal({
 
           <DocumentViewerModal
               open={viewingDocument !== null}
-              onClose={() => setViewingDocument(null)}
+              onClose={() => closeNestedDialog(() => setViewingDocument(null))}
               fileUrl={viewingDocument?.fileUrl ?? null}
               documentName={viewingDocument?.documentName}
           />
