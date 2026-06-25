@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <PendingAckBanner />
           <UnansweredSurveyBanner />
           <ClearanceSignatureBanner />
-          <main className="flex-1 overflow-y-auto bg-[color:var(--bg-primary)] p-6">
+          <main className="flex-1 overflow-y-auto bg-[color:var(--bg-primary)] px-6 pt-6 pb-10">
             <PageTransition className="h-full">{children}</PageTransition>
           </main>
         </div>
