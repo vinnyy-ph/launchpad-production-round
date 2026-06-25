@@ -15,6 +15,7 @@ import {
 import { swaggerSpec } from "./docs/swagger.config";
 import { authRoutes } from "./modules/auth";
 import { dashboardRoutes } from "./modules/dashboard";
+import { documentsRouter } from "./modules/documents";
 import { evaluationsRouter } from "./modules/performance/evaluations";
 import { usersRouter } from "./modules/people/users";
 import { onboardingRouter } from "./modules/people/onboarding";
@@ -71,6 +72,9 @@ app.get("/api/me", authenticate, (req, res) => res.json({ user: req.user }));
 
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+// Authenticated by the signed token in the request URL (not the Firebase Bearer), so it can
+// be loaded directly by <iframe>/<img>/new-tab navigations.
+app.use(`${API_ROUTES.VERSIONED_ROOT}/documents`, documentsRouter);
 app.use(
   `${API_ROUTES.VERSIONED_ROOT}/evaluations`,
   authenticate,
