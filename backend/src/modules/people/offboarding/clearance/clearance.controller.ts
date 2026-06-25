@@ -64,10 +64,11 @@ export class ClearanceController {
       const { requestId } = this.clearanceValidation.parseRequestIdParam(
         req.params,
       );
-      const { note } = this.clearanceValidation.parseSignBody(req.body);
+      const { note, signatureImage } = this.clearanceValidation.parseSignBody(req.body);
       const result = await this.clearanceService.signClearance(
         req.user!,
         requestId,
+        signatureImage,
         note,
       );
 

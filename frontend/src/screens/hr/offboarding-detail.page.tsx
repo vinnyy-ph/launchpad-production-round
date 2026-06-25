@@ -36,6 +36,8 @@ import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees"
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { DocumentViewerModal } from "@/modules/people/onboarding/components/documents/document-viewer-modal";
+import { buildClearancePdf } from "@/modules/people/offboarding/utils/clearance-pdf";
+import { ClearancePdfPreviewModal } from "@/modules/people/offboarding/components/clearance-pdf-preview-modal";
 import type {
   OffboardingAttachment,
   OffboardingDetail,
@@ -138,6 +140,10 @@ function OffboardingDetailInner() {
   const [replaceTarget, setReplaceTarget] = useState<SignatureRequest | null>(null);
   // The attachment currently shown in the document preview modal (null when closed).
   const [previewAttachment, setPreviewAttachment] = useState<OffboardingAttachment | null>(null);
+  // The generated clearance-form PDF awaiting preview/download (null when the modal is closed).
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string } | null>(null);
+  // True while the clearance-form PDF is being generated (signature images are preloaded).
+  const [preparingPdf, setPreparingPdf] = useState(false);
 
   // Topbar breadcrumb: Organization › People › Offboarding › {employee}.
   usePageBreadcrumb(offboarding ? [fullName(offboarding.employee)] : []);
@@ -196,6 +202,37 @@ function OffboardingDetailInner() {
     }
   }
 
+  // Generates the PDF and opens it in the preview modal; the download happens from there.
+  async function handleOpenPdfPreview() {
+    if (!offboarding) return;
+    setPreparingPdf(true);
+    try {
+      const { blob, filename } = await buildClearancePdf(offboarding);
+      setPdfPreview({ url: URL.createObjectURL(blob), filename });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate the clearance form.");
+    } finally {
+      setPreparingPdf(false);
+    }
+  }
+
+  function closePdfPreview() {
+    setPdfPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  }
+
+  function downloadPreviewedPdf() {
+    if (!pdfPreview) return;
+    const link = document.createElement("a");
+    link.href = pdfPreview.url;
+    link.download = pdfPreview.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
   return (
     <div>
       {/* Header */}
@@ -220,7 +257,18 @@ function OffboardingDetailInner() {
             </p>
           </div>
         </div>
-        <StatusBadge status={offboarding.status} />
+        <div className="flex items-center gap-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void handleOpenPdfPreview()}
+            disabled={preparingPdf}
+          >
+            <Eye className="h-4 w-4" />
+            {preparingPdf ? "Preparing…" : "View form"}
+          </Button>
+          <StatusBadge status={offboarding.status} />
+        </div>
       </div>
 
       {/* Meta card */}
@@ -395,6 +443,14 @@ function OffboardingDetailInner() {
         onClose={() => setPreviewAttachment(null)}
         fileUrl={previewAttachment?.url ?? null}
         documentName={previewAttachment?.fileName}
+      />
+
+      <ClearancePdfPreviewModal
+        open={pdfPreview !== null}
+        onClose={closePdfPreview}
+        fileUrl={pdfPreview?.url ?? null}
+        fileName={pdfPreview?.filename ?? "Clearance form"}
+        onDownload={downloadPreviewedPdf}
       />
     </div>
   );

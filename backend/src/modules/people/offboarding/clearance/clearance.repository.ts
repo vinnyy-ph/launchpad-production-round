@@ -1,4 +1,4 @@
-import type { SignatoryStatus } from "@prisma/client";
+import { Prisma, type SignatoryStatus } from "@prisma/client";
 import { prisma } from "../../../../core/database/prisma.service";
 
 /** Includes the offboarding + offboardee context the clearance views need. */
@@ -89,6 +89,7 @@ export class ClearanceRepository {
         signatoryId: newSignatoryId,
         status: "PENDING",
         note: null,
+        signatureImage: null,
         actionAt: null,
       },
       include: requestInclude,
@@ -117,11 +118,12 @@ export class ClearanceRepository {
     requestId: string,
     status: SignatoryStatus,
     note: string | null,
+    signatureImage: string | null,
     actionAt: Date | null,
   ) {
     return prisma.clearanceSignatureRequest.update({
       where: { id: requestId },
-      data: { status, note, actionAt },
+      data: { status, note, signatureImage, actionAt },
       include: requestInclude,
     });
   }
@@ -134,21 +136,59 @@ export class ClearanceRepository {
   }
 
   /**
-   * Completes the offboarding lifecycle atomically: marks the record COMPLETED and
-   * flips the offboardee to INACTIVE. Called once all signature requests are SIGNED.
+   * Completes the clearance lifecycle atomically once all signature requests are SIGNED:
+   * marks the record COMPLETED, and only flips the offboardee to INACTIVE when
+   * `inactivateNow` is true (the effective date has arrived). When it is false the record
+   * is completed but the employee stays ACTIVE until the daily sweep inactivates them on
+   * the effective date.
    */
-  async completeOffboarding(offboardingId: string, employeeId: string) {
+  async completeOffboarding(
+    offboardingId: string,
+    employeeId: string,
+    inactivateNow: boolean,
+  ) {
     const completedAt = new Date();
 
-    return prisma.$transaction([
+    const operations: Prisma.PrismaPromise<unknown>[] = [
       prisma.offboardingRecord.update({
         where: { id: offboardingId },
         data: { status: "COMPLETED", completedAt },
       }),
-      prisma.employee.update({
-        where: { id: employeeId },
-        data: { status: "INACTIVE" },
-      }),
-    ]);
+    ];
+
+    if (inactivateNow) {
+      operations.push(
+        prisma.employee.update({
+          where: { id: employeeId },
+          data: { status: "INACTIVE" },
+        }),
+      );
+    }
+
+    return prisma.$transaction(operations);
+  }
+
+  /**
+   * Offboardings whose clearance is COMPLETED and whose effective date has arrived
+   * (`effectiveDate <= now`) but whose employee is still ACTIVE — the deferred
+   * inactivations the daily sweep applies (signatures landed before the effective date).
+   */
+  async findOffboardingsPendingInactivation(now: Date) {
+    return prisma.offboardingRecord.findMany({
+      where: {
+        status: "COMPLETED",
+        effectiveDate: { lte: now },
+        employee: { status: "ACTIVE" },
+      },
+      select: { id: true, employeeId: true },
+    });
+  }
+
+  /** Flips an employee to INACTIVE (deferred offboarding inactivation on the effective date). */
+  async inactivateEmployee(employeeId: string) {
+    return prisma.employee.update({
+      where: { id: employeeId },
+      data: { status: "INACTIVE" },
+    });
   }
 }

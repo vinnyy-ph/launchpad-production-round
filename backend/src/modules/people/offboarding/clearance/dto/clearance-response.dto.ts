@@ -17,6 +17,7 @@ export interface AssignedClearanceDto {
   requirements: string;
   status: "PENDING" | "SIGNED" | "REJECTED";
   note: string | null;
+  signatureImage: string | null;
   actionAt: string | null;
   offboardee: {
     id: string;
@@ -37,6 +38,7 @@ export interface ClearanceActionDataDto {
   offboardingId: string;
   status: "PENDING" | "SIGNED" | "REJECTED";
   note: string | null;
+  signatureImage: string | null;
   actionAt: string | null;
   /** Set when the action completed the offboarding (all requests SIGNED). */
   offboardingCompleted: boolean;

@@ -10,6 +10,7 @@ model ClearanceSignatureRequest {
   requirements  String
   status        SignatoryStatus   @default(PENDING)
   note          String? // optional on sign, required on reject
+  signatureImage String? // PNG data URL captured on sign (draw/type/upload); null until signed
   actionAt      DateTime?
 
   createdAt DateTime @default(now())

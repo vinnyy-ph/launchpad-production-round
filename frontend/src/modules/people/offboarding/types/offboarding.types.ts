@@ -63,6 +63,7 @@ export interface SignatureRequest {
   requirements: string | null;
   status: SignatoryStatus;
   note: string | null;
+  signatureImage: string | null;
   actionAt: string | null;
 }
 
@@ -170,6 +171,7 @@ export interface AssignedClearance {
   requirements: string | null;
   status: SignatoryStatus;
   note: string | null;
+  signatureImage: string | null;
   actionAt: string | null;
   offboardee: OffboardingEmployee;
   effectiveDate: string;
@@ -186,6 +188,7 @@ export interface ClearanceAction {
   offboardingId: string;
   status: SignatoryStatus;
   note: string | null;
+  signatureImage: string | null;
   actionAt: string | null;
   offboardingCompleted: boolean;
   employeeInactivated: boolean;

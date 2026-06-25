@@ -60,6 +60,7 @@ export class ClearanceService {
         requirements: request.requirements,
         status: request.status,
         note: request.note,
+        signatureImage: request.signatureImage,
         actionAt: request.actionAt?.toISOString() ?? null,
         offboardee: {
           id: request.offboarding.employee.id,
@@ -83,6 +84,7 @@ export class ClearanceService {
   async signClearance(
     user: User,
     requestId: string,
+    signatureImage: string,
     note: string | undefined,
   ): Promise<ClearanceActionResponseDto> {
     const { request } = await this.loadAndAuthorizeSignatory(user, requestId);
@@ -95,12 +97,14 @@ export class ClearanceService {
       requestId,
       "SIGNED",
       note ?? null,
+      signatureImage,
       new Date(),
     );
 
     const completion = await this.maybeCompleteOffboarding(
       updated.offboarding.id,
       updated.offboarding.employeeId,
+      updated.offboarding.effectiveDate,
     );
 
     return {
@@ -129,6 +133,7 @@ export class ClearanceService {
       requestId,
       "REJECTED",
       note,
+      null,
       new Date(),
     );
 
@@ -176,6 +181,7 @@ export class ClearanceService {
     const updated = await this.clearanceRepository.updateRequestStatus(
       requestId,
       "PENDING",
+      null,
       null,
       null,
     );
@@ -252,12 +258,16 @@ export class ClearanceService {
   }
 
   /**
-   * Completes the offboarding when no signature requests remain unsigned.
-   * Server-enforced: marks the record COMPLETED and the employee INACTIVE.
+   * Completes the clearance when no signature requests remain unsigned. Server-enforced:
+   * marks the record COMPLETED. The employee only becomes INACTIVE once the effective date
+   * has arrived — immediately when it has already passed, otherwise deferred to the daily
+   * sweep ({@link inactivateDueOffboardings}). Returns flags so callers can surface which
+   * happened.
    */
   private async maybeCompleteOffboarding(
     offboardingId: string,
     employeeId: string,
+    effectiveDate: Date,
   ): Promise<{ offboardingCompleted: boolean; employeeInactivated: boolean }> {
     const unsigned = await this.clearanceRepository.countUnsignedRequests(
       offboardingId,
@@ -267,9 +277,31 @@ export class ClearanceService {
       return { offboardingCompleted: false, employeeInactivated: false };
     }
 
-    await this.clearanceRepository.completeOffboarding(offboardingId, employeeId);
+    const inactivateNow = effectiveDate.getTime() <= Date.now();
 
-    return { offboardingCompleted: true, employeeInactivated: true };
+    await this.clearanceRepository.completeOffboarding(
+      offboardingId,
+      employeeId,
+      inactivateNow,
+    );
+
+    return { offboardingCompleted: true, employeeInactivated: inactivateNow };
+  }
+
+  /**
+   * Inactivates employees whose clearance is complete and whose effective date has arrived
+   * but who are still ACTIVE (their signatures all landed before the effective date). Runs
+   * from the daily cron; `now` is injectable for tests. Returns the number inactivated.
+   */
+  async inactivateDueOffboardings(now: Date = new Date()): Promise<number> {
+    const due =
+      await this.clearanceRepository.findOffboardingsPendingInactivation(now);
+
+    for (const record of due) {
+      await this.clearanceRepository.inactivateEmployee(record.employeeId);
+    }
+
+    return due.length;
   }
 
   /** Resolves the caller's employee profile or throws. */
@@ -310,6 +342,7 @@ export class ClearanceService {
       offboardingId: request.offboardingId,
       status: request.status,
       note: request.note,
+      signatureImage: request.signatureImage,
       actionAt: request.actionAt?.toISOString() ?? null,
       offboardingCompleted: completion.offboardingCompleted,
       employeeInactivated: completion.employeeInactivated,
