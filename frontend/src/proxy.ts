@@ -13,30 +13,36 @@ import { NextResponse } from "next/server";
 export function proxy() {
   const isProd = process.env.NODE_ENV === "production";
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  const wsUrl = apiUrl?.replace(/^http/, "ws"); // http->ws, https->wss
-  const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-
   const scriptSrc = [
     "'self'",
     "'unsafe-inline'",
+    "https://apis.google.com", // Firebase Google sign-in injects the gapi loader (apis.google.com/js/api.js)
+    "https://www.gstatic.com", // Firebase auth helper scripts
     !isProd && "'unsafe-eval'", // next dev fast-refresh evaluates code via eval
   ].filter(Boolean);
 
   const connectSrc = [
     "'self'",
-    "https://identitytoolkit.googleapis.com",
-    "https://securetoken.googleapis.com",
-    "https://www.googleapis.com",
-    apiUrl,
-    wsUrl,
+    // Host-level allowlisting proved fragile across Firebase/Google auth, Cloudinary,
+    // the API and the notifications socket — and with script-src already allowing
+    // 'unsafe-inline', a strict connect-src adds little real protection. Allow any HTTPS
+    // /WSS origin (mirrors img-src 'https:'); still blocks http: downgrade + data:/blob: exfil.
+    "https:",
+    "wss:",
+    // dev talks to the local API + socket over http/ws (NEXT_PUBLIC_API_URL is often unset locally).
+    !isProd && "http://localhost:*",
+    !isProd && "ws://localhost:*",
+    !isProd && "http://127.0.0.1:*",
+    !isProd && "ws://127.0.0.1:*",
   ].filter(Boolean);
 
   const frameSrc = [
     "'self'",
-    "https://accounts.google.com",
-    "https://*.firebaseapp.com",
-    authDomain && `https://${authDomain}`,
+    "blob:", // Firebase popup sign-in renders its helper in a blob: iframe
+    // Cloudinary upload/media widget + Google/Firebase auth all frame third-party https
+    // origins; enumerating them proved fragile. frame-ancestors 'none' still blocks US
+    // from being framed (the clickjacking protection that matters).
+    "https:",
   ].filter(Boolean);
 
   const csp = [

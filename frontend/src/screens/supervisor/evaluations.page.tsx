@@ -16,6 +16,7 @@ import {
     FileText,
     X,
     Link as LinkIcon,
+    Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
@@ -586,6 +587,8 @@ interface EditorProps {
     reviewees: Reviewee[];
     onSubmit: (input: EvaluationInput, files: File[]) => void;
     onRequestSend: (payload: SendPayload) => void;
+    /** True while the send mutation is in-flight (after confirm). */
+    sending?: boolean;
     /** Request deletion of the current draft (opens the parent's confirm). Drafts only. */
     onRequestDelete?: () => void;
     /** Silent autosave persist. Creates when no id, updates otherwise; returns the draft id. */
@@ -616,6 +619,7 @@ function EvaluationEditorDialog({
     reviewees,
     onSubmit,
     onRequestSend,
+    sending = false,
     onRequestDelete,
     onAutosave,
 }: EditorProps) {
@@ -1554,8 +1558,9 @@ function EvaluationEditorDialog({
                                     >
                                         Save as draft
                                     </Button>
-                                    <Button type="button" onClick={handleSend}>
-                                        <Send size={14} className="mr-1" /> Send
+                                    <Button type="button" onClick={handleSend} loading={sending} disabled={sending}>
+                                        <Send size={14} className="mr-1" />
+                                        {sending ? "Sending…" : "Send"}
                                     </Button>
                                 </>
                             )}
@@ -2110,6 +2115,7 @@ export default function EvaluationsPage() {
                 reviewees={revieweeList}
                 onSubmit={handleSubmit}
                 onRequestSend={(payload) => setPendingSend(payload)}
+                sending={sendMutation.isPending}
                 onRequestDelete={() => editing && setDeletingId(editing.id)}
                 onAutosave={handleAutosave}
             />
@@ -2139,7 +2145,11 @@ export default function EvaluationsPage() {
                                 sendMutation.isPending
                             }
                         >
-                            <Send size={14} className="mr-1" />{" "}
+                            {sendMutation.isPending ? (
+                                <Loader2 size={14} className="mr-1 animate-spin" />
+                            ) : (
+                                <Send size={14} className="mr-1" />
+                            )}{" "}
                             {sendMutation.isPending ? "Sending…" : "Send"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
