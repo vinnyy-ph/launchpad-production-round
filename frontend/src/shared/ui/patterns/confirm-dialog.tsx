@@ -41,6 +41,11 @@ export function useConfirm(): ConfirmFn {
   return ctx;
 }
 
+/** Non-throwing variant: returns null when there's no <ConfirmProvider> (tests, isolated renders). */
+export function useOptionalConfirm(): ConfirmFn | null {
+  return useContext(ConfirmContext);
+}
+
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);

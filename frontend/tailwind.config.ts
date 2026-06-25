@@ -19,6 +19,30 @@ const config: Config = {
   			// B1-9: defer to the CSS var so jia-tokens.css is the single source of truth
   			sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', '-apple-system', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif']
   		},
+  		fontSize: {
+  			// Jia type scale — size + paired line-height, deferring to jia-tokens.css (single source).
+  			// Tailwind's default leadings don't match Jia (e.g. xl 28→30, 3xl 36→38), so the scale is
+  			// mapped here once and every text-* / display-* utility inherits the correct Jia leading.
+  			xs:   ['var(--text-xs-size)', { lineHeight: 'var(--text-xs-lh)' }],
+  			sm:   ['var(--text-sm-size)', { lineHeight: 'var(--text-sm-lh)' }],
+  			base: ['var(--text-md-size)', { lineHeight: 'var(--text-md-lh)' }],
+  			lg:   ['var(--text-lg-size)', { lineHeight: 'var(--text-lg-lh)' }],
+  			xl:   ['var(--text-xl-size)', { lineHeight: 'var(--text-xl-lh)' }],
+  			// Display scale, mapped onto 2xl–7xl so existing heading classes pick up Jia leadings.
+  			'2xl': ['var(--display-xs-size)', { lineHeight: 'var(--display-xs-lh)' }],
+  			'3xl': ['var(--display-sm-size)', { lineHeight: 'var(--display-sm-lh)' }],
+  			'4xl': ['var(--display-md-size)', { lineHeight: 'var(--display-md-lh)' }],
+  			'5xl': ['var(--display-lg-size)', { lineHeight: 'var(--display-lg-lh)' }],
+  			'6xl': ['var(--display-xl-size)', { lineHeight: 'var(--display-xl-lh)' }],
+  			'7xl': ['var(--display-2xl-size)', { lineHeight: 'var(--display-2xl-lh)' }],
+  			// Semantic display aliases (preferred for new headings — include the −2% display tracking).
+  			'display-xs':  ['var(--display-xs-size)',  { lineHeight: 'var(--display-xs-lh)',  letterSpacing: 'var(--display-tracking)' }],
+  			'display-sm':  ['var(--display-sm-size)',  { lineHeight: 'var(--display-sm-lh)',  letterSpacing: 'var(--display-tracking)' }],
+  			'display-md':  ['var(--display-md-size)',  { lineHeight: 'var(--display-md-lh)',  letterSpacing: 'var(--display-tracking)' }],
+  			'display-lg':  ['var(--display-lg-size)',  { lineHeight: 'var(--display-lg-lh)',  letterSpacing: 'var(--display-tracking)' }],
+  			'display-xl':  ['var(--display-xl-size)',  { lineHeight: 'var(--display-xl-lh)',  letterSpacing: 'var(--display-tracking)' }],
+  			'display-2xl': ['var(--display-2xl-size)', { lineHeight: 'var(--display-2xl-lh)', letterSpacing: 'var(--display-tracking)' }],
+  		},
   		colors: {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
@@ -129,6 +153,7 @@ const config: Config = {
   		backgroundImage: {
   			// B1-7: brand gradient utilities
   			'gradient-jia':      'var(--gradient-jia)',
+  			'gradient-badge-brand': 'var(--gradient-badge-brand)',
   			'gradient-jia-45':   'var(--gradient-jia-45)',
   			'gradient-jia-dark': 'var(--gradient-jia-dark)',
   			'scrim-brand-20':    'var(--scrim-brand-20)',

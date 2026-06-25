@@ -1,5 +1,5 @@
 export { EmptyState } from "./empty-state";
-export { Spinner, SkeletonRows, SkeletonText, PageSkeleton } from "./loading-spinner";
+export { Spinner, DiamondLoader, SkeletonRows, SkeletonText, PageSkeleton } from "./loading-spinner";
 export { ErrorState, ErrorBoundary } from "./error-boundary";
 export { SuccessState, type SuccessStateProps } from "./success-state";
 export { ProgressBar, type ProgressBarProps } from "./progress-bar";

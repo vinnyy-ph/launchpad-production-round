@@ -10,6 +10,7 @@ import type {
   ReportSnapshot as ReportSnapshotModel,
   ReportAckState,
 } from "@/screens/supervisor/overview.logic";
+import { ACK_PRESENTATION, type AckStatus } from "@/modules/performance/evaluations/lib/ack-status";
 
 /** First + last initial, for the gradient fallback avatar (mirrors the roster + evaluations tables). */
 function initials(name: string): string {
@@ -35,15 +36,16 @@ function gradeVariant(grade: number): BadgeProps["variant"] {
   return "error";
 }
 
-const ACK_BADGE: Record<ReportAckState, { label: string; variant: BadgeProps["variant"] }> = {
-  ACKNOWLEDGED: { label: "Acknowledged", variant: "success" },
-  AUTO_ACKNOWLEDGED: { label: "Auto-acknowledged", variant: "modern" },
-  PENDING: { label: "Pending acknowledgement", variant: "warning" },
-  NONE: { label: "Not evaluated", variant: "neutral" },
+// Maps the snapshot's ack enum onto the shared presentation states (label + tone live there).
+const ACK_STATE: Record<ReportAckState, AckStatus> = {
+  ACKNOWLEDGED: "acknowledged",
+  AUTO_ACKNOWLEDGED: "auto",
+  PENDING: "pending",
+  NONE: "none",
 };
 
 function SnapshotRow({ s }: { s: ReportSnapshotModel }) {
-  const ack = ACK_BADGE[s.ackState];
+  const ack = ACK_PRESENTATION[ACK_STATE[s.ackState]];
   return (
     <Link
       href={s.action.href}
@@ -54,7 +56,6 @@ function SnapshotRow({ s }: { s: ReportSnapshotModel }) {
         fallback={initials(s.name)}
         className="h-9 w-9 flex-none"
         fallbackClassName="text-xs font-bold text-white"
-        fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{s.name}</p>
@@ -70,7 +71,7 @@ function SnapshotRow({ s }: { s: ReportSnapshotModel }) {
             No grade
           </Badge>
         )}
-        <Badge variant={ack.variant} size="sm" pill>
+        <Badge variant={ack.tone} size="sm" pill>
           {ack.label}
         </Badge>
       </div>

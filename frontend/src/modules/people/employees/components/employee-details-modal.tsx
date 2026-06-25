@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/shared/ui/primitives/select";
 import { StatusBadge } from "@/shared/ui/patterns";
+import { Badge } from "@/shared/ui/primitives/badge";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { ApiError } from "@/shared/lib/api-client";
 import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
@@ -126,7 +127,7 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string }[] = [
 const GENERIC_SAVE_ERROR =
   "We couldn't save these changes. Please review the highlighted fields and try again.";
 const DISABLED_FIELD_INPUT =
-  "bg-[#FAFAFA] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
+  "bg-[color:var(--gray-neutral-50)] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
 const DISABLED_FIELD_ICON =
   "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]";
 
@@ -344,14 +345,6 @@ function sidebarActionLabel(status: EmployeeStatus): string | null {
   return null;
 }
 
-function sidebarActionStyles(status: EmployeeStatus): string {
-  if (status === "onboarding") {
-    return "border-[#B2DDFF] bg-[#EFF8FF] text-[#175CD3] hover:bg-[#D1E9FF]";
-  }
-
-  return "border-[#FECDCA] bg-white text-[#B42318] hover:bg-[#FEF3F2]";
-}
-
 function blankDraft(): EditDraft {
   return {
     firstName: "",
@@ -421,9 +414,17 @@ function formatActivityDate(timestamp: string): string {
 }
 
 const DOCUMENT_STATUS_STYLES: Record<EmployeeDocumentStatus, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]" },
-  approved: { label: "Approved", className: "bg-[#ECFDF3] text-[#027A48] border-[#6CE9A6]" },
-  rejected: { label: "Rejected", className: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]" },
+  pending: {
+    label: "Pending",
+    className:
+      "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]",
+  },
+  approved: { label: "Approved", className: "bg-[color:var(--color-success-50)] text-[#027A48] border-[#6CE9A6]" },
+  rejected: {
+    label: "Rejected",
+    className:
+      "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]",
+  },
 };
 
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
@@ -507,7 +508,7 @@ function EditableField({
         maxLength={maxLength}
         className="min-w-0 truncate"
       />
-      {error ? <span className="mt-1 block text-xs text-[#D92D20]">{error}</span> : null}
+      {error ? <span className="mt-1 block text-xs text-[color:var(--color-error-600)]">{error}</span> : null}
     </label>
   );
 }
@@ -563,13 +564,12 @@ function TeamPill({ team, className }: { team: EmployeeTeam; className: string }
   return (
     <Link
       href={`/hr/teams/${team.id}`}
-      className={`inline-flex max-w-[160px] items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className}`}
+      className={`inline-flex max-w-[160px] items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-3 text-sm font-semibold transition-colors ${className}`}
     >
       <UserAvatar
         fallback={(team.name.trim()[0] ?? "?").toUpperCase()}
         className="h-7 w-7 shrink-0"
         fallbackClassName="text-sm font-bold text-white"
-        fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
       />
       <span className="truncate">{team.name}</span>
     </Link>
@@ -693,6 +693,7 @@ export function EmployeeDetailsModal({
     // `open` is a dependency so the observer re-attaches to the freshly mounted section nodes
     // each time the modal reopens (the dialog content unmounts while closed).
   }, [profile, loading, error, open]);
+
   function scrollToSection(section: EmployeeDetailsSection) {
     sectionRefs.current[section]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -723,9 +724,20 @@ export function EmployeeDetailsModal({
       toast.error("There are unsaved changes. Save or discard them before closing.", {
         id: toastId,
         position: "top-center",
+        // Discard-and-close: revert the draft (like the footer Discard) and close the modal.
+        action: {
+          label: "Discard",
+          onClick: () => {
+            setDraft(savedDraft);
+            setContactNumberError(null);
+            setFieldErrors({});
+            onOpenChange(false);
+          },
+        },
         classNames: {
-          toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
-          title: "!text-[#7A271A]",
+          toast: "employee-unsaved-toast-shake !border-[color:var(--color-error-700)] !bg-[color:var(--color-error-50)] !text-[color:var(--color-error-900)]",
+          title: "!text-[color:var(--color-error-900)]",
+          actionButton: "!bg-[color:var(--color-error-700)] !text-white",
         },
       });
     });
@@ -814,7 +826,12 @@ export function EmployeeDetailsModal({
                       shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
                   }`}
                   onAnimationEnd={() => setShakeUnsavedAlert(false)}
-                  onInteractOutside={(event) => event.preventDefault()}
+                  onInteractOutside={(event) => {
+                      if (hasUnsavedChanges) {
+                          event.preventDefault();
+                          alertUnsavedChanges();
+                      }
+                  }}
               >
                   <DialogTitle className="sr-only">
                       Employee details
@@ -847,9 +864,9 @@ export function EmployeeDetailsModal({
                                       </p>
                                       {profile.department ? (
                                           <div className="mt-2 flex justify-center">
-                                              <span className="inline-flex max-w-full items-center truncate rounded-full border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-2.5 py-0.5 text-[11px] font-medium text-[color:var(--text-secondary)]">
+                                              <Badge variant="neutral" pill className="max-w-full truncate">
                                                   {profile.department}
-                                              </span>
+                                              </Badge>
                                           </div>
                                       ) : null}
                                       <div className="mt-3 flex justify-center">
@@ -908,7 +925,7 @@ export function EmployeeDetailsModal({
                                           <Button
                                               type="button"
                                               variant="secondary"
-                                              className={`w-full ${sidebarActionStyles(profile.status)}`}
+                                              className="w-full"
                                               onClick={() => {
                                                   if (profile.status === "active") {
                                                       setOffboardingOpen(true);
@@ -1255,7 +1272,7 @@ export function EmployeeDetailsModal({
                                                                       />
                                                                       {contactNumberError ||
                                                                       fieldErrors.emergencyContactNumber ? (
-                                                                          <span className="mt-1 block text-xs text-[#D92D20]">
+                                                                          <span className="mt-1 block text-xs text-[color:var(--color-error-600)]">
                                                                               {contactNumberError ??
                                                                                   fieldErrors.emergencyContactNumber}
                                                                           </span>

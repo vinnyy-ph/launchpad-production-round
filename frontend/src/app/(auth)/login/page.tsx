@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { roleHome } from "@/modules/auth/role-home";
-import { Spinner } from "@/shared/ui/patterns";
+import { DiamondLoader } from "@/shared/ui/patterns";
 import LoginPage from "@/screens/auth/login.page";
 
 export default function Login() {
@@ -20,7 +20,7 @@ export default function Login() {
   if (loading || appUser) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
-        <Spinner size={28} />
+        <DiamondLoader size={44} />
       </div>
     );
   }

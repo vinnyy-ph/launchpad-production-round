@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Loader2, AlertCircle, CloudOff } from "lucide-react";
+import { Button } from "@/shared/ui";
 import type { AutosaveStatus } from "./use-autosave";
 
 function relative(from: number, now: number): string {
@@ -54,13 +55,9 @@ export function DraftSaveStatus({ status, lastSavedAt, canPersist, onRetry }: Dr
     return (
       <span className={`${base} text-[color:var(--color-error-600)]`}>
         <AlertCircle size={13} aria-hidden="true" /> Couldn’t save
-        <button
-          type="button"
-          onClick={onRetry}
-          className="ml-1 underline underline-offset-2 hover:text-[color:var(--text-secondary)]"
-        >
+        <Button type="button" variant="link" size="xs" onClick={onRetry}>
           Retry
-        </button>
+        </Button>
       </span>
     );
   }

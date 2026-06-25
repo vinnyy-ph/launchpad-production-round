@@ -10,18 +10,18 @@ describe("StatusBadge", () => {
   it("maps a known enum literal to its semantic tone", () => {
     render(<StatusBadge status="ACTIVE" />);
     // brandbook success colorway
-    expect(screen.getByText("Active").className).toContain("#067647");
+    expect(screen.getByText("Active").className).toContain("var(--color-success-700)");
   });
 
   it("falls back to neutral for an unmapped literal", () => {
     render(<StatusBadge status="MYSTERY" />);
     // brandbook neutral colorway
-    expect(screen.getByText("Mystery").className).toContain("#FAFAFA");
+    expect(screen.getByText("Mystery").className).toContain("var(--gray-neutral-50)");
   });
 
   it("lets an explicit tone prop override the map", () => {
     render(<StatusBadge status="ACTIVE" tone="error" />);
     // brandbook error colorway
-    expect(screen.getByText("Active").className).toContain("#B42318");
+    expect(screen.getByText("Active").className).toContain("var(--color-error-700)");
   });
 });
