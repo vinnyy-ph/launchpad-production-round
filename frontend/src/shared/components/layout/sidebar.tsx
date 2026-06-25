@@ -83,7 +83,7 @@ export function Sidebar({
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
                       <Icon
                         size={18}
-                        strokeWidth={2.5}
+                        strokeWidth={1.75}
                         className={active ? "text-[color:var(--gray-neutral-700)]" : "text-[color:var(--gray-neutral-500)]"}
                         aria-hidden="true"
                       />
