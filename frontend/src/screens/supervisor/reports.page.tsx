@@ -118,17 +118,17 @@ function TeamCard({ total, loading }: { total: number; loading: boolean }) {
         className="absolute right-4 top-4 h-4 w-4 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
       />
       <div className="flex min-h-[40px] items-start gap-2">
-        <span className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--gray-100)]">
-          <Users size={15} className="text-[color:var(--text-secondary)]" />
+        <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
+          <Users size={12} className="text-[color:var(--text-secondary)]" />
         </span>
-        <span className="text-[14px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
+        <span className="text-[13.5px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
           Team
         </span>
       </div>
       {loading ? (
         <Skeleton className="mt-3.5 h-10 w-16" />
       ) : (
-        <p className="mt-3.5 text-[36px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
+        <p className="mt-3.5 text-[40px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
           {total}
         </p>
       )}

@@ -93,15 +93,15 @@ export function Sidebar({
                   >
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
                       <Icon
-                        size={18}
+                        size={20}
                         strokeWidth={1.75}
-                        className={active ? "text-[color:var(--gray-neutral-700)]" : "text-[color:var(--gray-neutral-400)]"}
+                        className="text-[color:var(--gray-neutral-400)]"
                         aria-hidden="true"
                       />
                     </span>
                     <span className="flex-1 truncate">{item.label}</span>
                     {badge != null && badge > 0 && (
-                      <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[color:var(--gray-neutral-300)] bg-white px-1.5 text-[12px] font-medium leading-none text-[color:var(--gray-neutral-700)]">
+                      <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[color:var(--gray-neutral-300)] bg-white px-1.5 text-[11px] font-medium leading-none text-[color:var(--gray-neutral-700)]">
                         {badge}
                       </span>
                     )}
