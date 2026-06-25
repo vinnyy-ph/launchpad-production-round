@@ -31,9 +31,9 @@ const nextConfig = {
     ];
   },
   async headers() {
-    // Baseline hardening. The Content-Security-Policy is set in middleware.ts so it can
-    // carry a per-request nonce for script-src (strict-dynamic). The headers below are
-    // request-independent, so they stay here.
+    // Baseline hardening. The Content-Security-Policy is set in proxy.ts (it reads the
+    // API/auth origins from env to build the connect-src/frame-src allowlist). The headers
+    // below are static, so they stay here.
     return [
       {
         source: "/:path*",

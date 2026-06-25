@@ -1,17 +1,16 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
-// Builds a per-request, nonce-based Content-Security-Policy.
+// Sets a request-independent Content-Security-Policy on every document response.
 //
-// script-src uses 'nonce-<value>' + 'strict-dynamic' (no 'unsafe-inline'): Next.js reads
-// the nonce from the CSP request header and stamps it onto its own scripts, so hydration
-// works without weakening the policy. style-src keeps 'unsafe-inline' on purpose — shadcn
-// chart (chart.tsx) and Recharts inject inline <style> tags that can't carry a nonce
-// without invasive plumbing; this matches the backend helmet config (accepted low risk).
+// script-src uses 'self' + 'unsafe-inline' (no nonce / 'strict-dynamic'): a per-request
+// nonce can't work here because Next prerenders and full-route-caches the client-SPA pages,
+// baking a build-time nonce into the HTML that never matches a per-request header nonce.
+// 'self' covers the same-origin /_next/static chunks; 'unsafe-inline' covers Next's inline
+// hydration bootstrap. style-src keeps 'unsafe-inline' for Recharts/shadcn inline <style>.
 //
 // connect-src / frame-src allowlist Firebase Auth (Google popup sign-in) and the Express
 // API origin (HTTPS + WSS for the notifications socket) so login and realtime keep working.
-export function proxy(request: NextRequest) {
-  const nonce = crypto.randomUUID().replace(/-/g, "");
+export function proxy() {
   const isProd = process.env.NODE_ENV === "production";
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
@@ -20,8 +19,7 @@ export function proxy(request: NextRequest) {
 
   const scriptSrc = [
     "'self'",
-    `'nonce-${nonce}'`,
-    "'strict-dynamic'",
+    "'unsafe-inline'",
     !isProd && "'unsafe-eval'", // next dev fast-refresh evaluates code via eval
   ].filter(Boolean);
 
@@ -58,13 +56,7 @@ export function proxy(request: NextRequest) {
     .filter(Boolean)
     .join("; ");
 
-  // Next.js reads the nonce from the CSP on the *request* headers; the *response* header is
-  // what the browser enforces.
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set("Content-Security-Policy", csp);
-
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", csp);
   return response;
 }
@@ -72,7 +64,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // Documents only — skip API routes and static assets (they don't need a nonce CSP).
+      // Documents only — skip API routes and static assets.
       source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },

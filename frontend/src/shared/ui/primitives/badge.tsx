@@ -4,7 +4,7 @@ import { cn } from "@/shared/lib/utils";
 
 const badgeVariants = cva(
   // Brandbook .badge: 5px gap, 6px radius, 3px/8px padding, 12px weight 500, 1px border.
-  "inline-flex items-center gap-[5px] rounded-sm border px-2 py-[3px] text-xs font-medium transition-colors",
+  "inline-flex select-none items-center gap-[5px] rounded-sm border px-2 py-[3px] text-xs font-medium transition-colors",
   {
     variants: {
       variant: {
