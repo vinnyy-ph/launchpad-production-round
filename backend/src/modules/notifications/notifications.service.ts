@@ -1,6 +1,12 @@
-import type { Notification, User } from "@prisma/client";
+import type { Notification, NotificationType, User } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../core/globals";
 import { InAppChannel } from "./channels/in-app.channel";
+import {
+  isEmailEnabled,
+  resolveEffectivePreferences,
+  suppressedInAppTypes,
+} from "./notification-categories";
+import { NotificationPreferencesRepository } from "./notification-preferences.repository";
 import { EmailService } from "../../core/email/email.service";
 import { buildEvaluationReminderEmailHtml } from "../../core/email/templates/evaluation-reminder.template";
 import { buildOnboardingDocumentRejectedEmailHtml } from "../../core/email/templates/onboarding-document-rejected.template";
@@ -27,6 +33,7 @@ export class NotificationsService {
     private readonly notificationsRepository = new NotificationsRepository(),
     private readonly inAppChannel = new InAppChannel(),
     private readonly emailService = new EmailService(),
+    private readonly preferencesRepository = new NotificationPreferencesRepository(),
   ) {}
 
   /** First configured app origin, used to build deep links in emails. */
@@ -34,6 +41,20 @@ export class NotificationsService {
     return (
       process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:3000"
     );
+  }
+
+  /**
+   * Whether an email of the given type should be sent to the recipient, per their
+   * notification preferences (and the global "pause all email" switch). Used to gate
+   * every email send so opted-out recipients are never emailed. Defaults to all-on when
+   * no preferences row exists.
+   */
+  private async shouldSendEmail(
+    employeeId: string,
+    type: NotificationType,
+  ): Promise<boolean> {
+    const row = await this.preferencesRepository.findByEmployeeId(employeeId);
+    return isEmailEnabled(resolveEffectivePreferences(row), type);
   }
 
   /**
@@ -183,17 +204,19 @@ export class NotificationsService {
         this.toNotificationDto(notification),
       );
 
-      await this.emailService.sendEmail({
-        to: employee.companyEmail,
-        subject: "Document needs changes",
-        html: buildOnboardingDocumentRejectedEmailHtml({
-          firstName: employee.firstName,
-          lastName: employee.lastName,
-          documentName,
-          rejectionNote: note,
-          onboardingUrl: `${this.resolveAppUrl()}/employee/onboarding`,
-        }),
-      });
+      if (await this.shouldSendEmail(employee.id, "ONBOARDING_STATUS")) {
+        await this.emailService.sendEmail({
+          to: employee.companyEmail,
+          subject: "Document needs changes",
+          html: buildOnboardingDocumentRejectedEmailHtml({
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            documentName,
+            rejectionNote: note,
+            onboardingUrl: `${this.resolveAppUrl()}/employee/onboarding`,
+          }),
+        });
+      }
     } catch {
       // Fire-and-forget: the review action must succeed even if notification delivery fails.
     }
@@ -607,18 +630,20 @@ export class NotificationsService {
         this.toNotificationDto(notification),
       );
 
-      await this.emailService.sendEmail({
-        to: supervisor.companyEmail,
-        subject: "Pulse results shared with you",
-        html: buildPulseResultsSharedEmailHtml({
-          firstName: supervisor.firstName,
-          lastName: supervisor.lastName,
-          surveyName,
-          teamName,
-          message,
-          resultsUrl: `${this.resolveAppUrl()}${linkUrl}`,
-        }),
-      });
+      if (await this.shouldSendEmail(supervisor.id, "PULSE_RESULTS_SHARED")) {
+        await this.emailService.sendEmail({
+          to: supervisor.companyEmail,
+          subject: "Pulse results shared with you",
+          html: buildPulseResultsSharedEmailHtml({
+            firstName: supervisor.firstName,
+            lastName: supervisor.lastName,
+            surveyName,
+            teamName,
+            message,
+            resultsUrl: `${this.resolveAppUrl()}${linkUrl}`,
+          }),
+        });
+      }
     } catch {
       // Fire-and-forget: the share action must succeed even if notification delivery fails.
     }
@@ -673,16 +698,18 @@ export class NotificationsService {
 
       // Email travels on the same throttle as the in-app reminder: only sent when one is
       // actually created above. Fire-and-forget — delivery failure must not break the sweep.
-      await this.emailService.sendEmail({
-        to: recipient.companyEmail,
-        subject: "Reminder: complete your pulse survey",
-        html: buildPulseSurveyReminderEmailHtml({
-          firstName: recipient.firstName,
-          lastName: recipient.lastName,
-          surveyName,
-          surveyUrl: `${this.resolveAppUrl()}/employee/surveys?tab=survey&pulse=${occurrenceId}`,
-        }),
-      });
+      if (await this.shouldSendEmail(recipient.id, "PULSE_REMINDER")) {
+        await this.emailService.sendEmail({
+          to: recipient.companyEmail,
+          subject: "Reminder: complete your pulse survey",
+          html: buildPulseSurveyReminderEmailHtml({
+            firstName: recipient.firstName,
+            lastName: recipient.lastName,
+            surveyName,
+            surveyUrl: `${this.resolveAppUrl()}/employee/surveys?tab=survey&pulse=${occurrenceId}`,
+          }),
+        });
+      }
     } catch {
       // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
     }
@@ -734,15 +761,17 @@ export class NotificationsService {
 
       // Email travels on the same throttle as the in-app reminder: only sent when one is
       // actually created above. Fire-and-forget — delivery failure must not break the sweep.
-      await this.emailService.sendEmail({
-        to: recipient.companyEmail,
-        subject: "Reminder: acknowledge your evaluation",
-        html: buildEvaluationReminderEmailHtml({
-          firstName: recipient.firstName,
-          lastName: recipient.lastName,
-          evaluationUrl: `${this.resolveAppUrl()}/employee/surveys?tab=acknowledgements&eval=${evaluationId}`,
-        }),
-      });
+      if (await this.shouldSendEmail(recipient.id, "EVAL_ACK_REMINDER")) {
+        await this.emailService.sendEmail({
+          to: recipient.companyEmail,
+          subject: "Reminder: acknowledge your evaluation",
+          html: buildEvaluationReminderEmailHtml({
+            firstName: recipient.firstName,
+            lastName: recipient.lastName,
+            evaluationUrl: `${this.resolveAppUrl()}/employee/surveys?tab=acknowledgements&eval=${evaluationId}`,
+          }),
+        });
+      }
     } catch {
       // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
     }
@@ -761,9 +790,19 @@ export class NotificationsService {
       throw new Error("Employee profile not found");
     }
 
+    // Drop the recipient's opted-out categories server-side before the limit applies,
+    // so an in-app-disabled category never reaches the bell, the badge, or a socket refetch.
+    const prefsRow = await this.preferencesRepository.findByEmployeeId(
+      employee.id,
+    );
+    const excludeTypes = suppressedInAppTypes(
+      resolveEffectivePreferences(prefsRow),
+    );
+
     const notifications = await this.notificationsRepository.findByRecipientId(
       employee.id,
       query.limit,
+      excludeTypes,
     );
 
     return {
