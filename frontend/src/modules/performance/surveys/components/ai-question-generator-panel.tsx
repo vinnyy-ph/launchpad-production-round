@@ -58,12 +58,6 @@ export function AiQuestionGeneratorPanel({ onGenerated, disabled }: AiQuestionGe
 
       <div className="mt-4 space-y-3">
         <div>
-          <label
-            htmlFor="ai-survey-goal"
-            className="mb-1 block text-[12px] font-medium text-[color:var(--text-secondary)]"
-          >
-            What&apos;s your survey goal?
-          </label>
           <Textarea
             id="ai-survey-goal"
             value={goal}
