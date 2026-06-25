@@ -41,7 +41,6 @@ import {
   getLatestAllowedEmployeeBirthday,
   validateEmployeeBirthday,
   validatePeopleNameLanguage,
-  validatePeopleFieldText,
   validatePeopleText,
 } from "@/modules/people/people-text";
 
@@ -158,13 +157,16 @@ function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
 
   if (!firstName) {
     next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstNameRequired;
-  } else if (validatePeopleNameLanguage(firstName)) {
-    next.firstName = validatePeopleNameLanguage(firstName);
-  } else if (
-    !LETTERS_ONLY_RE.test(firstName) ||
-    validatePeopleText(firstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
-  ) {
-    next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstName;
+  } else {
+    const firstNameLanguageError = validatePeopleNameLanguage(firstName);
+    if (firstNameLanguageError) {
+      next.firstName = firstNameLanguageError;
+    } else if (
+      !LETTERS_ONLY_RE.test(firstName) ||
+      validatePeopleText(firstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstName;
+    }
   }
   if (
     middleName &&
@@ -177,63 +179,81 @@ function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
   }
   if (!lastName) {
     next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastNameRequired;
-  } else if (validatePeopleNameLanguage(lastName)) {
-    next.lastName = validatePeopleNameLanguage(lastName);
-  } else if (
-    !LETTERS_ONLY_RE.test(lastName) ||
-    validatePeopleText(lastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
-  ) {
-    next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastName;
+  } else {
+    const lastNameLanguageError = validatePeopleNameLanguage(lastName);
+    if (lastNameLanguageError) {
+      next.lastName = lastNameLanguageError;
+    } else if (
+      !LETTERS_ONLY_RE.test(lastName) ||
+      validatePeopleText(lastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastName;
+    }
   }
   if (!personalEmail) {
     next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmailRequired;
-  } else if (validatePeopleNameLanguage(personalEmail)) {
-    next.personalEmail = validatePeopleNameLanguage(personalEmail);
-  } else if (
-    !EMAIL_RE.test(personalEmail) ||
-    validatePeopleText(personalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL)
-  ) {
-    next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmail;
+  } else {
+    const personalEmailLanguageError = validatePeopleNameLanguage(personalEmail);
+    if (personalEmailLanguageError) {
+      next.personalEmail = personalEmailLanguageError;
+    } else if (
+      !EMAIL_RE.test(personalEmail) ||
+      validatePeopleText(personalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL)
+    ) {
+      next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmail;
+    }
   }
   if (!address) {
     next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.addressRequired;
-  } else if (validatePeopleNameLanguage(address)) {
-    next.address = validatePeopleNameLanguage(address);
-  } else if (
-    !STREET_ADDRESS_RE.test(address) ||
-    validatePeopleText(address, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE)
-  ) {
-    next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.address;
+  } else {
+    const addressLanguageError = validatePeopleNameLanguage(address);
+    if (addressLanguageError) {
+      next.address = addressLanguageError;
+    } else if (
+      !STREET_ADDRESS_RE.test(address) ||
+      validatePeopleText(address, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE)
+    ) {
+      next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.address;
+    }
   }
   if (!city) {
     next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.cityRequired;
-  } else if (validatePeopleNameLanguage(city)) {
-    next.city = validatePeopleNameLanguage(city);
-  } else if (
-    !LOCATION_RE.test(city) ||
-    validatePeopleText(city, "City", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.city;
+  } else {
+    const cityLanguageError = validatePeopleNameLanguage(city);
+    if (cityLanguageError) {
+      next.city = cityLanguageError;
+    } else if (
+      !LOCATION_RE.test(city) ||
+      validatePeopleText(city, "City", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.city;
+    }
   }
   if (!province) {
     next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.provinceRequired;
-  } else if (validatePeopleNameLanguage(province)) {
-    next.province = validatePeopleNameLanguage(province);
-  } else if (
-    !LOCATION_RE.test(province) ||
-    validatePeopleText(province, "Province", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.province;
+  } else {
+    const provinceLanguageError = validatePeopleNameLanguage(province);
+    if (provinceLanguageError) {
+      next.province = provinceLanguageError;
+    } else if (
+      !LOCATION_RE.test(province) ||
+      validatePeopleText(province, "Province", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.province;
+    }
   }
   if (!country) {
     next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.countryRequired;
-  } else if (validatePeopleNameLanguage(country)) {
-    next.country = validatePeopleNameLanguage(country);
-  } else if (
-    !LOCATION_RE.test(country) ||
-    validatePeopleText(country, "Country", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.country;
+  } else {
+    const countryLanguageError = validatePeopleNameLanguage(country);
+    if (countryLanguageError) {
+      next.country = countryLanguageError;
+    } else if (
+      !LOCATION_RE.test(country) ||
+      validatePeopleText(country, "Country", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.country;
+    }
   }
   if (!emergencyContactName) {
     next.emergencyContactName = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactNameRequired;
