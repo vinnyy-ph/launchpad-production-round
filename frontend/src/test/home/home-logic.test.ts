@@ -16,7 +16,6 @@ type ZoneInput = Parameters<typeof buildAttentionZones>[0];
 function zoneInput(over: Partial<ZoneInput> = {}): ZoneInput {
   return {
     role: "EMPLOYEE",
-    isSupervisor: false,
     employeeStatus: "ACTIVE" as EmployeeStatus,
     stats: null,
     pendingSignatures: 0,
@@ -64,10 +63,9 @@ describe("computeGreeting", () => {
 });
 
 describe("buildAttentionZones", () => {
-  it("gates the team and organization lanes by role", () => {
-    const z = buildAttentionZones(zoneInput({ stats: stats({ pendingEvaluations: 5, pendingOnboarding: 2 }) }));
+  it("gates the organization lane by role", () => {
+    const z = buildAttentionZones(zoneInput({ stats: stats({ pendingOnboarding: 2 }) }));
     expect(z.forYou).toEqual([]);
-    expect(z.yourTeam).toBeNull(); // not a supervisor
     expect(z.organization).toBeNull(); // not HR/ADMIN
   });
 
@@ -92,16 +90,13 @@ describe("buildAttentionZones", () => {
     expect(active.forYou).toEqual([]);
   });
 
-  it("fills the supervisor and organization lanes when held", () => {
+  it("fills the organization lane when held", () => {
     const z = buildAttentionZones(
       zoneInput({
         role: "HR",
-        isSupervisor: true,
-        stats: stats({ pendingEvaluations: 3, pendingOnboarding: 1, pendingOffboarding: 0, pendingClearances: 4 }),
+        stats: stats({ pendingOnboarding: 1, pendingOffboarding: 0, pendingClearances: 4 }),
       }),
     );
-    expect(z.yourTeam?.map((r) => r.id)).toEqual(["drafts"]);
-    expect(z.yourTeam?.[0].href).toBe("/supervisor/evaluations?status=draft");
     // pendingOffboarding is 0, so it's omitted.
     expect(z.organization?.map((r) => r.id)).toEqual(["onboard", "clear"]);
   });
@@ -117,19 +112,19 @@ describe("buildAttentionZones", () => {
 describe("buildPriority", () => {
   it("counts every pending row across all zones", () => {
     const z = buildAttentionZones(
-      zoneInput({ isSupervisor: true, stats: stats({ unreadSurveys: 1, pendingEvaluations: 2 }) }),
+      zoneInput({ role: "HR", stats: stats({ unreadSurveys: 1, pendingOnboarding: 1 }) }),
     );
     expect(buildPriority(z).count).toBe(2);
   });
   it("promotes the highest-priority row as the primary action", () => {
-    // drafts (rank 3) outranks pulses (rank 4).
+    // clear (rank 1) outranks pulses (rank 4).
     const z = buildAttentionZones(
-      zoneInput({ isSupervisor: true, stats: stats({ unreadSurveys: 1, pendingEvaluations: 2 }) }),
+      zoneInput({ role: "HR", stats: stats({ unreadSurveys: 1, pendingClearances: 1 }) }),
     );
-    expect(buildPriority(z).primary?.id).toBe("drafts");
+    expect(buildPriority(z).primary?.id).toBe("clear");
   });
   it("has no primary when nothing is pending", () => {
-    const empty = { forYou: [], yourTeam: null, organization: null };
+    const empty = { forYou: [], organization: null };
     expect(buildPriority(empty)).toEqual({ count: 0, primary: null });
   });
 });

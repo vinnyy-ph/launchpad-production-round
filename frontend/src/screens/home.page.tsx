@@ -41,7 +41,6 @@ export default function HomePage() {
 
   const zones = buildAttentionZones({
     role: appUser?.role,
-    isSupervisor: appUser?.isSupervisor,
     employeeStatus: appUser?.employeeStatus,
     stats,
     pendingSignatures,
@@ -106,9 +105,6 @@ export default function HomePage() {
             </h2>
 
             <Zone title="For you" rows={zones.forYou} emptyText="Nothing for you right now." />
-            {zones.yourTeam !== null && (
-              <Zone title="Your team" rows={zones.yourTeam} emptyText="Your team is all set." />
-            )}
             {zones.organization !== null && (
               <Zone
                 title="The organization"
