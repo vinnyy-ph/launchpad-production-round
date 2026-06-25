@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, Trash2, MoreVertical } from "lucide-react";
 import { Button, Skeleton } from "@/shared/ui";
 import { NotificationItem } from "./notification-item";
 import type { Notification } from "../types/notifications.types";
@@ -31,6 +31,7 @@ export function NotificationDropdown({
   onClearAll,
 }: Props) {
   const [confirmClear, setConfirmClear] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const hasItems = notifications.length > 0;
 
   return (
@@ -41,15 +42,50 @@ export function NotificationDropdown({
       <div className="flex items-center justify-between gap-2 border-b border-[color:var(--border-primary)] px-4 py-3">
         <span className="text-sm font-bold text-[color:var(--text-primary)]">Notifications</span>
         {hasItems && (
-          <div className="flex items-center gap-0.5">
-            {unreadCount > 0 && (
-              <Button variant="ghost" size="xs" className={HEADER_BTN} onClick={onMarkAllRead}>
-                <CheckCheck aria-hidden="true" /> Mark all read
-              </Button>
-            )}
-            <Button variant="ghost" size="xs" className={HEADER_BTN} onClick={() => setConfirmClear(true)}>
-              <Trash2 aria-hidden="true" /> Clear all
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className={HEADER_BTN}
+              aria-label="Notification actions"
+              aria-haspopup="menu"
+              aria-expanded={actionsOpen}
+              onClick={() => setActionsOpen((o) => !o)}
+            >
+              <MoreVertical aria-hidden="true" />
             </Button>
+            {actionsOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-lg border border-[color:var(--border-primary)] bg-white py-1"
+                style={{ boxShadow: "var(--shadow-md)" }}
+              >
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onMarkAllRead();
+                      setActionsOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
+                  >
+                    <CheckCheck size={15} aria-hidden="true" /> Mark all read
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setConfirmClear(true);
+                    setActionsOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[color:var(--color-error-700)] transition-colors hover:bg-[color:var(--color-error-50)]"
+                >
+                  <Trash2 size={15} aria-hidden="true" /> Clear all
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
