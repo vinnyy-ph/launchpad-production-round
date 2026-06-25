@@ -1,26 +1,26 @@
 model PerformanceEvaluation {
-  id               String    @id @default(uuid())
-  reviewerId       String
-  reviewer         Employee  @relation("Reviewer", fields: [reviewerId], references: [id])
-  revieweeId       String
-  reviewee         Employee  @relation("Reviewee", fields: [revieweeId], references: [id])
-  periodStart      DateTime
-  periodEnd        DateTime
-  grade            Int // 1–5
-  highlights       String[]
-  lowlights        String[]
-  evaluation       String?
-  recommendation   String?
-  supportingDocUrls String[]
-  isSent           Boolean   @default(false)
-  sentAt           DateTime?
+  id                String                     @id @default(uuid())
+  reviewerId        String
+  revieweeId        String
+  grade             Int
+  evaluation        String?
+  recommendation    String?
+  isSent            Boolean                    @default(false)
+  sentAt            DateTime?
   /// Deemed-acknowledged anchor: sentAt + ack window. Set on send.
-  ackDeadline      DateTime?
-  deletedAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  acknowledgement EvaluationAcknowledgement?
+  ackDeadline       DateTime?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  deletedAt         DateTime?
+  periodStart       DateTime
+  periodEnd         DateTime
+  highlights        String[]
+  lowlights         String[]
+  supportingDocUrls String[]
+  supportingDocUrl  String?
+  acknowledgement   EvaluationAcknowledgement?
+  reviewee          Employee                   @relation("Reviewee", fields: [revieweeId], references: [id])
+  reviewer          Employee                   @relation("Reviewer", fields: [reviewerId], references: [id])
 
   @@map("performance_evaluations")
 }

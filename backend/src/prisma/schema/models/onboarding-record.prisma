@@ -1,18 +1,16 @@
 model OnboardingRecord {
-  id          String             @id @default(uuid())
-  employeeId  String             @unique
-  employee    Employee           @relation(fields: [employeeId], references: [id])
-  templateId  String
-  template    OnboardingTemplate @relation(fields: [templateId], references: [id])
-  isComplete  Boolean            @default(false)
-  completedAt DateTime?
-  createdAt   DateTime           @default(now())
-
-  documentSubmissions OnboardingDocumentSubmission[]
+  id                  String                         @id @default(uuid())
+  employeeId          String                         @unique
+  templateId          String
+  isComplete          Boolean                        @default(false)
+  completedAt         DateTime?
+  createdAt           DateTime                       @default(now())
+  updatedAt           DateTime                       @updatedAt
   customFieldValues   OnboardingCustomFieldValue[]
+  documentSubmissions OnboardingDocumentSubmission[]
   invitations         OnboardingInvitation[]
-
-  updatedAt DateTime @updatedAt
+  employee            Employee                       @relation(fields: [employeeId], references: [id])
+  template            OnboardingTemplate             @relation(fields: [templateId], references: [id])
 
   @@map("onboarding_records")
 }
