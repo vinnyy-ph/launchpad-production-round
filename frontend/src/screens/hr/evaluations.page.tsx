@@ -27,6 +27,7 @@ import {
 } from "@/modules/performance/evaluations";
 import { ReviewEvaluationDialog } from "@/modules/performance/evaluations/components/review-evaluation-dialog";
 import { formatPeriod } from "@/screens/supervisor/evaluations.format";
+import { ACK_PRESENTATION, type AckStatus } from "@/modules/performance/evaluations/lib/ack-status";
 
 const PAGE_SIZE = 10;
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -52,14 +53,16 @@ function formatDate(iso: string): string {
   return format(d, d.getFullYear() === new Date().getFullYear() ? "LLL d" : "LLL d, yyyy");
 }
 
-type AckTone = "warning" | "success" | "info";
+type AckTone = "warning" | "success" | "neutral";
 
-/** Acknowledgement status: Pending / Acknowledged / Auto-acknowledged. */
+/** Acknowledgement status: Pending / Acknowledged / Auto-acknowledged.
+ *  State is derived here; label + tone come from the shared ACK_PRESENTATION map. */
 function ackInfo(ev: Evaluation): { status: string; tone: AckTone } {
   const ack = ev.acknowledgement;
-  if (ack?.acknowledgedAt && !ack.isDeemedAck) return { status: "Acknowledged", tone: "success" };
-  if (ack?.isDeemedAck) return { status: "Auto-acknowledged", tone: "info" };
-  return { status: "Pending", tone: "warning" };
+  const state: AckStatus =
+    ack?.acknowledgedAt && !ack.isDeemedAck ? "acknowledged" : ack?.isDeemedAck ? "auto" : "pending";
+  const { label, tone } = ACK_PRESENTATION[state];
+  return { status: label, tone };
 }
 
 export default function HrEvaluationsPage() {
@@ -140,7 +143,7 @@ export default function HrEvaluationsPage() {
     },
     {
       header: "Period",
-      className: "min-w-[150px] text-center whitespace-nowrap",
+      className: "min-w-[150px] whitespace-nowrap",
       sortable: true,
       sortKey: "period",
       cell: (ev) => (
@@ -151,7 +154,7 @@ export default function HrEvaluationsPage() {
     },
     {
       header: "Grade",
-      className: "min-w-[140px] text-center whitespace-nowrap",
+      className: "min-w-[140px] text-right tabular-nums whitespace-nowrap",
       sortable: true,
       sortKey: "grade",
       cell: (ev) => (
@@ -166,7 +169,7 @@ export default function HrEvaluationsPage() {
     {
       header: "Acknowledgement",
       mobileLabel: "Acknowledgement",
-      className: "min-w-[150px] text-center",
+      className: "min-w-[150px]",
       cell: (ev) => {
         const ack = ackInfo(ev);
         return <StatusBadge status={ack.status} tone={ack.tone} />;
@@ -175,7 +178,7 @@ export default function HrEvaluationsPage() {
     {
       header: "Acknowledgement due",
       mobileLabel: "Acknowledgement due",
-      className: "min-w-[160px] text-center whitespace-nowrap",
+      className: "min-w-[160px] whitespace-nowrap",
       sortable: true,
       sortKey: "due",
       cell: (ev) =>
@@ -258,6 +261,7 @@ export default function HrEvaluationsPage() {
                   ? "Try a different search."
                   : "Sent performance evaluations across the organization will appear here."
               }
+              action={hasSearch ? { label: "Clear search", onClick: () => setSearch("") } : undefined}
             />
           }
         />

@@ -37,7 +37,7 @@ export function DateRangePicker({ value, onChange, disabled, maxDate, className 
           className={cn(
             "flex h-10 w-full items-center justify-start gap-2 whitespace-nowrap rounded-md border border-input bg-white px-3.5 text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-[.38]",
             "data-[state=open]:border-transparent data-[state=open]:shadow-[0_0_0_3px_rgba(24,29,39,0.06)] data-[state=open]:[background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(45deg,#fccec0,#ebacc9_33%,#ceb6da_66%,#9fcaed)_border-box]",
-            !value?.from && "text-[#a4a7ae]",
+            !value?.from && "text-[color:var(--gray-neutral-400)]",
             className
           )}
         >

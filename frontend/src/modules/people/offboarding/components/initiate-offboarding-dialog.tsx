@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
   UserAvatar,
+  Badge,
 } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -520,7 +521,7 @@ export function InitiateOffboardingDialog({
                           ) : (
                             <div className="flex flex-col items-center gap-0.5 text-[color:var(--text-tertiary)]">
                               <FileText className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
-                              <span className="rounded-sm bg-[#F04438] px-1 py-0.5 text-[9px] font-bold leading-none text-white">
+                              <span className="rounded-sm bg-[color:var(--color-error-500)] px-1 py-0.5 text-[9px] font-bold leading-none text-white">
                                 {fileExtension(file.name)}
                               </span>
                             </div>
@@ -565,13 +566,13 @@ export function InitiateOffboardingDialog({
             </div>
           </FormField>
 
-          <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] p-3">
+          <div className="rounded-lg border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] p-3">
             <div className="flex items-start gap-2">
               <AlertCircle
-                className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B54708]"
+                className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--color-warning-700)]"
                 aria-hidden="true"
               />
-              <p className="text-xs text-[#B54708]">
+              <p className="text-xs text-[color:var(--color-warning-700)]">
                 {empId
                   ? profileLoading
                     ? "Checking whether this employee has reports or led teams..."
@@ -592,7 +593,7 @@ export function InitiateOffboardingDialog({
                       {selectedEmployeeProfile?.directReports?.map((report) => (
                         <li
                           key={report.id}
-                          className="flex items-center gap-3 rounded-lg border border-[#FEDF89] bg-white px-3 py-2"
+                          className="flex items-center gap-3 rounded-lg border border-[color:var(--color-warning-200)] bg-white px-3 py-2"
                         >
                           <UserAvatar
                             src={null}
@@ -637,12 +638,14 @@ export function InitiateOffboardingDialog({
                     <CollapsibleGroup title="View teams">
                       <div className="flex flex-wrap gap-2">
                         {selectedEmployeeProfile?.ledTeams.map((team) => (
-                          <span
+                          <Badge
                             key={team.id}
-                            className="max-w-[160px] truncate rounded-full border border-[#ABEFC6] bg-[#ECFDF3] px-2.5 py-0.5 text-xs font-semibold text-[#067647]"
+                            variant="success"
+                            pill
+                            className="max-w-[160px] truncate font-semibold"
                           >
                             {team.name}
-                          </span>
+                          </Badge>
                         ))}
                       </div>
                     </CollapsibleGroup>

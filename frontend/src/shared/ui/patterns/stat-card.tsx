@@ -49,7 +49,7 @@ export function StatCard({ label, value, variant = "default", delta, hint, loadi
                 <button
                   type="button"
                   aria-label={`About ${label}`}
-                  className="rounded-sm text-[color:var(--text-quaternary)] outline-none transition-colors hover:text-[color:var(--text-secondary)] focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded-sm text-[color:var(--text-quaternary)] transition-colors hover:text-[color:var(--text-secondary)]"
                 >
                   <Info className="h-3.5 w-3.5" />
                 </button>

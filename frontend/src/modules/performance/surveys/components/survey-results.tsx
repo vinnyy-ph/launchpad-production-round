@@ -211,7 +211,7 @@ async function downloadPdf(
 
 function StatCard({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
+    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
       <div className="text-[30px] font-bold leading-none tracking-tight text-[color:var(--text-primary)]">
         {value}
       </div>
@@ -263,7 +263,7 @@ function QuestionCard({
   isAnonymous: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
+    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-4">
         <div className="text-[12px] font-bold tracking-wide text-[color:var(--text-quaternary)]">
           {QTYPE_LABEL[q.type]}
@@ -606,8 +606,8 @@ export function ShareToSupervisorCard({
                     className={cn(
                       "cursor-pointer rounded-xl border px-4 py-2.5 text-left text-[14px] leading-relaxed transition-colors",
                       active
-                        ? "border-[#B54708] bg-[#FEF0C7] text-[#93370D]"
-                        : "border-[#FEDF89] bg-[#FFFAEB] text-[#854A0E] hover:border-[#F79009] hover:bg-[#FEF0C7]",
+                        ? "border-[color:var(--color-warning-700)] bg-[color:var(--color-warning-100)] text-[#93370D]"
+                        : "border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] text-[#854A0E] hover:border-[#F79009] hover:bg-[color:var(--color-warning-100)]",
                     )}
                   >
                     {s}
@@ -618,13 +618,9 @@ export function ShareToSupervisorCard({
           ) : suggestFailed ? (
             <p className="text-[12px] text-[color:var(--text-quaternary)]">
               Couldn&apos;t draft suggestions right now.{" "}
-              <button
-                type="button"
-                onClick={() => void fetchSuggestions()}
-                className="font-medium text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
-              >
+              <Button type="button" variant="link" size="xs" onClick={() => void fetchSuggestions()}>
                 Try again
-              </button>
+              </Button>
             </p>
           ) : null}
         </div>
@@ -649,7 +645,7 @@ export function ShareToSupervisorCard({
  */
 function SharedNoteCard({ note }: { note: SharedNote }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
+    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-3 flex items-center gap-2">
         <MessageSquareText size={18} className="text-[color:var(--text-tertiary)]" />
         <h3 className="text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">
@@ -837,7 +833,7 @@ export function SurveyResults({
 
       {query.isError &&
         (isSmallTeamSupervisorBlock(query.error) ? (
-          <div className="flex gap-3 rounded-2xl border border-[#FEDF89] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
+          <div className="flex gap-3 rounded-2xl border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
             <Lock size={18} className="mt-0.5 flex-none" />
             <div>
               <p className="text-sm font-bold">Results hidden for this team&apos;s supervisor.</p>
@@ -853,12 +849,9 @@ export function SurveyResults({
             <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
               {query.error.message}
             </span>
-            <button
-              onClick={() => void query.refetch()}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-            >
-              <RefreshCw size={12} /> Retry
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => void query.refetch()}>
+              <RefreshCw /> Retry
+            </Button>
           </div>
         ))}
 
@@ -904,7 +897,7 @@ export function SurveyResults({
           )}
 
           {results.suppressed ? (
-            <div className="flex gap-3 rounded-2xl border border-[#FEDF89] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
+            <div className="flex gap-3 rounded-2xl border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
               <Lock size={18} className="mt-0.5 flex-none" />
               <div>
                 <p className="text-sm font-bold">Not enough responses to show results anonymously.</p>

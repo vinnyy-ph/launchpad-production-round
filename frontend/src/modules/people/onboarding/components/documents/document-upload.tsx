@@ -112,13 +112,13 @@ export function DocumentUploadRow({
       ) : null}
 
       {isRejected ? (
-        <div className="mt-2 flex gap-2 rounded-md border border-[#FECDCA] bg-[#FEF3F2] px-3 py-2.5">
+        <div className="mt-2 flex gap-2 rounded-md border border-[color:var(--color-error-200)] bg-[color:var(--color-error-50)] px-3 py-2.5">
           <AlertTriangle
-            className="mt-px h-4 w-4 shrink-0 text-[#B42318]"
+            className="mt-px h-4 w-4 shrink-0 text-[color:var(--color-error-700)]"
             strokeWidth={1.8}
             aria-hidden="true"
           />
-          <span className="text-sm text-[#B42318]">
+          <span className="text-sm text-[color:var(--color-error-700)]">
             {rejectionNote
               ? `HR asked for another upload: ${rejectionNote}`
               : "HR asked for another upload. Please review and re-upload."}
@@ -149,7 +149,7 @@ export function DocumentUploadRow({
             ) : (
               <div className="flex flex-col items-center gap-0.5 text-[color:var(--text-tertiary)]">
                 <FileText className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
-                <span className="rounded-sm bg-[#F04438] px-1 py-0.5 text-[12px] font-bold leading-none text-white">
+                <span className="rounded-sm bg-[color:var(--color-error-500)] px-1 py-0.5 text-[12px] font-bold leading-none text-white">
                   {fileExtension(selectedFile.name).toUpperCase() || "FILE"}
                 </span>
               </div>

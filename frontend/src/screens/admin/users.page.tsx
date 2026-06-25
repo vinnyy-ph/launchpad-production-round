@@ -465,7 +465,16 @@ function UsersPageInner() {
                   : "No user accounts have been created yet."
               }
               action={
-                hasFilters ? undefined : { label: "Add user", onClick: () => setInviteOpen(true) }
+                hasFilters
+                  ? {
+                      label: "Clear filters",
+                      onClick: () => {
+                        setSearch("");
+                        setRoleFilter(ALL_ROLES);
+                        setStatusFilter(ALL_STATUSES);
+                      },
+                    }
+                  : { label: "Add user", onClick: () => setInviteOpen(true) }
               }
             />
           }
@@ -577,8 +586,8 @@ function UserRowActions({
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
+            size="icon-xs"
+            className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
             disabled={roleLocked || isUpdating}
             aria-label={`Change role for ${name}`}
             title={

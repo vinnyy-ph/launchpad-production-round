@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ShieldCheck, Users, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -12,6 +12,7 @@ import {
   Button,
   Badge,
 } from "@/shared/ui";
+import { useUnsavedGuard } from "@/shared/hooks/use-unsaved-guard";
 import { QuestionField, type AnswerValue } from "./questions/question-field";
 import { useSubmitResponse } from "../hooks/use-submit-response";
 import {
@@ -92,6 +93,20 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
     }
   }, [open, survey?.occurrenceId]);
 
+  // Dirty = the dialog is open, not yet submitted, and the user has entered at least one
+  // answer. Mirrors the "empty" check used in validate(): undefined, "", or [] don't count.
+  const hasUnsavedChanges = useMemo(
+    () =>
+      open &&
+      !submitted &&
+      Object.values(answers).some(
+        (a) => a !== undefined && a !== "" && !(Array.isArray(a) && a.length === 0),
+      ),
+    [open, submitted, answers],
+  );
+
+  const guard = useUnsavedGuard({ hasUnsavedChanges, onOpenChange: (o) => !o && onClose() });
+
   if (!survey) return null;
 
   const isAnonymous = survey.isAnonymous;
@@ -168,11 +183,13 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent
-        className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+        className={`flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl ${guard.shakeClass}`}
+        onAnimationEnd={guard.onAnimationEnd}
+        onEscapeKeyDown={guard.onEscapeKeyDown}
         onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        onInteractOutside={guard.onInteractOutside}
       >
         {submitted ? (
           // ── Thank-you state ──
@@ -225,7 +242,7 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
               <div
                 className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[14px] ${
                   isAnonymous
-                    ? "border-[#C7D7FE] bg-[#EEF4FF] text-[#3538CD]"
+                    ? "border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] text-[color:var(--color-success-700)]"
                     : "border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)]"
                 }`}
               >

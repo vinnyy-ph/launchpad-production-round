@@ -18,7 +18,7 @@ import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
 import { useAssignedClearances, AssignedClearancesSection } from "@/modules/people/offboarding";
 import { KpiCard } from "@/shared/ui/patterns";
-import { Skeleton } from "@/shared/ui";
+import { Button, Skeleton } from "@/shared/ui";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { RedactedProfileSheet } from "@/modules/people/employees/components/redacted-profile-sheet";
 import { cn } from "@/shared/lib/utils";
@@ -93,7 +93,7 @@ export default function HomePage() {
         {primary && !statsLoading && (
           <Link
             href={primary.href}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[color:hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[color:hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
           >
             {primary.cta}
             <ArrowRight size={15} aria-hidden="true" />
@@ -105,12 +105,9 @@ export default function HomePage() {
         <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
           <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
           <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{statsError}</span>
-          <button
-            onClick={() => void loadStats()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
-          >
-            <RefreshCw size={12} /> Retry
-          </button>
+          <Button variant="ghost" size="sm" onClick={() => void loadStats()}>
+            <RefreshCw /> Retry
+          </Button>
         </div>
       ) : (
         <>
@@ -249,7 +246,6 @@ function Avatar({ name, src, className }: { name: string; src?: string | null; c
       fallback={initials(name)}
       className={cn("h-9 w-9", className)}
       fallbackClassName="text-[12px] font-bold text-white"
-      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
 }
@@ -282,7 +278,7 @@ function PeopleSection({
             type="button"
             onClick={() => setSupervisorOpen(true)}
             aria-label={`View ${supervisor.fullName}'s profile`}
-            className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 text-left transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="group rounded-xl border border-[color:var(--border-primary)] bg-white p-5 text-left transition-colors hover:border-[color:var(--border-secondary)]"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
@@ -309,7 +305,7 @@ function PeopleSection({
           </button>
         ) : (
           <div
-            className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5"
+            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
@@ -332,7 +328,7 @@ function PeopleSection({
           <Link
             key={team.id}
             href={`/employee/teams/${team.id}`}
-            className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="group rounded-xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)]"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">

@@ -168,9 +168,9 @@ export function ClearancesPanel() {
                   </h2>
                   {template.isDefault ? (
                     <Badge
-                      variant="outline"
+                      variant="brand"
                       pill
-                      className="border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]"
+                      className="font-semibold"
                     >
                       <Star className="mr-1 h-3 w-3 fill-current" aria-hidden="true" />
                       Default
@@ -201,7 +201,7 @@ export function ClearancesPanel() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-[#FECDCA] text-[#B42318] hover:bg-[#FEF3F2]"
+                    className="border-[color:var(--color-error-200)] text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]"
                     onClick={() => void handleDelete(template)}
                     disabled={remove.isPending || template.inUseCount > 0}
                     loading={remove.isPending}

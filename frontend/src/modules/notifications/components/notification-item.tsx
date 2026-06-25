@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Pin, X, Check } from "lucide-react";
 import { parseISO, isToday, isYesterday, format, differenceInMinutes } from "date-fns";
+import { Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import type { Notification } from "../types/notifications.types";
 
@@ -79,7 +80,7 @@ function resolveRoute(n: Notification): string | null {
 }
 
 const ACTION_BTN =
-  "rounded-md p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-secondary)]";
 
 export function NotificationItem({ notification, onRead, onPin, onClear }: Props) {
   const router = useRouter();
@@ -124,20 +125,34 @@ export function NotificationItem({ notification, onRead, onPin, onClear }: Props
       {showActions && (
         <div className="flex flex-shrink-0 items-center gap-0.5 self-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
           {!notification.isRead && (
-            <button onClick={() => onRead(notification.id)} aria-label="Mark as read" className={ACTION_BTN}>
-              <Check size={14} />
-            </button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onRead(notification.id)}
+              aria-label="Mark as read"
+              className={ACTION_BTN}
+            >
+              <Check />
+            </Button>
           )}
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={() => onPin!(notification.id, !notification.isPinned)}
             aria-label={notification.isPinned ? "Unpin" : "Pin"}
             className={cn(ACTION_BTN, notification.isPinned && "text-[color:var(--text-primary)]")}
           >
-            <Pin size={14} fill={notification.isPinned ? "currentColor" : "none"} />
-          </button>
-          <button onClick={() => onClear!(notification.id)} aria-label="Clear" className={ACTION_BTN}>
-            <X size={14} />
-          </button>
+            <Pin fill={notification.isPinned ? "currentColor" : "none"} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => onClear!(notification.id)}
+            aria-label="Clear"
+            className={ACTION_BTN}
+          >
+            <X />
+          </Button>
         </div>
       )}
     </div>

@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { format, startOfMonth } from "date-fns";
 import {
     ClipboardCheck,
+    ClipboardList,
+    FilePen,
     Plus,
     Trash2,
     Send,
@@ -46,6 +48,7 @@ import {
 import {
     EmptyState,
     DataTable,
+    PageTabs,
     FormField,
     StatusBadge,
     FilterBar,
@@ -53,6 +56,7 @@ import {
     type Column,
     type DataTableSort,
 } from "@/shared/ui/patterns";
+import { ACK_PRESENTATION, type AckStatus } from "@/modules/performance/evaluations/lib/ack-status";
 import {
     Tooltip,
     TooltipContent,
@@ -125,16 +129,16 @@ function revieweeInitials(name: string): string {
     return letters.toUpperCase() || "—";
 }
 
-type AckTone = "warning" | "success" | "info";
+type AckTone = "warning" | "success" | "neutral";
 
 /** Acknowledgement status for the table: Pending / Acknowledged / Auto-acknowledged (no overdue). */
 function ackInfo(ev: Evaluation): { status: string; tone: AckTone } | null {
     if (!ev.isSent) return null;
     const ack = ev.acknowledgement;
-    if (ack?.acknowledgedAt && !ack.isDeemedAck)
-        return { status: "Acknowledged", tone: "success" };
-    if (ack?.isDeemedAck) return { status: "Auto-acknowledged", tone: "info" };
-    return { status: "Pending", tone: "warning" };
+    const state: AckStatus =
+        ack?.acknowledgedAt && !ack.isDeemedAck ? "acknowledged" : ack?.isDeemedAck ? "auto" : "pending";
+    const { label, tone } = ACK_PRESENTATION[state];
+    return { status: label, tone };
 }
 
 // Overall-rating options — number, label, and a one-line bar for each level.
@@ -266,14 +270,15 @@ function DynamicList({
                             maxLength={maxLength}
                             aria-label={`${label} ${idx + 1}`}
                         />
-                        <button
+                        <Button
+                            variant="destructive-ghost"
+                            size="icon-sm"
                             type="button"
                             onClick={() => remove(idx)}
-                            className="rounded-lg p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             aria-label={`Remove ${label.toLowerCase()} ${idx + 1}`}
                         >
-                            <Trash2 size={14} />
-                        </button>
+                            <Trash2 />
+                        </Button>
                     </div>
                 ))}
                 <Button
@@ -413,14 +418,15 @@ function PdfFilePicker({
                             <span className="shrink-0 text-xs text-[color:var(--text-tertiary)]">
                                 {formatFileSize(file.size)}
                             </span>
-                            <button
+                            <Button
+                                variant="destructive-ghost"
+                                size="icon-sm"
                                 type="button"
                                 onClick={() => remove(idx)}
-                                className="rounded p-0.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 aria-label={`Remove ${file.name}`}
                             >
-                                <X size={13} />
-                            </button>
+                                <X />
+                            </Button>
                         </div>
                     ))}
                 </div>
@@ -969,24 +975,26 @@ function EvaluationEditorDialog({
                             You have unsaved changes from a previous session.
                         </span>
                         <span className="flex flex-none gap-2">
-                            <button
+                            <Button
+                                variant="link"
+                                size="xs"
                                 type="button"
                                 onClick={() =>
                                     restoreFromBuffer(
                                         autosave.recoverable as EvalSnapshot,
                                     )
                                 }
-                                className="font-semibold text-[color:var(--text-primary)] underline underline-offset-2"
                             >
                                 Restore
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                variant="link"
+                                size="xs"
                                 type="button"
                                 onClick={autosave.discardRecovery}
-                                className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
                             >
                                 Discard
-                            </button>
+                            </Button>
                         </span>
                     </div>
                 )}
@@ -1227,7 +1235,7 @@ function EvaluationEditorDialog({
                                         emptyText="No direct reports found."
                                         className={
                                             errors.reviewee
-                                                ? "border-[#D92D20]"
+                                                ? "border-[color:var(--color-error-600)]"
                                                 : undefined
                                         }
                                     />
@@ -1350,13 +1358,13 @@ function EvaluationEditorDialog({
                                                             clearError("grade");
                                                         }}
                                                         className={[
-                                                            "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                                            "flex flex-col items-center justify-start gap-1 rounded-lg border px-1.5 py-2.5 text-center transition-colors",
                                                             selected
                                                                 ? "border-transparent bg-[color:hsl(var(--primary))] text-white"
                                                                 : "border-[color:var(--border-primary)] hover:bg-[color:var(--bg-secondary)]",
                                                             errors.grade &&
                                                             !selected
-                                                                ? "border-[#D92D20]"
+                                                                ? "border-[color:var(--color-error-600)]"
                                                                 : "",
                                                         ]
                                                             .filter(Boolean)
@@ -1467,13 +1475,11 @@ function EvaluationEditorDialog({
                         )}
                         {isDraft && onRequestDelete && (
                             <Button
-                                variant="ghost"
+                                variant="destructive-ghost"
                                 type="button"
                                 onClick={onRequestDelete}
-                                className="text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
                             >
-                                <Trash2 size={14} className="mr-1" /> Delete
-                                draft
+                                <Trash2 /> Delete draft
                             </Button>
                         )}
                         <div className="ml-auto flex gap-2">
@@ -1853,7 +1859,7 @@ export default function EvaluationsPage() {
             : []),
         {
             header: "Period",
-            className: "min-w-[150px] text-center whitespace-nowrap",
+            className: "min-w-[150px] whitespace-nowrap",
             sortable: true,
             sortKey: "period",
             cell: (ev) => (
@@ -1864,7 +1870,7 @@ export default function EvaluationsPage() {
         },
         {
             header: "Grade",
-            className: "min-w-[140px] text-center whitespace-nowrap",
+            className: "min-w-[140px] text-right tabular-nums whitespace-nowrap",
             sortable: true,
             sortKey: "grade",
             cell: (ev) => (
@@ -1882,7 +1888,7 @@ export default function EvaluationsPage() {
         {
             header: "Status",
             mobileLabel: "Status",
-            className: "min-w-[110px] text-center",
+            className: "min-w-[110px]",
             sortable: true,
             sortKey: "status",
             cell: (ev) => (
@@ -1892,7 +1898,7 @@ export default function EvaluationsPage() {
         {
             header: "Acknowledgement",
             mobileLabel: "Acknowledgement",
-            className: "min-w-[150px] text-center",
+            className: "min-w-[150px]",
             cell: (ev) => {
                 const ack = ackInfo(ev);
                 if (!ack)
@@ -1907,7 +1913,7 @@ export default function EvaluationsPage() {
         {
             header: "Acknowledgement due",
             mobileLabel: "Acknowledgement due",
-            className: "min-w-[160px] text-center whitespace-nowrap",
+            className: "min-w-[160px] whitespace-nowrap",
             sortable: true,
             sortKey: "due",
             cell: (ev) => {
@@ -1972,7 +1978,7 @@ export default function EvaluationsPage() {
                             aria-selected={active}
                             onClick={() => selectScope(s.value)}
                             className={[
-                                "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold transition-colors",
                                 active
                                     ? "bg-white text-[color:var(--text-primary)] shadow-[var(--shadow-xs)]"
                                     : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
@@ -1990,66 +1996,16 @@ export default function EvaluationsPage() {
             {/* Status sub-tabs — double as the status filter, with a live count badge each. Hidden
           in the team scope, where every evaluation is sent so a status filter is moot. */}
             {scope !== "team" && (
-                <div
-                    role="tablist"
-                    aria-label="Filter by status"
-                    className="mb-5 flex items-center gap-6 overflow-x-auto overflow-y-hidden scrollbar-none border-b border-[color:var(--border-primary)]"
-                >
-                    {(
-                        [
-                            { value: "ALL", label: "All", count: evals.length },
-                            {
-                                value: "draft",
-                                label: "Drafts",
-                                count: draftCount,
-                            },
-                            { value: "sent", label: "Sent", count: sentCount },
-                        ] as {
-                            value: StatusFilter;
-                            label: string;
-                            count: number;
-                        }[]
-                    ).map((t) => {
-                        const active = statusFilter === t.value;
-                        return (
-                            <button
-                                key={t.value}
-                                type="button"
-                                role="tab"
-                                aria-selected={active}
-                                onClick={() => setStatusFilter(t.value)}
-                                className={[
-                                    "relative flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                                    active
-                                        ? "text-[color:var(--text-primary)]"
-                                        : "text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]",
-                                ].join(" ")}
-                            >
-                                {t.label}
-                                <span
-                                    className={[
-                                        "inline-flex min-w-[20px] items-center justify-center rounded-full border bg-[color:var(--bg-tertiary)] px-1.5 py-0.5 text-xs font-semibold tabular-nums",
-                                        active
-                                            ? "border-[color:var(--border-primary)] text-[color:var(--text-secondary)]"
-                                            : "border-transparent text-[color:var(--text-tertiary)]",
-                                    ].join(" ")}
-                                >
-                                    {isLoading ? "–" : t.count}
-                                </span>
-                                {/* Gradient underline — the sole active indicator. Sits over the container border. */}
-                                {active && (
-                                    <span
-                                        aria-hidden="true"
-                                        className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
-                                        style={{
-                                            background: "var(--gradient-jia)",
-                                        }}
-                                    />
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
+                <PageTabs
+                    ariaLabel="Filter by status"
+                    value={statusFilter}
+                    onChange={(v) => setStatusFilter(v as StatusFilter)}
+                    items={[
+                        { value: "ALL", label: "All", count: isLoading ? undefined : evals.length, icon: ClipboardList },
+                        { value: "draft", label: "Drafts", count: isLoading ? undefined : draftCount, icon: FilePen },
+                        { value: "sent", label: "Sent", count: isLoading ? undefined : sentCount, icon: Send },
+                    ]}
+                />
             )}
 
             <FilterBar aria-label="Filter evaluations" className="gap-3">
