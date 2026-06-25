@@ -1,15 +1,28 @@
 import {
   getFirstName,
-  buildSummary,
-  buildDashboardAttention,
-  dashboardPrimaryAction,
-  buildGlanceCards,
+  computeGreeting,
+  buildAttentionZones,
+  buildPriority,
+  buildOrgHealth,
+  rowAriaLabel,
 } from "@/screens/home.logic";
 import type { DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
-import type { AppUser } from "@/modules/auth/types/auth.types";
+import type { AppUser, EmployeeStatus } from "@/modules/auth/types/auth.types";
 
 function stats(over: Partial<DashboardStats> = {}): DashboardStats {
-  return { ...over };
+  return { ...over } as DashboardStats;
+}
+
+type ZoneInput = Parameters<typeof buildAttentionZones>[0];
+function zoneInput(over: Partial<ZoneInput> = {}): ZoneInput {
+  return {
+    role: "EMPLOYEE",
+    isSupervisor: false,
+    employeeStatus: "ACTIVE" as EmployeeStatus,
+    stats: null,
+    pendingSignatures: 0,
+    ...over,
+  };
 }
 
 describe("getFirstName", () => {
@@ -24,94 +37,122 @@ describe("getFirstName", () => {
   });
 });
 
-describe("buildDashboardAttention", () => {
-  it("returns empty when stats are null", () => {
-    expect(buildDashboardAttention({ role: "EMPLOYEE", isSupervisor: false, employeeStatus: "ACTIVE", stats: null })).toEqual([]);
+describe("computeGreeting", () => {
+  // Jan 1 2026 is a Thursday, so these avoid the Friday branch unless stated.
+  const at = (h: number, day = 1) => new Date(2026, 0, day, h, 0);
+  it("appends the first name when present", () => {
+    expect(computeGreeting(at(9), "Jia")).toBe("Good morning, Jia");
   });
-  it("includes only non-zero items, personal → team → org, with the right hrefs", () => {
-    const items = buildDashboardAttention({
-      role: "HR",
-      isSupervisor: true,
-      employeeStatus: "ACTIVE",
-      stats: stats({ pendingAcknowledgements: 2, unreadSurveys: 1, pendingEvaluations: 3, pendingOnboarding: 1, pendingOffboarding: 0, pendingClearances: 4 }),
-    });
-    expect(items.map((i) => i.id)).toEqual(["acks", "surveys", "drafts", "onboarding", "clearances"]);
-    expect(items.find((i) => i.id === "acks")?.href).toBe("/employee/surveys?tab=acknowledgements");
-    expect(items.find((i) => i.id === "surveys")?.href).toBe("/employee/surveys");
-    expect(items.find((i) => i.id === "drafts")?.href).toBe("/supervisor/evaluations?status=draft");
-    expect(items.find((i) => i.id === "onboarding")?.href).toBe("/hr/directory/onboarding");
-    expect(items.find((i) => i.id === "clearances")?.href).toBe("/hr/directory/offboarding");
+  it("omits the suffix when there is no name", () => {
+    expect(computeGreeting(at(9), "")).toBe("Good morning");
   });
-  it("gates the supervisor and HR lanes", () => {
-    const items = buildDashboardAttention({
-      role: "EMPLOYEE",
-      isSupervisor: false,
-      employeeStatus: "ACTIVE",
-      stats: stats({ pendingEvaluations: 5, pendingOnboarding: 2 }),
-    });
-    expect(items).toEqual([]); // neither lane held
+  it("uses the edge bands at the extremes", () => {
+    expect(computeGreeting(at(22), "Jia")).toBe("Working late, Jia");
+    expect(computeGreeting(at(3), "Jia")).toBe("Working late, Jia");
+    expect(computeGreeting(at(6), "Jia")).toBe("Early start, Jia");
   });
+  it("uses the time-of-day bands", () => {
+    expect(computeGreeting(at(9), "Jia")).toBe("Good morning, Jia");
+    expect(computeGreeting(at(14), "Jia")).toBe("Good afternoon, Jia");
+    expect(computeGreeting(at(19), "Jia")).toBe("Good evening, Jia");
+  });
+  it("greets Friday, but only inside the day bands", () => {
+    // Jan 2 2026 is a Friday.
+    expect(computeGreeting(at(9, 2), "Jia")).toBe("Happy Friday, Jia");
+    // Edge bands still win over Friday.
+    expect(computeGreeting(at(22, 2), "Jia")).toBe("Working late, Jia");
+  });
+});
+
+describe("buildAttentionZones", () => {
+  it("gates the team and organization lanes by role", () => {
+    const z = buildAttentionZones(zoneInput({ stats: stats({ pendingEvaluations: 5, pendingOnboarding: 2 }) }));
+    expect(z.forYou).toEqual([]);
+    expect(z.yourTeam).toBeNull(); // not a supervisor
+    expect(z.organization).toBeNull(); // not HR/ADMIN
+  });
+
+  it("fills the personal lane with only non-zero, backed items and the right hrefs", () => {
+    const z = buildAttentionZones(
+      zoneInput({
+        pendingSignatures: 1,
+        stats: stats({ pendingAcknowledgements: 2, unreadSurveys: 1 }),
+      }),
+    );
+    expect(z.forYou.map((r) => r.id)).toEqual(["sign", "acks", "pulses"]);
+    expect(z.forYou.find((r) => r.id === "acks")?.href).toBe("/employee/surveys?tab=acknowledgements");
+    expect(z.forYou.find((r) => r.id === "pulses")?.href).toBe("/employee/surveys");
+  });
+
   it("shows onboarding documents only while ONBOARDING", () => {
-    const onboarding = buildDashboardAttention({ role: "EMPLOYEE", isSupervisor: false, employeeStatus: "ONBOARDING", stats: stats({ pendingDocuments: 2 }) });
-    expect(onboarding.map((i) => i.id)).toEqual(["documents"]);
-    const active = buildDashboardAttention({ role: "EMPLOYEE", isSupervisor: false, employeeStatus: "ACTIVE", stats: stats({ pendingDocuments: 2 }) });
-    expect(active).toEqual([]);
+    const onboarding = buildAttentionZones(
+      zoneInput({ employeeStatus: "ONBOARDING" as EmployeeStatus, stats: stats({ pendingDocuments: 2 }) }),
+    );
+    expect(onboarding.forYou.map((r) => r.id)).toEqual(["docs"]);
+    const active = buildAttentionZones(zoneInput({ stats: stats({ pendingDocuments: 2 }) }));
+    expect(active.forYou).toEqual([]);
   });
+
+  it("fills the supervisor and organization lanes when held", () => {
+    const z = buildAttentionZones(
+      zoneInput({
+        role: "HR",
+        isSupervisor: true,
+        stats: stats({ pendingEvaluations: 3, pendingOnboarding: 1, pendingOffboarding: 0, pendingClearances: 4 }),
+      }),
+    );
+    expect(z.yourTeam?.map((r) => r.id)).toEqual(["drafts"]);
+    expect(z.yourTeam?.[0].href).toBe("/supervisor/evaluations?status=draft");
+    // pendingOffboarding is 0, so it's omitted.
+    expect(z.organization?.map((r) => r.id)).toEqual(["onboard", "clear"]);
+  });
+
   it("uses singular/plural copy", () => {
-    const one = buildDashboardAttention({ role: "EMPLOYEE", isSupervisor: false, employeeStatus: "ACTIVE", stats: stats({ pendingAcknowledgements: 1 }) })[0];
+    const one = buildAttentionZones(zoneInput({ stats: stats({ pendingAcknowledgements: 1 }) })).forYou[0];
     expect(one.label).toBe("1 evaluation to acknowledge");
-    const many = buildDashboardAttention({ role: "EMPLOYEE", isSupervisor: false, employeeStatus: "ACTIVE", stats: stats({ pendingAcknowledgements: 3 }) })[0];
+    const many = buildAttentionZones(zoneInput({ stats: stats({ pendingAcknowledgements: 3 }) })).forYou[0];
     expect(many.label).toBe("3 evaluations to acknowledge");
   });
 });
 
-describe("dashboardPrimaryAction", () => {
-  it("is the highest-priority item", () => {
-    const items = buildDashboardAttention({ role: "EMPLOYEE", isSupervisor: true, employeeStatus: "ACTIVE", stats: stats({ unreadSurveys: 1, pendingEvaluations: 2 }) });
-    expect(dashboardPrimaryAction(items)?.id).toBe("surveys");
+describe("buildPriority", () => {
+  it("counts every pending row across all zones", () => {
+    const z = buildAttentionZones(
+      zoneInput({ isSupervisor: true, stats: stats({ unreadSurveys: 1, pendingEvaluations: 2 }) }),
+    );
+    expect(buildPriority(z).count).toBe(2);
   });
-  it("is null when there is nothing to do", () => {
-    expect(dashboardPrimaryAction([])).toBeNull();
+  it("promotes the highest-priority row as the primary action", () => {
+    // drafts (rank 3) outranks pulses (rank 4).
+    const z = buildAttentionZones(
+      zoneInput({ isSupervisor: true, stats: stats({ unreadSurveys: 1, pendingEvaluations: 2 }) }),
+    );
+    expect(buildPriority(z).primary?.id).toBe("drafts");
   });
-});
-
-describe("buildGlanceCards", () => {
-  it("returns empty when stats are null", () => {
-    expect(buildGlanceCards({ role: "EMPLOYEE", isSupervisor: false, employeeStatus: "ACTIVE", stats: null })).toEqual([]);
-  });
-  it("shows supervisor context with an evals-complete progress percent", () => {
-    const cards = buildGlanceCards({ role: "EMPLOYEE", isSupervisor: true, employeeStatus: "ACTIVE", stats: stats({ directReports: 4, completedEvaluations: 1, totalEvaluations: 2 }) });
-    expect(cards.map((c) => c.id)).toEqual(["direct-reports", "evals-complete"]);
-    expect(cards.find((c) => c.id === "evals-complete")?.value).toBe("1/2");
-    expect(cards.find((c) => c.id === "evals-complete")?.progress).toBe(50);
-  });
-  it("omits the evals-complete progress bar when the denominator is <= 1", () => {
-    const cards = buildGlanceCards({ role: "EMPLOYEE", isSupervisor: true, employeeStatus: "ACTIVE", stats: stats({ completedEvaluations: 1, totalEvaluations: 1 }) });
-    const card = cards.find((c) => c.id === "evals-complete");
-    expect(card?.value).toBe("1/1");
-    expect(card?.progress).toBeUndefined();
-  });
-  it("shows HR active employees and the onboarding-progress card only while ONBOARDING", () => {
-    const hr = buildGlanceCards({ role: "HR", isSupervisor: false, employeeStatus: "ACTIVE", stats: stats({ activeEmployees: 42 }) });
-    expect(hr.map((c) => c.id)).toEqual(["active-employees"]);
-    const onboarding = buildGlanceCards({ role: "EMPLOYEE", isSupervisor: false, employeeStatus: "ONBOARDING", stats: stats({ onboardingProgress: 60 }) });
-    expect(onboarding[0]).toMatchObject({ id: "onboarding-progress", value: "60%", progress: 60 });
-  });
-  it("omits actionable items (no surveys/acks/pending cards)", () => {
-    const cards = buildGlanceCards({ role: "HR", isSupervisor: true, employeeStatus: "ACTIVE", stats: stats({ unreadSurveys: 9, pendingEvaluations: 9, pendingOnboarding: 9, directReports: 1, activeEmployees: 1 }) });
-    expect(cards.map((c) => c.id).sort()).toEqual(["active-employees", "direct-reports"]);
+  it("has no primary when nothing is pending", () => {
+    const empty = { forYou: [], yourTeam: null, organization: null };
+    expect(buildPriority(empty)).toEqual({ count: 0, primary: null });
   });
 });
 
-describe("buildSummary", () => {
-  it("is a neutral line before stats load", () => {
-    expect(buildSummary(0, false)).toBe("Here's your day at a glance.");
+describe("buildOrgHealth", () => {
+  it("is empty for non-HR roles", () => {
+    expect(buildOrgHealth("EMPLOYEE", stats({ pendingClearances: 4 }))).toEqual([]);
   });
-  it("is all-caught-up when nothing needs attention", () => {
-    expect(buildSummary(0, true)).toBe("You're all caught up — nice work.");
+  it("surfaces the clearances-in-progress card for HR when the field is present", () => {
+    const cards = buildOrgHealth("HR", stats({ pendingClearances: 4 }));
+    expect(cards.map((c) => c.id)).toEqual(["clearances"]);
+    expect(cards[0].value).toBe("4 clearances");
   });
-  it("reports the count without re-listing the items", () => {
-    expect(buildSummary(1, true)).toBe("You have 1 thing to review today.");
-    expect(buildSummary(3, true)).toBe("You have 3 things to review today.");
+  it("omits the card when the field is absent", () => {
+    expect(buildOrgHealth("HR", stats())).toEqual([]);
+  });
+});
+
+describe("rowAriaLabel", () => {
+  it("reads as action then label", () => {
+    expect(
+      rowAriaLabel({ id: "pulses", count: 1, label: "1 pulse survey to answer", action: "Answer surveys", href: "/employee/surveys" }),
+    ).toBe("Answer surveys — 1 pulse survey to answer");
   });
 });
