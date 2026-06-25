@@ -17,6 +17,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+import { Badge } from "@/shared/ui/primitives/badge";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import {
   useMyOnboarding,
@@ -318,9 +319,9 @@ function ReviewField({
 
 function HrSetBadge() {
   return (
-    <span className="inline-flex items-center rounded-full border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-2 py-0.5 text-[12px] font-semibold leading-none text-[color:var(--text-tertiary)]">
+    <Badge variant="neutral" pill className="font-semibold">
       Set by HR
-    </span>
+    </Badge>
   );
 }
 

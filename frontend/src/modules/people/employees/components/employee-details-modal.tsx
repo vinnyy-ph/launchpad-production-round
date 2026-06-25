@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/shared/ui/primitives/select";
 import { StatusBadge } from "@/shared/ui/patterns";
+import { Badge } from "@/shared/ui/primitives/badge";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { ApiError } from "@/shared/lib/api-client";
 import { isStrictPhilippineMobile, toPhilippineE164 } from "@/shared/lib/phone";
@@ -807,9 +808,9 @@ export function EmployeeDetailsModal({
                                       </p>
                                       {profile.department ? (
                                           <div className="mt-2 flex justify-center">
-                                              <span className="inline-flex max-w-full items-center truncate rounded-full border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-2.5 py-0.5 text-[11px] font-medium text-[color:var(--text-secondary)]">
+                                              <Badge variant="neutral" pill className="max-w-full truncate">
                                                   {profile.department}
-                                              </span>
+                                              </Badge>
                                           </div>
                                       ) : null}
                                       <div className="mt-3 flex justify-center">

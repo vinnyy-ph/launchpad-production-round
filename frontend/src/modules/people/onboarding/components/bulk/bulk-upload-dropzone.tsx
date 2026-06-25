@@ -450,9 +450,9 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[color:var(--color-error-700)]">
+                <Badge variant="error" pill className="font-semibold">
                   {preview.errors.length} issue{preview.errors.length === 1 ? "" : "s"}
-                </span>
+                </Badge>
               </div>
 
               <div className="max-h-[260px] space-y-2 overflow-y-auto p-3">
