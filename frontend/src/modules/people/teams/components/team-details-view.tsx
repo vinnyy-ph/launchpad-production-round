@@ -463,7 +463,7 @@ export function TeamDetailsView({
 
         {otherMembers.length === 0 ? (
           <div
-            className="rounded-2xl border border-[color:var(--border-primary)] bg-white px-6 py-8 text-center text-sm text-[color:var(--text-tertiary)]"
+            className="rounded-xl border border-[color:var(--border-primary)] bg-white px-6 py-8 text-center text-sm text-[color:var(--text-tertiary)]"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             No additional members yet.
@@ -473,7 +473,7 @@ export function TeamDetailsView({
             {otherMembers.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center gap-1 rounded-2xl border border-[color:var(--border-primary)] bg-white pr-1.5 transition-colors hover:border-[color:var(--border-secondary)]"
+                className="flex items-center gap-1 rounded-xl border border-[color:var(--border-primary)] bg-white pr-1.5 transition-colors hover:border-[color:var(--border-secondary)]"
                 style={{ boxShadow: "var(--shadow-xs)" }}
               >
                 <div className="min-w-0 flex-1">

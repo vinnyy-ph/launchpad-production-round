@@ -338,7 +338,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
+    <section className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
       <div className="mb-4 flex items-center gap-2">
         <Icon size={17} className="text-[color:var(--text-quaternary)]" aria-hidden="true" />
         <h3 className="text-base font-bold text-[color:var(--text-primary)]">{title}</h3>

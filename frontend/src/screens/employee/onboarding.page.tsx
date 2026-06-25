@@ -326,7 +326,7 @@ function StepCard({
 }) {
   return (
     <section
-      className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-8"
+      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-8"
       style={{ boxShadow: CARD_SHADOW }}
     >
       <div className="py-4">
@@ -507,7 +507,7 @@ function ReviewDocumentRow({
 function OnboardingSkeleton() {
   return (
     <div
-      className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-8"
+      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-8"
       style={{ boxShadow: CARD_SHADOW }}
     >
       <Skeleton className="h-5 w-48" />
@@ -527,7 +527,7 @@ function OnboardingSkeleton() {
 function SubmittedConfirmation() {
   return (
     <section
-      className="ob-submitted-card rounded-2xl border border-[color:var(--border-primary)] bg-white px-8 py-14 text-center"
+      className="ob-submitted-card rounded-xl border border-[color:var(--border-primary)] bg-white px-8 py-14 text-center"
       style={{ boxShadow: CARD_SHADOW }}
     >
       <div className="ob-submitted-icon-box mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-[color:var(--border-primary)] bg-white">
@@ -691,7 +691,7 @@ function AccountUnderReviewStatus({
       </section>
 
       <section
-        className="mt-5 rounded-2xl border border-[color:var(--border-primary)] bg-white p-8"
+        className="mt-5 rounded-xl border border-[color:var(--border-primary)] bg-white p-8"
         style={{ boxShadow: CARD_SHADOW }}
       >
         <div>
@@ -1034,7 +1034,7 @@ export default function EmployeeOnboardingPage() {
     return (
       <div className="mx-auto w-full max-w-[960px]">
         <div
-          className="rounded-2xl border border-[color:var(--border-primary)] bg-white"
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: CARD_SHADOW }}
         >
           <EmptyState
@@ -1052,7 +1052,7 @@ export default function EmployeeOnboardingPage() {
     return (
       <div className="mx-auto w-full max-w-[960px]">
         <div
-          className="rounded-2xl border border-[color:var(--border-primary)] bg-white"
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: CARD_SHADOW }}
         >
           <EmptyState

@@ -279,7 +279,7 @@ function PeopleSection({
             type="button"
             onClick={() => setSupervisorOpen(true)}
             aria-label={`View ${supervisor.fullName}'s profile`}
-            className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 text-left transition-colors hover:border-[color:var(--border-secondary)]"
+            className="group rounded-xl border border-[color:var(--border-primary)] bg-white p-5 text-left transition-colors hover:border-[color:var(--border-secondary)]"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
@@ -306,7 +306,7 @@ function PeopleSection({
           </button>
         ) : (
           <div
-            className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5"
+            className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
@@ -329,7 +329,7 @@ function PeopleSection({
           <Link
             key={team.id}
             href={`/employee/teams/${team.id}`}
-            className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)]"
+            className="group rounded-xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)]"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">

@@ -45,7 +45,7 @@ export function AiQuestionGeneratorPanel({ onGenerated, disabled }: AiQuestionGe
   };
 
   return (
-    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
+    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
       <div className="flex items-center gap-2">
         <Sparkles size={18} className="text-[color:var(--brand-blue)]" />
         <h3 className="text-[15px] font-semibold text-[color:var(--text-primary)]">

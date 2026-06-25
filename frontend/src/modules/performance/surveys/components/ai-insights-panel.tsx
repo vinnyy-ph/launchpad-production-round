@@ -21,7 +21,7 @@ const SENTIMENT_LABEL: Record<InsightSentiment, string> = {
 };
 
 const CARD =
-  "rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6";
+  "rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6";
 
 export function AiInsightsPanel({
   surveyId,
