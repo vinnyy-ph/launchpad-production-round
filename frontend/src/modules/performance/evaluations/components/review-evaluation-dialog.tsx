@@ -156,7 +156,7 @@ export function ReviewEvaluationDialog({
   const isPending = !isAcknowledged && !isAutoAck;
 
   const ackState: AckStatus = isAcknowledged ? "acknowledged" : isAutoAck ? "auto" : "pending";
-  const chip = { ...ACK_PRESENTATION[ackState], dot: ackState !== "acknowledged" };
+  const chip = ACK_PRESENTATION[ackState];
 
   const subtitle = isAcknowledged
     ? justAcked && !ack?.acknowledgedAt
@@ -185,7 +185,7 @@ export function ReviewEvaluationDialog({
               <DialogTitle className="text-lg font-bold leading-7 tracking-tight text-[color:var(--text-primary)]">
                 Evaluation for {revieweeName}
               </DialogTitle>
-              <StatusBadge status={chip.label} tone={chip.tone} dot={chip.dot} />
+              <StatusBadge status={chip.label} tone={chip.tone} />
               {isAutoAck && (
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>

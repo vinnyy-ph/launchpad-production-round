@@ -1,6 +1,6 @@
 import { cn } from "@/shared/lib/utils";
 
-type Tone = "neutral" | "success" | "warning" | "error" | "brand" | "info";
+type Tone = "neutral" | "success" | "warning" | "error" | "brand";
 type Shape = "default" | "pill" | "modern";
 
 // Exact brandbook .badge colorways (match Badge primitive 1:1).
@@ -10,8 +10,6 @@ const TONE_CLASS: Record<Tone, string> = {
   warning: "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]",
   error: "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]",
   brand: "bg-gradient-badge-brand text-[color:var(--text-primary)] border-transparent shadow-[inset_0_0_0_1px_rgba(24,29,39,0.06)]",
-  // Brandbook has no blue/info badge — "info" maps to the neutral colorway.
-  info: "bg-[color:var(--gray-neutral-50)] text-[color:var(--text-secondary)] border-[color:var(--gray-neutral-200)]",
 };
 
 const SHAPE_CLASS: Record<Shape, string> = {
@@ -25,7 +23,7 @@ const STATUS_TONE: Record<string, Tone> = {
   // EmployeeStatus
   ACTIVE: "success",
   ONBOARDING: "warning",
-  OFFBOARDING: "info",
+  OFFBOARDING: "neutral",
   INACTIVE: "error",
   // OffboardingStatus
   IN_PROGRESS: "warning",
@@ -42,7 +40,7 @@ const STATUS_TONE: Record<string, Tone> = {
   FAILED_DELIVERY: "error",
   // Derived (forward-looking; caller translates bool/date -> literal)
   DRAFT: "warning",
-  SENT: "info",
+  SENT: "neutral",
   ACKNOWLEDGED: "success",
   // Auto-acknowledged = resolved passively (deadline lapsed) → neutral; distinct from active
   // "Acknowledged" (green) and still-"Pending" (amber), so it never collides with either.
