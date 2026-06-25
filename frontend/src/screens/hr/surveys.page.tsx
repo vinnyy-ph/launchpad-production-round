@@ -7,8 +7,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Power,
-  PowerOff,
   Filter,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -336,7 +334,6 @@ export default function HRSurveysPage() {
                   setActivatingId(s.id);
                 }}
               >
-                <Power className="h-3.5 w-3.5" />
                 Activate
               </Button>
             )}
@@ -349,7 +346,6 @@ export default function HRSurveysPage() {
                   setDeactivatingId(s.id);
                 }}
               >
-                <PowerOff className="h-3.5 w-3.5" />
                 Deactivate
               </Button>
             )}
