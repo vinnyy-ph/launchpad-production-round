@@ -23,14 +23,14 @@ export function PageHeader({ title, subtitle, action, level = "default" }: PageH
       <div className="min-w-0">
         <h1
           className={cn(
-            "truncate font-bold tracking-[-0.02em] text-[color:var(--text-primary)]",
+            "truncate font-medium tracking-[-0.02em] text-[color:var(--text-primary)]",
             level === "page" ? "text-[30px] leading-[38px]" : "text-2xl",
           )}
         >
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">{subtitle}</p>
+          <p className="mt-1 text-base text-[color:var(--text-tertiary)]">{subtitle}</p>
         )}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}

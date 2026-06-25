@@ -436,7 +436,7 @@ export default function EmployeeSurveysPage() {
         value={tab}
         onChange={(v) => changeTab(v as "survey" | "acknowledgements" | "results")}
         items={[
-          { value: "survey", label: "Pulse surveys", count: unansweredCount, icon: Activity },
+          { value: "survey", label: "Surveys", count: unansweredCount, icon: Activity },
           { value: "acknowledgements", label: "Evaluations", count: pendingAcks, icon: ClipboardCheck },
           { value: "results", label: "Results", icon: BarChart3 },
         ]}
