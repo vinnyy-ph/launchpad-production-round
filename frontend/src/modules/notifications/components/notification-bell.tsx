@@ -21,6 +21,10 @@ export function NotificationBell() {
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      // A per-item actions menu portals its content outside this wrapper; clicks inside
+      // that popper must not be read as "outside" and collapse the whole dropdown.
+      if (target?.closest("[data-radix-popper-content-wrapper]")) return;
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
