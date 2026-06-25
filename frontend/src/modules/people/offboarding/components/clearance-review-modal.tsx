@@ -135,7 +135,7 @@ export function ClearanceReviewModal({
       >
         <DialogContent
           overlayClassName="backdrop-blur-none"
-          className="flex max-h-[90vh] flex-col gap-4 overflow-y-auto sm:max-w-lg"
+          className="flex max-h-[90vh] flex-col gap-4 overflow-y-auto sm:max-w-4xl"
         >
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
