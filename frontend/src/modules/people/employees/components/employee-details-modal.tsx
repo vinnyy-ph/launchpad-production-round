@@ -60,6 +60,7 @@ import { useEmployeeProfile } from "../hooks/use-employee-profile";
 import { useAllEmployees } from "../hooks/use-employees";
 import { toEmployeeOption } from "../employee-options";
 import { useUpdateEmployee } from "../hooks/use-update-employee";
+import { DocumentViewerModal } from "@/modules/people/onboarding/components/documents/document-viewer-modal";
 import { InitiateOffboardingDialog } from "@/modules/people/offboarding";
 import type {
   EmployeeListItem,
@@ -424,11 +425,6 @@ const DOCUMENT_STATUS_STYLES: Record<EmployeeDocumentStatus, { label: string; cl
   approved: { label: "Approved", className: "bg-[#ECFDF3] text-[#027A48] border-[#6CE9A6]" },
   rejected: { label: "Rejected", className: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]" },
 };
-
-/** Detects whether a stored document URL points to an image (vs a PDF/other file). */
-function isImageUrl(url: string): boolean {
-  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(url.split("?")[0]);
-}
 
 function DetailSection({ title, icon: Icon, children }: DetailSectionProps) {
   return (
@@ -1700,39 +1696,12 @@ export function EmployeeDetailsModal({
               />
           ) : null}
 
-          <Dialog
+          <DocumentViewerModal
               open={viewingDocument !== null}
-              onOpenChange={(nextOpen) => {
-                  if (!nextOpen) setViewingDocument(null);
-              }}
-          >
-              <DialogContent className="grid h-[88vh] w-[90vw] max-w-[90vw] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:rounded-xl">
-                  <DialogTitle className="border-b border-[color:var(--border-primary)] px-6 py-4 pr-12 text-base font-bold text-[color:var(--text-primary)]">
-                      {viewingDocument?.documentName ?? "Document"}
-                  </DialogTitle>
-                  <DialogDescription className="sr-only">
-                      Preview of the selected employee document.
-                  </DialogDescription>
-                  {viewingDocument ? (
-                      <div className="flex min-h-0 items-center justify-center overflow-auto bg-[color:var(--bg-secondary)] p-4">
-                          {isImageUrl(viewingDocument.fileUrl) ? (
-                              <img
-                                  src={viewingDocument.fileUrl}
-                                  alt={viewingDocument.documentName}
-                                  className="max-h-full max-w-full object-contain"
-                              />
-                          ) : (
-                              <iframe
-                                  src={viewingDocument.fileUrl}
-                                  title={viewingDocument.documentName}
-                                  sandbox="allow-same-origin"
-                                  className="h-full w-full border-0 bg-white"
-                              />
-                          )}
-                      </div>
-                  ) : null}
-              </DialogContent>
-          </Dialog>
+              onClose={() => setViewingDocument(null)}
+              fileUrl={viewingDocument?.fileUrl ?? null}
+              documentName={viewingDocument?.documentName}
+          />
       </>
   );
 }
