@@ -1139,18 +1139,34 @@ function EvaluationEditorDialog({
                                                     {f.name}
                                                 </p>
                                             ))}
-                                            {links.map((l, idx) => (
-                                                <p
-                                                    key={`${l.url}-${idx}`}
-                                                    className="flex items-center gap-1.5 text-sm text-[color:var(--text-primary)]"
-                                                >
-                                                    <LinkIcon
-                                                        size={13}
-                                                        className="flex-none text-[color:var(--text-tertiary)]"
-                                                    />
-                                                    {l.label || l.url}
-                                                </p>
-                                            ))}
+                                            {links.map((l, idx) =>
+                                                isViewOnly ? (
+                                                    <a
+                                                        key={`${l.url}-${idx}`}
+                                                        href={l.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left"
+                                                    >
+                                                        <LinkIcon
+                                                            size={13}
+                                                            className="flex-none"
+                                                        />
+                                                        {l.label || l.url}
+                                                    </a>
+                                                ) : (
+                                                    <p
+                                                        key={`${l.url}-${idx}`}
+                                                        className="flex items-center gap-1.5 text-sm text-[color:var(--text-primary)]"
+                                                    >
+                                                        <LinkIcon
+                                                            size={13}
+                                                            className="flex-none text-[color:var(--text-tertiary)]"
+                                                        />
+                                                        {l.label || l.url}
+                                                    </p>
+                                                )
+                                            )}
                                         </div>
                                     </div>
                                 )}
