@@ -354,6 +354,18 @@ export interface SurveyInsight {
   };
 }
 
+/** A question returned by AI generation — no id/orderIndex; the builder assigns those on append. */
+export interface GeneratedQuestion {
+  type: QuestionType;
+  questionText: string;
+  isRequired: boolean;
+  options?: string[];
+  scaleMin?: number;
+  scaleMax?: number;
+  scaleMinLabel?: string;
+  scaleMaxLabel?: string;
+}
+
 // ─── Inputs ───────────────────────────────────────────────────────────────────
 
 export interface QuestionInput {
