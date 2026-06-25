@@ -1,1 +1,12 @@
 
+model OffboardingAttachment {
+  id            String            @id @default(uuid())
+  offboardingId String
+  url           String
+  fileName      String
+  createdAt     DateTime          @default(now())
+  offboarding   OffboardingRecord @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
+
+  @@index([offboardingId])
+  @@map("offboarding_attachments")
+}
