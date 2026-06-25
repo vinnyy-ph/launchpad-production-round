@@ -1,6 +1,6 @@
 import type { ElementType } from "react";
 import Link from "next/link";
-import { ChevronUp, ChevronDown, Info, ArrowUpRight } from "lucide-react";
+import { ChevronUp, ChevronDown, Info } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Skeleton } from "@/shared/ui/primitives/skeleton";
 import {
@@ -43,13 +43,7 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
   );
   const body = (
     <>
-      {interactive && (
-        <ArrowUpRight
-          aria-hidden="true"
-          className="absolute right-4 top-4 h-4 w-4 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
-        />
-      )}
-      <div className="flex min-h-[40px] items-start gap-2">
+      <div className="flex min-h-[40px] items-center gap-2">
         {Icon && (
           <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
             <Icon size={12} className="text-[color:var(--text-secondary)]" />

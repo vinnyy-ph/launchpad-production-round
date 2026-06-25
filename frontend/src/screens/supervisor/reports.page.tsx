@@ -113,11 +113,7 @@ function TeamCard({ total, loading }: { total: number; loading: boolean }) {
       className="group relative block overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-[18px] transition-colors hover:border-[color:var(--border-secondary)]"
       style={{ boxShadow: "var(--shadow-xs)" }}
     >
-      <ArrowUpRight
-        aria-hidden="true"
-        className="absolute right-4 top-4 h-4 w-4 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
-      />
-      <div className="flex min-h-[40px] items-start gap-2">
+      <div className="flex min-h-[40px] items-center gap-2">
         <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
           <Users size={12} className="text-[color:var(--text-secondary)]" />
         </span>
