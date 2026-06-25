@@ -106,10 +106,13 @@ export class InsightsService {
       return { ...base, available: true, suppressed: true, responseCount };
     }
 
-    // --- Cache check. ---
+    // --- Read cache. A bare read never spends on the LLM: return the cached summary if
+    // one exists (even if the response count has since changed — the client shows a "cached,
+    // regenerate for the latest" hint), otherwise tell the client it hasn't been generated
+    // yet. Generation happens only on an explicit refresh (the Generate/Regenerate action). ---
     if (!args.refresh) {
       const cached = await this.repo.getCachedInsight(survey.id, scopeKey);
-      if (cached && cached.responseCount === responseCount) {
+      if (cached) {
         const insight = survey.isAnonymous ? { ...cached.payload, quotes: [] } : cached.payload;
         return {
           ...base,
@@ -122,9 +125,10 @@ export class InsightsService {
           insight,
         };
       }
+      return { ...base, available: true, suppressed: false, responseCount, notGenerated: true };
     }
 
-    // --- Generate. ---
+    // --- Generate (explicit refresh). ---
     const questions = survey.openTextQuestions.map((q) => ({
       questionText: q.questionText,
       answers: responses
