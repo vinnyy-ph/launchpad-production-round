@@ -32,7 +32,6 @@ export function ClearancePdfPreviewModal({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
         hideClose
-        overlayClassName="backdrop-blur-none"
         className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-3"
       >
         <div className="flex items-center justify-between gap-4">
