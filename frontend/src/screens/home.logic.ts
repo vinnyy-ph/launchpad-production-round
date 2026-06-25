@@ -9,131 +9,158 @@ export function getFirstName(user: AppUser | null | undefined): string {
   return local ?? "";
 }
 
+/**
+ * Greeting line, computed from the user's local time on load. Precedence:
+ * the two edge bands (early start / working late) win over the Friday line; Friday only
+ * replaces morning/afternoon/evening.
+ *
+ * NOTE (flagged for devs): the "Welcome, [name]" first-ever-login line needs a real backend
+ * signal (e.g. last-login is null) that `AppUser` doesn't expose yet, so it's intentionally
+ * skipped here rather than guessed.
+ */
+export function computeGreeting(now: Date, firstName: string): string {
+  const suffix = firstName ? `, ${firstName}` : "";
+  const h = now.getHours();
+  if (h >= 21 || h < 5) return `Working late${suffix}`;
+  if (h < 7) return `Early start${suffix}`;
+  if (now.getDay() === 5) return `Happy Friday${suffix}`;
+  if (h < 12) return `Good morning${suffix}`;
+  if (h < 17) return `Good afternoon${suffix}`;
+  return `Good evening${suffix}`;
+}
+
 function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
-
-/** People count, e.g. "1 person" / "3 people". */
 function people(n: number): string {
   return n === 1 ? "1 person" : `${n} people`;
 }
 
-/**
- * A friendly one-line hero summary. It reports HOW MANY things need attention without re-listing
- * them — the actionable rows themselves live in the "Needs your attention" band below, so the hero
- * stays a summary instead of duplicating the list. `itemCount` is the band's item count.
- */
-export function buildSummary(itemCount: number, statsPresent: boolean): string {
-  if (!statsPresent) return "Here's your day at a glance.";
-  if (itemCount === 0) return "You're all caught up — nice work.";
-  return `You have ${itemCount} thing${itemCount === 1 ? "" : "s"} to review today.`;
-}
-
-/** A prioritized, clickable to-do surfaced in the attention band. `cta` is the hero button verb. */
-export interface DashAttentionItem {
+/** One actionable row in a scope zone. */
+export interface AttentionRow {
   id: string;
   count: number;
-  label: string;
-  cta: string;
+  label: string; // e.g. "3 pulse surveys to answer"
+  action: string; // the link/button text, e.g. "Answer surveys"
   href: string;
 }
 
+/** Accessible name for a row's action — includes the destination and the count/label. */
+export function rowAriaLabel(row: AttentionRow): string {
+  return `${row.action} — ${row.label}`;
+}
+
 /**
- * Actionable to-dos across every hat the user holds, prioritized personal → team → org, only
- * including non-zero counts. Empty = all caught up. Stats absent → empty (the band shows loading).
+ * The action queue grouped by scope. A zone is `null` when the user doesn't hold that role
+ * (so the page renders nothing for it); an empty array means the role is held but nothing is
+ * pending (so the page shows the zone's empty state).
+ *
+ * Only rows backed by a real `DashboardStats` field are included. Rows the spec asks for that
+ * have no data yet are intentionally omitted and flagged for the backend, never mocked.
  */
-export function buildDashboardAttention(input: {
+export interface AttentionZones {
+  forYou: AttentionRow[];
+  yourTeam: AttentionRow[] | null;
+  organization: AttentionRow[] | null;
+}
+
+export function buildAttentionZones(input: {
   role: string | undefined;
   isSupervisor: boolean | undefined;
   employeeStatus: EmployeeStatus | undefined;
   stats: DashboardStats | null;
-}): DashAttentionItem[] {
-  const { role, isSupervisor, employeeStatus, stats } = input;
-  if (!stats) return [];
-  const items: DashAttentionItem[] = [];
+  /** Clearances awaiting the signed-in user's signature (from useAssignedClearances). */
+  pendingSignatures: number;
+}): AttentionZones {
+  const { role, isSupervisor, employeeStatus, stats: s, pendingSignatures } = input;
 
-  // Personal — the Employee lane everyone holds.
-  if (stats.pendingAcknowledgements) {
-    items.push({ id: "acks", count: stats.pendingAcknowledgements, label: `${plural(stats.pendingAcknowledgements, "evaluation")} to acknowledge`, cta: "Acknowledge now", href: "/employee/surveys?tab=acknowledgements" });
+  // For you — the employee lane everyone holds.
+  const forYou: AttentionRow[] = [];
+  if (pendingSignatures > 0) {
+    forYou.push({ id: "sign", count: pendingSignatures, label: `${plural(pendingSignatures, "clearance")} to sign`, action: "Review clearances", href: "/employee/clearance" });
   }
-  if (stats.unreadSurveys) {
-    items.push({ id: "surveys", count: stats.unreadSurveys, label: `${plural(stats.unreadSurveys, "pulse survey")} to answer`, cta: "Answer surveys", href: "/employee/surveys" });
+  if (s?.pendingAcknowledgements) {
+    forYou.push({ id: "acks", count: s.pendingAcknowledgements, label: `${plural(s.pendingAcknowledgements, "evaluation")} to acknowledge`, action: "Review evaluation", href: "/employee/surveys?tab=acknowledgements" });
   }
-  if (employeeStatus === "ONBOARDING" && stats.pendingDocuments) {
-    items.push({ id: "documents", count: stats.pendingDocuments, label: `${plural(stats.pendingDocuments, "onboarding document")} to submit`, cta: "Submit documents", href: "/employee/onboarding" });
+  if (s?.unreadSurveys) {
+    forYou.push({ id: "pulses", count: s.unreadSurveys, label: `${plural(s.unreadSurveys, "pulse survey")} to answer`, action: "Answer surveys", href: "/employee/surveys" });
   }
-  // Team — Supervisor lane.
-  if (isSupervisor && stats.pendingEvaluations) {
-    items.push({ id: "drafts", count: stats.pendingEvaluations, label: `${plural(stats.pendingEvaluations, "evaluation draft")} to finish`, cta: "Finish drafts", href: "/supervisor/evaluations?status=draft" });
+  if (employeeStatus === "ONBOARDING" && s?.pendingDocuments) {
+    forYou.push({ id: "docs", count: s.pendingDocuments, label: `${plural(s.pendingDocuments, "onboarding document")} to submit`, action: "Submit documents", href: "/employee/onboarding" });
   }
-  // Organization — HR / Admin lane.
-  if (role === "HR" || role === "ADMIN") {
-    if (stats.pendingOnboarding) {
-      items.push({ id: "onboarding", count: stats.pendingOnboarding, label: `${people(stats.pendingOnboarding)} to onboard`, cta: "Review onboarding", href: "/hr/directory/onboarding" });
-    }
-    if (stats.pendingOffboarding) {
-      items.push({ id: "offboarding", count: stats.pendingOffboarding, label: `${people(stats.pendingOffboarding)} offboarding`, cta: "Review offboarding", href: "/hr/directory/offboarding" });
-    }
-    if (stats.pendingClearances) {
-      items.push({ id: "clearances", count: stats.pendingClearances, label: `${plural(stats.pendingClearances, "clearance")} awaiting signature`, cta: "Review clearances", href: "/hr/directory/offboarding" });
-    }
-  }
-  return items;
+
+  // Your team — supervisor lane. Only "evaluations to send" has a real field today; the
+  // awaiting-acknowledgement count and team-scoped onboarding/offboarding are flagged (no data).
+  const yourTeam = isSupervisor
+    ? (() => {
+        const rows: AttentionRow[] = [];
+        if (s?.pendingEvaluations) {
+          rows.push({ id: "drafts", count: s.pendingEvaluations, label: `${plural(s.pendingEvaluations, "evaluation")} to send`, action: "Open drafts", href: "/supervisor/evaluations?status=draft" });
+        }
+        return rows;
+      })()
+    : null;
+
+  // The organization — HR / Admin lane. Documents-to-review, clearance-rejected and
+  // invitations-to-resend are flagged (no data); onboarding/offboarding/clearances are real.
+  const organization =
+    role === "HR" || role === "ADMIN"
+      ? (() => {
+          const rows: AttentionRow[] = [];
+          if (s?.pendingOnboarding) {
+            rows.push({ id: "onboard", count: s.pendingOnboarding, label: `${people(s.pendingOnboarding)} to onboard`, action: "Review onboarding", href: "/hr/directory?tab=onboarding" });
+          }
+          if (s?.pendingOffboarding) {
+            rows.push({ id: "offboard", count: s.pendingOffboarding, label: `${people(s.pendingOffboarding)} offboarding`, action: "Review offboarding", href: "/hr/directory?tab=offboarding" });
+          }
+          if (s?.pendingClearances) {
+            rows.push({ id: "clear", count: s.pendingClearances, label: `${plural(s.pendingClearances, "clearance")} in progress`, action: "View clearances", href: "/hr/directory?tab=offboarding" });
+          }
+          return rows;
+        })()
+      : null;
+
+  return { forYou, yourTeam, organization };
 }
 
-/** The single most-urgent action, for the hero CTA. Null when all caught up. */
-export function dashboardPrimaryAction(items: DashAttentionItem[]): DashAttentionItem | null {
-  return items[0] ?? null;
+/** Priority order for the band CTA: clearance > onboarding/offboarding > eval ack > pulse. */
+const PRIORITY_RANK: Record<string, number> = {
+  sign: 0, // clearance awaiting signature
+  clear: 1, // org clearances in progress
+  onboard: 2,
+  offboard: 2,
+  acks: 3,
+  drafts: 3,
+  pulses: 4,
+  docs: 4,
+};
+
+/** Band summary: how many things are pending across all zones, and the single top action. */
+export function buildPriority(zones: AttentionZones): { count: number; primary: AttentionRow | null } {
+  const all = [...zones.forYou, ...(zones.yourTeam ?? []), ...(zones.organization ?? [])];
+  const primary = [...all].sort((a, b) => (PRIORITY_RANK[a.id] ?? 9) - (PRIORITY_RANK[b.id] ?? 9))[0] ?? null;
+  return { count: all.length, primary };
 }
 
-/** A standing context metric shown in "At a glance" (state, not a to-do). */
-export interface GlanceCard {
+/** A trending / linking org-health card (HR only). Static headcounts are intentionally excluded. */
+export interface OrgHealthCard {
   id: string;
   label: string;
-  value: string | number;
+  value: string;
+  action: string;
   href: string;
-  hint: string;
-  /** 0–100 progress bar under the value, when meaningful. */
-  progress?: number;
 }
 
 /**
- * Standing context metrics for every hat the user holds — NOT to-dos (those live in the band).
- * Empty when the user holds no context metrics (e.g. a caught-up active employee).
+ * Org-health row (HR/Admin). Only "clearances in progress" has a real field today.
+ * FLAGGED, not mocked: the onboarding pipeline breakdown (accepted/expired/failed, PEO-21) and
+ * the pulse response rate (PER-20) need new dashboard fields before their cards can render.
  */
-export function buildGlanceCards(input: {
-  role: string | undefined;
-  isSupervisor: boolean | undefined;
-  employeeStatus: EmployeeStatus | undefined;
-  stats: DashboardStats | null;
-}): GlanceCard[] {
-  const { role, isSupervisor, employeeStatus, stats } = input;
-  if (!stats) return [];
-  const cards: GlanceCard[] = [];
-
-  // Employee — onboarding progress is context (the "submit documents" action lives in the band).
-  if (employeeStatus === "ONBOARDING" && stats.onboardingProgress != null) {
-    cards.push({ id: "onboarding-progress", label: "Onboarding progress", value: `${stats.onboardingProgress}%`, progress: stats.onboardingProgress, href: "/employee/onboarding", hint: "How much of your onboarding checklist is complete." });
-  }
-  // Supervisor — standing team metrics.
-  if (isSupervisor) {
-    if (stats.directReports != null) {
-      cards.push({ id: "direct-reports", label: "Direct reports", value: stats.directReports, href: "/supervisor/roster", hint: "People who report directly to you." });
-    }
-    if (stats.totalEvaluations != null && stats.totalEvaluations > 0) {
-      const completed = stats.completedEvaluations ?? 0;
-      // A full-width bar over a 1/1 denominator reads like a divider, so only show the bar once
-      // the denominator is large enough for the proportion to carry meaning.
-      const progress =
-        stats.totalEvaluations > 1 ? Math.round((completed / stats.totalEvaluations) * 100) : undefined;
-      cards.push({ id: "evals-complete", label: "Evals complete", value: `${completed}/${stats.totalEvaluations}`, progress, href: "/supervisor/evaluations", hint: "Evaluations you've completed out of those expected this cycle." });
-    }
-  }
-  // HR / Admin — the workforce headline.
-  if (role === "HR" || role === "ADMIN") {
-    if (stats.activeEmployees != null) {
-      cards.push({ id: "active-employees", label: "Active employees", value: stats.activeEmployees, href: "/hr/directory", hint: "Employees currently active across the organization." });
-    }
+export function buildOrgHealth(role: string | undefined, stats: DashboardStats | null): OrgHealthCard[] {
+  if (role !== "HR" && role !== "ADMIN") return [];
+  const cards: OrgHealthCard[] = [];
+  if (stats?.pendingClearances != null) {
+    cards.push({ id: "clearances", label: "Clearances in progress", value: plural(stats.pendingClearances, "clearance"), action: "View clearances", href: "/hr/directory?tab=offboarding" });
   }
   return cards;
 }
