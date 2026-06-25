@@ -28,25 +28,30 @@ export async function buildClearancePdf(
   const usableWidth = pageWidth - marginX * 2;
 
   // ── Title ───────────────────────────────────────────────────────────────────
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT_FAMILY, "bold");
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
   doc.text("EMPLOYEE EXIT CLEARANCE FORM", pageWidth / 2, 20, { align: "center" });
 
   // ── Header fields ─────────────────────────────────────────────────────────────
+  const rightX = pageWidth - marginX;
   let y = 36;
+  // Two-column header: dates sit on the same rows as the name/department, pushed to the
+  // right margin (space-between).
   drawField(doc, "Employee Name:", fullName(offboarding.employee), marginX, y);
+  drawFieldRightAligned(doc, "Tender Date:", formatDate(offboarding.tenderDate), rightX, y);
   y += 9;
   drawField(doc, "Department:", offboarding.employee.department ?? "—", marginX, y);
+  drawFieldRightAligned(doc, "Effective Date:", formatDate(offboarding.effectiveDate), rightX, y);
   y += 9;
   drawField(doc, "Job Title:", offboarding.employee.jobTitle ?? "—", marginX, y);
   y += 12;
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT_FAMILY, "bold");
   doc.setFontSize(11);
   doc.text("Requirement prior to separation:", marginX, y);
   y += 6;
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT_FAMILY, "normal");
   doc.text(
     "Obtain clearance and authorized signature from the following departments",
     marginX,
@@ -116,16 +121,35 @@ export async function buildClearancePdf(
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * jsPDF ships no Arial face; Helvetica is its built-in, metric-equivalent standard PDF font
+ * and the conventional Arial substitute (true Arial would require embedding a licensed TTF).
+ * Centralized so every text run uses one family.
+ */
+const FONT_FAMILY = "helvetica";
 /** Text line height (mm) used for manual wrapping at 9pt. */
 const LINE_HEIGHT = 4.2;
 /** Minimum row height (mm) so each signature cell has room for an image, line, and name. */
-const MIN_ROW_HEIGHT = 32;
+const MIN_ROW_HEIGHT = 30;
 
 type SignatureRequest = OffboardingDetail["signatureRequests"][number];
 type LoadedImage = { el: HTMLImageElement; width: number; height: number };
 
 function fullName(person: { firstName: string; lastName: string }): string {
   return `${person.firstName} ${person.lastName}`.trim();
+}
+
+/** Formats an ISO date as e.g. "Jun 30, 2026"; falls back to the raw value on parse failure. */
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
 }
 
 /** Draws a "Label: value" line with a bold label and normal value. */
@@ -137,11 +161,35 @@ function drawField(
   y: number,
 ): void {
   doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT_FAMILY, "bold");
   doc.text(label, x, y);
   const labelWidth = doc.getTextWidth(label);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT_FAMILY, "normal");
   doc.text(value, x + labelWidth + 2, y);
+}
+
+/**
+ * Draws a "Label: value" field whose right edge ends at `rightX`, so it lines up flush with
+ * the right margin opposite a left-aligned field on the same row (space-between layout).
+ */
+function drawFieldRightAligned(
+  doc: import("jspdf").jsPDF,
+  label: string,
+  value: string,
+  rightX: number,
+  y: number,
+): void {
+  doc.setFontSize(11);
+  doc.setFont(FONT_FAMILY, "bold");
+  const labelWidth = doc.getTextWidth(label);
+  doc.setFont(FONT_FAMILY, "normal");
+  const valueWidth = doc.getTextWidth(value);
+  const startX = rightX - (labelWidth + 2 + valueWidth);
+
+  doc.setFont(FONT_FAMILY, "bold");
+  doc.text(label, startX, y);
+  doc.setFont(FONT_FAMILY, "normal");
+  doc.text(value, startX + labelWidth + 2, y);
 }
 
 /** Loads each request's signature image (when present) to read its natural dimensions. */
@@ -179,9 +227,9 @@ function measureLeftHeight(
   padding: number,
 ): number {
   doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT_FAMILY, "bold");
   const purposeLines = doc.splitTextToSize(request.purpose, textWidth).length;
-  doc.setFont("helvetica", "normal");
+  doc.setFont(FONT_FAMILY, "normal");
   const requirementLines = request.requirements
     ? doc.splitTextToSize(request.requirements, textWidth).length
     : 0;
@@ -203,7 +251,7 @@ function drawLeftCell(
 
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(FONT_FAMILY, "bold");
   for (const line of doc.splitTextToSize(request.purpose, textWidth)) {
     doc.text(line, x + padding, y);
     y += LINE_HEIGHT;
@@ -211,7 +259,7 @@ function drawLeftCell(
 
   if (request.requirements) {
     y += LINE_HEIGHT * 0.6;
-    doc.setFont("helvetica", "normal");
+    doc.setFont(FONT_FAMILY, "normal");
     for (const line of doc.splitTextToSize(request.requirements, textWidth)) {
       doc.text(line, x + padding, y);
       y += LINE_HEIGHT;
@@ -221,7 +269,7 @@ function drawLeftCell(
 
 /**
  * Renders the signature image (when signed) centered above a signature line, with the
- * signatory's name centered below in bold 12pt uppercase.
+ * signatory's name centered below in uppercase.
  */
 function drawSignatureCell(
   doc: import("jspdf").jsPDF,
@@ -230,8 +278,7 @@ function drawSignatureCell(
   cell: { x: number; y: number; width: number; height: number },
   padding: number,
 ): void {
-  // Reserve room beneath the line for the larger (12pt) name.
-  const lineY = cell.y + cell.height - 11;
+  const lineY = cell.y + cell.height - 8;
 
   if (image) {
     const maxWidth = cell.width - padding * 2;
@@ -249,10 +296,10 @@ function drawSignatureCell(
   doc.setLineWidth(0.3);
   doc.line(cell.x + padding, lineY, cell.x + cell.width - padding, lineY);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFont(FONT_FAMILY, "normal");
+  doc.setFontSize(8);
   doc.setTextColor(0, 0, 0);
-  doc.text(fullName(request.signatory).toUpperCase(), cell.x + cell.width / 2, lineY + 6, {
+  doc.text(fullName(request.signatory).toUpperCase(), cell.x + cell.width / 2, lineY + 4, {
     align: "center",
   });
 }
