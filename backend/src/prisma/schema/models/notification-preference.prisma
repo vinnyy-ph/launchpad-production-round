@@ -1,0 +1,23 @@
+/// Per-employee notification delivery preferences. One row per employee; an absent
+/// row means all-on (the default), so no backfill is needed for existing employees.
+///
+/// Evaluations in-app is intentionally NOT stored: acknowledgement notices are never
+/// silenceable so the deemed-acknowledgement audit trail can never be missed.
+/// Offboarding & Clearance has no email column because no offboarding/clearance email
+/// is sent today; its email toggle renders disabled on the client.
+model NotificationPreference {
+  id               String   @id @default(uuid())
+  employeeId       String   @unique
+  surveysInApp     Boolean  @default(true)
+  surveysEmail     Boolean  @default(true)
+  evaluationsEmail Boolean  @default(true)
+  onboardingInApp  Boolean  @default(true)
+  onboardingEmail  Boolean  @default(true)
+  offboardingInApp Boolean  @default(true)
+  pauseAllEmail    Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}

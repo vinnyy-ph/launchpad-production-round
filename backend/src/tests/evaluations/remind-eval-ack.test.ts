@@ -27,10 +27,15 @@ function buildService(last: { createdAt: Date } | null) {
   };
   const inAppChannel = { deliver: jest.fn() };
   const emailService = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+  // Default (no stored prefs) → all channels on, so the email still sends.
+  const preferencesRepository = {
+    findByEmployeeId: jest.fn().mockResolvedValue(null),
+  };
   const service = new NotificationsService(
     repository as never,
     inAppChannel as never,
     emailService as never,
+    preferencesRepository as never,
   );
   return { service, repository, inAppChannel, emailService };
 }
