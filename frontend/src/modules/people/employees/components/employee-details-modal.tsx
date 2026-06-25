@@ -862,7 +862,7 @@ export function EmployeeDetailsModal({
                                       <div className="border-t border-[color:var(--border-primary)] p-4">
                                           <Button
                                               type="button"
-                                              variant={profile.status === "onboarding" ? "secondary" : "destructive"}
+                                              variant="secondary"
                                               className="w-full"
                                           >
                                               {profile.status ===

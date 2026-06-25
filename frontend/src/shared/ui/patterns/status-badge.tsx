@@ -44,7 +44,7 @@ const STATUS_TONE: Record<string, Tone> = {
   DRAFT: "warning",
   SENT: "info",
   ACKNOWLEDGED: "success",
-  DEEMED_ACK: "info",
+  DEEMED_ACK: "success",
   OVERDUE: "error",
 };
 
