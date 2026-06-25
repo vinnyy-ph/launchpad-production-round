@@ -55,7 +55,11 @@ export class BulkOnboardingRepository {
     });
 
     return new Map(
-      supervisors.map((supervisor) => [supervisor.companyEmail.toLowerCase(), supervisor]),
+      supervisors
+        .filter((supervisor): supervisor is typeof supervisor & { companyEmail: string } =>
+          Boolean(supervisor.companyEmail),
+        )
+        .map((supervisor) => [supervisor.companyEmail.toLowerCase(), supervisor]),
     );
   }
 

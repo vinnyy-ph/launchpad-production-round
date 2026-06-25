@@ -15,6 +15,8 @@ import type {
  * Throws descriptive errors when required fields are missing or empty.
  */
 export class OnboardingValidation {
+  private static readonly EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   /**
    * Validates required onboarding fields and optional HR pre-fill profile fields.
    * Returns a typed DTO when validation succeeds.
@@ -25,6 +27,9 @@ export class OnboardingValidation {
     const supervisorId = this.requireString(body.supervisorId, "supervisorId");
     const department = this.requireString(body.department, "department");
 
+    if (!OnboardingValidation.EMAIL_PATTERN.test(companyEmail)) {
+      throw new Error("Invalid companyEmail");
+    }
     assertSafeText(companyEmail, "companyEmail", PEOPLE_TEXT_LIMITS.EMAIL);
     assertSafeText(jobTitle, "jobTitle", PEOPLE_TEXT_LIMITS.JOB_TITLE);
     assertSafeText(department, "department", PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME);
@@ -49,6 +54,9 @@ export class OnboardingValidation {
     const emergencyContact = this.optionalEmergencyContact(body.emergencyContact);
 
     if (personalEmail !== undefined) {
+      if (!OnboardingValidation.EMAIL_PATTERN.test(personalEmail)) {
+        throw new Error("Invalid personalEmail");
+      }
       assertSafeText(personalEmail, "personalEmail", PEOPLE_TEXT_LIMITS.EMAIL);
       dto.personalEmail = personalEmail.toLowerCase();
     }

@@ -8,6 +8,11 @@ import { dirname, join } from "node:path";
 const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:3001";
 
 const nextConfig = {
+  // Bulk onboarding commit can run for minutes (DB + invitation email per row).
+  // Dev rewrites proxy through Next; default proxy timeout is 30s and causes ECONNRESET.
+  experimental: {
+    proxyTimeout: 5 * 60 * 1000,
+  },
   reactStrictMode: true,
   // Dependencies are hoisted to the monorepo root node_modules (npm workspaces), so pin
   // Turbopack's root there to silence the multi-lockfile inference warning and keep

@@ -1,4 +1,6 @@
-import { AlertCircle, CheckCircle2, MailWarning } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
 import type {
   BulkOnboardingCommitResult,
   BulkOnboardingPreviewResult,
@@ -7,60 +9,159 @@ import type {
 interface BulkJobStatusProps {
   preview: BulkOnboardingPreviewResult | null;
   result: BulkOnboardingCommitResult | null;
+  previewStale?: boolean;
+  isChecking?: boolean;
 }
 
-export function BulkJobStatus({ preview, result }: BulkJobStatusProps) {
+type StatusTone = "success" | "warning" | "error";
+
+const TONE_STYLES: Record<
+  StatusTone,
+  {
+    container: string;
+    icon: LucideIcon;
+    iconClass: string;
+    titleClass: string;
+    bodyClass: string;
+  }
+> = {
+  success: {
+    container: "border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)]",
+    icon: CheckCircle2,
+    iconClass: "text-[color:var(--color-success-600)]",
+    titleClass: "text-[color:var(--color-success-700)]",
+    bodyClass: "text-[color:var(--color-success-700)]",
+  },
+  warning: {
+    container: "border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)]",
+    icon: AlertTriangle,
+    iconClass: "text-[color:var(--color-warning-600)]",
+    titleClass: "text-[color:var(--color-warning-700)]",
+    bodyClass: "text-[color:var(--color-warning-700)]",
+  },
+  error: {
+    container: "border-[color:var(--color-error-200)] bg-[color:var(--color-error-50)]",
+    icon: AlertCircle,
+    iconClass: "text-[color:var(--color-error-700)]",
+    titleClass: "text-[color:var(--color-error-700)]",
+    bodyClass: "text-[color:var(--color-error-900)]",
+  },
+};
+
+function StatusBanner({
+  tone,
+  title,
+  body,
+  spinning = false,
+}: {
+  tone: StatusTone;
+  title: string;
+  body?: string;
+  spinning?: boolean;
+}) {
+  const styles = TONE_STYLES[tone];
+  const Icon = styles.icon;
+
+  return (
+    <div className={cn("rounded-lg border p-3", styles.container)} role="status">
+      <div className="flex items-start gap-2">
+        {spinning ? (
+          <Loader2
+            className={cn("mt-0.5 h-4 w-4 shrink-0 animate-spin", styles.iconClass)}
+            aria-hidden="true"
+          />
+        ) : (
+          <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", styles.iconClass)} aria-hidden="true" />
+        )}
+        <div className="min-w-0">
+          <p className={cn("text-sm font-semibold", styles.titleClass)}>{title}</p>
+          {body ? <p className={cn("mt-1 text-xs", styles.bodyClass)}>{body}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function previewTone(preview: BulkOnboardingPreviewResult): StatusTone {
+  if (preview.validRows === 0) return "error";
+  if (preview.invalidRows > 0) return "warning";
+  return "success";
+}
+
+function previewTitle(preview: BulkOnboardingPreviewResult): string {
+  if (preview.validRows === 0) return "No rows are valid yet";
+  if (preview.invalidRows > 0) {
+    return `${preview.validRows} of ${preview.totalRows} rows are valid`;
+  }
+  return `All ${preview.totalRows} row${preview.totalRows === 1 ? "" : "s"} are valid`;
+}
+
+function previewBody(preview: BulkOnboardingPreviewResult): string | undefined {
+  if (preview.validRows === 0) {
+    return "Every row needs a fix before you can create anyone.";
+  }
+  if (preview.invalidRows > 0) {
+    const flaggedCount = preview.invalidRows;
+    return `Fix the ${flaggedCount} flagged row${flaggedCount === 1 ? "" : "s"}, or create the valid ones.`;
+  }
+  return undefined;
+}
+
+export function BulkJobStatus({
+  preview,
+  result,
+  previewStale = false,
+  isChecking = false,
+}: BulkJobStatusProps) {
   if (result) {
     const hasInviteFailures = result.inviteFailures.length > 0;
 
     return (
-      <div className="rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
-        <div className="flex items-start gap-2">
-          {hasInviteFailures ? (
-            <MailWarning className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden="true" />
-          ) : (
-            <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden="true" />
-          )}
-          <div>
-            <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-              {result.created.length} onboarding records created
-            </p>
-            <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-              {hasInviteFailures
-                ? `${result.inviteFailures.length} invite email${
-                    result.inviteFailures.length === 1 ? "" : "s"
-                  } could not be delivered. Use Resend invite from each onboarding case.`
-                : "Every new employee received an invite."}
-            </p>
-          </div>
-        </div>
-      </div>
+      <StatusBanner
+        tone={hasInviteFailures ? "warning" : "success"}
+        title={`${result.created.length} onboarding record${result.created.length === 1 ? "" : "s"} created`}
+        body={
+          hasInviteFailures
+            ? `${result.inviteFailures.length} invite email${
+                result.inviteFailures.length === 1 ? "" : "s"
+              } could not be delivered. Use Resend invite from each onboarding case.`
+            : "Every new employee received an invite."
+        }
+        spinning={false}
+      />
+    );
+  }
+
+  if (!preview && !previewStale) return null;
+
+  if (previewStale && !isChecking) {
+    return (
+      <StatusBanner
+        tone="warning"
+        title="Changes not checked yet"
+        body="Click Check rows to validate your edits before creating employees."
+      />
+    );
+  }
+
+  if (isChecking) {
+    return (
+      <StatusBanner
+        tone="warning"
+        title="Checking rows"
+        body="Looking for duplicates, supervisor matches, and other issues."
+        spinning
+      />
     );
   }
 
   if (!preview) return null;
 
-  const hasErrors = preview.errors.length > 0;
-
   return (
-    <div className="rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
-      <div className="flex items-start gap-2">
-        {hasErrors ? (
-          <AlertCircle className="mt-0.5 h-4 w-4 text-[color:var(--color-error-700)]" aria-hidden="true" />
-        ) : (
-          <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden="true" />
-        )}
-        <div>
-          <p className="text-sm font-semibold text-[color:var(--text-primary)]">
-            {preview.validRows} valid / {preview.totalRows} total rows
-          </p>
-          <p className="mt-1 text-xs text-[color:var(--text-tertiary)]">
-            {hasErrors
-              ? "Fix the flagged rows in the spreadsheet, then upload it again."
-              : "No row errors found. You can commit this upload."}
-          </p>
-        </div>
-      </div>
-    </div>
+    <StatusBanner
+      tone={previewTone(preview)}
+      title={previewTitle(preview)}
+      body={previewBody(preview)}
+    />
   );
 }

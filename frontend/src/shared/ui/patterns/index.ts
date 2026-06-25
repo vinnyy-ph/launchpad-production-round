@@ -26,3 +26,9 @@ export * from "./page-section";
 export * from "./stat-card";
 export { KpiCard, type KpiCardProps } from "./kpi-card";
 export * from "./filter-bar";
+export {
+  FileUploadBox,
+  FileUploadChip,
+  type FileUploadBoxProps,
+  type FileUploadChipProps,
+} from "./file-upload-box";
