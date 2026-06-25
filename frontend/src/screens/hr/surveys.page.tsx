@@ -453,7 +453,17 @@ export default function HRSurveysPage() {
                   ? "Try a different name or status filter."
                   : "Create your first pulse survey to start gathering insights."
               }
-              action={hasFilters ? undefined : { label: "Create survey", onClick: openCreate }}
+              action={
+                hasFilters
+                  ? {
+                      label: "Clear filters",
+                      onClick: () => {
+                        setSearch("");
+                        setStatusFilter("ALL");
+                      },
+                    }
+                  : { label: "Create survey", onClick: openCreate }
+              }
             />
           }
         />

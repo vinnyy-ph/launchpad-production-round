@@ -427,6 +427,20 @@ export default function DirectoryPage() {
                       ? "Try a different name, team, department, status, or supervisor."
                       : "Add your first employee to get started."
                   }
+                  action={
+                    hasFilters
+                      ? {
+                          label: "Clear filters",
+                          onClick: () => {
+                            setSearch("");
+                            setTeamIds(new Set());
+                            setStatuses(new Set());
+                            setDepartmentIds(new Set());
+                            setSupervisorIds(new Set());
+                          },
+                        }
+                      : { label: "Add employee", onClick: () => setAddOpen(true) }
+                  }
                 />
               }
             />

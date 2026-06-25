@@ -261,6 +261,7 @@ export default function HrEvaluationsPage() {
                   ? "Try a different search."
                   : "Sent performance evaluations across the organization will appear here."
               }
+              action={hasSearch ? { label: "Clear search", onClick: () => setSearch("") } : undefined}
             />
           }
         />

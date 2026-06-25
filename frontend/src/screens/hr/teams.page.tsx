@@ -241,9 +241,17 @@ export default function TeamsPage() {
                         : "Teams will appear here once HR sets up the org structure."
                   }
                   action={
-                    !hasFilters && canManage
-                      ? { label: "Create team", onClick: () => setCreateOpen(true) }
-                      : undefined
+                    hasFilters
+                      ? {
+                          label: "Clear filters",
+                          onClick: () => {
+                            setSearch("");
+                            setLeaderIds(new Set());
+                          },
+                        }
+                      : canManage
+                        ? { label: "Create team", onClick: () => setCreateOpen(true) }
+                        : undefined
                   }
                 />
               }

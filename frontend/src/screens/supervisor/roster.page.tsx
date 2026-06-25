@@ -357,6 +357,17 @@ export default function RosterPage() {
                   ? "Try a different search or status filter."
                   : "Employees assigned to you will appear here"
               }
+              action={
+                hasFilters
+                  ? {
+                      label: "Clear filters",
+                      onClick: () => {
+                        setSearch("");
+                        setStatusFilter("ALL");
+                      },
+                    }
+                  : undefined
+              }
             />
           }
         />

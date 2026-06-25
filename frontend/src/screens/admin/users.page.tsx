@@ -441,7 +441,16 @@ function UsersPageInner() {
                   : "No user accounts have been created yet."
               }
               action={
-                hasFilters ? undefined : { label: "Add user", onClick: () => setInviteOpen(true) }
+                hasFilters
+                  ? {
+                      label: "Clear filters",
+                      onClick: () => {
+                        setSearch("");
+                        setRoleFilter(ALL_ROLES);
+                        setStatusFilter(ALL_STATUSES);
+                      },
+                    }
+                  : { label: "Add user", onClick: () => setInviteOpen(true) }
               }
             />
           }
