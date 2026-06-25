@@ -97,8 +97,8 @@ export class InvitationController {
       return next(error);
     }
 
-    if (error.message.endsWith("is required")) {
-      const field = error.message.replace(" is required", "");
+    if (error.message.endsWith("is required") || this.isTextValidationError(error.message)) {
+      const field = error.message.replace(" is required", "").replace(/ must .*/, "");
 
       return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
         success: false,
@@ -235,5 +235,9 @@ export class InvitationController {
     }
 
     return next(error);
+  }
+
+  private isTextValidationError(message: string): boolean {
+    return message.includes(" must be ") || message.includes(" must not contain ");
   }
 }

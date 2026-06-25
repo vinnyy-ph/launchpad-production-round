@@ -85,4 +85,25 @@ describe("validateAnswers", () => {
       ANSWER_ERRORS.INVALID_CHECKBOX,
     );
   });
+
+  it("rejects unsafe HTML in a short answer", () => {
+    const questions = [q({ id: "s", type: "SHORT_ANSWER" })];
+    expect(() =>
+      validateAnswers(questions, [{ questionId: "s", answerText: "<script>alert(1)</script>" }]),
+    ).toThrow(/must not contain HTML/);
+  });
+
+  it("allows safe comparison operators in a long answer", () => {
+    const questions = [q({ id: "l", type: "LONG_ANSWER" })];
+    expect(() =>
+      validateAnswers(questions, [{ questionId: "l", answerText: "Score was 5 < 10 this quarter." }]),
+    ).not.toThrow();
+  });
+
+  it("rejects a long answer over the max length", () => {
+    const questions = [q({ id: "l", type: "LONG_ANSWER" })];
+    expect(() =>
+      validateAnswers(questions, [{ questionId: "l", answerText: "x".repeat(2001) }]),
+    ).toThrow(/must be 2000 characters or fewer/);
+  });
 });
