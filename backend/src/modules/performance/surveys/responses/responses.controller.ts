@@ -58,8 +58,17 @@ export class ResponsesController {
       if (error instanceof Error) {
         const status = STATUS_BY_MESSAGE[error.message];
         if (status) return res.status(status).json({ success: false, message: error.message });
+        if (this.isTextValidationError(error.message)) {
+          return res
+            .status(HTTP_STATUS_CODES.BAD_REQUEST)
+            .json({ success: false, message: error.message });
+        }
       }
       return next(error);
     }
   };
+
+  private isTextValidationError(message: string): boolean {
+    return message.includes(" must be ") || message.includes(" must not contain ");
+  }
 }

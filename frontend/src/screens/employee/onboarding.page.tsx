@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isToday } from "date-fns";
@@ -36,7 +36,13 @@ import {
   parseAllowedFileTypes,
   validateOnboardingFile,
 } from "@/modules/people/onboarding/constants/allowed-file-types";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  getLatestAllowedEmployeeBirthday,
+  validateEmployeeBirthday,
+  validatePeopleNameLanguage,
+  validatePeopleText,
+} from "@/modules/people/people-text";
 
 import { queryKeys } from "@/shared/lib/query-keys";
 import {
@@ -151,74 +157,114 @@ function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
 
   if (!firstName) {
     next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstNameRequired;
-  } else if (
-    !LETTERS_ONLY_RE.test(firstName) ||
-    validatePeopleText(firstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
-  ) {
-    next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstName;
+  } else {
+    const firstNameLanguageError = validatePeopleNameLanguage(firstName);
+    if (firstNameLanguageError) {
+      next.firstName = firstNameLanguageError;
+    } else if (
+      !LETTERS_ONLY_RE.test(firstName) ||
+      validatePeopleText(firstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.firstName = ONBOARDING_PROFILE_FIELD_MESSAGES.firstName;
+    }
   }
   if (
     middleName &&
-    (!LETTERS_ONLY_RE.test(middleName) ||
+    (validatePeopleNameLanguage(middleName) ||
+      !LETTERS_ONLY_RE.test(middleName) ||
       validatePeopleText(middleName, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
   ) {
-    next.middleName = ONBOARDING_PROFILE_FIELD_MESSAGES.middleName;
+    next.middleName =
+      validatePeopleNameLanguage(middleName) ?? ONBOARDING_PROFILE_FIELD_MESSAGES.middleName;
   }
   if (!lastName) {
     next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastNameRequired;
-  } else if (
-    !LETTERS_ONLY_RE.test(lastName) ||
-    validatePeopleText(lastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
-  ) {
-    next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastName;
+  } else {
+    const lastNameLanguageError = validatePeopleNameLanguage(lastName);
+    if (lastNameLanguageError) {
+      next.lastName = lastNameLanguageError;
+    } else if (
+      !LETTERS_ONLY_RE.test(lastName) ||
+      validatePeopleText(lastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
+    ) {
+      next.lastName = ONBOARDING_PROFILE_FIELD_MESSAGES.lastName;
+    }
   }
   if (!personalEmail) {
     next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmailRequired;
-  } else if (
-    !EMAIL_RE.test(personalEmail) ||
-    validatePeopleText(personalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL)
-  ) {
-    next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmail;
+  } else {
+    const personalEmailLanguageError = validatePeopleNameLanguage(personalEmail);
+    if (personalEmailLanguageError) {
+      next.personalEmail = personalEmailLanguageError;
+    } else if (
+      !EMAIL_RE.test(personalEmail) ||
+      validatePeopleText(personalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL)
+    ) {
+      next.personalEmail = ONBOARDING_PROFILE_FIELD_MESSAGES.personalEmail;
+    }
   }
   if (!address) {
     next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.addressRequired;
-  } else if (
-    !STREET_ADDRESS_RE.test(address) ||
-    validatePeopleText(address, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE)
-  ) {
-    next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.address;
+  } else {
+    const addressLanguageError = validatePeopleNameLanguage(address);
+    if (addressLanguageError) {
+      next.address = addressLanguageError;
+    } else if (
+      !STREET_ADDRESS_RE.test(address) ||
+      validatePeopleText(address, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE)
+    ) {
+      next.address = ONBOARDING_PROFILE_FIELD_MESSAGES.address;
+    }
   }
   if (!city) {
     next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.cityRequired;
-  } else if (
-    !LOCATION_RE.test(city) ||
-    validatePeopleText(city, "City", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.city;
+  } else {
+    const cityLanguageError = validatePeopleNameLanguage(city);
+    if (cityLanguageError) {
+      next.city = cityLanguageError;
+    } else if (
+      !LOCATION_RE.test(city) ||
+      validatePeopleText(city, "City", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.city = ONBOARDING_PROFILE_FIELD_MESSAGES.city;
+    }
   }
   if (!province) {
     next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.provinceRequired;
-  } else if (
-    !LOCATION_RE.test(province) ||
-    validatePeopleText(province, "Province", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.province;
+  } else {
+    const provinceLanguageError = validatePeopleNameLanguage(province);
+    if (provinceLanguageError) {
+      next.province = provinceLanguageError;
+    } else if (
+      !LOCATION_RE.test(province) ||
+      validatePeopleText(province, "Province", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.province = ONBOARDING_PROFILE_FIELD_MESSAGES.province;
+    }
   }
   if (!country) {
     next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.countryRequired;
-  } else if (
-    !LOCATION_RE.test(country) ||
-    validatePeopleText(country, "Country", PEOPLE_TEXT_LIMITS.LOCATION)
-  ) {
-    next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.country;
+  } else {
+    const countryLanguageError = validatePeopleNameLanguage(country);
+    if (countryLanguageError) {
+      next.country = countryLanguageError;
+    } else if (
+      !LOCATION_RE.test(country) ||
+      validatePeopleText(country, "Country", PEOPLE_TEXT_LIMITS.LOCATION)
+    ) {
+      next.country = ONBOARDING_PROFILE_FIELD_MESSAGES.country;
+    }
   }
   if (!emergencyContactName) {
     next.emergencyContactName = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactNameRequired;
   } else if (
+    validatePeopleNameLanguage(emergencyContactName) ||
     !LETTERS_ONLY_RE.test(emergencyContactName) ||
     validatePeopleText(emergencyContactName, "Contact name", PEOPLE_TEXT_LIMITS.NAME)
   ) {
-    next.emergencyContactName = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactName;
+    next.emergencyContactName =
+      validatePeopleNameLanguage(emergencyContactName) ??
+      ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactName;
   }
   if (!emergencyContact) {
     next.emergencyContact = ONBOARDING_PROFILE_FIELD_MESSAGES.emergencyContactRequired;
@@ -230,17 +276,16 @@ function profileDraftErrors(draft: ProfileDraft): Record<string, string> {
   }
   if (!draft.birthday) next.birthday = "Birthday is required.";
   else {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selected = new Date(draft.birthday);
-    selected.setHours(0, 0, 0, 0);
-    if (selected > today) next.birthday = "Birthday cannot be in the future.";
+    const birthdayError = validateEmployeeBirthday(draft.birthday, { required: true });
+    if (birthdayError) next.birthday = birthdayError;
   }
   return next;
 }
 
 function customFieldValueError(value: string): string | undefined {
   if (!value) return undefined;
+  const languageError = validatePeopleNameLanguage(value);
+  if (languageError) return languageError;
   return validatePeopleText(value, "Answer", PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_VALUE)
     ? "Please enter a valid answer using letters, numbers, spaces, and common punctuation only."
     : undefined;
@@ -742,6 +787,7 @@ export default function EmployeeOnboardingPage() {
   const [lastName, setLastName] = useState("");
   const [personalEmail, setPersonalEmail] = useState("");
   const [birthday, setBirthday] = useState<Date | undefined>();
+  const latestAllowedBirthday = useMemo(() => getLatestAllowedEmployeeBirthday(), []);
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
@@ -1185,6 +1231,7 @@ export default function EmployeeOnboardingPage() {
                 >
                   <DatePicker
                     disableFuture
+                    maxDate={latestAllowedBirthday}
                     value={birthday}
                     onChange={(next) => {
                       touchProfileField("birthday");

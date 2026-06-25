@@ -12,7 +12,10 @@ import {
   Textarea,
 } from "@/shared/ui";
 import { containsUnsafeText } from "@/shared/lib/safe-text";
-import { PEOPLE_TEXT_LIMITS } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleNameLanguage,
+} from "@/modules/people/people-text";
 
 const REJECTION_NOTE_MESSAGES = {
   required: "Please explain what needs to be fixed before the employee re-uploads this document.",
@@ -25,6 +28,8 @@ const REJECTION_NOTE_RE = /^[A-Za-z0-9\s.,'&/()#:\-]+$/;
 function rejectionNoteError(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) return REJECTION_NOTE_MESSAGES.required;
+  const languageError = validatePeopleNameLanguage(trimmed);
+  if (languageError) return languageError;
   if (trimmed.length > PEOPLE_TEXT_LIMITS.NOTE) return REJECTION_NOTE_MESSAGES.length;
   if (containsUnsafeText(trimmed)) return REJECTION_NOTE_MESSAGES.content;
   if (!REJECTION_NOTE_RE.test(trimmed)) return REJECTION_NOTE_MESSAGES.content;

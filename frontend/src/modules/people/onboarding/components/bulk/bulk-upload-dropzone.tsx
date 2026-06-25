@@ -19,6 +19,11 @@ import {
   TEMPLATE_SAMPLE_ROWS,
 } from "./bulk-onboarding-template";
 import { BulkJobStatus } from "./bulk-job-status";
+import {
+  bulkSpreadsheetAcceptAttribute,
+  MAX_BULK_SPREADSHEET_ROWS,
+  validateBulkSpreadsheetFile,
+} from "../../constants/bulk-spreadsheet-file";
 import { useBulkOnboardingCommit, useBulkOnboardingPreview } from "../../hooks/use-bulk-upload";
 
 export { OPTIONAL_COLUMNS, REQUIRED_COLUMNS, TEMPLATE_COLUMNS } from "./bulk-onboarding-template";
@@ -175,8 +180,9 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
   }
 
   async function parseFile(file: File) {
-    if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      setParseError("Upload an .xlsx file.");
+    const validationError = await validateBulkSpreadsheetFile(file);
+    if (validationError) {
+      setParseError(validationError);
       return;
     }
 
@@ -191,6 +197,10 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
       const workbook = XLSX.read(await file.arrayBuffer(), {
         type: "array",
         cellDates: true,
+        cellFormula: false,
+        cellHTML: false,
+        cellStyles: false,
+        bookVBA: false,
       });
       const firstSheet = workbook.SheetNames[0];
 
@@ -214,6 +224,12 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
 
       if (nextRows.length === 0) {
         setParseError("No employee rows were found in the first sheet.");
+        setIsExtracting(false);
+        return;
+      }
+
+      if (nextRows.length > MAX_BULK_SPREADSHEET_ROWS) {
+        setParseError(`Bulk onboarding is limited to ${MAX_BULK_SPREADSHEET_ROWS} rows.`);
         setIsExtracting(false);
         return;
       }
@@ -334,7 +350,7 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
           <input
             ref={inputRef}
             type="file"
-            accept=".xlsx"
+            accept={bulkSpreadsheetAcceptAttribute()}
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];

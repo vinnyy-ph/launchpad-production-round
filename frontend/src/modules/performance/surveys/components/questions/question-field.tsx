@@ -17,11 +17,20 @@ export interface QuestionFieldProps {
   value: AnswerValue;
   error?: string;
   onChange: (value: AnswerValue) => void;
+  onErrorChange?: (error: string | undefined) => void;
   disabled?: boolean;
 }
 
 /** Renders one survey question: prompt + required marker + the type-appropriate input + error. */
-export function QuestionField({ question, index, value, error, onChange, disabled }: QuestionFieldProps) {
+export function QuestionField({
+  question,
+  index,
+  value,
+  error,
+  onChange,
+  onErrorChange,
+  disabled,
+}: QuestionFieldProps) {
   return (
     <div
       className={cn(
@@ -39,10 +48,24 @@ export function QuestionField({ question, index, value, error, onChange, disable
       <p className="mb-4 text-sm font-medium text-[color:var(--text-primary)]">{question.questionText}</p>
 
       {question.type === "SHORT_ANSWER" && (
-        <ShortAnswerInput question={question} value={typeof value === "string" ? value : ""} onChange={onChange} disabled={disabled} />
+        <ShortAnswerInput
+          question={question}
+          value={typeof value === "string" ? value : ""}
+          onChange={onChange}
+          onErrorChange={onErrorChange}
+          disabled={disabled}
+          error={error}
+        />
       )}
       {question.type === "LONG_ANSWER" && (
-        <LongAnswerInput question={question} value={typeof value === "string" ? value : ""} onChange={onChange} disabled={disabled} />
+        <LongAnswerInput
+          question={question}
+          value={typeof value === "string" ? value : ""}
+          onChange={onChange}
+          onErrorChange={onErrorChange}
+          disabled={disabled}
+          error={error}
+        />
       )}
       {question.type === "LINEAR_SCALE" && (
         <LinearScaleInput question={question} value={typeof value === "number" ? value : null} onChange={onChange} disabled={disabled} />

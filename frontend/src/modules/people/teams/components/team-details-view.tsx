@@ -34,9 +34,16 @@ import {
   EMPLOYEE_AVATAR_FALLBACK_STYLE,
   employeeInitials,
 } from "@/modules/people/employees/employee-options";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleFieldText,
+  mapPeopleFieldTextError,
+} from "@/modules/people/people-text";
 import { useTeamMutations } from "../hooks/use-team-mutations";
 import type { Team, TeamEmployee } from "../types/teams.types";
+
+const TEAM_NAME_INVALID_MESSAGE =
+  "Please enter a valid team name using letters, numbers, spaces, and common punctuation only.";
 
 interface TeamDetailsViewProps {
   team: Team | null;
@@ -296,7 +303,10 @@ export function TeamDetailsView({
       setRenameMode(false);
       return;
     }
-    const textError = validatePeopleText(trimmed, "Team name", PEOPLE_TEXT_LIMITS.TEAM_NAME);
+    const textError = mapPeopleFieldTextError(
+      validatePeopleFieldText(trimmed, "Team name", PEOPLE_TEXT_LIMITS.TEAM_NAME),
+      TEAM_NAME_INVALID_MESSAGE,
+    );
     if (textError) {
       toast.error(textError);
       return;

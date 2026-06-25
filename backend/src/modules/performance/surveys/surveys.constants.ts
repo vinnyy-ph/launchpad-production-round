@@ -52,6 +52,8 @@ export const SURVEY_TEXT_LIMITS = {
   SHARE_MESSAGE: 2000,
   /** HR's free-text "survey goal" prompt for AI question generation. */
   AI_GOAL: 1000,
+  ANSWER_SHORT: 500,
+  ANSWER_LONG: 2000,
 } as const;
 
 /** Allowed range for the AI "number of questions" request. */

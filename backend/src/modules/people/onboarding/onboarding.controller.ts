@@ -74,6 +74,21 @@ export class OnboardingController {
         });
       }
 
+      if (error.message === "Employee must meet the minimum employment age.") {
+        return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: API_ERROR_MESSAGES.VALIDATION_FAILED,
+          errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+          errors: [
+            {
+              field: ONBOARDING_FIELDS.BIRTHDAY,
+              message: error.message,
+              code: API_ERROR_CODES.VALIDATION_FAILED,
+            },
+          ],
+        });
+      }
+
       if (error.message === "Invalid emergency contact phone number") {
         return res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
           success: false,
