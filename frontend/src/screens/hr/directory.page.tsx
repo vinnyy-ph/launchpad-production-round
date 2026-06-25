@@ -348,7 +348,7 @@ export default function DirectoryPage() {
                   className="w-full sm:w-auto"
                   onClick={() => setBulkOpen(true)}
                 >
-                  <FileSpreadsheet aria-hidden="true" /> Bulk upload
+                  <FileSpreadsheet aria-hidden="true" /> Bulk onboard
                 </Button>
                 <Button className="w-full sm:w-auto" onClick={() => setAddOpen(true)}>
                   <Plus /> Onboard new employee
