@@ -150,7 +150,7 @@ Real-time notifications authenticate via Firebase token in the handshake (`backe
 | -------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | CORS                 | Comma-separated allowlist via `CORS_ORIGIN`                      | `backend/src/app.ts`                                                                       |
 | Security headers     | Helmet with CSP                                                  | `backend/src/app.ts`                                                                       |
-| Rate limiting        | 100 requests / 15 min (global); production `/api/auth`: 20 / 15 min (failed attempts only); development `/api/auth`: 100 / 15 min; production `trust proxy` for Railway | `rate-limit.middleware.ts`, `app.ts`                                     |
+| Rate limiting        | 200 requests / min (global); production `/api/auth`: 20 / min (failed attempts only); development `/api/auth`: 200 / min; production `trust proxy` for Railway | `rate-limit.middleware.ts`, `app.ts`                                     |
 | Input validation     | Per-module `*.validation.ts`; `VALIDATION_FAILED` + field errors | e.g. `backend/src/modules/people/onboarding/onboarding.validation.ts`                      |
 | Email HTML injection | `escapeHtml()` in all email templates                            | `backend/src/core/email/templates/`                                                        |
 | File upload limits   | Multer in-memory: onboarding 5 MB, evaluations/offboarding 10 MB | `*-upload.middleware.ts` modules                                                           |
