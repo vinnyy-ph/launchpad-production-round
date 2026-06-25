@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { GoogleSignInButton } from "@/modules/auth/components/google-sign-in-button";
 import { signInWithGoogle } from "@/modules/auth/services/auth.service";
@@ -212,10 +213,20 @@ export default function LoginPage() {
             Sign in to continue to your workspace.
           </p>
 
+          {/* Every sign-in failure — Firebase popup or backend session — funnels into authError,
+              so this one Jia error callout renders them all identically, in one place. */}
           {authError && (
-            <p role="alert" className="mt-6 text-sm font-medium text-[color:var(--color-error-600)]">
-              {authError}
-            </p>
+            <div
+              role="alert"
+              className="mt-6 flex w-full items-start gap-2.5 rounded-[10px] border border-[color:var(--color-error-200)] bg-[color:var(--color-error-50)] px-3.5 py-3 text-left"
+            >
+              <AlertCircle
+                size={16}
+                aria-hidden="true"
+                className="mt-0.5 flex-shrink-0 text-[color:var(--color-error-600)]"
+              />
+              <p className="text-sm font-medium text-[color:var(--color-error-700)]">{authError}</p>
+            </div>
           )}
 
           {/* Action group — tighten when an error is shown so message and CTA stay visually linked. */}

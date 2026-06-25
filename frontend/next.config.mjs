@@ -49,15 +49,24 @@ const nextConfig = {
     ];
     return [
       {
-        // App pages: deny all framing (clickjacking protection). Excludes the document
-        // proxy below, which we embed in our own same-origin viewer iframes.
-        source: "/((?!api/v1/documents/).*)",
-        headers: [{ key: "X-Frame-Options", value: "DENY" }, ...baseHeaders],
-      },
-      {
-        // Same-origin document proxy: allow same-origin framing so the viewer can embed it.
-        source: "/api/v1/documents/:path*",
-        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }, ...baseHeaders],
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Firebase signInWithPopup polls popup.closed; without this the cross-origin
+          // Google popup is opaque to the opener and sign-in can't detect completion.
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            // Effective only over HTTPS; harmless over http (dev). 2 years + preload.
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+        ],
       },
     ];
   },
