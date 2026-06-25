@@ -148,14 +148,14 @@ export function ClearanceReviewModal({
                 <UserAvatar
                   src={offboardee.avatarUrl}
                   fallback={initials(name)}
-                  className="h-11 w-11"
-                  fallbackClassName="text-sm font-bold text-[color:var(--text-primary)]"
+                  className="h-16 w-16"
+                  fallbackClassName="text-lg font-bold text-[color:var(--text-primary)]"
                   fallbackStyle={{
                     background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
                   }}
                 />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
+                  <p className="truncate text-xl font-semibold text-[color:var(--text-primary)]">
                     {name}
                   </p>
                   <p className="truncate text-xs text-[color:var(--text-tertiary)]">
