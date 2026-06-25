@@ -1,4 +1,5 @@
 import { prisma } from "../../../core/database/prisma.service";
+import type { Prisma } from "@prisma/client";
 import type { CreateEvaluationData, ListEvaluationsQuery, UpdateEvaluationData } from "./dto";
 
 export class EvaluationsRepository {
@@ -14,7 +15,7 @@ export class EvaluationsRepository {
         lowlights: data.lowlights ?? [],
         evaluation: data.evaluation ?? null,
         recommendation: data.recommendation ?? null,
-        supportingDocUrls: data.supportingDocUrls ?? [],
+        supportingDocs: (data.supportingDocs ?? []) as unknown as Prisma.InputJsonValue,
         isSent: data.isSent,
         sentAt: data.sentAt ?? null,
         ackDeadline: data.ackDeadline ?? null,
@@ -125,7 +126,7 @@ export class EvaluationsRepository {
         ...(data.lowlights !== undefined && { lowlights: data.lowlights }),
         ...(data.evaluation !== undefined && { evaluation: data.evaluation }),
         ...(data.recommendation !== undefined && { recommendation: data.recommendation }),
-        ...(data.supportingDocUrls !== undefined && { supportingDocUrls: data.supportingDocUrls }),
+        ...(data.supportingDocs !== undefined && { supportingDocs: data.supportingDocs as unknown as Prisma.InputJsonValue }),
         ...(data.isSent !== undefined && { isSent: data.isSent }),
         ...(data.sentAt !== undefined && { sentAt: data.sentAt }),
         ...(data.ackDeadline !== undefined && { ackDeadline: data.ackDeadline }),

@@ -1,3 +1,5 @@
+import type { SupportingDoc } from "../supporting-doc.types";
+
 export interface UpdateEvaluationData {
   revieweeId?: string;
   periodStart?: Date;
@@ -7,7 +9,7 @@ export interface UpdateEvaluationData {
   lowlights?: string[];
   evaluation?: string | null;
   recommendation?: string | null;
-  supportingDocUrls?: string[];
+  supportingDocs?: SupportingDoc[];
   isSent?: boolean;
   sentAt?: Date | null;
   ackDeadline?: Date | null;

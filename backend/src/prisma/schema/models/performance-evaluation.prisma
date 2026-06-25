@@ -11,7 +11,7 @@ model PerformanceEvaluation {
   lowlights        String[]
   evaluation       String?
   recommendation   String?
-  supportingDocUrls String[]
+  supportingDocs   Json      @default("[]")
   isSent           Boolean   @default(false)
   sentAt           DateTime?
   /// Deemed-acknowledged anchor: sentAt + ack window. Set on send.

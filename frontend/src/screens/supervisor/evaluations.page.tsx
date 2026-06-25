@@ -13,6 +13,7 @@ import {
     ArrowUpDown,
     FileText,
     X,
+    Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
@@ -301,18 +302,25 @@ async function fileHasPdfSignature(file: File): Promise<boolean> {
     return PDF_MAGIC_BYTES.every((value, index) => bytes[index] === value);
 }
 
+interface ExistingFile { url: string; label: string }
+
 interface PdfFilePickerProps {
     files: File[];
-    existingUrls: string[];
+    existingFiles: ExistingFile[];
     onChange: (files: File[]) => void;
+    onRemoveExisting: (url: string) => void;
     error?: string;
+    /** Count of OTHER docs (e.g. links) competing for the shared 5-doc budget. */
+    reservedSlots?: number;
 }
 
 function PdfFilePicker({
     files,
-    existingUrls,
+    existingFiles,
     onChange,
+    onRemoveExisting,
     error,
+    reservedSlots = 0,
 }: PdfFilePickerProps) {
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -342,14 +350,14 @@ function PdfFilePicker({
         }
 
         const combined = [...files, ...validFiles];
-        const totalExisting = existingUrls.length;
+        const totalExisting = existingFiles.length;
         const newCount = files.length + validFiles.length;
-        if (totalExisting + newCount > 5 || combined.length > 5) {
+        if (totalExisting + reservedSlots + newCount > 5 || combined.length > 5) {
             toast.error("You can attach up to 5 files total.");
             // Take only as many as fit.
             const slotsLeft = Math.max(
                 0,
-                5 - files.length - existingUrls.length,
+                5 - files.length - existingFiles.length - reservedSlots,
             );
             onChange([...files, ...validFiles.slice(0, slotsLeft)]);
             return;
@@ -358,8 +366,6 @@ function PdfFilePicker({
     };
 
     const remove = (idx: number) => onChange(files.filter((_, i) => i !== idx));
-
-    const showExisting = existingUrls.length > 0 && files.length === 0;
 
     return (
         <div className="space-y-2">
@@ -373,23 +379,22 @@ function PdfFilePicker({
                 aria-label="Upload PDF files"
             />
 
-            {showExisting && (
+            {existingFiles.length > 0 && (
                 <div className="space-y-1.5 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
-                    {existingUrls.map((url) => (
-                        <a
-                            key={url}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-[color:hsl(var(--primary))] underline"
-                        >
-                            <FileText size={14} className="flex-none" />
-                            {extractFilename(url)}
-                        </a>
+                    {existingFiles.map((doc) => (
+                        <div key={doc.url} className="flex items-center gap-2">
+                            <FileText size={14} className="flex-none text-[color:var(--text-tertiary)]" />
+                            <span className="min-w-0 flex-1 truncate text-sm text-[color:var(--text-primary)]">{doc.label}</span>
+                            <button
+                                type="button"
+                                onClick={() => onRemoveExisting(doc.url)}
+                                className="rounded p-0.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                aria-label={`Remove ${doc.label}`}
+                            >
+                                <X size={13} />
+                            </button>
+                        </div>
                     ))}
-                    <p className="text-xs text-[color:var(--text-tertiary)]">
-                        Upload new files to replace these.
-                    </p>
                 </div>
             )}
 
@@ -441,6 +446,103 @@ function PdfFilePicker({
     );
 }
 
+// ─── Link picker ──────────────────────────────────────────────────────────────
+
+interface LinkEntry { url: string; label?: string }
+
+interface LinkPickerProps {
+    links: LinkEntry[];
+    onChange: (links: LinkEntry[]) => void;
+    /** Remaining slots in the shared 5-doc budget (files + existing + links). */
+    slotsLeft: number;
+}
+
+function isHttpsUrl(value: string): boolean {
+    try {
+        return new URL(value.trim()).protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
+function LinkPicker({ links, onChange, slotsLeft }: LinkPickerProps) {
+    const [url, setUrl] = useState("");
+    const [label, setLabel] = useState("");
+    const [error, setError] = useState<string | null>(null);
+
+    const add = () => {
+        const trimmed = url.trim();
+        if (!isHttpsUrl(trimmed)) {
+            setError("Enter a valid https:// link.");
+            return;
+        }
+        if (links.some((l) => l.url === trimmed)) {
+            setError("That link has already been added.");
+            return;
+        }
+        if (slotsLeft <= 0) {
+            setError("You can attach up to 5 supporting documents total.");
+            return;
+        }
+        onChange([...links, { url: trimmed, ...(label.trim() ? { label: label.trim() } : {}) }]);
+        setUrl("");
+        setLabel("");
+        setError(null);
+    };
+
+    const remove = (idx: number) => onChange(links.filter((_, i) => i !== idx));
+
+    return (
+        <div className="space-y-2">
+            {links.length > 0 && (
+                <div className="space-y-1.5 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
+                    {links.map((l, idx) => (
+                        <div key={`${l.url}-${idx}`} className="flex items-center gap-2">
+                            <LinkIcon size={14} className="flex-none text-[color:var(--text-tertiary)]" />
+                            <span className="min-w-0 flex-1 truncate text-sm text-[color:var(--text-primary)]">
+                                {l.label || l.url}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => remove(idx)}
+                                className="rounded p-0.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                aria-label={`Remove ${l.label || l.url}`}
+                            >
+                                <X size={13} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                    type="url"
+                    inputMode="url"
+                    placeholder="https://drive.google.com/…"
+                    value={url}
+                    onChange={(e) => { setUrl(e.target.value); setError(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+                    className="min-w-0 flex-1 rounded-lg border border-[color:var(--border-primary)] bg-white px-3 py-2 text-sm text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Supporting link URL"
+                />
+                <input
+                    type="text"
+                    placeholder="Label (optional)"
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+                    className="rounded-lg border border-[color:var(--border-primary)] bg-white px-3 py-2 text-sm text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-40"
+                    aria-label="Supporting link label"
+                />
+                <Button type="button" variant="secondary" size="sm" onClick={add}>
+                    <Plus size={12} /> Add link
+                </Button>
+            </div>
+            {error && <p className="text-xs text-[color:var(--color-error-600)]">{error}</p>}
+        </div>
+    );
+}
+
 // ─── Evaluation editor dialog ─────────────────────────────────────────────────
 
 interface SendPayload {
@@ -476,6 +578,8 @@ interface EvalSnapshot {
     lowlights: string[];
     evaluation: string;
     recommendation: string;
+    links: LinkEntry[];
+    keepFiles: string[];
 }
 
 function EvaluationEditorDialog({
@@ -496,7 +600,8 @@ function EvaluationEditorDialog({
     const [evaluationText, setEvaluationText] = useState("");
     const [recommendationText, setRecommendationText] = useState("");
     const [localFiles, setLocalFiles] = useState<File[]>([]);
-    const [existingDocUrls, setExistingDocUrls] = useState<string[]>([]);
+    const [existingFiles, setExistingFiles] = useState<ExistingFile[]>([]);
+    const [links, setLinks] = useState<LinkEntry[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
     // Two-step flow: fill the form → review the preview → save or send.
     const [step, setStep] = useState<"form" | "preview">("form");
@@ -542,6 +647,8 @@ function EvaluationEditorDialog({
             lowlights,
             evaluation: evaluationText,
             recommendation: recommendationText,
+            links,
+            keepFiles: existingFiles.map((d) => d.url),
         }),
         [
             revieweeId,
@@ -551,6 +658,8 @@ function EvaluationEditorDialog({
             lowlights,
             evaluationText,
             recommendationText,
+            links,
+            existingFiles,
         ],
     );
     const canPersist =
@@ -594,7 +703,8 @@ function EvaluationEditorDialog({
             setLowlights(initial.lowlights ?? []);
             setEvaluationText(initial.evaluation ?? "");
             setRecommendationText(initial.recommendation ?? "");
-            setExistingDocUrls(initial.supportingDocUrls ?? []);
+            setExistingFiles((initial.supportingDocs ?? []).filter((d) => d.kind === "file").map((d) => ({ url: d.url, label: d.label })));
+            setLinks((initial.supportingDocs ?? []).filter((d) => d.kind === "link").map((d) => ({ url: d.url, label: d.label })));
             setLocalFiles([]);
             baseline = {
                 revieweeId: initial.revieweeId,
@@ -605,6 +715,8 @@ function EvaluationEditorDialog({
                 lowlights: initial.lowlights ?? [],
                 evaluation: initial.evaluation ?? "",
                 recommendation: initial.recommendation ?? "",
+                links: (initial.supportingDocs ?? []).filter((d) => d.kind === "link").map((d) => ({ url: d.url, label: d.label })),
+                keepFiles: (initial.supportingDocs ?? []).filter((d) => d.kind === "file").map((d) => d.url),
             };
         } else {
             // Reviewee starts empty (placeholder "Select employee").
@@ -619,7 +731,8 @@ function EvaluationEditorDialog({
             setLowlights([]);
             setEvaluationText("");
             setRecommendationText("");
-            setExistingDocUrls([]);
+            setExistingFiles([]);
+            setLinks([]);
             setLocalFiles([]);
             baseline = {
                 revieweeId: "",
@@ -630,6 +743,8 @@ function EvaluationEditorDialog({
                 lowlights: [],
                 evaluation: "",
                 recommendation: "",
+                links: [],
+                keepFiles: [],
             };
         }
         setErrors({});
@@ -650,6 +765,8 @@ function EvaluationEditorDialog({
         setLowlights(b.lowlights);
         setEvaluationText(b.evaluation);
         setRecommendationText(b.recommendation);
+        setLinks(b.links ?? []);
+        setExistingFiles((b.keepFiles ?? []).map((url) => ({ url, label: extractFilename(url) })));
         autosave.acceptRecovery();
     };
 
@@ -719,6 +836,8 @@ function EvaluationEditorDialog({
             lowlights: lowlights.map((l) => l.trim()).filter(Boolean),
             evaluation: evaluationText.trim() || undefined,
             recommendation: recommendationText.trim() || undefined,
+            ...(links.length > 0 && { links }),
+            keepFiles: existingFiles.map((d) => d.url),
         };
     };
 
@@ -802,6 +921,7 @@ function EvaluationEditorDialog({
     const previewName =
         initial?.reviewee?.fullName ??
         (revieweeId ? revieweeName(revieweeId) : "the employee");
+    const docSlotsLeft = Math.max(0, 5 - existingFiles.length - localFiles.length - links.length);
     const previewPeriod =
         period?.from && period?.to
             ? formatPeriod(period.from.toISOString(), period.to.toISOString())
@@ -973,49 +1093,65 @@ function EvaluationEditorDialog({
                                 )}
 
                                 {(localFiles.length > 0 ||
-                                    existingDocUrls.length > 0) && (
+                                    existingFiles.length > 0 ||
+                                    links.length > 0) && (
                                     <div>
                                         <p className="mb-1 text-xs font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
                                             Supporting documents
                                         </p>
-                                        {localFiles.length > 0
-                                            ? localFiles.map((f) => (
-                                                  <p
-                                                      key={f.name}
-                                                      className="flex items-center gap-1.5 text-sm text-[color:var(--text-primary)]"
-                                                  >
-                                                      <FileText
-                                                          size={13}
-                                                          className="flex-none text-[color:var(--text-tertiary)]"
-                                                      />
-                                                      {f.name}
-                                                  </p>
-                                              ))
-                                            : existingDocUrls.map(
-                                                  (publicId, index) => (
-                                                      <button
-                                                          key={publicId}
-                                                          type="button"
-                                                          onClick={() =>
-                                                              previewDoc(
-                                                                  index,
-                                                                  extractFilename(
-                                                                      publicId,
-                                                                  ),
-                                                              )
-                                                          }
-                                                          className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left"
-                                                      >
-                                                          <FileText
-                                                              size={13}
-                                                              className="flex-none"
-                                                          />
-                                                          {extractFilename(
-                                                              publicId,
-                                                          )}
-                                                      </button>
-                                                  ),
-                                              )}
+                                        <div className="space-y-1">
+                                            {existingFiles.map((doc, idx) =>
+                                                isViewOnly ? (
+                                                    <button
+                                                        key={doc.url}
+                                                        type="button"
+                                                        onClick={() => previewDoc(idx, doc.label)}
+                                                        className="flex items-center gap-1.5 text-sm text-[color:hsl(var(--primary))] underline text-left"
+                                                    >
+                                                        <FileText
+                                                            size={13}
+                                                            className="flex-none"
+                                                        />
+                                                        {doc.label}
+                                                    </button>
+                                                ) : (
+                                                    <p
+                                                        key={doc.url}
+                                                        className="flex items-center gap-1.5 text-sm text-[color:var(--text-primary)]"
+                                                    >
+                                                        <FileText
+                                                            size={13}
+                                                            className="flex-none text-[color:var(--text-tertiary)]"
+                                                        />
+                                                        {doc.label}
+                                                    </p>
+                                                )
+                                            )}
+                                            {localFiles.map((f) => (
+                                                <p
+                                                    key={f.name}
+                                                    className="flex items-center gap-1.5 text-sm text-[color:var(--text-primary)]"
+                                                >
+                                                    <FileText
+                                                        size={13}
+                                                        className="flex-none text-[color:var(--text-tertiary)]"
+                                                    />
+                                                    {f.name}
+                                                </p>
+                                            ))}
+                                            {links.map((l, idx) => (
+                                                <p
+                                                    key={`${l.url}-${idx}`}
+                                                    className="flex items-center gap-1.5 text-sm text-[color:var(--text-primary)]"
+                                                >
+                                                    <LinkIcon
+                                                        size={13}
+                                                        className="flex-none text-[color:var(--text-tertiary)]"
+                                                    />
+                                                    {l.label || l.url}
+                                                </p>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 
@@ -1270,20 +1406,25 @@ function EvaluationEditorDialog({
                                     />
                                 </FormField>
 
-                                {/* Supporting documents — PDF file picker */}
+                                {/* Supporting documents — PDF files + links */}
                                 <FormField
                                     label="Supporting documents"
                                     htmlFor="ev-docs"
-                                    hint="PDF files only · up to 5 files · 10 MB each"
+                                    hint="PDF files or https:// links · up to 5 total · 10 MB per file"
                                     optional
                                     hintAbove
                                 >
-                                    <PdfFilePicker
-                                        files={localFiles}
-                                        existingUrls={existingDocUrls}
-                                        onChange={setLocalFiles}
-                                        error={errors.doc}
-                                    />
+                                    <div className="space-y-3">
+                                        <PdfFilePicker
+                                            files={localFiles}
+                                            existingFiles={existingFiles}
+                                            onChange={setLocalFiles}
+                                            onRemoveExisting={(url) => setExistingFiles((prev) => prev.filter((d) => d.url !== url))}
+                                            error={errors.supportingDocs}
+                                            reservedSlots={links.length}
+                                        />
+                                        <LinkPicker links={links} onChange={setLinks} slotsLeft={docSlotsLeft} />
+                                    </div>
                                 </FormField>
                             </>
                         )}

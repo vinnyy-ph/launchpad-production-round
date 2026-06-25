@@ -76,10 +76,15 @@ Then drop `supportingDocUrls`. (Local/dev DB; low risk. Re-seeding is an accepta
    - `new URL(trimmed)` inside try/catch → reject malformed (`INVALID_URL`)
    - require `u.protocol === "https:"` → reject otherwise (`INVALID_URL`)
    - store `{ kind: "link", url: u.toString(), label: providedLabel?.trim() || u.hostname }`
-3. **Combined cap**: `files.length + links.length > 5` → 400 (`TOO_MANY_DOCS`).
-4. Merge into one ordered `supportingDocs` array; pass to the service.
-5. On **update with no files and no links provided**, omit `supportingDocs` from the update
-   (don't overwrite existing) — matching today's file-only behavior.
+3. **Combined cap**: `files + links + keepFiles > 5` → 400 (`TOO_MANY_DOCS`).
+4. **Full-set contract.** The editor always sends the complete intended set: `files` (new
+   uploads), `links` (full set), `keepFiles` (urls of existing file docs to retain), and a
+   `docsManaged` sentinel. On **create**, `supportingDocs = uploads + links`. On **update**, the
+   service rebuilds `supportingDocs = (the evaluation's own current file docs ∩ keepFiles) +
+   new uploads + links`. Intersecting against the stored record prevents silent loss of
+   already-attached files and blocks a client from injecting a foreign Cloudinary id via
+   `keepFiles`. When `docsManaged` is absent (a non-editor caller), existing docs are left
+   untouched.
 
 **Validation** (`evaluation-file-validation.ts` or a sibling `evaluation-link-validation.ts`):
 add `validateSupportingLink`. Keep file validation as-is.
@@ -111,15 +116,15 @@ links directly and only hit this endpoint for files, but the endpoint stays corr
 - One **Supporting documents** section containing:
   - the existing PDF dropzone / browse button, and
   - a "Paste a link" text input + optional label input + **Add** button.
-- Both feed a single combined list (capped at 5) with a type icon (file vs link), label, and a
-  remove control.
+- The combined, capped-at-5 list shows three removable groups: existing files, newly-added files,
+  and links — each with a type icon and label. Removing an existing file drops it from `keepFiles`.
 - Client-side link pre-check mirrors the backend: `new URL()` + `protocol === "https:"`; show an
   inline error on failure. Files keep the existing PDF/size pre-check.
-- Service `buildEvaluationFormData` (`evaluations.service.ts`): append `files` as today, plus each
-  link as a `links` field (URL, with label when present).
+- Service `buildEvaluationFormData` (`evaluations.service.ts`): append `files` as today, plus
+  `links` (JSON `{url,label}`), `keepFiles` (urls of existing files to retain), and `docsManaged="1"`.
 
 `evaluations.types.ts`: add the `SupportingDoc` union; update `Evaluation.supportingDocUrls`
-→ `supportingDocs: SupportingDoc[]`; extend `EvaluationInput` with the link entries the form collects.
+→ `supportingDocs: SupportingDoc[]`; extend `EvaluationInput` with `links` and `keepFiles`.
 
 ## Frontend — Viewer
 
@@ -135,8 +140,9 @@ links directly and only hit this endpoint for files, but the endpoint stays corr
 **Backend**
 - `validateSupportingLink`: accepts `https://...`; rejects `http://`, `javascript:`, `data:`,
   `file:`, empty, and malformed strings; trims; defaults label to hostname.
-- Create/update: links-only, files-only, and mixed; combined cap of 5 → 400; update with neither
-  files nor links leaves existing docs intact.
+- Create/update: links-only, files-only, and mixed; combined cap of 5 → 400; update with no
+  `docsManaged` leaves existing docs intact; update with `keepFiles` retains only the named
+  existing files (foreign urls ignored); doc-only updates allowed.
 - `downloadDocument`: returns a signed URL for a `file` entry and the raw URL for a `link` entry.
 - Update existing fixtures/helpers and the Cloudinary mock for the `{ kind, url, label }` shape.
 
