@@ -21,7 +21,7 @@ const SENTIMENT_LABEL: Record<InsightSentiment, string> = {
 };
 
 const CARD =
-  "rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6";
+  "rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6";
 
 export function AiInsightsPanel({
   surveyId,
@@ -104,12 +104,9 @@ export function AiInsightsPanel({
           <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
             Couldn&apos;t generate the summary.
           </span>
-          <button
-            onClick={() => void q.refetch()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-          >
-            <RefreshCw size={12} /> Retry
-          </button>
+          <Button variant="ghost" size="sm" onClick={() => void q.refetch()}>
+            <RefreshCw /> Retry
+          </Button>
         </div>
       )}
 

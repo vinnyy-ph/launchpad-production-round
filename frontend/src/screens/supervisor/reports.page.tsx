@@ -18,7 +18,7 @@ import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEvaluations, useMyDirectReports } from "@/modules/performance/evaluations";
 import { ScreenHeader } from "@/shared/components/layout/screen-header";
 import { KpiCard, EmptyState } from "@/shared/ui/patterns";
-import { DonutChart, LineChart, Skeleton } from "@/shared/ui";
+import { Button, DonutChart, LineChart, Skeleton } from "@/shared/ui";
 import { CHART_COLORS } from "@/shared/ui/charts/palette";
 import {
   summarizeEvaluations,
@@ -127,7 +127,7 @@ function TeamCard({
   return (
     <Link
       href="/supervisor/roster"
-      className="group relative block overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-[18px] transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative block overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-[18px] transition-colors hover:border-[color:var(--border-secondary)]"
       style={{ boxShadow: "var(--shadow-xs)" }}
     >
       <ArrowUpRight
@@ -219,12 +219,9 @@ function EvaluationBreakdown({
         <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
           Could not load your evaluations.
         </span>
-        <button
-          onClick={refetch}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-        >
-          <RefreshCw size={12} /> Retry
-        </button>
+        <Button variant="ghost" size="sm" onClick={refetch}>
+          <RefreshCw /> Retry
+        </Button>
       </div>
     );
   }
@@ -239,10 +236,11 @@ function EvaluationBreakdown({
     );
   }
 
+  // Slice colours mirror the acknowledgement badge tones (green / neutral / amber).
   const ackBreakdown = [
-    { name: "Acknowledged", value: summary.acknowledged },
-    { name: "Auto-acknowledged", value: summary.autoAcknowledged },
-    { name: "Pending acknowledgement", value: summary.pending },
+    { name: "Acknowledged", value: summary.acknowledged, color: "var(--color-success-600)" },
+    { name: "Auto-acknowledged", value: summary.autoAcknowledged, color: "var(--gray-neutral-400)" },
+    { name: "Pending", value: summary.pending, color: "var(--color-warning-600)" },
   ].filter((d) => d.value > 0);
 
   return (
@@ -258,7 +256,7 @@ function EvaluationBreakdown({
             <div key={d.name} className="flex items-center gap-2 text-xs">
               <span
                 className="h-2 w-2 flex-none rounded-full"
-                style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                style={{ background: d.color ?? CHART_COLORS[i % CHART_COLORS.length] }}
                 aria-hidden="true"
               />
               <span className="flex-1 text-[color:var(--text-secondary)]">{d.name}</span>

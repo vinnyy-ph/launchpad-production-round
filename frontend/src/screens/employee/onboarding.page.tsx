@@ -17,6 +17,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+import { Badge } from "@/shared/ui/primitives/badge";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import {
   useMyOnboarding,
@@ -70,7 +71,7 @@ const LOCATION_RE = /^[A-Za-z\s]+$/;
 const STEP_LABELS = ["Your details", "Quick questions", "Documents", "Review"] as const;
 const CARD_SHADOW = "inset 0 0 2px 0 rgba(0,16,53,.16), 0 1px 2px 0 rgba(14,16,27,.05)";
 const DISABLED_FIELD_INPUT =
-  "bg-[#FAFAFA] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
+  "bg-[color:var(--gray-neutral-50)] pl-9 text-[color:var(--text-tertiary)] disabled:opacity-100";
 const DISABLED_FIELD_ICON =
   "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--text-tertiary)]";
 
@@ -325,7 +326,7 @@ function StepCard({
 }) {
   return (
     <section
-      className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-8"
+      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-8"
       style={{ boxShadow: CARD_SHADOW }}
     >
       <div className="py-4">
@@ -395,9 +396,9 @@ function ReviewField({
 
 function HrSetBadge() {
   return (
-    <span className="inline-flex items-center rounded-full border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-2 py-0.5 text-[12px] font-semibold leading-none text-[color:var(--text-tertiary)]">
+    <Badge variant="neutral" pill className="font-semibold">
       Set by HR
-    </span>
+    </Badge>
   );
 }
 
@@ -506,7 +507,7 @@ function ReviewDocumentRow({
 function OnboardingSkeleton() {
   return (
     <div
-      className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-8"
+      className="rounded-xl border border-[color:var(--border-primary)] bg-white p-8"
       style={{ boxShadow: CARD_SHADOW }}
     >
       <Skeleton className="h-5 w-48" />
@@ -526,7 +527,7 @@ function OnboardingSkeleton() {
 function SubmittedConfirmation() {
   return (
     <section
-      className="ob-submitted-card rounded-2xl border border-[color:var(--border-primary)] bg-white px-8 py-14 text-center"
+      className="ob-submitted-card rounded-xl border border-[color:var(--border-primary)] bg-white px-8 py-14 text-center"
       style={{ boxShadow: CARD_SHADOW }}
     >
       <div className="ob-submitted-icon-box mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-[color:var(--border-primary)] bg-white">
@@ -690,7 +691,7 @@ function AccountUnderReviewStatus({
       </section>
 
       <section
-        className="mt-5 rounded-2xl border border-[color:var(--border-primary)] bg-white p-8"
+        className="mt-5 rounded-xl border border-[color:var(--border-primary)] bg-white p-8"
         style={{ boxShadow: CARD_SHADOW }}
       >
         <div>
@@ -1033,7 +1034,7 @@ export default function EmployeeOnboardingPage() {
     return (
       <div className="mx-auto w-full max-w-[960px]">
         <div
-          className="rounded-2xl border border-[color:var(--border-primary)] bg-white"
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: CARD_SHADOW }}
         >
           <EmptyState
@@ -1051,7 +1052,7 @@ export default function EmployeeOnboardingPage() {
     return (
       <div className="mx-auto w-full max-w-[960px]">
         <div
-          className="rounded-2xl border border-[color:var(--border-primary)] bg-white"
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: CARD_SHADOW }}
         >
           <EmptyState

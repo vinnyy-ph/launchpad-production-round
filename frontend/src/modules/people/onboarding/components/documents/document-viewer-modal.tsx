@@ -62,7 +62,7 @@ export function DocumentViewerModal({
               Preview of the submitted document.
             </DialogDescription>
           </DialogHeader>
-          <DialogClose className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+          <DialogClose className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100">
             <X className="h-4 w-4" aria-hidden="true" />
             <span className="sr-only">Close</span>
           </DialogClose>
@@ -105,7 +105,7 @@ export function DocumentViewerModal({
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
-                    className="border-[#FECDCA] text-[#B42318] hover:bg-[#FEF3F2]"
+                    className="border-[color:var(--color-error-200)] text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]"
                     onClick={onReject}
                     disabled={rejectPending}
                     loading={rejectPending}

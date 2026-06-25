@@ -3,24 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  BriefcaseBusiness,
   ChevronLeft,
   ChevronRight,
-  ClipboardCheck,
-  ClipboardList,
   LogOut,
   Menu,
-  Network,
   Settings,
-  User,
-  type LucideIcon,
 } from "lucide-react";
+import { HomeLine } from "@untitledui/icons";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
+import { roleHome } from "@/modules/auth/role-home";
 import { signOutUser } from "@/modules/auth/services/auth.service";
+import { Button } from "@/shared/ui";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
 import { useSettingsModal } from "@/modules/settings/stores/use-settings-modal";
-import { breadcrumbForPath, findNav, type NavIcon } from "./nav-config";
+import { breadcrumbForPath } from "./nav-config";
 import { useExtraBreadcrumbs } from "./breadcrumb-context";
 
 const ROLE_ACRONYMS = new Set(["ADMIN", "HR"]);
@@ -43,7 +40,6 @@ function formatTopbarDate(date: Date): string {
     weekday: "long",
     month: "long",
     day: "numeric",
-    year: "numeric",
   });
 }
 
@@ -63,21 +59,6 @@ function useClock(): { time: string; date: string } {
     }),
     date: formatTopbarDate(now),
   };
-}
-
-function iconForPath(pathname: string): LucideIcon | NavIcon {
-  const navMatch = findNav(pathname);
-  if (navMatch) return navMatch.item.icon;
-
-  if (pathname.startsWith("/employee/profile")) return User;
-  if (pathname.startsWith("/employee/onboarding") || pathname.startsWith("/hr/directory/onboarding")) {
-    return ClipboardList;
-  }
-  if (pathname.startsWith("/employee/clearance")) return ClipboardCheck;
-  if (pathname.startsWith("/offboarding") || pathname.startsWith("/hr/directory/offboarding")) return LogOut;
-  if (pathname.startsWith("/supervisor/status")) return Network;
-
-  return BriefcaseBusiness;
 }
 
 function readTopbarHistory(): TopbarHistoryState {
@@ -146,7 +127,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
     ...extraCrumbs.map((label) => ({ label, href: undefined })),
   ];
   const clock = useClock();
-  const TopbarIcon = iconForPath(pathname);
+  const homeHref = appUser ? roleHome(appUser) : "/";
   const { canGoBack, canGoForward } = useTopbarHistory(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -182,84 +163,89 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   return (
     <header className="flex h-16 flex-shrink-0 items-center justify-between gap-4 border-b border-[color:var(--border-primary)] bg-white px-5">
       <div className="flex min-w-0 flex-shrink items-center gap-3">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onMenuClick}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)] lg:hidden"
+          className="rounded-lg text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)] lg:hidden"
           aria-label="Open menu"
         >
-          <Menu size={20} />
-        </button>
+          <Menu />
+        </Button>
 
         <div className="hidden items-center gap-1 lg:flex">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => router.back()}
             disabled={!canGoBack}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[color:var(--text-tertiary)]"
+            className="h-8 w-8 rounded-full text-[color:var(--text-tertiary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[color:var(--text-tertiary)]"
             aria-label="Go back"
           >
-            <ChevronLeft size={18} strokeWidth={1.8} />
-          </button>
-          <button
+            <ChevronLeft strokeWidth={1.8} />
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => router.forward()}
             disabled={!canGoForward}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[color:var(--text-tertiary)]"
+            className="h-8 w-8 rounded-full text-[color:var(--text-tertiary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[color:var(--text-tertiary)]"
             aria-label="Go forward"
           >
-            <ChevronRight size={18} strokeWidth={1.8} />
-          </button>
+            <ChevronRight strokeWidth={1.8} />
+          </Button>
         </div>
 
         <span className="hidden h-6 w-px bg-[color:var(--border-primary)] lg:block" aria-hidden="true" />
-        <TopbarIcon
-          size={19}
-          strokeWidth={1.8}
-          className="hidden flex-shrink-0 text-[color:var(--text-primary)] sm:block"
-          aria-hidden="true"
-        />
 
-        {breadcrumb.length > 0 && (
-          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2">
-            {breadcrumb.map((crumb, i) => {
-              const isLast = i === breadcrumb.length - 1;
-              const className = isLast
-                ? "min-w-0 truncate rounded-lg bg-[color:var(--bg-secondary)] px-3 py-2 text-[14px] font-semibold text-[color:var(--text-primary)]"
-                : "hidden text-[14px] font-semibold text-[color:var(--text-tertiary)] sm:inline";
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => router.push(homeHref)}
+            aria-label="Home"
+            aria-current={breadcrumb.length === 0 ? "page" : undefined}
+            className="flex flex-shrink-0 items-center rounded-lg p-1.5 text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)]"
+          >
+            <HomeLine size={18} aria-hidden="true" />
+          </button>
+          {breadcrumb.map((crumb, i) => {
+            const isLast = i === breadcrumb.length - 1;
+            const className = isLast
+              ? "min-w-0 truncate rounded-lg bg-[color:var(--bg-secondary)] px-3 py-2 text-[14px] font-semibold text-[color:var(--text-primary)]"
+              : "hidden text-[14px] font-semibold text-[color:var(--text-tertiary)] sm:inline";
 
-              return (
-                <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-2">
-                  {i > 0 && (
-                    <ChevronRight
-                      size={15}
-                      strokeWidth={1.8}
-                      className="flex-shrink-0 text-[color:var(--text-tertiary)]"
-                      aria-hidden="true"
-                    />
-                  )}
-                  {crumb.href ? (
-                    <button
-                      type="button"
-                      onClick={() => router.push(crumb.href!)}
-                      aria-current={isLast ? "page" : undefined}
-                      className={`${className} cursor-pointer rounded-lg transition-colors hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
-                    >
-                      {crumb.label}
-                    </button>
-                  ) : (
-                    <span className={className}>{crumb.label}</span>
-                  )}
-                </span>
-              );
-            })}
-          </nav>
-        )}
+            return (
+              <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-2">
+                <ChevronRight
+                  size={15}
+                  strokeWidth={1.8}
+                  className={`${isLast ? "" : "hidden sm:block"} flex-shrink-0 text-[color:var(--text-tertiary)]`}
+                  aria-hidden="true"
+                />
+                {crumb.href ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(crumb.href!)}
+                    aria-current={isLast ? "page" : undefined}
+                    className={`${className} cursor-pointer rounded-lg transition-colors hover:text-[color:var(--text-primary)]`}
+                  >
+                    {crumb.label}
+                  </button>
+                ) : (
+                  <span className={className}>{crumb.label}</span>
+                )}
+              </span>
+            );
+          })}
+        </nav>
       </div>
 
       <div className="flex flex-shrink-0 items-center gap-3">
         <span
           aria-hidden="true"
-          className="hidden whitespace-nowrap text-[14px] font-medium tabular-nums text-[color:var(--text-secondary)] select-none xl:block"
+          className="hidden whitespace-nowrap text-[14px] font-medium tabular-nums text-[color:var(--text-secondary)] select-none lg:block"
         >
           <span className="text-[color:var(--text-primary)] mr-2">{clock.time}</span> {clock.date}
         </span>
@@ -277,9 +263,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             <UserAvatar
               src={appUser?.avatarUrl}
               fallback={initials}
-              className="h-9 w-9 border-2 border-[#C9D7FF]"
+              className="h-9 w-9"
               fallbackClassName="text-[12px] font-bold tracking-[0.01em] text-white"
-              fallbackStyle={{ background: "linear-gradient(135deg, #1f2a5c 0%, #4f46e5 100%)" }}
             />
             <span className="hidden min-w-0 text-left md:block">
               <span className="block max-w-[180px] truncate text-[14px] font-semibold leading-4 text-[color:var(--text-primary)]">

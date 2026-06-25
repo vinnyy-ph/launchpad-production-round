@@ -63,7 +63,7 @@ export function Combobox({
             "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white px-3.5 text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-[.38]",
             // Open → 45° gradient border ring + soft shadow.
             "aria-[expanded=true]:border-transparent aria-[expanded=true]:shadow-[0_0_0_3px_rgba(24,29,39,0.06)] aria-[expanded=true]:[background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(45deg,#fccec0,#ebacc9_33%,#ceb6da_66%,#9fcaed)_border-box]",
-            !selected && "text-[#a4a7ae]",
+            !selected && "text-[color:var(--gray-neutral-400)]",
             className
           )}
         >
@@ -101,8 +101,7 @@ export function Combobox({
       </PopoverTrigger>
       <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          {/* Drop the global focus ring on the auto-focused search input when the popover opens. */}
-          <CommandInput placeholder={searchPlaceholder} className="focus-visible:shadow-none" />
+          <CommandInput placeholder={searchPlaceholder} />
           {/*
            * Stop wheel/touch from bubbling to the dialog's scroll lock (react-remove-scroll),
            * which otherwise swallows these events on the portaled popover and blocks scrolling

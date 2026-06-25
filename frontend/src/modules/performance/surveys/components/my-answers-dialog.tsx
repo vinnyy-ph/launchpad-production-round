@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
   Badge,
+  Button,
   Skeleton,
 } from "@/shared/ui";
 import { useMyAnswers } from "../hooks/use-my-answers";
@@ -96,7 +97,7 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         <DialogHeader className="border-b border-[color:var(--border-primary)] px-6 pb-4 pt-6 text-left">
           <div className="flex flex-wrap items-center gap-2.5">
             <DialogTitle className="text-xl font-bold tracking-tight">{surveyName}</DialogTitle>
@@ -131,12 +132,9 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
               <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
                 Could not load your answers.
               </span>
-              <button
-                onClick={() => void refetch()}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-              >
+              <Button variant="ghost" size="sm" onClick={() => void refetch()}>
                 Retry
-              </button>
+              </Button>
             </div>
           )}
 
@@ -154,7 +152,7 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
           {/* Anonymous + recoverable: anonymity protects your answers from OTHERS, not from
               you — reassure, then show them. */}
           {data && data.submitted && isAnonymous && data.answers.length > 0 && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-[#C7D7FE] bg-[#EEF4FF] px-4 py-3 text-[14px] text-[#3538CD]">
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] px-4 py-3 text-[14px] text-[color:var(--color-success-700)]">
               <ShieldCheck size={17} className="mt-0.5 flex-none" aria-hidden="true" />
               <span>
                 This pulse is anonymous. Only you can see your own responses here — others only

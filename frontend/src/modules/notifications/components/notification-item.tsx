@@ -1,9 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Pin, X, Check } from "lucide-react";
+import { Pin, X, Check, MoreVertical } from "lucide-react";
 import { parseISO, isToday, isYesterday, format, differenceInMinutes } from "date-fns";
-import { cn } from "@/shared/lib/utils";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui";
 import type { Notification } from "../types/notifications.types";
 
 interface Props {
@@ -78,9 +84,6 @@ function resolveRoute(n: Notification): string | null {
   }
 }
 
-const ACTION_BTN =
-  "rounded-md p-1.5 text-[color:var(--text-quaternary)] transition-colors hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
 export function NotificationItem({ notification, onRead, onPin, onClear }: Props) {
   const router = useRouter();
   const showActions = Boolean(onPin && onClear);
@@ -122,22 +125,33 @@ export function NotificationItem({ notification, onRead, onPin, onClear }: Props
       </button>
 
       {showActions && (
-        <div className="flex flex-shrink-0 items-center gap-0.5 self-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
-          {!notification.isRead && (
-            <button onClick={() => onRead(notification.id)} aria-label="Mark as read" className={ACTION_BTN}>
-              <Check size={14} />
-            </button>
-          )}
-          <button
-            onClick={() => onPin!(notification.id, !notification.isPinned)}
-            aria-label={notification.isPinned ? "Unpin" : "Pin"}
-            className={cn(ACTION_BTN, notification.isPinned && "text-[color:var(--text-primary)]")}
-          >
-            <Pin size={14} fill={notification.isPinned ? "currentColor" : "none"} />
-          </button>
-          <button onClick={() => onClear!(notification.id)} aria-label="Clear" className={ACTION_BTN}>
-            <X size={14} />
-          </button>
+        <div className="flex flex-shrink-0 items-center self-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Notification actions"
+                className="text-[color:var(--text-quaternary)] hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-secondary)] data-[state=open]:bg-[color:var(--bg-tertiary)] data-[state=open]:text-[color:var(--text-secondary)]"
+              >
+                <MoreVertical />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              {!notification.isRead && (
+                <DropdownMenuItem onSelect={() => onRead(notification.id)}>
+                  <Check /> Mark as read
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onSelect={() => onPin!(notification.id, !notification.isPinned)}>
+                <Pin fill={notification.isPinned ? "currentColor" : "none"} />
+                {notification.isPinned ? "Unpin" : "Pin"}
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => onClear!(notification.id)}>
+                <X /> Clear
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </div>

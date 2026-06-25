@@ -31,7 +31,6 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
       fallback={initials(name)}
       className="mx-auto h-10 w-10"
       fallbackClassName="text-xs font-bold text-white"
-      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
 }
@@ -97,7 +96,7 @@ function OrgChartNode({ node, expanded, onToggle, onOpenProfile, matchedIds }: O
           ? `Collapse ${node.kind === "department" ? node.label : node.employee.fullName}`
           : `Expand ${node.kind === "department" ? node.label : node.employee.fullName}`
       }
-      className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--border-primary)] px-2 py-0.5 text-[12px] font-semibold text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--border-primary)] px-2 py-0.5 text-[12px] font-semibold text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
     >
       {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
       {node.children.length}
@@ -152,7 +151,7 @@ function OrgChartNode({ node, expanded, onToggle, onOpenProfile, matchedIds }: O
               type="button"
               onClick={() => onOpenProfile(node.employee.id)}
               aria-label={`View ${node.employee.fullName}'s details`}
-              className="block w-full rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="block w-full rounded-md"
             >
               {personIdentity}
             </button>

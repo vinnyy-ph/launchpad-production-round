@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { ClipboardList, AlertCircle, RefreshCw, CheckSquare, ChevronRight } from "lucide-react";
+import { Activity, AlertCircle, BarChart3, CheckSquare, ChevronRight, ClipboardCheck, ClipboardList, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Badge, Skeleton } from "@/shared/ui";
@@ -21,6 +21,7 @@ import type {
   AnsweredSurvey,
 } from "@/modules/performance/surveys/types/surveys.types";
 import { VisibleResultsList } from "@/modules/performance/surveys/components/visible-results-list";
+import { ACK_PRESENTATION, type AckStatus } from "@/modules/performance/evaluations/lib/ack-status";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -123,12 +124,9 @@ function SurveysTab({
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
         <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
         <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{error}</span>
-        <button
-          onClick={onReload}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-        >
-          <RefreshCw size={12} /> Retry
-        </button>
+        <Button variant="ghost" size="sm" onClick={onReload}>
+          <RefreshCw /> Retry
+        </Button>
       </div>
     );
   }
@@ -278,12 +276,9 @@ function AcknowledgementsTab({
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
         <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
         <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{error}</span>
-        <button
-          onClick={onReload}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-        >
-          <RefreshCw size={12} /> Retry
-        </button>
+        <Button variant="ghost" size="sm" onClick={onReload}>
+          <RefreshCw /> Retry
+        </Button>
       </div>
     );
   }
@@ -316,6 +311,8 @@ function AcknowledgementsTab({
     const isAcknowledged = !!ack?.acknowledgedAt;
     const isDeemed = !isAcknowledged && !!ack?.isDeemedAck;
     const pending = !isAcknowledged && !isDeemed;
+    const ackState: AckStatus = isAcknowledged ? "acknowledged" : isDeemed ? "auto" : "pending";
+    const ackChip = ACK_PRESENTATION[ackState];
 
     return (
       <div
@@ -338,9 +335,7 @@ function AcknowledgementsTab({
         </div>
 
         <div className="flex items-center gap-3">
-          {isAcknowledged && <Badge variant="success">Acknowledged</Badge>}
-          {isDeemed && <Badge variant="warning">Deemed acknowledged</Badge>}
-          {pending && <Badge variant="neutral">Pending</Badge>}
+          <Badge variant={ackChip.tone}>{ackChip.label}</Badge>
           <Button
             variant={pending ? undefined : "secondary"}
             size="sm"
@@ -441,9 +436,9 @@ export default function EmployeeSurveysPage() {
         value={tab}
         onChange={(v) => changeTab(v as "survey" | "acknowledgements" | "results")}
         items={[
-          { value: "survey", label: "Pulse surveys", count: unansweredCount },
-          { value: "acknowledgements", label: "Evaluations", count: pendingAcks },
-          { value: "results", label: "Results" },
+          { value: "survey", label: "Surveys", count: unansweredCount, icon: Activity },
+          { value: "acknowledgements", label: "Evaluations", count: pendingAcks, icon: ClipboardCheck },
+          { value: "results", label: "Results", icon: BarChart3 },
         ]}
       />
 

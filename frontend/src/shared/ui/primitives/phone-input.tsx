@@ -74,7 +74,7 @@ const PhilippinesPrefix = ({ value: country }: { value: Country }) => {
     <div
       className={cn(
         "flex h-10 shrink-0 items-center rounded-s-md border border-input bg-white px-2.5 shadow-xs",
-        hasError && "border-[#D92D20]",
+        hasError && "border-[color:var(--color-error-600)]",
       )}
       aria-label="Philippines"
     >
