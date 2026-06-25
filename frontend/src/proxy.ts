@@ -20,6 +20,7 @@ export function proxy() {
   const scriptSrc = [
     "'self'",
     "'unsafe-inline'",
+    "https://apis.google.com", // Firebase Auth loads the Google API client (api.js)
     !isProd && "'unsafe-eval'", // next dev fast-refresh evaluates code via eval
   ].filter(Boolean);
 
@@ -34,7 +35,9 @@ export function proxy() {
 
   const frameSrc = [
     "'self'",
+    "blob:", // client-generated PDF previews (e.g. clearance form) are framed via blob: URLs
     "https://accounts.google.com",
+    "https://apis.google.com", // gapi auth relay iframe
     "https://*.firebaseapp.com",
     authDomain && `https://${authDomain}`,
   ].filter(Boolean);

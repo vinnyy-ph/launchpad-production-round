@@ -34,23 +34,30 @@ const nextConfig = {
     // Baseline hardening. The Content-Security-Policy is set in proxy.ts (it reads the
     // API/auth origins from env to build the connect-src/frame-src allowlist). The headers
     // below are static, so they stay here.
+    const baseHeaders = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+      {
+        // Effective only over HTTPS; harmless over http (dev). 2 years + preload.
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
+    ];
     return [
       {
-        source: "/:path*",
-        headers: [
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
-          {
-            // Effective only over HTTPS; harmless over http (dev). 2 years + preload.
-            key: "Strict-Transport-Security",
-            value: "max-age=63072000; includeSubDomains; preload",
-          },
-        ],
+        // App pages: deny all framing (clickjacking protection). Excludes the document
+        // proxy below, which we embed in our own same-origin viewer iframes.
+        source: "/((?!api/v1/documents/).*)",
+        headers: [{ key: "X-Frame-Options", value: "DENY" }, ...baseHeaders],
+      },
+      {
+        // Same-origin document proxy: allow same-origin framing so the viewer can embed it.
+        source: "/api/v1/documents/:path*",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }, ...baseHeaders],
       },
     ];
   },

@@ -36,12 +36,12 @@ jest.mock("../../core/database/prisma.service", () => ({
 // Shared mock functions defined inside the factory — safe from the jest.mock hoisting TDZ.
 // Retrieve them at test time via jest.requireMock so we can assert on them.
 jest.mock("../../core/cloudinary/cloudinary.service", () => {
-  const signerMock = jest.fn().mockReturnValue("https://signed.cloudinary.com/doc.pdf");
+  const signerMock = jest.fn().mockReturnValue("/api/v1/documents/view/doc.pdf?token=signed");
   const uploaderMock = jest.fn();
   return {
     CloudinaryService: jest.fn().mockImplementation(() => ({
       uploadSupportingDocument: uploaderMock,
-      getSupportingDocumentDownloadUrl: signerMock,
+      getSupportingDocumentProxyPath: signerMock,
     })),
     __signerMock: signerMock,
   };
@@ -59,7 +59,7 @@ describe("GET /api/v1/evaluations/:evaluationId/documents/:docIndex/download", (
     getSignerMock().mockClear();
   });
 
-  it("returns the raw link url directly without calling the Cloudinary signer", async () => {
+  it("returns the raw link url directly without proxying through Cloudinary", async () => {
     const reviewer = buildReviewerEmployee();
     const existing = {
       ...buildEvaluationRecord({ reviewerId: reviewer.id }),
@@ -77,7 +77,7 @@ describe("GET /api/v1/evaluations/:evaluationId/documents/:docIndex/download", (
     expect(getSignerMock()).not.toHaveBeenCalled();
   });
 
-  it("calls the Cloudinary signer for a file entry and returns the signed url", async () => {
+  it("returns a proxy url for a file entry by passing the public_id to the proxy builder", async () => {
     const reviewer = buildReviewerEmployee();
     const existing = {
       ...buildEvaluationRecord({ reviewerId: reviewer.id }),
@@ -92,7 +92,7 @@ describe("GET /api/v1/evaluations/:evaluationId/documents/:docIndex/download", (
       .expect(200);
 
     expect(getSignerMock()).toHaveBeenCalledWith("supporting_docs/report.pdf");
-    expect(response.body.url).toBe("https://signed.cloudinary.com/doc.pdf");
+    expect(response.body.url).toBe("/api/v1/documents/view/doc.pdf?token=signed");
   });
 
   it("returns 404 when docIndex is out of range", async () => {
