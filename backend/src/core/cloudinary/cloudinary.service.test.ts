@@ -236,4 +236,21 @@ describe("CloudinaryService onboarding documents", () => {
     expect(privateDownloadUrlMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledWith(url);
   });
+
+  it("returns null when the upstream fetch fails (dead/unreachable source)", async () => {
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(
+        new TypeError("fetch failed"),
+      ) as unknown as typeof fetch;
+
+    const service = new CloudinaryService();
+
+    await expect(
+      service.fetchDocument({
+        kind: "external",
+        url: "https://storage.example.com/onboarding/casey-gov-id.pdf",
+      }),
+    ).resolves.toBeNull();
+  });
 });

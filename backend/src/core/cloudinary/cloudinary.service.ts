@@ -223,7 +223,14 @@ export class CloudinaryService {
       return null;
     }
 
-    const upstream = await fetch(upstreamUrl);
+    // A dead or unreachable source (DNS failure, timeout, 404) is "document not found", not a
+    // server error — so callers can return 404 rather than letting fetch() throw a 500.
+    let upstream: Response;
+    try {
+      upstream = await fetch(upstreamUrl);
+    } catch {
+      return null;
+    }
     if (!upstream.ok || !upstream.body) {
       return null;
     }

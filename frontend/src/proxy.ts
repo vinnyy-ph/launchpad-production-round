@@ -15,7 +15,6 @@ export function proxy() {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
   const wsUrl = apiUrl?.replace(/^http/, "ws"); // http->ws, https->wss
-  const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 
   const scriptSrc = [
     "'self'",
@@ -36,17 +35,14 @@ export function proxy() {
   const frameSrc = [
     "'self'",
     "blob:", // client-generated PDF previews (e.g. clearance form) are framed via blob: URLs
-    "https://accounts.google.com",
-    "https://apis.google.com", // gapi auth relay iframe
-    "https://*.firebaseapp.com",
-    authDomain && `https://${authDomain}`,
+    "https:", // allow framing any HTTPS origin (Firebase Auth, Cloudinary, doc previews, etc.)
   ].filter(Boolean);
 
   const csp = [
     "default-src 'self'",
     `script-src ${scriptSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    "img-src 'self' data: https: blob:",
     "font-src 'self'",
     `connect-src ${connectSrc.join(" ")}`,
     `frame-src ${frameSrc.join(" ")}`,
