@@ -6,7 +6,7 @@ import { cn } from "@/shared/lib/utils";
 
 const buttonVariants = cva(
   // Brandbook .btn: 8px radius, 1px border (per-variant color), weight 500, 8px gap, disabled .38.
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border text-sm font-medium disabled:pointer-events-none disabled:opacity-[.38] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.97] [transition:background_120ms_cubic-bezier(.2,0,0,1),transform_100ms_cubic-bezier(.2,0,0,1),box-shadow_120ms_cubic-bezier(.2,0,0,1),color_120ms_cubic-bezier(.2,0,0,1),border-color_120ms_cubic-bezier(.2,0,0,1)]",
+  "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md border text-sm font-medium disabled:pointer-events-none disabled:opacity-[.38] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.97] [transition:background_120ms_cubic-bezier(.2,0,0,1),transform_100ms_cubic-bezier(.2,0,0,1),box-shadow_120ms_cubic-bezier(.2,0,0,1),color_120ms_cubic-bezier(.2,0,0,1),border-color_120ms_cubic-bezier(.2,0,0,1)]",
   {
     variants: {
       variant: {
