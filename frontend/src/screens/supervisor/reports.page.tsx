@@ -236,10 +236,11 @@ function EvaluationBreakdown({
     );
   }
 
+  // Slice colours mirror the acknowledgement badge tones (green / neutral / amber).
   const ackBreakdown = [
-    { name: "Acknowledged", value: summary.acknowledged },
-    { name: "Auto-acknowledged", value: summary.autoAcknowledged },
-    { name: "Pending", value: summary.pending },
+    { name: "Acknowledged", value: summary.acknowledged, color: "var(--color-success-600)" },
+    { name: "Auto-acknowledged", value: summary.autoAcknowledged, color: "var(--gray-neutral-400)" },
+    { name: "Pending", value: summary.pending, color: "var(--color-warning-600)" },
   ].filter((d) => d.value > 0);
 
   return (
@@ -255,7 +256,7 @@ function EvaluationBreakdown({
             <div key={d.name} className="flex items-center gap-2 text-xs">
               <span
                 className="h-2 w-2 flex-none rounded-full"
-                style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                style={{ background: d.color ?? CHART_COLORS[i % CHART_COLORS.length] }}
                 aria-hidden="true"
               />
               <span className="flex-1 text-[color:var(--text-secondary)]">{d.name}</span>
