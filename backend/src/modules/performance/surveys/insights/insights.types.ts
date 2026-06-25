@@ -76,6 +76,8 @@ export interface InsightResult {
   available: boolean;
   reason?: "no_open_text" | "no_responses";
   suppressed: boolean;
+  /** True on a bare read when no summary has been generated yet (no LLM spend). */
+  notGenerated?: boolean;
   isAnonymous: boolean;
   responseCount: number;
   model: string | null;

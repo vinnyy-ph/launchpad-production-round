@@ -1,51 +1,55 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
-// Builds a per-request, nonce-based Content-Security-Policy.
+// Sets a request-independent Content-Security-Policy on every document response.
 //
-// script-src uses 'nonce-<value>' + 'strict-dynamic' (no 'unsafe-inline'): Next.js reads
-// the nonce from the CSP request header and stamps it onto its own scripts, so hydration
-// works without weakening the policy. style-src keeps 'unsafe-inline' on purpose — shadcn
-// chart (chart.tsx) and Recharts inject inline <style> tags that can't carry a nonce
-// without invasive plumbing; this matches the backend helmet config (accepted low risk).
+// script-src uses 'self' + 'unsafe-inline' (no nonce / 'strict-dynamic'): a per-request
+// nonce can't work here because Next prerenders and full-route-caches the client-SPA pages,
+// baking a build-time nonce into the HTML that never matches a per-request header nonce.
+// 'self' covers the same-origin /_next/static chunks; 'unsafe-inline' covers Next's inline
+// hydration bootstrap. style-src keeps 'unsafe-inline' for Recharts/shadcn inline <style>.
 //
 // connect-src / frame-src allowlist Firebase Auth (Google popup sign-in) and the Express
 // API origin (HTTPS + WSS for the notifications socket) so login and realtime keep working.
-export function proxy(request: NextRequest) {
-  const nonce = crypto.randomUUID().replace(/-/g, "");
+export function proxy() {
   const isProd = process.env.NODE_ENV === "production";
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  const wsUrl = apiUrl?.replace(/^http/, "ws"); // http->ws, https->wss
-  const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 
   const scriptSrc = [
     "'self'",
-    `'nonce-${nonce}'`,
-    "'strict-dynamic'",
+    "'unsafe-inline'",
+    "https://apis.google.com", // Firebase Google sign-in injects the gapi loader (apis.google.com/js/api.js)
+    "https://www.gstatic.com", // Firebase auth helper scripts
     !isProd && "'unsafe-eval'", // next dev fast-refresh evaluates code via eval
   ].filter(Boolean);
 
   const connectSrc = [
     "'self'",
-    "https://identitytoolkit.googleapis.com",
-    "https://securetoken.googleapis.com",
-    "https://www.googleapis.com",
-    apiUrl,
-    wsUrl,
+    // Host-level allowlisting proved fragile across Firebase/Google auth, Cloudinary,
+    // the API and the notifications socket — and with script-src already allowing
+    // 'unsafe-inline', a strict connect-src adds little real protection. Allow any HTTPS
+    // /WSS origin (mirrors img-src 'https:'); still blocks http: downgrade + data:/blob: exfil.
+    "https:",
+    "wss:",
+    // dev talks to the local API + socket over http/ws (NEXT_PUBLIC_API_URL is often unset locally).
+    !isProd && "http://localhost:*",
+    !isProd && "ws://localhost:*",
+    !isProd && "http://127.0.0.1:*",
+    !isProd && "ws://127.0.0.1:*",
   ].filter(Boolean);
 
   const frameSrc = [
     "'self'",
-    "https://accounts.google.com",
-    "https://*.firebaseapp.com",
-    authDomain && `https://${authDomain}`,
+    "blob:", // Firebase popup sign-in renders its helper in a blob: iframe
+    // Cloudinary upload/media widget + Google/Firebase auth all frame third-party https
+    // origins; enumerating them proved fragile. frame-ancestors 'none' still blocks US
+    // from being framed (the clickjacking protection that matters).
+    "https:",
   ].filter(Boolean);
 
   const csp = [
     "default-src 'self'",
     `script-src ${scriptSrc.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    "img-src 'self' data: https: blob:",
     "font-src 'self'",
     `connect-src ${connectSrc.join(" ")}`,
     `frame-src ${frameSrc.join(" ")}`,
@@ -58,13 +62,7 @@ export function proxy(request: NextRequest) {
     .filter(Boolean)
     .join("; ");
 
-  // Next.js reads the nonce from the CSP on the *request* headers; the *response* header is
-  // what the browser enforces.
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set("Content-Security-Policy", csp);
-
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", csp);
   return response;
 }
@@ -72,7 +70,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // Documents only — skip API routes and static assets (they don't need a nonce CSP).
+      // Documents only — skip API routes and static assets.
       source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },

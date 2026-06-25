@@ -36,9 +36,22 @@ const nextConfig = {
     ];
   },
   async headers() {
-    // Baseline hardening. The Content-Security-Policy is set in middleware.ts so it can
-    // carry a per-request nonce for script-src (strict-dynamic). The headers below are
-    // request-independent, so they stay here.
+    // Baseline hardening. The Content-Security-Policy is set in proxy.ts (it reads the
+    // API/auth origins from env to build the connect-src/frame-src allowlist). The headers
+    // below are static, so they stay here.
+    const baseHeaders = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+      {
+        // Effective only over HTTPS; harmless over http (dev). 2 years + preload.
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
+    ];
     return [
       {
         source: "/:path*",
@@ -46,6 +59,9 @@ const nextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Firebase signInWithPopup polls popup.closed; without this the cross-origin
+          // Google popup is opaque to the opener and sign-in can't detect completion.
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",

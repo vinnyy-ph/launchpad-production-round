@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, ExternalLink, X } from "lucide-react";
+import { CheckCircle2, ExternalLink, ImageOff, X } from "lucide-react";
 import {
   Button,
   Dialog,
@@ -10,19 +10,13 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  Spinner,
 } from "@/shared/ui";
 
-function isPdf(fileUrl: string): boolean {
-  try {
-    return decodeURIComponent(new URL(fileUrl).pathname).toLowerCase().includes(".pdf");
-  } catch {
-    return decodeURIComponent(fileUrl.split("?")[0]).toLowerCase().includes(".pdf");
-  }
-}
-
 /**
- * Previews an onboarding document submission inline: PDFs render in an iframe,
- * images as an <img>. Replaces opening the file in a new browser tab.
+ * Previews an onboarding document submission inline. The file is fetched first so a failed
+ * load (missing/expired source) shows an error state instead of rendering the server's JSON
+ * error response; PDFs render in an iframe, images as an <img>, both from a blob URL.
  */
 export function DocumentViewerModal({
   open,
@@ -45,11 +39,43 @@ export function DocumentViewerModal({
   approvePending?: boolean;
   rejectPending?: boolean;
 }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const shouldRenderPdf = Boolean(fileUrl && (isPdf(fileUrl) || imageFailed));
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPdf, setIsPdf] = useState(false);
 
   useEffect(() => {
-    setImageFailed(false);
+    if (!open || !fileUrl) {
+      return;
+    }
+
+    setStatus("loading");
+    setPreviewUrl(null);
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+
+    fetch(fileUrl, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load document");
+        }
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        setPreviewUrl(objectUrl);
+        setIsPdf(blob.type === "application/pdf");
+        setStatus("ready");
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setStatus("error");
+        }
+      });
+
+    return () => {
+      controller.abort();
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
   }, [fileUrl, open]);
 
   return (
@@ -71,9 +97,26 @@ export function DocumentViewerModal({
         {fileUrl ? (
           <>
             <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)]">
-              {shouldRenderPdf ? (
+              {status === "loading" ? (
+                <div className="flex h-[70vh] items-center justify-center">
+                  <Spinner size={24} />
+                </div>
+              ) : status === "error" ? (
+                <div className="flex h-[70vh] flex-col items-center justify-center gap-2 px-6 text-center">
+                  <ImageOff
+                    className="h-8 w-8 text-[color:var(--text-tertiary)]"
+                    aria-hidden="true"
+                  />
+                  <p className="text-sm font-medium text-[color:var(--text-secondary)]">
+                    Unable to load this document
+                  </p>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">
+                    The file may have been moved or is no longer available.
+                  </p>
+                </div>
+              ) : isPdf ? (
                 <iframe
-                  src={fileUrl}
+                  src={previewUrl ?? undefined}
                   title={documentName ?? "Document preview"}
                   className="h-[70vh] w-full"
                 />
@@ -81,10 +124,9 @@ export function DocumentViewerModal({
                 <div className="flex h-[70vh] items-center justify-center overflow-auto p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={fileUrl}
+                    src={previewUrl ?? undefined}
                     alt={documentName ?? "Document preview"}
                     className="max-h-full max-w-full object-contain"
-                    onError={() => setImageFailed(true)}
                   />
                 </div>
               )}

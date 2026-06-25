@@ -144,7 +144,7 @@ describe("InsightsService.generateInsights", () => {
       responses: [resp("a"), resp("b"), resp("c")],
     });
     const gen = new FakeGenerator(); // SAMPLE has a quote
-    const out = await new InsightsService(repo, gen).generateInsights(HR);
+    const out = await new InsightsService(repo, gen).generateInsights({ ...HR, refresh: true });
     expect(gen.calls).toBe(1);
     expect(out.insight?.quotes).toEqual([]);
     expect(repo.upserts[0].payload.quotes).toEqual([]); // cached without quotes
@@ -153,8 +153,31 @@ describe("InsightsService.generateInsights", () => {
   it("keeps quotes for non-anonymous surveys", async () => {
     const repo = new FakeRepo(); // non-anonymous default, 3 responses
     const gen = new FakeGenerator();
-    const out = await new InsightsService(repo, gen).generateInsights(HR);
+    const out = await new InsightsService(repo, gen).generateInsights({ ...HR, refresh: true });
     expect(out.insight?.quotes.length).toBeGreaterThan(0);
+  });
+
+  it("does NOT call the LLM on a bare read with no cache — returns notGenerated", async () => {
+    const repo = new FakeRepo({ responses: [resp("a"), resp("b"), resp("c")] }); // no cache
+    const gen = new FakeGenerator();
+    const out = await new InsightsService(repo, gen).generateInsights(HR); // no refresh
+    expect(gen.calls).toBe(0);
+    expect(repo.upserts).toHaveLength(0);
+    expect(out.notGenerated).toBe(true);
+    expect(out.available).toBe(true);
+    expect(out.insight).toBeUndefined();
+  });
+
+  it("returns the cached payload on a bare read even when responseCount changed, no LLM", async () => {
+    const repo = new FakeRepo({
+      responses: [resp("a"), resp("b"), resp("c")], // now 3
+      cached: { payload: SAMPLE, responseCount: 2, model: "gpt-4o-mini" }, // cached at 2
+    });
+    const gen = new FakeGenerator();
+    const out = await new InsightsService(repo, gen).generateInsights(HR); // no refresh
+    expect(gen.calls).toBe(0);
+    expect(out.cached).toBe(true);
+    expect(out.insight).toBeDefined();
   });
 
   it("returns the cached payload without an LLM call when responseCount is unchanged", async () => {

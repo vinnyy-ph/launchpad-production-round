@@ -586,7 +586,7 @@ export class EvaluationsController {
 
       const url =
         doc.kind === "file"
-          ? this.cloudinaryService.getSupportingDocumentDownloadUrl(doc.url)
+          ? this.cloudinaryService.getSupportingDocumentProxyPath(doc.url)
           : doc.url;
       return res.json({ url });
     } catch (error) {

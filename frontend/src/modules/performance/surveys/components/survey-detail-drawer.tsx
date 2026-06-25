@@ -40,6 +40,7 @@ export function SurveyDetailDrawer({
     if (q.isError) return "Couldn't load the AI insight.";
     if (!data) return null;
     if (data.insight) return data.insight.oneLiner;
+    if (data.notGenerated) return "No AI summary yet — generate one from the full results.";
     if (data.reason === "no_open_text") return "No open-text questions to summarize.";
     if (data.suppressed) return "Not enough responses yet for an anonymous summary.";
     return "No written responses yet.";

@@ -13,6 +13,8 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/shared/ui/charts/palette";
 import { toast } from "sonner";
 import {
   Badge,
@@ -255,12 +257,67 @@ function BarRow({
   );
 }
 
+function MultipleChoicePieBody({
+  q,
+}: {
+  q: Extract<QuestionResult, { counts: Record<string, number> }>;
+}) {
+  const entries = Object.entries(q.counts);
+  const pieData = entries.map(([name, value]) => ({ name, value }));
+  return (
+    <div className="flex items-center justify-center gap-8">
+      <div className="w-[220px] flex-shrink-0">
+        <ResponsiveContainer width="100%" height={220}>
+          <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <Pie
+              data={pieData}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={0}
+              outerRadius="85%"
+            >
+              {pieData.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={CHART_TOOLTIP_STYLE}
+              formatter={(value) => [
+                `${Number(value)} (${pct(Number(value), q.responseCount)}%)`,
+                "",
+              ]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="min-w-0 space-y-2.5">
+        {entries.map(([opt, count], i) => (
+          <div key={opt} className="flex items-center gap-2">
+            <span
+              className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+              style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+            />
+            <span
+              className="min-w-0 shrink truncate text-[14px] text-[color:var(--text-primary)]"
+              title={opt}
+            >
+              {opt}
+            </span>
+            <span className="flex-shrink-0 whitespace-nowrap pl-1 text-[12px] text-[color:var(--text-tertiary)]">
+              <b className="font-semibold text-[color:var(--text-primary)]">{count}</b> ·{" "}
+              {pct(count, q.responseCount)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function QuestionCard({
   q,
-  isAnonymous,
 }: {
   q: QuestionResult;
-  isAnonymous: boolean;
 }) {
   return (
     <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
@@ -280,27 +337,21 @@ function QuestionCard({
 
       {q.type === "LINEAR_SCALE" && <ScaleBody q={q} />}
 
-      {(q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") && (
+      {q.type === "MULTIPLE_CHOICE" && <MultipleChoicePieBody q={q} />}
+
+      {q.type === "CHECKBOX" && (
         <>
           {Object.entries(q.counts).map(([opt, count]) => (
-            <BarRow
-              key={opt}
-              label={opt}
-              count={count}
-              total={q.responseCount}
-              soft={q.type === "CHECKBOX"}
-            />
+            <BarRow key={opt} label={opt} count={count} total={q.responseCount} soft />
           ))}
-          {q.type === "CHECKBOX" && (
-            <p className="mt-3.5 border-t border-[color:var(--border-secondary)] pt-3 text-[12px] text-[color:var(--text-quaternary)]">
-              People could pick more than one, so percentages add up past 100%.
-            </p>
-          )}
+          <p className="mt-3.5 border-t border-[color:var(--border-secondary)] pt-3 text-[12px] text-[color:var(--text-quaternary)]">
+            People could pick more than one, so percentages add up past 100%.
+          </p>
         </>
       )}
 
       {(q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER") && (
-        <OpenTextBody q={q} isAnonymous={isAnonymous} />
+        <OpenTextBody q={q} />
       )}
     </div>
   );
@@ -333,15 +384,13 @@ const OPEN_TEXT_PAGE_SIZE = 10;
 
 function OpenTextBody({
   q,
-  isAnonymous,
 }: {
   q: Extract<QuestionResult, { type: "SHORT_ANSWER" | "LONG_ANSWER" }>;
-  isAnonymous: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(OPEN_TEXT_PAGE_SIZE);
 
-  const hidden = isAnonymous || q.responses.length === 0;
+  const hidden = q.responses.length === 0;
 
   // Keep each response's original 1-based number stable even while filtered.
   const indexed = q.responses.map((text, i) => ({ text, number: i + 1 }));
@@ -364,11 +413,7 @@ function OpenTextBody({
           {q.responseCount} written {q.responseCount === 1 ? "response" : "responses"}
         </span>
       </div>
-      {isAnonymous ? (
-        <p className="rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[14px] text-[color:var(--text-tertiary)]">
-          Individual answers are hidden for anonymous surveys — only the response count is shown.
-        </p>
-      ) : hidden ? (
+      {hidden ? (
         <p className="text-[14px] text-[color:var(--text-tertiary)]">No responses yet.</p>
       ) : (
         <>
@@ -917,7 +962,7 @@ export function SurveyResults({
           ) : (
             <div className="space-y-4">
               {results.questions.map((q) => (
-                <QuestionCard key={q.questionId} q={q} isAnonymous={results.isAnonymous} />
+                <QuestionCard key={q.questionId} q={q} />
               ))}
             </div>
           )}
