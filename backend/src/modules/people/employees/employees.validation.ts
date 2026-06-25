@@ -10,6 +10,7 @@ import type {
   UpdateEmployeeProfileRequestDto,
 } from "./dto";
 import { assertSafeText } from "../../../core/validation/text-input";
+import { assertValidEmployeeBirthday } from "../../shared/employees/birthday.util";
 import { PEOPLE_TEXT_LIMITS } from "../people-text-limits";
 
 const DEFAULT_PAGE = 1;
@@ -306,6 +307,8 @@ export class EmployeesValidation {
     if (Number.isNaN(parsed.getTime())) {
       throw new Error("Invalid employee birthday");
     }
+
+    assertValidEmployeeBirthday(parsed);
 
     target[key] = parsed as T[keyof T];
   }

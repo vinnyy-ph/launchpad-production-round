@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -27,7 +27,14 @@ import { isValidPhilippinePhone } from "@/shared/lib/phone";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  getLatestAllowedEmployeeBirthday,
+  validateEmployeeBirthday,
+  validatePeopleNameLanguage,
+  validatePeopleFieldText,
+  validatePeopleText,
+} from "@/modules/people/people-text";
 import { useOnboardEmployee } from "../hooks/use-onboard-employee";
 import { useDocumentConfigs } from "../hooks/use-document-configs";
 import { sendInvitation } from "../services/onboarding.service";
@@ -137,6 +144,7 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
   const [supervisorId, setSupervisorId] = useState("");
   const [personalEmail, setPersonalEmail] = useState("");
   const [birthday, setBirthday] = useState<Date | undefined>();
+  const latestAllowedBirthday = useMemo(() => getLatestAllowedEmployeeBirthday(), []);
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
@@ -247,6 +255,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
 
     if (!trimmedFirst) {
       next.firstName = ADD_EMPLOYEE_FIELD_MESSAGES.firstNameRequired;
+    } else if (validatePeopleNameLanguage(trimmedFirst)) {
+      next.firstName = validatePeopleNameLanguage(trimmedFirst);
     } else if (
       !LETTERS_ONLY_RE.test(trimmedFirst) ||
       validatePeopleText(trimmedFirst, "First name", PEOPLE_TEXT_LIMITS.NAME)
@@ -255,13 +265,17 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
     if (
       trimmedMiddle &&
-      (!LETTERS_ONLY_RE.test(trimmedMiddle) ||
+      (validatePeopleNameLanguage(trimmedMiddle) ||
+        !LETTERS_ONLY_RE.test(trimmedMiddle) ||
         validatePeopleText(trimmedMiddle, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
     ) {
-      next.middleName = ADD_EMPLOYEE_FIELD_MESSAGES.middleName;
+      next.middleName =
+        validatePeopleNameLanguage(trimmedMiddle) ?? ADD_EMPLOYEE_FIELD_MESSAGES.middleName;
     }
     if (!trimmedLast) {
       next.lastName = ADD_EMPLOYEE_FIELD_MESSAGES.lastNameRequired;
+    } else if (validatePeopleNameLanguage(trimmedLast)) {
+      next.lastName = validatePeopleNameLanguage(trimmedLast);
     } else if (
       !LETTERS_ONLY_RE.test(trimmedLast) ||
       validatePeopleText(trimmedLast, "Last name", PEOPLE_TEXT_LIMITS.NAME)
@@ -270,6 +284,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
     if (!trimmedCompanyEmail) {
       next.companyEmail = ADD_EMPLOYEE_FIELD_MESSAGES.companyEmailRequired;
+    } else if (validatePeopleNameLanguage(trimmedCompanyEmail)) {
+      next.companyEmail = validatePeopleNameLanguage(trimmedCompanyEmail);
     } else if (
       !EMAIL_RE.test(trimmedCompanyEmail) ||
       validatePeopleText(trimmedCompanyEmail, "Work email", PEOPLE_TEXT_LIMITS.EMAIL)
@@ -278,6 +294,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
     if (!trimmedJobTitle) {
       next.jobTitle = ADD_EMPLOYEE_FIELD_MESSAGES.jobTitleRequired;
+    } else if (validatePeopleNameLanguage(trimmedJobTitle)) {
+      next.jobTitle = validatePeopleNameLanguage(trimmedJobTitle);
     } else if (
       !JOB_TITLE_RE.test(trimmedJobTitle) ||
       validatePeopleText(trimmedJobTitle, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
@@ -286,24 +304,32 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
     if (
       trimmedPersonalEmail &&
-      (!EMAIL_RE.test(trimmedPersonalEmail) ||
+      (validatePeopleNameLanguage(trimmedPersonalEmail) ||
+        !EMAIL_RE.test(trimmedPersonalEmail) ||
         validatePeopleText(trimmedPersonalEmail, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL))
     ) {
-      next.personalEmail = ADD_EMPLOYEE_FIELD_MESSAGES.personalEmail;
+      next.personalEmail =
+        validatePeopleNameLanguage(trimmedPersonalEmail) ??
+        ADD_EMPLOYEE_FIELD_MESSAGES.personalEmail;
     }
     if (
       trimmedAddress &&
-      (!STREET_ADDRESS_RE.test(trimmedAddress) ||
+      (validatePeopleNameLanguage(trimmedAddress) ||
+        !STREET_ADDRESS_RE.test(trimmedAddress) ||
         validatePeopleText(trimmedAddress, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE))
     ) {
-      next.address = ADD_EMPLOYEE_FIELD_MESSAGES.address;
+      next.address =
+        validatePeopleNameLanguage(trimmedAddress) ?? ADD_EMPLOYEE_FIELD_MESSAGES.address;
     }
     if (
       trimmedEmergencyName &&
-      (!LETTERS_ONLY_RE.test(trimmedEmergencyName) ||
+      (validatePeopleNameLanguage(trimmedEmergencyName) ||
+        !LETTERS_ONLY_RE.test(trimmedEmergencyName) ||
         validatePeopleText(trimmedEmergencyName, "Emergency contact name", PEOPLE_TEXT_LIMITS.NAME))
     ) {
-      next.emergencyContactName = ADD_EMPLOYEE_FIELD_MESSAGES.emergencyContactName;
+      next.emergencyContactName =
+        validatePeopleNameLanguage(trimmedEmergencyName) ??
+        ADD_EMPLOYEE_FIELD_MESSAGES.emergencyContactName;
     }
 
     const locationChecks: Array<[keyof FieldErrors, string, string, number]> = [
@@ -312,18 +338,13 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
       ["country", country.trim(), "Country", PEOPLE_TEXT_LIMITS.LOCATION],
     ];
     for (const [field, value, label, maxLen] of locationChecks) {
-      const error = value ? validatePeopleText(value, label, maxLen) : undefined;
+      const error = value ? validatePeopleFieldText(value, label, maxLen) : undefined;
       if (error) next[field] = error;
     }
     if (!department.trim()) next.department = "Select a department.";
     if (!supervisorId) next.supervisorId = "Select a supervisor.";
-    if (birthday) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selected = new Date(birthday);
-      selected.setHours(0, 0, 0, 0);
-      if (selected > today) next.birthday = "Birthday cannot be in the future.";
-    }
+    const birthdayError = validateEmployeeBirthday(birthday);
+    if (birthdayError) next.birthday = birthdayError;
     return next;
   }
 
@@ -332,6 +353,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
 
     if (field === "firstName") {
       if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.firstNameRequired;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
       return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.firstName
@@ -339,15 +362,19 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
 
     if (field === "middleName") {
-      return trimmed &&
-        (!LETTERS_ONLY_RE.test(trimmed) ||
-          validatePeopleText(trimmed, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
+      if (!trimmed) return undefined;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Middle name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.middleName
         : undefined;
     }
 
     if (field === "lastName") {
       if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.lastNameRequired;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
       return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.lastName
@@ -356,6 +383,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
 
     if (field === "companyEmail") {
       if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.companyEmailRequired;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
       return !EMAIL_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Work email", PEOPLE_TEXT_LIMITS.EMAIL)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.companyEmail
@@ -364,6 +393,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
 
     if (field === "jobTitle") {
       if (!trimmed) return ADD_EMPLOYEE_FIELD_MESSAGES.jobTitleRequired;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
       return !JOB_TITLE_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.jobTitle
@@ -371,6 +402,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
 
     if (field === "personalEmail") {
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
       return trimmed &&
         (!EMAIL_RE.test(trimmed) ||
           validatePeopleText(trimmed, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL))
@@ -379,6 +412,8 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
 
     if (field === "address") {
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
       return trimmed &&
         (!STREET_ADDRESS_RE.test(trimmed) ||
           validatePeopleText(trimmed, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE))
@@ -387,16 +422,18 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
     }
 
     if (field === "emergencyContactName") {
-      return trimmed &&
-        (!LETTERS_ONLY_RE.test(trimmed) ||
-          validatePeopleText(trimmed, "Emergency contact name", PEOPLE_TEXT_LIMITS.NAME))
+      if (!trimmed) return undefined;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
+        validatePeopleText(trimmed, "Emergency contact name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_EMPLOYEE_FIELD_MESSAGES.emergencyContactName
         : undefined;
     }
 
     if (field === "city" || field === "province" || field === "country") {
       const label = field[0].toUpperCase() + field.slice(1);
-      return trimmed ? validatePeopleText(trimmed, label, PEOPLE_TEXT_LIMITS.LOCATION) : undefined;
+      return trimmed ? validatePeopleFieldText(trimmed, label, PEOPLE_TEXT_LIMITS.LOCATION) : undefined;
     }
 
     return undefined;
@@ -592,27 +629,24 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   </SelectContent>
                 </Select>
               </FormField>
-              {department ? (
-                <FormField label="Supervisor" required error={errors.supervisorId}>
-                  <Combobox
-                    options={supervisorOptions}
-                    value={supervisorId}
-                    onChange={(value) => {
-                      setSupervisorId(value || "");
-                      setFieldError("supervisorId", value ? undefined : "Select a supervisor.");
-                    }}
-                    placeholder="Select a supervisor…"
-                    searchPlaceholder="Search employees…"
-                    emptyText={`No active employees in ${department}.`}
-                  />
-                </FormField>
-              ) : (
-                <FormField label="Supervisor" required>
-                  <p className="text-xs text-[color:var(--text-tertiary)]">
-                    Select a department first to choose a supervisor.
-                  </p>
-                </FormField>
-              )}
+              <FormField
+                label="Supervisor"
+                required
+                error={department ? errors.supervisorId : undefined}
+              >
+                <Combobox
+                  options={supervisorOptions}
+                  value={supervisorId}
+                  onChange={(value) => {
+                    setSupervisorId(value || "");
+                    setFieldError("supervisorId", value ? undefined : "Select a supervisor.");
+                  }}
+                  disabled={!department}
+                  placeholder={department ? "Select a supervisor…" : "Select a department first"}
+                  searchPlaceholder="Search employees…"
+                  emptyText={department ? `No active employees in ${department}.` : "No employees found."}
+                />
+              </FormField>
             </div>
           </section>
 
@@ -644,7 +678,12 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                 error={errors.birthday}
                 hint="Use the year and month dropdowns in the calendar to jump back quickly."
               >
-                <DatePicker value={birthday} onChange={setBirthday} disableFuture />
+                <DatePicker
+                  value={birthday}
+                  onChange={setBirthday}
+                  disableFuture
+                  maxDate={latestAllowedBirthday}
+                />
               </FormField>
             </div>
 

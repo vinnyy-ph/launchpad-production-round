@@ -7,7 +7,9 @@ import {
   Eye,
   FileText,
   History,
+  Lock,
   LogOut,
+  Mail,
   MapPin,
   Phone,
   Send,
@@ -42,7 +44,15 @@ import type { EmployeeDocument, EmployeeDocumentStatus } from "../services/emplo
 import { ProfileActivityHistory } from "./profile-activity-history";
 import { PhAddressFields } from "@/shared/ui/patterns/ph-address-fields";
 import { useDepartments } from "@/modules/people/departments/hooks/use-departments";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  EMPLOYEE_BIRTHDAY_TOO_YOUNG_MESSAGE,
+  getLatestAllowedEmployeeBirthday,
+  validateEmployeeBirthday,
+  validatePeopleNameLanguage,
+  validatePeopleFieldText,
+  validatePeopleText,
+} from "@/modules/people/people-text";
 import { useEmployeeActivityLogs } from "../hooks/use-employee-activity-logs";
 import { useEmployeeDocuments } from "../hooks/use-employee-documents";
 import { useEmployeeProfile } from "../hooks/use-employee-profile";
@@ -133,6 +143,7 @@ const SAVE_ERROR_MESSAGES: Record<string, string> = {
   "Supervisor not found":
     "The selected supervisor is no longer available. Please refresh the page and choose another.",
   "Invalid employee birthday": "Please enter a valid birthday.",
+  [EMPLOYEE_BIRTHDAY_TOO_YOUNG_MESSAGE]: EMPLOYEE_BIRTHDAY_TOO_YOUNG_MESSAGE,
 };
 
 const PROFILE_LETTERS_ONLY_RE = /^[A-Za-z\s]+$/;
@@ -153,6 +164,7 @@ const PROFILE_FIELD_MESSAGES: Partial<Record<keyof EditDraft | "firstNameRequire
   emergencyContactName: "Please enter a valid contact name using letters only.",
   jobTitle:
     "Please enter a valid role using letters, numbers, spaces, and common punctuation only.",
+  birthday: EMPLOYEE_BIRTHDAY_TOO_YOUNG_MESSAGE,
 };
 
 const PROFILE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -162,6 +174,8 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
 
   if (field === "firstName") {
     if (!trimmed) return PROFILE_FIELD_MESSAGES.firstNameRequired;
+    const languageError = validatePeopleNameLanguage(trimmed);
+    if (languageError) return languageError;
     return !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
       validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.firstName
@@ -169,15 +183,19 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
   }
 
   if (field === "middleName") {
-    return trimmed &&
-      (!PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
-        validatePeopleText(trimmed, "Middle name", PEOPLE_TEXT_LIMITS.NAME))
+    if (!trimmed) return undefined;
+    const languageError = validatePeopleNameLanguage(trimmed);
+    if (languageError) return languageError;
+    return !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
+      validatePeopleText(trimmed, "Middle name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.middleName
       : undefined;
   }
 
   if (field === "lastName") {
     if (!trimmed) return PROFILE_FIELD_MESSAGES.lastNameRequired;
+    const languageError = validatePeopleNameLanguage(trimmed);
+    if (languageError) return languageError;
     return !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
       validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.lastName
@@ -185,6 +203,8 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
   }
 
   if (field === "personalEmail") {
+    const languageError = validatePeopleNameLanguage(trimmed);
+    if (languageError) return languageError;
     return trimmed &&
       (!PROFILE_EMAIL_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Personal email", PEOPLE_TEXT_LIMITS.EMAIL))
@@ -194,6 +214,8 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
 
   if (field === "companyEmail") {
     if (!trimmed) return PROFILE_FIELD_MESSAGES.companyEmailRequired;
+    const languageError = validatePeopleNameLanguage(trimmed);
+    if (languageError) return languageError;
     return !PROFILE_EMAIL_RE.test(trimmed) ||
       validatePeopleText(trimmed, "Company email", PEOPLE_TEXT_LIMITS.EMAIL)
       ? PROFILE_FIELD_MESSAGES.companyEmail
@@ -201,6 +223,8 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
   }
 
   if (field === "address") {
+    const languageError = validatePeopleNameLanguage(trimmed);
+    if (languageError) return languageError;
     return trimmed &&
       (!PROFILE_STREET_ADDRESS_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Street address", PEOPLE_TEXT_LIMITS.ADDRESS_LINE))
@@ -209,14 +233,18 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
   }
 
   if (field === "emergencyContactName") {
-    return trimmed &&
-      (!PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
-        validatePeopleText(trimmed, "Contact name", PEOPLE_TEXT_LIMITS.NAME))
+    if (!trimmed) return undefined;
+    const languageError = validatePeopleNameLanguage(trimmed);
+    if (languageError) return languageError;
+    return !PROFILE_LETTERS_ONLY_RE.test(trimmed) ||
+      validatePeopleText(trimmed, "Contact name", PEOPLE_TEXT_LIMITS.NAME)
       ? PROFILE_FIELD_MESSAGES.emergencyContactName
       : undefined;
   }
 
   if (field === "jobTitle") {
+    const languageError = validatePeopleNameLanguage(trimmed);
+    if (languageError) return languageError;
     return trimmed &&
       (!PROFILE_JOB_TITLE_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Role", PEOPLE_TEXT_LIMITS.JOB_TITLE))
@@ -224,9 +252,13 @@ function validateProfileField(field: keyof EditDraft, value: string): string | u
       : undefined;
   }
 
+  if (field === "birthday") {
+    return validateEmployeeBirthday(trimmed);
+  }
+
   if (field === "country" || field === "province" || field === "city") {
     const label = field[0].toUpperCase() + field.slice(1);
-    return trimmed ? validatePeopleText(trimmed, label, PEOPLE_TEXT_LIMITS.LOCATION) : undefined;
+    return trimmed ? validatePeopleFieldText(trimmed, label, PEOPLE_TEXT_LIMITS.LOCATION) : undefined;
   }
 
   return undefined;
@@ -258,6 +290,7 @@ function inferDraftFieldFromMessage(message: string | undefined): keyof EditDraf
     emergencyContactName: "emergencyContactName",
     emergencyContactNumber: "emergencyContactNumber",
     jobTitle: "jobTitle",
+    birthday: "birthday",
     department: "department",
   };
   return aliases[rawField] ?? null;
@@ -412,22 +445,28 @@ function ReadField({
   value,
   icon: Icon,
   className = "",
+  id,
 }: {
   label: string;
   value: string | null | undefined;
   icon?: LucideIcon;
   className?: string;
+  id?: string;
 }) {
+  const inputId = id ?? label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return (
     <div className={`min-w-0 ${className}`}>
-      <p className="mb-2 text-xs font-medium text-[color:var(--text-tertiary)]">{label}</p>
+      <label htmlFor={inputId} className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
+        {label}
+      </label>
       <div className="relative">
         {Icon ? <Icon className={DISABLED_FIELD_ICON} strokeWidth={1.8} aria-hidden="true" /> : null}
         <Input
+          id={inputId}
           value={displayValue(value)}
           readOnly
           disabled
-          className={`min-w-0 truncate ${Icon ? DISABLED_FIELD_INPUT : "text-[color:var(--text-tertiary)] disabled:opacity-100"}`}
+          className={`min-w-0 truncate ${Icon ? DISABLED_FIELD_INPUT : "bg-[#FAFAFA] text-[color:var(--text-tertiary)] disabled:opacity-100"}`}
         />
       </div>
     </div>
@@ -570,6 +609,7 @@ export function EmployeeDetailsModal({
   const scrollContainerRef = useRef<HTMLElement>(null);
   const [activeSection, setActiveSection] = useState<EmployeeDetailsSection>("personal");
   const sidebarAction = profile ? sidebarActionLabel(profile.status) : null;
+  const latestAllowedBirthday = useMemo(() => getLatestAllowedEmployeeBirthday(), []);
 
   const savedDraft = useMemo(() => (profile ? draftFromProfile(profile) : blankDraft()), [profile]);
   const hasUnsavedChanges = profile ? !draftsMatch(draft, savedDraft) : false;
@@ -724,7 +764,6 @@ export function EmployeeDetailsModal({
       lastName: draft.lastName.trim(),
       birthday: nullableTrim(draft.birthday),
       personalEmail: nullableTrim(draft.personalEmail),
-      companyEmail: draft.companyEmail.trim(),
       address: {
         country: nullableTrim(draft.country),
         province: nullableTrim(draft.province),
@@ -1018,61 +1057,43 @@ export function EmployeeDetailsModal({
                                                                       PEOPLE_TEXT_LIMITS.EMAIL
                                                                   }
                                                               />
-                                                              <EditableField
+                                                              <ReadField
                                                                   label="Company email"
-                                                                  type="email"
-                                                                  value={
-                                                                      draft.companyEmail
-                                                                  }
-                                                                  onChange={(
-                                                                      value,
-                                                                  ) =>
-                                                                      updateDraft(
-                                                                          "companyEmail",
-                                                                          value,
-                                                                      )
-                                                                  }
-                                                                  required
-                                                                  error={
-                                                                      fieldErrors.companyEmail
-                                                                  }
-                                                                  maxLength={
-                                                                      PEOPLE_TEXT_LIMITS.EMAIL
-                                                                  }
+                                                                  value={draft.companyEmail}
+                                                                  icon={Mail}
                                                               />
                                                           </div>
 
-                                                          <div className="grid gap-4 lg:grid-cols-2 mb-5">
-                                                              <label>
-                                                                  <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
-                                                                      Birthday
+                                                          <label className="mb-5 block">
+                                                              <span className="mb-2 block text-xs font-medium text-[color:var(--text-tertiary)]">
+                                                                  Birthday
+                                                              </span>
+                                                              <DatePicker
+                                                                  disableFuture
+                                                                  maxDate={latestAllowedBirthday}
+                                                                  value={
+                                                                      draft.birthday
+                                                                          ? new Date(
+                                                                                `${draft.birthday}T00:00:00`,
+                                                                            )
+                                                                          : undefined
+                                                                  }
+                                                                  onChange={(next) =>
+                                                                      updateDraft(
+                                                                          "birthday",
+                                                                          next
+                                                                              ? format(next, "yyyy-MM-dd")
+                                                                              : "",
+                                                                      )
+                                                                  }
+                                                                  className="w-full"
+                                                              />
+                                                              {fieldErrors.birthday ? (
+                                                                  <span className="mt-1 block text-xs text-[#D92D20]">
+                                                                      {fieldErrors.birthday}
                                                                   </span>
-                                                                  <DatePicker
-                                                                      disableFuture
-                                                                      value={
-                                                                          draft.birthday
-                                                                              ? new Date(
-                                                                                    `${draft.birthday}T00:00:00`,
-                                                                                )
-                                                                              : undefined
-                                                                      }
-                                                                      onChange={(
-                                                                          next,
-                                                                      ) =>
-                                                                          updateDraft(
-                                                                              "birthday",
-                                                                              next
-                                                                                  ? format(
-                                                                                        next,
-                                                                                        "yyyy-MM-dd",
-                                                                                    )
-                                                                                  : "",
-                                                                          )
-                                                                      }
-                                                                      className="w-full"
-                                                                  />
-                                                              </label>
-                                                          </div>
+                                                              ) : null}
+                                                          </label>
 
                                                           <div>
                                                               <div className="mb-5 flex items-center gap-2">
@@ -1406,12 +1427,14 @@ export function EmployeeDetailsModal({
                                                                       value={
                                                                           selectedSupervisor?.email
                                                                       }
+                                                                      icon={Mail}
                                                                   />
                                                                   <ReadField
                                                                       label="Job Title"
                                                                       value={
                                                                           selectedSupervisor?.jobTitle
                                                                       }
+                                                                      icon={Lock}
                                                                   />
                                                               </div>
                                                           </div>
