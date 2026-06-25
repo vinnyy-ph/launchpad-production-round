@@ -20,6 +20,7 @@ export const SURVEY_ERROR_MESSAGES = {
   INVALID_STATUS: "status must be 'draft', 'active', or 'inactive'",
   SURVEY_ALREADY_ACTIVATED: "Cannot update questions, audienceType, audienceConfigs, isAnonymous, or recurringType after it has been activated",
   SURVEY_ALREADY_ACTIVE: "Survey is already active",
+  SURVEY_RELEASE_DATE_FUTURE: "Survey cannot be activated before its start date",
   SURVEY_ALREADY_INACTIVE: "Survey is already inactive",
   OCCURRENCE_NOT_FOUND: "Occurrence not found",
   RESULTS_FORBIDDEN: "You do not have permission to view results",

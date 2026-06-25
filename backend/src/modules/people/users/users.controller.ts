@@ -6,6 +6,7 @@ import {
   HTTP_STATUS_CODES,
 } from "../../../core/globals";
 import type {
+  ActivateUserResponseDto,
   CreateUserResponseDto,
   DeactivateUserResponseDto,
   ListUsersResponseDto,
@@ -79,6 +80,24 @@ export class UsersController {
       }
 
       const result = await this.usersService.deactivateUser(params.userId, req.user.id);
+
+      return res.json(result);
+    } catch (error) {
+      return this.handleError(error, res, next);
+    }
+  };
+
+  /**
+   * Handles PATCH /api/v1/users/:userId/activate to re-enable an account.
+   */
+  activateUser = async (
+    req: Request,
+    res: Response<ActivateUserResponseDto | ApiErrorResponseDto>,
+    next: NextFunction,
+  ) => {
+    try {
+      const params = this.usersValidation.parseUserIdParam(req.params);
+      const result = await this.usersService.activateUser(params.userId);
 
       return res.json(result);
     } catch (error) {
@@ -209,6 +228,14 @@ export class UsersController {
         success: false,
         message: API_ERROR_MESSAGES.USER_ALREADY_DEACTIVATED,
         errorCode: API_ERROR_CODES.USER_ALREADY_DEACTIVATED,
+      });
+    }
+
+    if (error.message === "User already active") {
+      return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+        success: false,
+        message: API_ERROR_MESSAGES.USER_ALREADY_ACTIVE,
+        errorCode: API_ERROR_CODES.USER_ALREADY_ACTIVE,
       });
     }
 

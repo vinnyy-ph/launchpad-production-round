@@ -13,6 +13,12 @@ export async function signInWithGoogle(rememberMe: boolean) {
   } = await import("firebase/auth");
   const { getFirebaseAuth, googleProvider } = await import("@/shared/lib/firebase");
   const auth = getFirebaseAuth();
+  await auth.authStateReady();
+  if (auth.currentUser) {
+    // Same browser already has a Firebase session (e.g. another tab). The /login
+    // guard should redirect; never open the popup to switch accounts silently.
+    return;
+  }
   await setPersistence(
     auth,
     rememberMe ? browserLocalPersistence : browserSessionPersistence,

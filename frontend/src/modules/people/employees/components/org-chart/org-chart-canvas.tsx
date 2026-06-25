@@ -36,7 +36,7 @@ interface OrgChartCanvasProps {
    * when the caller needs to portal overlays (e.g. a detail drawer) into the canvas so they stay
    * visible in full screen.
    */
-  containerRef?: RefObject<HTMLDivElement>;
+  containerRef?: RefObject<HTMLDivElement | null>;
   /** Notified whenever the canvas enters/exits full screen, so callers can react (e.g. re-portal). */
   onFullscreenChange?: (isFullscreen: boolean) => void;
   /** Expand every subtree. When set, an "Expand all" control appears on the canvas. */

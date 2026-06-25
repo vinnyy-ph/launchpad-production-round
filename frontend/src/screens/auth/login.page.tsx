@@ -169,7 +169,7 @@ function LegalDialog({
 
 export default function LoginPage() {
   const [status, setStatus] = useState<"idle" | "loading">("idle");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [legal, setLegal] = useState<LegalDoc | null>(null);
   const { authError } = useAuth();
   const loading = status === "loading";
@@ -212,8 +212,18 @@ export default function LoginPage() {
             Sign in to continue to your workspace.
           </p>
 
-          {/* Action group — mt-10 from the heading group above. */}
-          <GoogleSignInButton className="mt-10" onClick={handleSignIn} loading={loading} />
+          {authError && (
+            <p role="alert" className="mt-6 text-sm font-medium text-[color:var(--color-error-600)]">
+              {authError}
+            </p>
+          )}
+
+          {/* Action group — tighten when an error is shown so message and CTA stay visually linked. */}
+          <GoogleSignInButton
+            className={authError ? "mt-3" : "mt-10"}
+            onClick={handleSignIn}
+            loading={loading}
+          />
 
           <label className="mt-4 flex cursor-pointer items-start gap-2.5 self-start text-left">
             <Checkbox
@@ -227,12 +237,6 @@ export default function LoginPage() {
               Remember me
             </span>
           </label>
-
-          {authError && (
-            <p role="alert" className="mt-4 text-sm font-medium text-[color:var(--color-error-600)]">
-              {authError}
-            </p>
-          )}
 
           {/* Legal — mt-10 mirrors the heading→action gap above. */}
           <p className="mt-10 text-balance text-[12px] leading-[18px] text-[color:var(--text-tertiary)]">

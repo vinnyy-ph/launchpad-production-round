@@ -22,6 +22,7 @@ model Employee {
   clearanceSignatures        ClearanceSignatureRequest[]
   address                    EmployeeAddress?
   emergencyContact           EmployeeEmergencyContact?
+  notificationPreference     NotificationPreference?
   department                 Department?                    @relation(fields: [departmentId], references: [id])
   supervisor                 Employee?                      @relation("SupervisorTree", fields: [supervisorId], references: [id])
   directReports              Employee[]                     @relation("SupervisorTree")

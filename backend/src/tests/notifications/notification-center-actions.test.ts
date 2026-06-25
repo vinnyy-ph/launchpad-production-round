@@ -29,6 +29,7 @@ jest.mock("../../core/database/prisma.service", () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
     },
+    notificationPreference: { findUnique: jest.fn(), upsert: jest.fn() },
   },
 }));
 
