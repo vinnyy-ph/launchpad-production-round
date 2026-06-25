@@ -14,9 +14,9 @@ export function getFirstName(user: AppUser | null | undefined): string {
  * the two edge bands (early start / working late) win over the Friday line; Friday only
  * replaces morning/afternoon/evening.
  *
- * NOTE (flagged for devs): the "Welcome, [name]" first-ever-login line needs a real backend
- * signal (e.g. last-login is null) that `AppUser` doesn't expose yet, so it's intentionally
- * skipped here rather than guessed.
+ * Time-based by design. A first-ever-login "Welcome, [name]" line was scoped but dropped:
+ * it needs a real first-login signal (e.g. last-login is null) that neither `AppUser` nor the
+ * session response exposes — revisit if the backend adds one.
  */
 export function computeGreeting(now: Date, firstName: string): string {
   const suffix = firstName ? `, ${firstName}` : "";
