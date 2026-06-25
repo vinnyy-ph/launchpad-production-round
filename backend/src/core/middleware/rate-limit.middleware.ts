@@ -4,7 +4,7 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const isProduction = process.env.NODE_ENV === "production";
 
 /** General API traffic — applied to all routes in `app.ts`. */
-export const GLOBAL_RATE_LIMIT_MAX = 200;
+export const GLOBAL_RATE_LIMIT_MAX = 500;
 
 /** `/api/auth` in production — tighter cap to slow brute-force session attempts. */
 export const AUTH_RATE_LIMIT_MAX = 20;

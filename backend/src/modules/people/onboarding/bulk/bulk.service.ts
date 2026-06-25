@@ -186,19 +186,25 @@ export class BulkOnboardingService {
       });
     }
 
-    await Promise.all(
-      pendingInvites.map(async ({ rowNumber, recordId }) => {
-        try {
-          await this.invitationService.sendInvitation({ recordId });
-        } catch {
-          inviteFailures.push({
-            rowNumber,
-            field: "companyEmail",
-            message: "Invitation email could not be delivered.",
-          });
-        }
-      }),
-    );
+    // Send invitations in bounded batches so a large file doesn't fire hundreds of
+    // concurrent email sends at once (provider throttling / connection-pool spikes).
+    const INVITE_BATCH_SIZE = 10;
+    for (let i = 0; i < pendingInvites.length; i += INVITE_BATCH_SIZE) {
+      const batch = pendingInvites.slice(i, i + INVITE_BATCH_SIZE);
+      await Promise.all(
+        batch.map(async ({ rowNumber, recordId }) => {
+          try {
+            await this.invitationService.sendInvitation({ recordId });
+          } catch {
+            inviteFailures.push({
+              rowNumber,
+              field: "companyEmail",
+              message: "Invitation email could not be delivered.",
+            });
+          }
+        }),
+      );
+    }
 
     return {
       success: true,
