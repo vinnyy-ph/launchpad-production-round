@@ -51,7 +51,7 @@ export default function HomePage() {
   const orgHealth = buildOrgHealth(appUser?.role, stats);
 
   return (
-    <div className="mx-auto min-w-0 max-w-3xl space-y-7">
+    <div className="min-w-0 space-y-7">
       {/* Greeting — one slim line, not a card. (h1) */}
       <h1 className="text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
         {greeting ?? `Welcome${firstName ? `, ${firstName}` : ""}`}
