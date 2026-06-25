@@ -57,9 +57,12 @@ export function useUnsavedGuard({
       toast.error(message, {
         id: toastId,
         position: "top-center",
+        // Let the user discard-and-close right from the nudge, not just "save or discard first".
+        action: { label: "Discard", onClick: () => onOpenChange(false) },
         classNames: {
           toast: "employee-unsaved-toast-shake !border-[#B42318] !bg-[#FEF3F2] !text-[#7A271A]",
           title: "!text-[#7A271A]",
+          actionButton: "!bg-[#B42318] !text-white",
         },
       });
     });

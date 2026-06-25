@@ -678,9 +678,20 @@ export function EmployeeDetailsModal({
       toast.error("There are unsaved changes. Save or discard them before closing.", {
         id: toastId,
         position: "top-center",
+        // Discard-and-close: revert the draft (like the footer Discard) and close the modal.
+        action: {
+          label: "Discard",
+          onClick: () => {
+            setDraft(savedDraft);
+            setContactNumberError(null);
+            setFieldErrors({});
+            onOpenChange(false);
+          },
+        },
         classNames: {
           toast: "employee-unsaved-toast-shake !border-[color:var(--color-error-700)] !bg-[color:var(--color-error-50)] !text-[color:var(--color-error-900)]",
           title: "!text-[color:var(--color-error-900)]",
+          actionButton: "!bg-[color:var(--color-error-700)] !text-white",
         },
       });
     });
