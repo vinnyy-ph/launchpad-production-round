@@ -61,7 +61,7 @@ export function DocumentReviewCard({
       </div>
 
       {submission?.status === "rejected" && submission.rejectionNote ? (
-        <p className="mt-2 text-xs text-[#B42318]">{submission.rejectionNote}</p>
+        <p className="mt-2 text-xs text-[color:var(--color-error-700)]">{submission.rejectionNote}</p>
       ) : null}
 
       {submission ? (

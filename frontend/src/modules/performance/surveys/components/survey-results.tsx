@@ -13,6 +13,8 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "@/shared/ui/charts/palette";
 import { toast } from "sonner";
 import {
   Badge,
@@ -211,7 +213,7 @@ async function downloadPdf(
 
 function StatCard({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
+    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
       <div className="text-[30px] font-bold leading-none tracking-tight text-[color:var(--text-primary)]">
         {value}
       </div>
@@ -255,15 +257,70 @@ function BarRow({
   );
 }
 
+function MultipleChoicePieBody({
+  q,
+}: {
+  q: Extract<QuestionResult, { counts: Record<string, number> }>;
+}) {
+  const entries = Object.entries(q.counts);
+  const pieData = entries.map(([name, value]) => ({ name, value }));
+  return (
+    <div className="flex items-center justify-center gap-8">
+      <div className="w-[220px] flex-shrink-0">
+        <ResponsiveContainer width="100%" height={220}>
+          <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <Pie
+              data={pieData}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={0}
+              outerRadius="85%"
+            >
+              {pieData.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={CHART_TOOLTIP_STYLE}
+              formatter={(value) => [
+                `${Number(value)} (${pct(Number(value), q.responseCount)}%)`,
+                "",
+              ]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="min-w-0 space-y-2.5">
+        {entries.map(([opt, count], i) => (
+          <div key={opt} className="flex items-center gap-2">
+            <span
+              className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+              style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+            />
+            <span
+              className="min-w-0 shrink truncate text-[14px] text-[color:var(--text-primary)]"
+              title={opt}
+            >
+              {opt}
+            </span>
+            <span className="flex-shrink-0 whitespace-nowrap pl-1 text-[12px] text-[color:var(--text-tertiary)]">
+              <b className="font-semibold text-[color:var(--text-primary)]">{count}</b> ·{" "}
+              {pct(count, q.responseCount)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function QuestionCard({
   q,
-  isAnonymous,
 }: {
   q: QuestionResult;
-  isAnonymous: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
+    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-4">
         <div className="text-[12px] font-bold tracking-wide text-[color:var(--text-quaternary)]">
           {QTYPE_LABEL[q.type]}
@@ -280,27 +337,21 @@ function QuestionCard({
 
       {q.type === "LINEAR_SCALE" && <ScaleBody q={q} />}
 
-      {(q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") && (
+      {q.type === "MULTIPLE_CHOICE" && <MultipleChoicePieBody q={q} />}
+
+      {q.type === "CHECKBOX" && (
         <>
           {Object.entries(q.counts).map(([opt, count]) => (
-            <BarRow
-              key={opt}
-              label={opt}
-              count={count}
-              total={q.responseCount}
-              soft={q.type === "CHECKBOX"}
-            />
+            <BarRow key={opt} label={opt} count={count} total={q.responseCount} soft />
           ))}
-          {q.type === "CHECKBOX" && (
-            <p className="mt-3.5 border-t border-[color:var(--border-secondary)] pt-3 text-[12px] text-[color:var(--text-quaternary)]">
-              People could pick more than one, so percentages add up past 100%.
-            </p>
-          )}
+          <p className="mt-3.5 border-t border-[color:var(--border-secondary)] pt-3 text-[12px] text-[color:var(--text-quaternary)]">
+            People could pick more than one, so percentages add up past 100%.
+          </p>
         </>
       )}
 
       {(q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER") && (
-        <OpenTextBody q={q} isAnonymous={isAnonymous} />
+        <OpenTextBody q={q} />
       )}
     </div>
   );
@@ -333,15 +384,13 @@ const OPEN_TEXT_PAGE_SIZE = 10;
 
 function OpenTextBody({
   q,
-  isAnonymous,
 }: {
   q: Extract<QuestionResult, { type: "SHORT_ANSWER" | "LONG_ANSWER" }>;
-  isAnonymous: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(OPEN_TEXT_PAGE_SIZE);
 
-  const hidden = isAnonymous || q.responses.length === 0;
+  const hidden = q.responses.length === 0;
 
   // Keep each response's original 1-based number stable even while filtered.
   const indexed = q.responses.map((text, i) => ({ text, number: i + 1 }));
@@ -364,11 +413,7 @@ function OpenTextBody({
           {q.responseCount} written {q.responseCount === 1 ? "response" : "responses"}
         </span>
       </div>
-      {isAnonymous ? (
-        <p className="rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[14px] text-[color:var(--text-tertiary)]">
-          Individual answers are hidden for anonymous surveys — only the response count is shown.
-        </p>
-      ) : hidden ? (
+      {hidden ? (
         <p className="text-[14px] text-[color:var(--text-tertiary)]">No responses yet.</p>
       ) : (
         <>
@@ -606,8 +651,8 @@ export function ShareToSupervisorCard({
                     className={cn(
                       "cursor-pointer rounded-xl border px-4 py-2.5 text-left text-[14px] leading-relaxed transition-colors",
                       active
-                        ? "border-[#B54708] bg-[#FEF0C7] text-[#93370D]"
-                        : "border-[#FEDF89] bg-[#FFFAEB] text-[#854A0E] hover:border-[#F79009] hover:bg-[#FEF0C7]",
+                        ? "border-[color:var(--color-warning-700)] bg-[color:var(--color-warning-100)] text-[#93370D]"
+                        : "border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] text-[#854A0E] hover:border-[#F79009] hover:bg-[color:var(--color-warning-100)]",
                     )}
                   >
                     {s}
@@ -618,13 +663,9 @@ export function ShareToSupervisorCard({
           ) : suggestFailed ? (
             <p className="text-[12px] text-[color:var(--text-quaternary)]">
               Couldn&apos;t draft suggestions right now.{" "}
-              <button
-                type="button"
-                onClick={() => void fetchSuggestions()}
-                className="font-medium text-[color:var(--text-secondary)] underline underline-offset-2 hover:text-[color:var(--text-primary)]"
-              >
+              <Button type="button" variant="link" size="xs" onClick={() => void fetchSuggestions()}>
                 Try again
-              </button>
+              </Button>
             </p>
           ) : null}
         </div>
@@ -649,7 +690,7 @@ export function ShareToSupervisorCard({
  */
 function SharedNoteCard({ note }: { note: SharedNote }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
+    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-3 flex items-center gap-2">
         <MessageSquareText size={18} className="text-[color:var(--text-tertiary)]" />
         <h3 className="text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">
@@ -837,7 +878,7 @@ export function SurveyResults({
 
       {query.isError &&
         (isSmallTeamSupervisorBlock(query.error) ? (
-          <div className="flex gap-3 rounded-2xl border border-[#FEDF89] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
+          <div className="flex gap-3 rounded-2xl border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
             <Lock size={18} className="mt-0.5 flex-none" />
             <div>
               <p className="text-sm font-bold">Results hidden for this team&apos;s supervisor.</p>
@@ -853,12 +894,9 @@ export function SurveyResults({
             <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
               {query.error.message}
             </span>
-            <button
-              onClick={() => void query.refetch()}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-            >
-              <RefreshCw size={12} /> Retry
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => void query.refetch()}>
+              <RefreshCw /> Retry
+            </Button>
           </div>
         ))}
 
@@ -904,7 +942,7 @@ export function SurveyResults({
           )}
 
           {results.suppressed ? (
-            <div className="flex gap-3 rounded-2xl border border-[#FEDF89] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
+            <div className="flex gap-3 rounded-2xl border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] p-4 text-[color:var(--color-warning-600)]">
               <Lock size={18} className="mt-0.5 flex-none" />
               <div>
                 <p className="text-sm font-bold">Not enough responses to show results anonymously.</p>
@@ -924,7 +962,7 @@ export function SurveyResults({
           ) : (
             <div className="space-y-4">
               {results.questions.map((q) => (
-                <QuestionCard key={q.questionId} q={q} isAnonymous={results.isAnonymous} />
+                <QuestionCard key={q.questionId} q={q} />
               ))}
             </div>
           )}

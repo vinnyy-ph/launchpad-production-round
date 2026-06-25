@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AlertCircle, RefreshCw, BarChart3, ChevronRight, Lock } from "lucide-react";
-import { Badge } from "@/shared/ui";
+import { Badge, Button } from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
 import { useEnrichedPulseResults } from "@/modules/performance/surveys/hooks/use-enriched-pulse-results";
 import type { PulseCardModel } from "@/screens/supervisor/pulse-results.logic";
@@ -102,12 +102,9 @@ export function PulseResultCards() {
         <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
           <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
           <span className="flex-1 text-sm text-[color:var(--text-secondary)]">Could not load results.</span>
-          <button
-            onClick={refetch}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-          >
-            <RefreshCw size={12} /> Retry
-          </button>
+          <Button variant="ghost" size="sm" onClick={refetch}>
+            <RefreshCw /> Retry
+          </Button>
         </div>
       ) : cards.length === 0 ? (
         <EmptyState

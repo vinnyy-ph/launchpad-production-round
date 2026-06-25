@@ -25,7 +25,6 @@ function Avatar({ name, src, className }: { name: string; src?: string | null; c
       fallback={initials(name)}
       className={cn("h-9 w-9", className)}
       fallbackClassName="text-[12px] font-bold text-white"
-      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
 }
@@ -38,7 +37,7 @@ function TeamCard({ team }: { team: Team }) {
   return (
     <Link
       href={`/employee/teams/${team.id}`}
-      className="group flex flex-col rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-all hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex flex-col rounded-xl border border-[color:var(--border-primary)] bg-white p-5 transition-all hover:border-[color:var(--border-secondary)]"
       style={{ boxShadow: "var(--shadow-xs)" }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -131,14 +130,14 @@ export default function EmployeeTeamsPage() {
         </div>
       ) : error ? (
         <div
-          className="rounded-2xl border border-[color:var(--border-primary)] bg-white"
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: "var(--shadow-xs)" }}
         >
           <ErrorState message={error} onRetry={() => void reload()} />
         </div>
       ) : filtered.length === 0 ? (
         <div
-          className="rounded-2xl border border-[color:var(--border-primary)] bg-white"
+          className="rounded-xl border border-[color:var(--border-primary)] bg-white"
           style={{ boxShadow: "var(--shadow-xs)" }}
         >
           <EmptyState

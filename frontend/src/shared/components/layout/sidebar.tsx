@@ -61,7 +61,7 @@ export function Sidebar({
       <nav className="flex flex-col">
         {sections.map((section) => (
           <div key={section.title} className="flex flex-col">
-            <span className="px-5 pb-1 text-[12px] font-bold uppercase leading-[18px] tracking-[0.04em] text-[#A4A7AE]">
+            <span className="px-5 pb-1 text-[12px] font-bold uppercase leading-[18px] tracking-[0.04em] text-[color:var(--gray-neutral-400)]">
               {section.title}
             </span>
             <div className="flex flex-col px-2 pb-4">
@@ -76,21 +76,21 @@ export function Sidebar({
                     className={cn(
                       "flex h-9 items-center gap-2 rounded-md px-3 text-[14px] font-medium leading-5 transition-colors duration-100",
                       active
-                        ? "bg-[#EFF1F5] text-[#252B37]"
-                        : "text-[#414651] hover:bg-[#EFF1F5]"
+                        ? "bg-[color:var(--gray-100)] text-[color:var(--gray-neutral-800)]"
+                        : "text-[color:var(--gray-neutral-700)] hover:bg-[color:var(--gray-100)]"
                     )}
                   >
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
                       <Icon
                         size={18}
                         strokeWidth={2.5}
-                        className={active ? "text-[#414651]" : "text-[#717680]"}
+                        className={active ? "text-[color:var(--gray-neutral-700)]" : "text-[color:var(--gray-neutral-500)]"}
                         aria-hidden="true"
                       />
                     </span>
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.badge != null && item.badge > 0 && (
-                      <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[#D5D7DA] bg-white px-1.5 text-[12px] font-medium leading-none text-[#414651]">
+                      <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[color:var(--gray-neutral-300)] bg-white px-1.5 text-[12px] font-medium leading-none text-[color:var(--gray-neutral-700)]">
                         {item.badge}
                       </span>
                     )}
@@ -104,7 +104,7 @@ export function Sidebar({
 
       {/* Footer */}
       <div className="mt-auto px-4 pb-4 text-center">
-        <p className="text-[12px] font-medium leading-[18px] text-[#717680]">
+        <p className="text-[12px] font-medium leading-[18px] text-[color:var(--gray-neutral-500)]">
           © 2026
           <br />
           White Cloak Technologies, Inc.

@@ -9,10 +9,10 @@ const INVITE_LABELS: Record<OnboardingInvitationStatus, string> = {
 };
 
 const INVITE_TONE_CLASS: Record<OnboardingInvitationStatus, string> = {
-  pending: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]",
-  accepted: "bg-[#ECFDF3] text-[#067647] border-[#ABEFC6]",
-  expired: "bg-[#FAFAFA] text-[color:var(--text-secondary)] border-[#E9EAEB]",
-  failed_delivery: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]",
+  pending: "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]",
+  accepted: "bg-[color:var(--color-success-50)] text-[color:var(--color-success-700)] border-[color:var(--color-success-200)]",
+  expired: "bg-[color:var(--gray-neutral-50)] text-[color:var(--text-secondary)] border-[color:var(--gray-neutral-200)]",
+  failed_delivery: "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]",
 };
 
 /** Invitation lifecycle badge for HR onboarding lists and detail views. */

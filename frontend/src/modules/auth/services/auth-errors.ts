@@ -16,7 +16,7 @@ export function getSignInErrorMessage(error: unknown): string {
     return "Sign-in was cancelled.";
   }
 
-  return "Manage Jia couldn't sign you in. Try again.";
+  return "Manage Jia couldn't sign you in. Please try again.";
 }
 
 export function isBenignSignInCancel(error: unknown): boolean {

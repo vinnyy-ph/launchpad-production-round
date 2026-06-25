@@ -20,7 +20,7 @@ export function FormField({ label, htmlFor, error, hint, required, optional, hin
   const hintEl = hint && !error ? <p className="text-xs text-muted-foreground">{hint}</p> : null;
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={htmlFor} className="text-[color:var(--text-primary)]">
+      <Label htmlFor={htmlFor} className="text-[color:var(--text-secondary)]">
         {label}
         {required && <span className="text-destructive"> *</span>}
         {optional && <span className="ml-1.5 font-normal text-muted-foreground">optional</span>}

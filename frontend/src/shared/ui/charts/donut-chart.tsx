@@ -6,7 +6,8 @@ import { EmptyState } from "@/shared/ui/patterns/empty-state";
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from "./palette";
 
 export interface DonutChartProps {
-  data: { name: string; value: number }[];
+  /** Per-slice `color` is optional; when omitted a slice falls back to the categorical palette. */
+  data: { name: string; value: number; color?: string }[];
   height?: number;
   /** Anonymity guard: hide the chart until the summed n reaches this minimum. */
   minGroupSize?: number;
@@ -27,7 +28,7 @@ export function DonutChart({ data, height = 240, minGroupSize }: DonutChartProps
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
         <Pie data={data} dataKey="value" nameKey="name" innerRadius="60%" outerRadius="90%" paddingAngle={2}>
-          {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+          {data.map((d, i) => <Cell key={i} fill={d.color ?? CHART_COLORS[i % CHART_COLORS.length]} />)}
           <Label
             position="center"
             value={total}

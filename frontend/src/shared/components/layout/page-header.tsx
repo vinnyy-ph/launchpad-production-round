@@ -7,15 +7,16 @@ interface PageHeaderProps {
   /** Optional right-aligned action (e.g. a primary button). */
   action?: ReactNode;
   /**
-   * Heading scale. `"default"` (24px) for secondary pages; `"page"` bumps the
-   * h1 to display-sm (30px / 38px lh) for primary list-master pages.
+   * Heading scale. `"default"` (24px / display-xs) for secondary pages; `"page"`
+   * bumps the h1 to display-sm (30px / 38px lh) for primary list-master pages.
    */
   level?: "default" | "page";
 }
 
 /**
  * Shared page title for app screens: title + optional subtitle on the left,
- * optional action on the right. Stacks on mobile. Jia display scale, tokenized.
+ * optional action on the right. Stacks on mobile. Bold display title (Jia display
+ * scale) over a 16px text-md subtitle in text-tertiary, 4px apart.
  */
 export function PageHeader({ title, subtitle, action, level = "default" }: PageHeaderProps) {
   return (
@@ -30,7 +31,7 @@ export function PageHeader({ title, subtitle, action, level = "default" }: PageH
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-1 text-sm text-[color:var(--text-tertiary)]">{subtitle}</p>
+          <p className="mt-1 text-base text-[color:var(--text-tertiary)]">{subtitle}</p>
         )}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}

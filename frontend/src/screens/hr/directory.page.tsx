@@ -1,7 +1,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, Plus, Users } from "lucide-react";
+import { FileSpreadsheet, Plus, Users, UserRoundPlus, UserRoundMinus } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Button } from "@/shared/ui/primitives/button";
@@ -88,14 +88,13 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
   const overflowTeams = teams.slice(MAX_VISIBLE_TEAMS);
   const overflowCount = overflowTeams.length;
 
-  const teamBadgeClassName =
-    "max-w-[110px] truncate rounded-full border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]";
+  const teamBadgeClassName = "max-w-[110px] font-semibold";
 
   return (
-    <div className="inline-flex max-w-[260px] flex-wrap items-center justify-center gap-1.5">
+    <div className="inline-flex max-w-[260px] flex-wrap items-center justify-start gap-1.5">
       {visibleTeams.map((team) => (
-        <Badge key={team.id} variant="outline" pill className={teamBadgeClassName}>
-          {team.name}
+        <Badge key={team.id} variant="neutral" pill className={teamBadgeClassName}>
+          <span className="min-w-0 truncate">{team.name}</span>
         </Badge>
       ))}
 
@@ -105,7 +104,7 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex rounded-full"
                 aria-label={`${overflowCount} more teams`}
                 onClick={(event) => event.stopPropagation()}
               >
@@ -126,8 +125,8 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
               <p className="mb-2 text-xs font-bold text-[color:var(--text-primary)]">More Teams:</p>
               <div className="flex flex-wrap gap-2">
                 {overflowTeams.map((team) => (
-                  <Badge key={team.id} variant="outline" pill className={teamBadgeClassName}>
-                    {team.name}
+                  <Badge key={team.id} variant="neutral" pill className={teamBadgeClassName}>
+                    <span className="min-w-0 truncate">{team.name}</span>
                   </Badge>
                 ))}
               </div>
@@ -279,7 +278,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Job Title",
-      className: "min-w-[160px] text-center",
+      className: "min-w-[160px]",
       sortable: true,
       sortKey: "jobTitle",
       cell: (employee) => (
@@ -290,7 +289,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Department",
-      className: "min-w-[150px] text-center",
+      className: "min-w-[150px]",
       sortable: true,
       sortKey: "department",
       cell: (employee) => (
@@ -301,7 +300,7 @@ export default function DirectoryPage() {
     },
     {
       header: "Supervisor",
-      className: "min-w-[170px] text-center",
+      className: "min-w-[170px]",
       sortable: true,
       sortKey: "supervisor",
       cell: (employee) => (
@@ -312,14 +311,14 @@ export default function DirectoryPage() {
     },
     {
       header: "Team/s",
-      className: "min-w-[190px] text-center",
+      className: "min-w-[190px]",
       sortable: true,
       sortKey: "teams",
       cell: (employee) => <TeamsCell teams={employee.teams} />,
     },
     {
       header: "Status",
-      className: "min-w-[120px] text-center",
+      className: "min-w-[120px]",
       sortable: true,
       sortKey: "status",
       cell: (employee) => <StatusBadge status={employee.status} />,
@@ -359,9 +358,9 @@ export default function DirectoryPage() {
           </>
         }
         items={[
-          { value: "all", label: "All", count: counts.all },
-          { value: "onboarding", label: "Onboarding", count: counts.onboarding },
-          { value: "offboarding", label: "Offboarding", count: counts.offboarding },
+          { value: "all", label: "All", count: counts.all, icon: Users },
+          { value: "onboarding", label: "Onboarding", count: counts.onboarding, icon: UserRoundPlus },
+          { value: "offboarding", label: "Offboarding", count: counts.offboarding, icon: UserRoundMinus },
         ]}
       />
 
@@ -419,6 +418,20 @@ export default function DirectoryPage() {
                     hasFilters
                       ? "Try a different name, team, department, status, or supervisor."
                       : "Add your first employee to get started."
+                  }
+                  action={
+                    hasFilters
+                      ? {
+                          label: "Clear filters",
+                          onClick: () => {
+                            setSearch("");
+                            setTeamIds(new Set());
+                            setStatuses(new Set());
+                            setDepartmentIds(new Set());
+                            setSupervisorIds(new Set());
+                          },
+                        }
+                      : { label: "Add employee", onClick: () => setAddOpen(true) }
                   }
                 />
               }

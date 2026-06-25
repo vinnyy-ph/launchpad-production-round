@@ -17,6 +17,30 @@ export function Spinner({ className, size = 16 }: { className?: string; size?: n
   );
 }
 
+/**
+ * Jia diamond loader — the brand gradient shimmering across the DS gem silhouette.
+ * Use for standalone / full-surface branded waits (auth resolve, route transitions).
+ * For button-level affordances use `Spinner` (monochrome); for content use a skeleton.
+ */
+export function DiamondLoader({
+  size = 32,
+  className,
+  label = "Loading",
+}: {
+  size?: number;
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <span
+      role="status"
+      aria-label={label}
+      className={cn("jia-diamond-loader", className)}
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
 export function SkeletonText({ lines = 3, className }: { lines?: number; className?: string }) {
   return (
     <div className={cn("space-y-2", className)}>

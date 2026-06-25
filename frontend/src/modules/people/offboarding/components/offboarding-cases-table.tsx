@@ -174,6 +174,17 @@ export function OffboardingCasesTable() {
                   ? "Try a different search or filter."
                   : "Initiate offboarding to start a clearance process."
               }
+              action={
+                hasFilters
+                  ? {
+                      label: "Clear filters",
+                      onClick: () => {
+                        setSearch("");
+                        setStatusFilter(ALL);
+                      },
+                    }
+                  : undefined
+              }
             />
           }
           onRowClick={(r) => router.push(`/hr/directory/offboarding/${r.id}`)}
