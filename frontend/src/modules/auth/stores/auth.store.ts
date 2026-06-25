@@ -112,7 +112,7 @@ async function readSessionError(res: Response): Promise<string> {
     // Fall through to the friendly default below.
   }
 
-  return "We couldn't complete your sign-in. Please try again or contact your admin.";
+  return "Manage Jia couldn't sign you in. Please try again or contact your admin.";
 }
 
 async function syncAppUserFromFirebase(
@@ -181,7 +181,7 @@ async function syncAppUserFromFirebase(
     useAuthStore.setState({
       appUser: null,
       loading: false,
-      authError: "We couldn't complete your sign-in. Please try again.",
+      authError: "Manage Jia couldn't sign you in. Please try again.",
     });
   }
 }

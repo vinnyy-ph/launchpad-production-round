@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, RefreshCw, ArrowUpRight } from "lucide-react";
+import { AlertCircle, RefreshCw, ArrowUpRight, ShieldCheck, Activity, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -17,6 +17,11 @@ import {
   rowAriaLabel,
   type AttentionRow,
 } from "./home.logic";
+
+/** Per-metric icon for the org-health cards; unmapped ids fall back to a neutral pulse icon. */
+const ORG_HEALTH_ICONS: Record<string, LucideIcon> = {
+  clearances: ShieldCheck,
+};
 
 /** Calm entrance — whileInView fade + slight slide-up; reduced-motion honoured globally via MotionConfig. */
 const reveal = {
@@ -127,28 +132,39 @@ export default function HomePage() {
                 Org health
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {orgHealth.map((card) => (
-                  <motion.div {...reveal} key={card.id}>
-                    <Link
-                      href={card.href}
-                      className="group flex flex-col rounded-xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)]"
-                      style={{ boxShadow: "var(--shadow-xs)" }}
-                    >
-                      <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
-                        {card.label}
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-[color:var(--text-primary)]">{card.value}</p>
-                      <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[color:var(--text-secondary)]">
-                        {card.action}
-                        <ArrowUpRight
-                          size={13}
-                          className="text-[color:var(--text-quaternary)] transition-transform group-hover:translate-x-0.5"
-                          aria-hidden="true"
-                        />
-                      </span>
-                    </Link>
-                  </motion.div>
-                ))}
+                {orgHealth.map((card) => {
+                  const Icon = ORG_HEALTH_ICONS[card.id] ?? Activity;
+                  return (
+                    <motion.div {...reveal} key={card.id}>
+                      <Link
+                        href={card.href}
+                        className="group flex h-full flex-col rounded-xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)]"
+                        style={{ boxShadow: "var(--shadow-xs)" }}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)]">
+                            <Icon size={16} aria-hidden="true" />
+                          </span>
+                          <p className="text-sm font-semibold text-[color:var(--text-secondary)]">
+                            {card.label}
+                          </p>
+                        </div>
+                        <p className="mt-4 text-[34px] font-bold leading-none tracking-[-0.02em] text-[color:var(--text-primary)]">
+                          {card.count}
+                        </p>
+                        <p className="mt-1.5 text-sm text-[color:var(--text-tertiary)]">{card.unit}</p>
+                        <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[color:var(--text-secondary)]">
+                          {card.action}
+                          <ArrowUpRight
+                            size={13}
+                            className="text-[color:var(--text-quaternary)] transition-transform group-hover:translate-x-0.5"
+                            aria-hidden="true"
+                          />
+                        </span>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </div>
             </section>
           )}

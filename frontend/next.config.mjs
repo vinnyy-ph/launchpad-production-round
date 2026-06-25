@@ -41,6 +41,9 @@ const nextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Firebase signInWithPopup polls popup.closed; without this the cross-origin
+          // Google popup is opaque to the opener and sign-in can't detect completion.
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",

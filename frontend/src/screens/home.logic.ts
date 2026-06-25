@@ -14,9 +14,9 @@ export function getFirstName(user: AppUser | null | undefined): string {
  * the two edge bands (early start / working late) win over the Friday line; Friday only
  * replaces morning/afternoon/evening.
  *
- * NOTE (flagged for devs): the "Welcome, [name]" first-ever-login line needs a real backend
- * signal (e.g. last-login is null) that `AppUser` doesn't expose yet, so it's intentionally
- * skipped here rather than guessed.
+ * Time-based by design. A first-ever-login "Welcome, [name]" line was scoped but dropped:
+ * it needs a real first-login signal (e.g. last-login is null) that neither `AppUser` nor the
+ * session response exposes — revisit if the backend adds one.
  */
 export function computeGreeting(now: Date, firstName: string): string {
   const suffix = firstName ? `, ${firstName}` : "";
@@ -146,21 +146,27 @@ export function buildPriority(zones: AttentionZones): { count: number; primary: 
 export interface OrgHealthCard {
   id: string;
   label: string;
-  value: string;
+  /** The metric itself, shown big; `unit` labels it (e.g. 4 + "clearances"). */
+  count: number;
+  unit: string;
   action: string;
   href: string;
 }
 
 /**
- * Org-health row (HR/Admin). Only "clearances in progress" has a real field today.
- * FLAGGED, not mocked: the onboarding pipeline breakdown (accepted/expired/failed, PEO-21) and
- * the pulse response rate (PER-20) need new dashboard fields before their cards can render.
+ * Org-health cards (HR/Admin) — context metrics the viewer actually acts on, shown as a count +
+ * a link to where the work lives. Only "clearances in progress" qualifies today; org-wide vanity
+ * headcounts (e.g. total active employees) are intentionally excluded as not relevant to the user.
+ *
+ * FLAGGED, not mocked: month-over-month delta pills (no trend field on DashboardStats), the
+ * onboarding pipeline breakdown (accepted/expired/failed, PEO-21) and the pulse response rate
+ * (PER-20) need new dashboard fields before they can render.
  */
 export function buildOrgHealth(role: string | undefined, stats: DashboardStats | null): OrgHealthCard[] {
   if (role !== "HR" && role !== "ADMIN") return [];
   const cards: OrgHealthCard[] = [];
   if (stats?.pendingClearances != null) {
-    cards.push({ id: "clearances", label: "Clearances in progress", value: plural(stats.pendingClearances, "clearance"), action: "View clearances", href: "/hr/directory?tab=offboarding" });
+    cards.push({ id: "clearances", label: "Clearances in progress", count: stats.pendingClearances, unit: stats.pendingClearances === 1 ? "clearance" : "clearances", action: "View clearances", href: "/hr/directory?tab=offboarding" });
   }
   return cards;
 }
