@@ -154,9 +154,9 @@ export interface OrgHealthCard {
 }
 
 /**
- * Org-health cards (HR/Admin) — context metrics with a real DashboardStats field, shown as a
- * count + a link to where it lives. Actionable counts (onboarding/offboarding) stay in the
- * attention zones, not duplicated here.
+ * Org-health cards (HR/Admin) — context metrics the viewer actually acts on, shown as a count +
+ * a link to where the work lives. Only "clearances in progress" qualifies today; org-wide vanity
+ * headcounts (e.g. total active employees) are intentionally excluded as not relevant to the user.
  *
  * FLAGGED, not mocked: month-over-month delta pills (no trend field on DashboardStats), the
  * onboarding pipeline breakdown (accepted/expired/failed, PEO-21) and the pulse response rate
@@ -165,9 +165,6 @@ export interface OrgHealthCard {
 export function buildOrgHealth(role: string | undefined, stats: DashboardStats | null): OrgHealthCard[] {
   if (role !== "HR" && role !== "ADMIN") return [];
   const cards: OrgHealthCard[] = [];
-  if (stats?.activeEmployees != null) {
-    cards.push({ id: "active-employees", label: "Active employees", count: stats.activeEmployees, unit: stats.activeEmployees === 1 ? "person" : "people", action: "View directory", href: "/hr/directory" });
-  }
   if (stats?.pendingClearances != null) {
     cards.push({ id: "clearances", label: "Clearances in progress", count: stats.pendingClearances, unit: stats.pendingClearances === 1 ? "clearance" : "clearances", action: "View clearances", href: "/hr/directory?tab=offboarding" });
   }

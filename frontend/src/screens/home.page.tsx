@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, RefreshCw, ArrowUpRight, ShieldCheck, Users, Activity, type LucideIcon } from "lucide-react";
+import { AlertCircle, RefreshCw, ArrowUpRight, ShieldCheck, Activity, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -20,7 +20,6 @@ import {
 
 /** Per-metric icon for the org-health cards; unmapped ids fall back to a neutral pulse icon. */
 const ORG_HEALTH_ICONS: Record<string, LucideIcon> = {
-  "active-employees": Users,
   clearances: ShieldCheck,
 };
 
