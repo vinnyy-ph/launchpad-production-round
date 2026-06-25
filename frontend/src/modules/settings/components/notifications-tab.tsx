@@ -319,8 +319,8 @@ export function NotificationsTab() {
           >
             Discard
           </Button>
-          <Button type="button" size="sm" disabled={saving} onClick={() => void handleSave()}>
-            <Check aria-hidden="true" /> {saving ? "Saving…" : "Save changes"}
+          <Button type="button" size="sm" loading={saving} onClick={() => void handleSave()}>
+            {!saving && <Check aria-hidden="true" />} {saving ? "Saving…" : "Save changes"}
           </Button>
         </footer>
       )}

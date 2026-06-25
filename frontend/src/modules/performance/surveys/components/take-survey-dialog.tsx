@@ -271,7 +271,7 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
                   ? `${requiredCount} required ${requiredCount === 1 ? "question" : "questions"}`
                   : "All questions optional"}
               </span>
-              <Button onClick={handleSubmit} disabled={submit.isPending}>
+              <Button onClick={handleSubmit} disabled={submit.isPending} loading={submit.isPending}>
                 {submit.isPending ? "Submitting…" : "Submit response"}
               </Button>
             </div>

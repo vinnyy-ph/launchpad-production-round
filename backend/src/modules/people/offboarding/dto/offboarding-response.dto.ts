@@ -35,6 +35,7 @@ export interface SignatureRequestDto {
   requirements: string;
   status: "PENDING" | "SIGNED" | "REJECTED";
   note: string | null;
+  signatureImage: string | null;
   actionAt: string | null;
 }
 

@@ -1669,6 +1669,7 @@ export function EmployeeDetailsModal({
                                           type="submit"
                                           size="sm"
                                           disabled={saving}
+                                          loading={saving}
                                       >
                                           <Check />{" "}
                                           {saving

@@ -147,7 +147,7 @@ export function DepartmentFormDialog({
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => void handleSubmit()} disabled={saving}>
+          <Button onClick={() => void handleSubmit()} disabled={saving} loading={saving}>
             {saving
               ? isEdit
                 ? "Saving…"

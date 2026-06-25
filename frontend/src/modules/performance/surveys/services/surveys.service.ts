@@ -20,6 +20,7 @@ import type {
   RespondentRoster,
   IndividualAnswers,
   SurveyInsight,
+  GeneratedQuestion,
 } from "../types/surveys.types";
 import { normalizeQuestionOptions } from "../types/surveys.types";
 
@@ -250,6 +251,20 @@ export async function fetchSurveyOccurrences(
 export async function fetchVisibleResultSurveys(): Promise<VisibleResultSurvey[]> {
   const res = await apiFetch<{ data: VisibleResultSurvey[] }>(`${PULSE}/me/result-surveys`);
   return res.data;
+}
+
+/**
+ * HR-only: generate draft survey questions from a plain-language goal. The server constrains output
+ * to the five valid question types and validates before returning. Questions carry no id/orderIndex.
+ */
+export async function generateAiQuestions(
+  input: { goal: string; count: number },
+): Promise<GeneratedQuestion[]> {
+  const res = await apiFetch<{ data: { questions: GeneratedQuestion[] } }>(
+    `${BASE}/ai/questions`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+  return res.data.questions;
 }
 
 /** AI summary of a survey's open-text responses. Visibility/anonymity enforced server-side. */

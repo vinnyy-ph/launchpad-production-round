@@ -58,7 +58,7 @@ export function AiInsightsPanel({
           </h2>
         </div>
         {data?.insight && (
-          <Button variant="ghost" size="sm" onClick={handleRegenerate} disabled={regenerating}>
+          <Button variant="ghost" size="sm" onClick={handleRegenerate} disabled={regenerating} loading={regenerating}>
             <RefreshCw size={14} className={cn(regenerating && "animate-spin")} />
             Regenerate
           </Button>

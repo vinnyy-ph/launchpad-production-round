@@ -169,7 +169,7 @@ function LegalDialog({
 
 export default function LoginPage() {
   const [status, setStatus] = useState<"idle" | "loading">("idle");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [legal, setLegal] = useState<LegalDoc | null>(null);
   const { authError } = useAuth();
   const loading = status === "loading";

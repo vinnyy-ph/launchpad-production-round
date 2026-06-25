@@ -84,8 +84,10 @@ import type {
   QuestionInput,
   AudienceConfigInput,
   VisibilityConfigInput,
+  GeneratedQuestion,
 } from "../types/surveys.types";
 import { RECURRING_TYPE_LABEL, QUESTION_TYPE_LABEL } from "../types/surveys.types";
+import { AiQuestionGeneratorPanel } from "./ai-question-generator-panel";
 
 // ─── Local builder state ──────────────────────────────────────────────────────
 
@@ -626,6 +628,25 @@ export function SurveyBuilderDialog({
   // ── Question helpers ──
   const addQuestion = (type: QuestionType) =>
     setForm((f) => ({ ...f, questions: [...f.questions, defaultQuestion(type)] }));
+
+  const appendGeneratedQuestions = (generated: GeneratedQuestion[]) =>
+    setForm((f) => ({
+      ...f,
+      questions: [
+        ...f.questions,
+        ...generated.map((g) => ({
+          id: uid(),
+          type: g.type,
+          questionText: g.questionText,
+          isRequired: g.isRequired,
+          options: g.options ?? [],
+          scaleMin: g.scaleMin ?? 1,
+          scaleMax: g.scaleMax ?? 5,
+          scaleMinLabel: g.scaleMinLabel ?? "",
+          scaleMaxLabel: g.scaleMaxLabel ?? "",
+        })),
+      ],
+    }));
 
   const updateQuestion = (qid: string, patch: Partial<DraftQuestion>) =>
     setForm((f) => ({
@@ -1292,6 +1313,10 @@ export function SurveyBuilderDialog({
                   </p>
                 )}
 
+                {!isLocked && (
+                  <AiQuestionGeneratorPanel onGenerated={appendGeneratedQuestions} disabled={isLocked} />
+                )}
+
                 {form.questions.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-[color:var(--border-strong)] py-10 text-center">
                     <p className="text-sm text-[color:var(--text-tertiary)]">
@@ -1606,13 +1631,13 @@ export function SurveyBuilderDialog({
                 <Button variant="secondary" onClick={onClose} disabled={saving}>
                   Close
                 </Button>
-                <Button onClick={() => submit(false)} disabled={saving}>
+                <Button onClick={() => submit(false)} disabled={saving} loading={saving}>
                   {saving ? "Saving…" : "Save changes"}
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="secondary" onClick={() => submit(false)} disabled={saving || loading}>
+                <Button variant="secondary" onClick={() => submit(false)} disabled={saving || loading} loading={saving}>
                   Save as draft
                 </Button>
                 <Button onClick={openLaunch} disabled={saving || loading}>
