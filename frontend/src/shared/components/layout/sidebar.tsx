@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
+import { useDashboard } from "@/modules/dashboard/hooks/use-dashboard";
 import { visibleSections, WORKSPACE_NAME } from "./nav-config";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { cn } from "@/shared/lib/utils";
@@ -19,6 +20,11 @@ export function Sidebar({
 
   // Single source of truth: every section whose role lane this user holds, in fixed order.
   const sections = visibleSections(appUser);
+
+  // Live count on the employee Performance item: pulses still to answer + evaluations still to
+  // acknowledge. Shares the React-Query dashboard cache, so this adds no extra fetch.
+  const { stats } = useDashboard();
+  const performanceBadge = (stats?.unreadSurveys ?? 0) + (stats?.pendingAcknowledgements ?? 0);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -68,6 +74,7 @@ export function Sidebar({
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
+                const badge = item.id === "performance" ? performanceBadge : item.badge;
                 return (
                   <Link
                     key={item.href}
@@ -89,9 +96,9 @@ export function Sidebar({
                       />
                     </span>
                     <span className="flex-1 truncate">{item.label}</span>
-                    {item.badge != null && item.badge > 0 && (
+                    {badge != null && badge > 0 && (
                       <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[color:var(--gray-neutral-300)] bg-white px-1.5 text-[12px] font-medium leading-none text-[color:var(--gray-neutral-700)]">
-                        {item.badge}
+                        {badge}
                       </span>
                     )}
                   </Link>
