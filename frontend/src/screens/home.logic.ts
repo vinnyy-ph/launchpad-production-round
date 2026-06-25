@@ -60,19 +60,17 @@ export function rowAriaLabel(row: AttentionRow): string {
  */
 export interface AttentionZones {
   forYou: AttentionRow[];
-  yourTeam: AttentionRow[] | null;
   organization: AttentionRow[] | null;
 }
 
 export function buildAttentionZones(input: {
   role: string | undefined;
-  isSupervisor: boolean | undefined;
   employeeStatus: EmployeeStatus | undefined;
   stats: DashboardStats | null;
   /** Clearances awaiting the signed-in user's signature (from useAssignedClearances). */
   pendingSignatures: number;
 }): AttentionZones {
-  const { role, isSupervisor, employeeStatus, stats: s, pendingSignatures } = input;
+  const { role, employeeStatus, stats: s, pendingSignatures } = input;
 
   // For you — the employee lane everyone holds.
   const forYou: AttentionRow[] = [];
@@ -88,18 +86,6 @@ export function buildAttentionZones(input: {
   if (employeeStatus === "ONBOARDING" && s?.pendingDocuments) {
     forYou.push({ id: "docs", count: s.pendingDocuments, label: `${plural(s.pendingDocuments, "onboarding document")} to submit`, action: "Submit documents", href: "/employee/onboarding" });
   }
-
-  // Your team — supervisor lane. Only "evaluations to send" has a real field today; the
-  // awaiting-acknowledgement count and team-scoped onboarding/offboarding are flagged (no data).
-  const yourTeam = isSupervisor
-    ? (() => {
-        const rows: AttentionRow[] = [];
-        if (s?.pendingEvaluations) {
-          rows.push({ id: "drafts", count: s.pendingEvaluations, label: `${plural(s.pendingEvaluations, "evaluation")} to send`, action: "Open drafts", href: "/supervisor/evaluations?status=draft" });
-        }
-        return rows;
-      })()
-    : null;
 
   // The organization — HR / Admin lane. Documents-to-review, clearance-rejected and
   // invitations-to-resend are flagged (no data); onboarding/offboarding/clearances are real.
@@ -120,7 +106,7 @@ export function buildAttentionZones(input: {
         })()
       : null;
 
-  return { forYou, yourTeam, organization };
+  return { forYou, organization };
 }
 
 /** Priority order for the band CTA: clearance > onboarding/offboarding > eval ack > pulse. */
@@ -130,43 +116,14 @@ const PRIORITY_RANK: Record<string, number> = {
   onboard: 2,
   offboard: 2,
   acks: 3,
-  drafts: 3,
   pulses: 4,
   docs: 4,
 };
 
 /** Band summary: how many things are pending across all zones, and the single top action. */
 export function buildPriority(zones: AttentionZones): { count: number; primary: AttentionRow | null } {
-  const all = [...zones.forYou, ...(zones.yourTeam ?? []), ...(zones.organization ?? [])];
+  const all = [...zones.forYou, ...(zones.organization ?? [])];
   const primary = [...all].sort((a, b) => (PRIORITY_RANK[a.id] ?? 9) - (PRIORITY_RANK[b.id] ?? 9))[0] ?? null;
   return { count: all.length, primary };
 }
 
-/** A trending / linking org-health card (HR only). Static headcounts are intentionally excluded. */
-export interface OrgHealthCard {
-  id: string;
-  label: string;
-  /** The metric itself, shown big; `unit` labels it (e.g. 4 + "clearances"). */
-  count: number;
-  unit: string;
-  action: string;
-  href: string;
-}
-
-/**
- * Org-health cards (HR/Admin) — context metrics the viewer actually acts on, shown as a count +
- * a link to where the work lives. Only "clearances in progress" qualifies today; org-wide vanity
- * headcounts (e.g. total active employees) are intentionally excluded as not relevant to the user.
- *
- * FLAGGED, not mocked: month-over-month delta pills (no trend field on DashboardStats), the
- * onboarding pipeline breakdown (accepted/expired/failed, PEO-21) and the pulse response rate
- * (PER-20) need new dashboard fields before they can render.
- */
-export function buildOrgHealth(role: string | undefined, stats: DashboardStats | null): OrgHealthCard[] {
-  if (role !== "HR" && role !== "ADMIN") return [];
-  const cards: OrgHealthCard[] = [];
-  if (stats?.pendingClearances != null) {
-    cards.push({ id: "clearances", label: "Clearances in progress", count: stats.pendingClearances, unit: stats.pendingClearances === 1 ? "clearance" : "clearances", action: "View clearances", href: "/hr/directory?tab=offboarding" });
-  }
-  return cards;
-}

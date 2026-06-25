@@ -673,11 +673,7 @@ export function AddEmployeeDialog({ open, onOpenChange, onStarted }: AddEmployee
                   maxLength={PEOPLE_TEXT_LIMITS.EMAIL}
                 />
               </FormField>
-              <FormField
-                label="Birthday"
-                error={errors.birthday}
-                hint="Use the year and month dropdowns in the calendar to jump back quickly."
-              >
+              <FormField label="Birthday" error={errors.birthday}>
                 <DatePicker
                   value={birthday}
                   onChange={setBirthday}
