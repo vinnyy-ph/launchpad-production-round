@@ -89,10 +89,13 @@ export function OffboardingCasesTable() {
             }}
           />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+            <p title={fullName(r.employee)} className="truncate text-sm font-medium text-[color:var(--text-primary)]">
               {fullName(r.employee)}
             </p>
-            <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+            <p
+              title={`${r.employee.jobTitle ?? "—"}${r.employee.department ? ` · ${r.employee.department}` : ""}`}
+              className="truncate text-xs text-[color:var(--text-tertiary)]"
+            >
               {r.employee.jobTitle ?? "—"}
               {r.employee.department ? ` · ${r.employee.department}` : ""}
             </p>

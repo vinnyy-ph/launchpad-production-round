@@ -108,7 +108,12 @@ export function SettingsModal() {
                         }}
                       />
                     )}
-                    <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
+                    <Icon
+                      size={20}
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                      className="flex-shrink-0 text-[color:var(--gray-neutral-400)]"
+                    />
                     <span className="truncate">{item.label}</span>
                   </button>
                 );

@@ -1,6 +1,6 @@
 # Manage Jia
 
-> People and performance, in one place.
+> Where your people do their best work.
 
 Manage Jia is a full-stack HR platform that covers the employee lifecycle — onboarding, the people directory, teams and org structure, performance evaluations, pulse surveys, and offboarding clearance — behind Google SSO with role-based access for Admins, HR, and Employees.
 
