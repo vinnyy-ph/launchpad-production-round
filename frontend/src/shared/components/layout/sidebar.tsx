@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
+import { useDashboard } from "@/modules/dashboard/hooks/use-dashboard";
+import { useMySurveys } from "@/modules/performance/surveys/hooks/use-my-surveys";
 import { visibleSections, WORKSPACE_NAME } from "./nav-config";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { cn } from "@/shared/lib/utils";
@@ -19,6 +21,14 @@ export function Sidebar({
 
   // Single source of truth: every section whose role lane this user holds, in fixed order.
   const sections = visibleSections(appUser);
+
+  // Live count on the employee Performance item: pulses still to answer + evaluations still to
+  // acknowledge. The survey count comes from the same to-answer list the Performance page shows
+  // (useMySurveys), NOT the dashboard's broader "open surveys" stat, so the badge matches the
+  // page's "Surveys" tab exactly. pendingAcknowledgements already matches the "Evaluations" tab.
+  const { stats } = useDashboard();
+  const { data: mySurveys } = useMySurveys();
+  const performanceBadge = (mySurveys?.length ?? 0) + (stats?.pendingAcknowledgements ?? 0);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -68,6 +78,7 @@ export function Sidebar({
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
+                const badge = item.id === "performance" ? performanceBadge : item.badge;
                 return (
                   <Link
                     key={item.href}
@@ -82,16 +93,16 @@ export function Sidebar({
                   >
                     <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
                       <Icon
-                        size={18}
-                        strokeWidth={2.5}
-                        className={active ? "text-[color:var(--gray-neutral-700)]" : "text-[color:var(--gray-neutral-500)]"}
+                        size={20}
+                        strokeWidth={1.75}
+                        className="text-[color:var(--gray-neutral-400)]"
                         aria-hidden="true"
                       />
                     </span>
                     <span className="flex-1 truncate">{item.label}</span>
-                    {item.badge != null && item.badge > 0 && (
-                      <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[color:var(--gray-neutral-300)] bg-white px-1.5 text-[12px] font-medium leading-none text-[color:var(--gray-neutral-700)]">
-                        {item.badge}
+                    {badge != null && badge > 0 && (
+                      <span className="ml-auto inline-flex h-5 min-w-[22px] items-center justify-center rounded-md border border-[color:var(--gray-neutral-300)] bg-white px-1.5 text-[11px] font-medium leading-none text-[color:var(--gray-neutral-700)]">
+                        {badge}
                       </span>
                     )}
                   </Link>

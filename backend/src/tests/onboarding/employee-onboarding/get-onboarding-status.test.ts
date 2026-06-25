@@ -29,6 +29,17 @@ jest.mock("../../../core/database/prisma.service", () => ({
 }));
 
 describe("GET /api/v1/employee-onboarding/status", () => {
+  const env = process.env;
+
+  beforeAll(() => {
+    // Resolving document URLs into proxy paths signs a capability token with this secret.
+    process.env = { ...env, CLOUDINARY_API_SECRET: "test-secret" };
+  });
+
+  afterAll(() => {
+    process.env = env;
+  });
+
   beforeEach(() => {
     resetEmployeeOnboardingMocks();
   });
@@ -79,11 +90,17 @@ describe("GET /api/v1/employee-onboarding/status", () => {
       .get("/api/v1/employee-onboarding/status")
       .expect(200);
 
-    expect(response.body.data.documents[0].latestSubmission).toMatchObject({
+    const latestSubmission =
+      response.body.data.documents[0].latestSubmission;
+    expect(latestSubmission).toMatchObject({
       id: "submission-id",
-      fileUrl: legacyUrl,
       status: "pending",
     });
+    // Legacy external URLs are proxied through our own origin so they stay viewable
+    // under the page CSP instead of being framed cross-origin.
+    expect(latestSubmission.fileUrl).toMatch(
+      /^\/api\/v1\/documents\/view\/nbi-clearance\.pdf\?token=/,
+    );
   });
 
   it("returns 404 when no onboarding record exists", async () => {

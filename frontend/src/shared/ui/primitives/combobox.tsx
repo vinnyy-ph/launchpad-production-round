@@ -60,7 +60,7 @@ export function Combobox({
           disabled={disabled}
           className={cn(
             // Matches .dd-trigger: 40px, 8px radius, g-300 border, shadow-xs, 14px weight 500.
-            "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white px-3.5 text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-[.38]",
+            "flex h-10 w-full items-center justify-between gap-2 overflow-hidden rounded-md border border-input bg-white px-3.5 text-sm font-medium text-[color:var(--text-primary)] shadow-xs transition-colors hover:bg-gray-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-[.38]",
             // Open → 45° gradient border ring + soft shadow.
             "aria-[expanded=true]:border-transparent aria-[expanded=true]:shadow-[0_0_0_3px_rgba(24,29,39,0.06)] aria-[expanded=true]:[background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(45deg,#fccec0,#ebacc9_33%,#ceb6da_66%,#9fcaed)_border-box]",
             !selected && "text-[color:var(--gray-neutral-400)]",
@@ -88,7 +88,7 @@ export function Combobox({
               )}
             </span>
           ) : (
-            placeholder
+            <span className="min-w-0 truncate">{placeholder}</span>
           )}
           <ChevronDown
             className={cn(

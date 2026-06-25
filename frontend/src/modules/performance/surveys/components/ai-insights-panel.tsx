@@ -32,21 +32,29 @@ export function AiInsightsPanel({
   hasOpenText: boolean;
   isAnonymous: boolean;
 }) {
-  const [enabled, setEnabled] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const q = useSurveyInsights(surveyId, { enabled });
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState(false);
+  // Reads the cached summary on mount (cheap, no LLM spend). Generation only happens on click.
+  const q = useSurveyInsights(surveyId, { enabled: true });
   const data = q.data;
 
   if (!hasOpenText) return null;
 
-  const handleRegenerate = async () => {
-    setRegenerating(true);
+  // Used by both the first-time CTA and Regenerate — both force a server-side generate.
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setGenError(false);
     try {
       await q.regenerate();
+    } catch {
+      setGenError(true);
     } finally {
-      setRegenerating(false);
+      setGenerating(false);
     }
   };
+
+  const loading = q.isLoading || generating;
+  const hasError = q.isError || genError;
 
   return (
     <div className={cn(CARD, "mb-5")}>
@@ -57,30 +65,16 @@ export function AiInsightsPanel({
             AI insights
           </h2>
         </div>
-        {data?.insight && (
-          <Button variant="ghost" size="sm" onClick={handleRegenerate} disabled={regenerating} loading={regenerating}>
-            <RefreshCw size={14} className={cn(regenerating && "animate-spin")} />
+        {data?.insight && !loading && (
+          <Button variant="ghost" size="sm" onClick={handleGenerate} disabled={generating} loading={generating}>
+            <RefreshCw size={14} className={cn(generating && "animate-spin")} />
             Regenerate
           </Button>
         )}
       </div>
 
-      {/* Initial CTA */}
-      {!enabled && (
-        <div className="mt-4 flex flex-col items-start gap-3">
-          <p className="text-[14px] text-[color:var(--text-tertiary)]">
-            Summarize the written responses into key themes, overall sentiment
-            {isAnonymous ? "" : ", and notable quotes"}.
-          </p>
-          <Button variant="secondary" size="sm" onClick={() => setEnabled(true)}>
-            <Sparkles size={15} className="text-[color:var(--brand-blue)]" />
-            Generate AI summary
-          </Button>
-        </div>
-      )}
-
-      {/* Loading */}
-      {enabled && (q.isLoading || regenerating) && (
+      {/* Generating (LLM call) */}
+      {generating && (
         <div className="mt-4 flex flex-col items-center gap-1 py-4">
           <img
             src="/brand/ai-analysis-loading.gif?v=2"
@@ -97,21 +91,43 @@ export function AiInsightsPanel({
         </div>
       )}
 
+      {/* Initial cache read */}
+      {q.isLoading && !generating && (
+        <div className="mt-4 flex items-center gap-2 py-2 text-[13px] text-[color:var(--text-tertiary)]">
+          <RefreshCw size={14} className="animate-spin" />
+          Loading…
+        </div>
+      )}
+
+      {/* Not generated yet → CTA */}
+      {!loading && !hasError && data?.notGenerated && (
+        <div className="mt-4 flex flex-col items-start gap-3">
+          <p className="text-[14px] text-[color:var(--text-tertiary)]">
+            Summarize the written responses into key themes, overall sentiment
+            {isAnonymous ? "" : ", and notable quotes"}.
+          </p>
+          <Button variant="secondary" size="sm" onClick={handleGenerate}>
+            <Sparkles size={15} className="text-[color:var(--brand-blue)]" />
+            Generate AI summary
+          </Button>
+        </div>
+      )}
+
       {/* Error */}
-      {enabled && q.isError && !regenerating && (
+      {!loading && hasError && (
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
           <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
           <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
             Couldn&apos;t generate the summary.
           </span>
-          <Button variant="ghost" size="sm" onClick={() => void q.refetch()}>
+          <Button variant="ghost" size="sm" onClick={handleGenerate}>
             <RefreshCw /> Retry
           </Button>
         </div>
       )}
 
       {/* Unavailable / suppressed */}
-      {data && !data.insight && (
+      {!loading && !hasError && data && !data.insight && !data.notGenerated && (
         <p className="mt-4 rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[14px] text-[color:var(--text-tertiary)]">
           {data.reason === "no_responses"
             ? "No written responses yet — the summary will appear once people answer."
@@ -122,7 +138,7 @@ export function AiInsightsPanel({
       )}
 
       {/* Success */}
-      {data?.insight && (
+      {!loading && !hasError && data?.insight && (
         <div className="mt-4 space-y-4">
           <div className="rounded-xl bg-[color:var(--gradient-jia,var(--bg-secondary))] p-4">
             <p className="text-[16px] font-semibold leading-snug text-[color:var(--text-primary)]">

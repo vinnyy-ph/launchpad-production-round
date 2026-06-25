@@ -1,9 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
   BulkUploadDropzone,
   fieldLabel,
   normalizeSpreadsheetRow,
+  OPTIONAL_COLUMNS,
   REQUIRED_COLUMNS,
+  TEMPLATE_SAMPLE_ROWS,
   TEMPLATE_COLUMNS,
 } from "@/modules/people/onboarding/components/bulk/bulk-upload-dropzone";
 import type { BulkOnboardingPreviewResult } from "@/modules/people/onboarding/types/onboarding.types";
@@ -16,6 +19,42 @@ jest.mock("sonner", () => ({
     error: jest.fn(),
     success: jest.fn(),
   },
+}));
+
+jest.mock("@/modules/people/employees/hooks/use-employees", () => ({
+  useAllEmployees: () => ({
+    employees: [
+      {
+        id: "supervisor-1",
+        userId: "user-1",
+        firstName: "Jane",
+        middleName: null,
+        lastName: "Manager",
+        fullName: "Jane Manager",
+        companyEmail: "jane.manager@example.com",
+        avatarUrl: null,
+        jobTitle: "Engineering Manager",
+        department: "Engineering",
+        address: null,
+        emergencyContact: null,
+        teams: [],
+        supervisor: null,
+        status: "active",
+      },
+    ],
+    loading: false,
+    error: null,
+    reload: jest.fn(),
+  }),
+}));
+
+jest.mock("@/modules/people/departments/hooks/use-departments", () => ({
+  useDepartments: () => ({
+    departments: [{ id: "dept-1", name: "Engineering" }],
+    loading: false,
+    error: null,
+    reload: jest.fn(),
+  }),
 }));
 
 jest.mock("xlsx", () => ({
@@ -99,6 +138,14 @@ describe("BulkUploadDropzone supervisor email flow", () => {
     expect(TEMPLATE_COLUMNS).not.toContain("supervisorId");
   });
 
+  it("leaves optional personal fields blank in template sample rows", () => {
+    for (const row of TEMPLATE_SAMPLE_ROWS) {
+      for (const column of OPTIONAL_COLUMNS) {
+        expect(row[column]).toBe("");
+      }
+    }
+  });
+
   it("maps supervisor email aliases from spreadsheets", () => {
     expect(
       normalizeSpreadsheetRow(
@@ -127,12 +174,24 @@ describe("BulkUploadDropzone supervisor email flow", () => {
     });
   });
 
-  it("labels supervisor errors as supervisor email", () => {
-    expect(fieldLabel("supervisorEmail")).toBe("Supervisor email");
-    expect(fieldLabel("supervisorId")).toBe("Supervisor email");
+  it("labels supervisor errors as supervisor", () => {
+    expect(fieldLabel("supervisorEmail")).toBe("Supervisor");
+    expect(fieldLabel("supervisorId")).toBe("Supervisor");
   });
 
-  it("shows resolved supervisor name and email in the review table", async () => {
+  it("shows the updated subtitle, check rows button, and primary CTA", () => {
+    render(<BulkUploadDropzone open onOpenChange={jest.fn()} />);
+
+    expect(
+      screen.getByText(
+        "Upload an .xlsx with one employee per row. Every row is checked before any records are created.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create and send invites" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("shows department and supervisor pickers in the review table", async () => {
     renderDropzone({
       totalRows: 1,
       validRows: 1,
@@ -153,12 +212,15 @@ describe("BulkUploadDropzone supervisor email flow", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Jane Manager")).toBeInTheDocument();
+      expect(screen.getByLabelText("Row 1 department")).toBeInTheDocument();
     });
-    expect(screen.getByText("jane.manager@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "" })).toBeInTheDocument();
+    expect(screen.queryByText("Start with the template")).not.toBeInTheDocument();
+    expect(screen.getByText("bulk.xlsx")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check rows" })).toBeInTheDocument();
   });
 
-  it("shows supervisor not found for unresolved supervisor emails", async () => {
+  it("shows supervisor validation errors in the error panel", async () => {
     renderDropzone({
       totalRows: 1,
       validRows: 0,
@@ -185,8 +247,277 @@ describe("BulkUploadDropzone supervisor email flow", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Supervisor not found")).toBeInTheDocument();
+      expect(screen.getAllByText("Supervisor not found.").length).toBeGreaterThan(0);
     });
-    expect(screen.getAllByText("jane.manager@example.com").length).toBeGreaterThan(0);
+  });
+
+  it("removes the uploaded file when the chip remove button is clicked", async () => {
+    renderDropzone({
+      totalRows: 1,
+      validRows: 1,
+      invalidRows: 0,
+      errors: [],
+      rows: [
+        {
+          rowNumber: 1,
+          employeeName: "New Hire",
+          companyEmail: "new.hire@example.com",
+          jobTitle: "Engineer",
+          department: "Engineering",
+          supervisorEmail: "jane.manager@example.com",
+          supervisorName: "Jane Manager",
+          status: "valid",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("bulk.xlsx")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Remove bulk.xlsx" }));
+
+    expect(screen.queryByText("bulk.xlsx")).not.toBeInTheDocument();
+    expect(screen.getByText("Start with the template")).toBeInTheDocument();
+  });
+
+  it("shows Clear instead of Cancel after a file is uploaded", async () => {
+    renderDropzone({
+      totalRows: 1,
+      validRows: 1,
+      invalidRows: 0,
+      errors: [],
+      rows: [
+        {
+          rowNumber: 1,
+          employeeName: "New Hire",
+          companyEmail: "new.hire@example.com",
+          jobTitle: "Engineer",
+          department: "Engineering",
+          supervisorEmail: "jane.manager@example.com",
+          supervisorName: "Jane Manager",
+          status: "valid",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByText("Start with the template")).toBeInTheDocument();
+  });
+
+  it("marks rows stale on edit and re-checks only when Check rows is clicked", async () => {
+    renderDropzone({
+      totalRows: 1,
+      validRows: 1,
+      invalidRows: 0,
+      errors: [],
+      rows: [
+        {
+          rowNumber: 1,
+          employeeName: "New Hire",
+          companyEmail: "new.hire@example.com",
+          jobTitle: "Engineer",
+          department: "Engineering",
+          supervisorEmail: "jane.manager@example.com",
+          supervisorName: "Jane Manager",
+          status: "valid",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Row 1 first name")).toBeInTheDocument();
+    });
+
+    mutatePreview.mockClear();
+    fireEvent.change(screen.getByLabelText("Row 1 first name"), {
+      target: { value: "Updated" },
+    });
+
+    expect(mutatePreview).not.toHaveBeenCalled();
+    expect(screen.getByText("Changes not checked yet")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Check rows" }));
+
+    await waitFor(() => {
+      expect(mutatePreview).toHaveBeenCalled();
+    });
+  });
+
+  it("shows required, empty-space, unsafe text, and profanity errors live on edit", async () => {
+    renderDropzone({
+      totalRows: 1,
+      validRows: 1,
+      invalidRows: 0,
+      errors: [],
+      rows: [
+        {
+          rowNumber: 1,
+          employeeName: "New Hire",
+          companyEmail: "new.hire@example.com",
+          jobTitle: "Engineer",
+          department: "Engineering",
+          supervisorEmail: "jane.manager@example.com",
+          supervisorName: "Jane Manager",
+          status: "valid",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Row 1 first name")).toBeInTheDocument();
+    });
+
+    mutatePreview.mockClear();
+    fireEvent.change(screen.getByLabelText("Row 1 first name"), { target: { value: "f*ck" } });
+    fireEvent.change(screen.getByLabelText("Row 1 last name"), { target: { value: "   " } });
+    fireEvent.change(screen.getByLabelText("Row 1 job title"), {
+      target: { value: "<script>alert(1)</script>" },
+    });
+    fireEvent.change(screen.getByLabelText("Row 1 work email"), {
+      target: { value: "" },
+    });
+
+    expect(mutatePreview).not.toHaveBeenCalled();
+    expect(screen.getAllByText("Work email is required.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Last name cannot be empty spaces.").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        "Please enter a valid job title using letters, numbers, spaces, and common punctuation only.",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Please remove any offensive or inappropriate language.").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("highlights duplicate work email errors in the error panel", async () => {
+    renderDropzone({
+      totalRows: 1,
+      validRows: 0,
+      invalidRows: 1,
+      errors: [
+        {
+          rowNumber: 1,
+          field: "companyEmail",
+          message: "An employee with this email already exists.",
+        },
+      ],
+      rows: [
+        {
+          rowNumber: 1,
+          employeeName: "New Hire",
+          companyEmail: "new.hire@example.com",
+          jobTitle: "Engineer",
+          department: "Engineering",
+          supervisorEmail: "jane.manager@example.com",
+          supervisorName: "Jane Manager",
+          status: "invalid",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("An employee with this email already exists.").length,
+      ).toBeGreaterThan(0);
+    });
+    expect(screen.getByLabelText("Row 1 work email")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("maps invalid API field errors to friendly copy", async () => {
+    renderDropzone({
+      totalRows: 1,
+      validRows: 0,
+      invalidRows: 1,
+      errors: [
+        {
+          rowNumber: 1,
+          field: "companyEmail",
+          message: "Invalid companyEmail",
+        },
+      ],
+      rows: [
+        {
+          rowNumber: 1,
+          employeeName: "New Hire",
+          companyEmail: "new.hire",
+          jobTitle: "Engineer",
+          department: "Engineering",
+          supervisorEmail: "jane.manager@example.com",
+          supervisorName: "Jane Manager",
+          status: "invalid",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("Please enter a valid work email address.").length,
+      ).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText("Invalid companyEmail")).not.toBeInTheDocument();
+  });
+
+  it("shows required, unsafe text, and profanity row messages", async () => {
+    renderDropzone({
+      totalRows: 1,
+      validRows: 0,
+      invalidRows: 1,
+      errors: [
+        {
+          rowNumber: 1,
+          field: "firstName",
+          message: "First name is required.",
+        },
+        {
+          rowNumber: 1,
+          field: "lastName",
+          message: "Last name cannot be empty spaces.",
+        },
+        {
+          rowNumber: 1,
+          field: "jobTitle",
+          message: "Job title must not contain HTML or control characters",
+        },
+        {
+          rowNumber: 1,
+          field: "department",
+          message: "Please remove any offensive or inappropriate language.",
+        },
+      ],
+      rows: [
+        {
+          rowNumber: 1,
+          employeeName: "-",
+          companyEmail: "new.hire@example.com",
+          jobTitle: "<script>alert(1)</script>",
+          department: "f*ck",
+          supervisorEmail: "jane.manager@example.com",
+          supervisorName: "Jane Manager",
+          status: "invalid",
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText("First name is required.").length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText("Last name cannot be empty spaces.").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        "Please enter a valid job title using letters, numbers, spaces, and common punctuation only.",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Please remove any offensive or inappropriate language.").length,
+    ).toBeGreaterThan(0);
   });
 });
