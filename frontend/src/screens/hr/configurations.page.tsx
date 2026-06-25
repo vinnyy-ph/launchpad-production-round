@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { Building2, ClipboardList, FileCheck2 } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { PageTabs } from "@/shared/ui/patterns";
 import { DepartmentsPanel } from "@/modules/people/departments/components/departments-panel";
@@ -44,9 +45,9 @@ export default function ConfigurationsPage() {
         value={tab}
         onChange={(next) => router.replace(configHref(next as ConfigTab))}
         items={[
-          { value: "departments", label: "Departments" },
-          { value: "onboarding", label: "Onboarding setup" },
-          { value: "clearances", label: "Clearances" },
+          { value: "departments", label: "Departments", icon: Building2 },
+          { value: "onboarding", label: "Onboarding setup", icon: ClipboardList },
+          { value: "clearances", label: "Clearances", icon: FileCheck2 },
         ]}
       />
 

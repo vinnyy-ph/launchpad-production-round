@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ClipboardList, X } from "lucide-react";
+import { Button } from "@/shared/ui";
 import { useMySurveys } from "../hooks/use-my-surveys";
 
 /**
@@ -30,7 +31,7 @@ export function UnansweredSurveyBanner() {
   return (
     <div
       role="alert"
-      className="flex items-center gap-3 border-b border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-100)] px-6 py-2.5"
+      className="flex items-center gap-3 border-b border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] px-6 py-2.5"
     >
       <ClipboardList
         size={15}
@@ -41,18 +42,20 @@ export function UnansweredSurveyBanner() {
         You have {count} pulse survey{count > 1 ? "s" : ""} waiting for your response.{" "}
         <Link
           href={href}
-          className="font-semibold text-[color:var(--color-warning-700)] underline-offset-2 hover:underline"
+          className="rounded-sm font-semibold text-[color:var(--color-warning-700)] underline-offset-2 hover:underline"
         >
           Answer now
         </Link>
       </p>
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
-        className="flex-shrink-0 rounded p-0.5 text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
+        className="flex-shrink-0"
       >
-        <X size={14} />
-      </button>
+        <X />
+      </Button>
     </div>
   );
 }

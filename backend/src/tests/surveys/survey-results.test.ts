@@ -345,11 +345,11 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     expect(JSON.stringify(qs)).not.toContain("[object Object]");
   });
 
-  it("hides individual SHORT_ANSWER text when isAnonymous = true (at/above the min-group threshold)", async () => {
+  it("shows SHORT_ANSWER text even when isAnonymous = true (responses carry no identity)", async () => {
     const s = mockSurvey({ isAnonymous: true });
     surveyFindFirstMock.mockResolvedValue(s);
 
-    // 3 responses → at/above MIN_GROUP, so the breakdown shows, but anonymous free text is withheld.
+    // 3 responses → at/above MIN_GROUP, breakdown shows and free text is included (no names attached).
     const responses = [
       { id: "res-1", answers: [{ questionId: "q-1", answerText: "Feedback one", answerData: null }] },
       { id: "res-2", answers: [{ questionId: "q-1", answerText: "Feedback two", answerData: null }] },
@@ -364,7 +364,7 @@ describe("GET /api/v1/pulse/surveys/:id/results", () => {
     expect(response.body.data.questions[0]).toMatchObject({
       questionId: "q-1",
       responseCount: 3,
-      responses: [],
+      responses: ["Feedback one", "Feedback two", "Feedback three"],
     });
   });
 

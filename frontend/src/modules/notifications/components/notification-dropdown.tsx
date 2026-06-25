@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Bell, CheckCheck, Trash2 } from "lucide-react";
-import { Skeleton } from "@/shared/ui";
+import { Button, Skeleton } from "@/shared/ui";
 import { NotificationItem } from "./notification-item";
 import type { Notification } from "../types/notifications.types";
 
@@ -18,7 +18,7 @@ interface Props {
 }
 
 const HEADER_BTN =
-  "flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "px-1.5 text-[color:var(--text-tertiary)] hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-secondary)]";
 
 export function NotificationDropdown({
   notifications,
@@ -43,13 +43,13 @@ export function NotificationDropdown({
         {hasItems && (
           <div className="flex items-center gap-0.5">
             {unreadCount > 0 && (
-              <button className={HEADER_BTN} onClick={onMarkAllRead}>
-                <CheckCheck size={13} aria-hidden="true" /> Mark all read
-              </button>
+              <Button variant="ghost" size="xs" className={HEADER_BTN} onClick={onMarkAllRead}>
+                <CheckCheck aria-hidden="true" /> Mark all read
+              </Button>
             )}
-            <button className={HEADER_BTN} onClick={() => setConfirmClear(true)}>
-              <Trash2 size={13} aria-hidden="true" /> Clear all
-            </button>
+            <Button variant="ghost" size="xs" className={HEADER_BTN} onClick={() => setConfirmClear(true)}>
+              <Trash2 aria-hidden="true" /> Clear all
+            </Button>
           </div>
         )}
       </div>
@@ -60,21 +60,24 @@ export function NotificationDropdown({
             Clear all unpinned notifications?
           </span>
           <div className="flex items-center gap-1.5">
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => setConfirmClear(false)}
-              className="rounded-md px-2 py-1 text-xs font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-tertiary)]"
+              className="text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-tertiary)]"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="destructive"
+              size="xs"
               onClick={() => {
                 onClearAll();
                 setConfirmClear(false);
               }}
-              className="rounded-md bg-[color:hsl(var(--primary))] px-2.5 py-1 text-xs font-semibold text-white"
             >
               Clear all
-            </button>
+            </Button>
           </div>
         </div>
       )}

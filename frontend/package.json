@@ -45,11 +45,11 @@
     "jspdf-autotable": "^5.0.8",
     "libphonenumber-js": "^1.13.7",
     "lucide-react": "^0.454.0",
-    "next": "^14.2.15",
+    "next": "^16.2.9",
     "philippines": "^1.0.0",
-    "react": "^18.3.1",
+    "react": "^19.2.0",
     "react-day-picker": "^10.0.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.2.0",
     "react-hook-form": "^7.79.0",
     "react-phone-number-input": "^3.4.17",
     "react-zoom-pan-pinch": "^4.0.3",
@@ -57,7 +57,7 @@
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.5.4",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
@@ -68,14 +68,18 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.9.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "autoprefixer": "^10.4.20",
     "jest": "^30.0.0",
     "jest-environment-jsdom": "^30.0.0",
-    "postcss": "^8.4.47",
+    "postcss": "^8.5.10",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.6.0"
+  },
+  "overrides": {
+    "js-yaml": "^4.2.0",
+    "postcss": "^8.5.10"
   }
 }

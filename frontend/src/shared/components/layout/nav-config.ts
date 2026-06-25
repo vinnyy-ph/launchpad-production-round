@@ -11,7 +11,7 @@
 
 import type { FC, SVGProps } from "react";
 import {
-  LayoutAlt01,
+  HomeLine,
   BarChartSquare02,
   Grid01,
   UserSquare,
@@ -66,7 +66,7 @@ export const NAV_SECTIONS: NavSection[] = [
     role: "employee",
     title: "General",
     items: [
-      { id: "dashboard", label: "Dashboard", icon: LayoutAlt01, href: "/" },
+      { id: "dashboard", label: "Dashboard", icon: HomeLine, href: "/" },
       { id: "performance", label: "Performance", icon: BarChartSquare02, href: "/employee/surveys" },
       { id: "teams", label: "Teams", icon: Users01, href: "/employee/teams" },
       {
@@ -144,7 +144,7 @@ const EXTRA_CRUMBS: Record<string, string[]> = {
   "/employee/profile": ["My profile"],
   "/employee/onboarding": ["My onboarding"],
   "/employee/clearance": ["My clearances"],
-  "/supervisor/status": ["My Team", "Hierarchy status"],
+  "/supervisor/status": ["Hierarchy status"],
 };
 
 /**
@@ -231,16 +231,18 @@ function extraCrumbsToTrail(labels: string[], href: string): BreadcrumbCrumb[] {
 }
 
 /**
- * Breadcrumb trail for a pathname: `[item]` for the General section, `[section, item]`
- * for other sidebar sections, then the non-sidebar `EXTRA_CRUMBS`. Empty when nothing matches.
- * Section-title crumbs are not navigable (no `href`); page crumbs carry their route.
+ * Breadcrumb trail for a pathname: just the page `[item]` (+ any directory sub-tabs), then the
+ * non-sidebar `EXTRA_CRUMBS`. Category/section titles are NOT included — they aren't pages — and
+ * the dashboard is omitted because the topbar renders a home icon at the root for it. Empty when
+ * nothing matches. Page crumbs carry their route.
  */
 export function breadcrumbForPath(pathname: string, tab?: string | null): BreadcrumbCrumb[] {
   const match = findNav(pathname);
   if (match) {
+    // The dashboard is the home-icon root in the topbar, so it gets no breadcrumb of its own.
+    if (match.item.href === "/") return [];
     const item: BreadcrumbCrumb = { label: match.item.label, href: match.item.href };
-    const base: BreadcrumbCrumb[] =
-      match.section.title === "General" ? [item] : [{ label: match.section.title }, item];
+    const base: BreadcrumbCrumb[] = [item];
     // The People directory's Onboarding/Offboarding sub-tabs have no nav item, so add their
     // crumb here (clickable back to the tab). Match the list view by its `?tab=` query or the
     // detail pages by their path prefix.

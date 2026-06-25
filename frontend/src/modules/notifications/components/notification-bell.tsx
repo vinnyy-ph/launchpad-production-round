@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Bell } from "lucide-react";
+import { Button } from "@/shared/ui";
 import { NotificationDropdown } from "./notification-dropdown";
 import { useNotifications } from "../hooks/use-notifications";
 import { useMarkRead } from "../hooks/use-mark-read";
@@ -20,6 +21,10 @@ export function NotificationBell() {
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      // A per-item actions menu portals its content outside this wrapper; clicks inside
+      // that popper must not be read as "outside" and collapse the whole dropdown.
+      if (target?.closest("[data-radix-popper-content-wrapper]")) return;
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
@@ -30,18 +35,20 @@ export function NotificationBell() {
 
   return (
     <div ref={ref} className="relative">
-      <button
+      <Button
+        variant="outline"
+        size="icon-sm"
         onClick={() => setOpen((p) => !p)}
-        className="relative flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)] transition-colors duration-150 hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-primary)]"
+        className="relative h-[30px] w-[30px] rounded-lg border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--text-primary)]"
         aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
       >
-        <Bell size={16} />
+        <Bell />
         {unreadCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[12px] font-bold text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
-      </button>
+      </Button>
       {open && (
         <NotificationDropdown
           notifications={notifications}

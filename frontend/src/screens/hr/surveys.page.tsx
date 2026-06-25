@@ -7,8 +7,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Power,
-  PowerOff,
   Filter,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -301,19 +299,19 @@ export default function HRSurveysPage() {
     {
       header: "Type",
       mobileLabel: "Type",
-      className: "min-w-[130px] text-center whitespace-nowrap",
+      className: "min-w-[130px] whitespace-nowrap",
       cell: (s) => <AnonymityChip anonymous={s.isAnonymous} />,
     },
     {
       header: "Responses",
       mobileLabel: "Responses",
-      className: "min-w-[150px] text-center whitespace-nowrap",
+      className: "min-w-[150px] text-right tabular-nums whitespace-nowrap",
       cell: (s) => <ResponsesCell s={s} />,
     },
     {
       header: "Status",
       mobileLabel: "Status",
-      className: "min-w-[120px] text-center whitespace-nowrap",
+      className: "min-w-[120px] whitespace-nowrap",
       cell: (s) => <StatusChip status={deriveStatus(s)} />,
     },
     {
@@ -336,7 +334,6 @@ export default function HRSurveysPage() {
                   setActivatingId(s.id);
                 }}
               >
-                <Power className="h-3.5 w-3.5" />
                 Activate
               </Button>
             )}
@@ -349,14 +346,13 @@ export default function HRSurveysPage() {
                   setDeactivatingId(s.id);
                 }}
               >
-                <PowerOff className="h-3.5 w-3.5" />
                 Deactivate
               </Button>
             )}
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-[color:var(--text-tertiary)] hover:bg-gray-50 hover:text-[color:var(--text-secondary)]"
+              size="icon-xs"
+              className="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-secondary)]"
               onClick={(e) => {
                 e.stopPropagation();
                 openEdit(s);
@@ -368,9 +364,8 @@ export default function HRSurveysPage() {
             </Button>
             {status === "draft" && (
               <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+                variant="destructive-ghost"
+                size="icon-xs"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeletingId(s.id);
@@ -454,7 +449,17 @@ export default function HRSurveysPage() {
                   ? "Try a different name or status filter."
                   : "Create your first pulse survey to start gathering insights."
               }
-              action={hasFilters ? undefined : { label: "Create survey", onClick: openCreate }}
+              action={
+                hasFilters
+                  ? {
+                      label: "Clear filters",
+                      onClick: () => {
+                        setSearch("");
+                        setStatusFilter("ALL");
+                      },
+                    }
+                  : { label: "Create survey", onClick: openCreate }
+              }
             />
           }
         />

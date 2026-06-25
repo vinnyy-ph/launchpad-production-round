@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 import { cn } from "@/shared/lib/utils";
 

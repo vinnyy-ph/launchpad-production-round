@@ -46,7 +46,7 @@ export function BulkJobStatus({ preview, result }: BulkJobStatusProps) {
     <div className="rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] p-3">
       <div className="flex items-start gap-2">
         {hasErrors ? (
-          <AlertCircle className="mt-0.5 h-4 w-4 text-[#B42318]" aria-hidden="true" />
+          <AlertCircle className="mt-0.5 h-4 w-4 text-[color:var(--color-error-700)]" aria-hidden="true" />
         ) : (
           <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden="true" />
         )}

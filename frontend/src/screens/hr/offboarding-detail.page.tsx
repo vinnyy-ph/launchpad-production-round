@@ -25,6 +25,7 @@ import {
   FormField,
   Skeleton,
   UserAvatar,
+  Badge,
 } from "@/shared/ui";
 import {
   useOffboarding,
@@ -599,10 +600,10 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
 
   if (!needsReassignment) {
     return (
-      <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] p-3">
+      <div className="rounded-lg border border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] p-3">
         <div className="flex items-start gap-2">
-          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B54708]" aria-hidden="true" />
-          <p className="text-xs text-[#B54708]">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[color:var(--color-warning-700)]" aria-hidden="true" />
+          <p className="text-xs text-[color:var(--color-warning-700)]">
             {profileError ?? "This employee has no direct reports or led teams to reassign."}
           </p>
         </div>
@@ -660,12 +661,14 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
           <CollapsibleGroup title="View teams">
             <div className="flex flex-wrap gap-2">
               {profile?.ledTeams.map((team) => (
-                <span
+                <Badge
                   key={team.id}
-                  className="max-w-[160px] truncate rounded-full border border-[#ABEFC6] bg-[#ECFDF3] px-2.5 py-0.5 text-xs font-semibold text-[#067647]"
+                  variant="success"
+                  pill
+                  className="max-w-[160px] truncate font-semibold"
                 >
                   {team.name}
-                </span>
+                </Badge>
               ))}
             </div>
           </CollapsibleGroup>

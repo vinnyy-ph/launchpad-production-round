@@ -339,11 +339,9 @@ export class ResultsService {
       const responseCount = answers.length;
 
       if (q.type === "SHORT_ANSWER" || q.type === "LONG_ANSWER") {
-        const list = survey.isAnonymous
-          ? []
-          : answers
-              .map((ans) => ans.answerText)
-              .filter((text): text is string => typeof text === "string" && text.trim() !== "");
+        const list = answers
+          .map((ans) => ans.answerText)
+          .filter((text): text is string => typeof text === "string" && text.trim() !== "");
         return {
           questionId: q.id,
           type: q.type,

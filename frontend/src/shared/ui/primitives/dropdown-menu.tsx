@@ -91,7 +91,7 @@ const DropdownMenuItem = React.forwardRef<
       // default hover
       variant === "default" && "text-[color:var(--text-primary)] focus:bg-gray-50 focus:text-[color:var(--text-primary)]",
       // destructive: red text + light-red hover bg; icon inherits via currentColor
-      variant === "destructive" && "text-[#D92D20] focus:bg-[#FEF3F2] focus:text-[#D92D20] [&>svg]:text-[#D92D20]",
+      variant === "destructive" && "text-[color:var(--color-error-600)] focus:bg-[color:var(--color-error-50)] focus:text-[color:var(--color-error-600)] [&>svg]:text-[color:var(--color-error-600)]",
       inset && "pl-8",
       className
     )}

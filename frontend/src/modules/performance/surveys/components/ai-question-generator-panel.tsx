@@ -45,7 +45,7 @@ export function AiQuestionGeneratorPanel({ onGenerated, disabled }: AiQuestionGe
   };
 
   return (
-    <div className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
+    <div className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)]">
       <div className="flex items-center gap-2">
         <Sparkles size={18} className="text-[color:var(--brand-blue)]" />
         <h3 className="text-[15px] font-semibold text-[color:var(--text-primary)]">
@@ -58,14 +58,9 @@ export function AiQuestionGeneratorPanel({ onGenerated, disabled }: AiQuestionGe
 
       <div className="mt-4 space-y-3">
         <div>
-          <label
-            htmlFor="ai-survey-goal"
-            className="mb-1 block text-[12px] font-medium text-[color:var(--text-secondary)]"
-          >
-            What&apos;s your survey goal?
-          </label>
           <Textarea
             id="ai-survey-goal"
+            aria-label="Survey goal"
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
             placeholder="e.g. Measure how supported new hires feel in their first 30 days"

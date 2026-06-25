@@ -51,7 +51,7 @@ function RespondentAnswersDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
         <DialogHeader className="border-b border-[color:var(--border-primary)] px-6 pb-4 pt-6 text-left">
           <DialogTitle className="text-xl font-bold tracking-tight">{name}</DialogTitle>
           <DialogDescription>
@@ -82,12 +82,9 @@ function RespondentAnswersDialog({
               <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
                 Could not load these answers.
               </span>
-              <button
-                onClick={() => void refetch()}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-              >
+              <Button variant="ghost" size="sm" onClick={() => void refetch()}>
                 Retry
-              </button>
+              </Button>
             </div>
           )}
 
@@ -148,7 +145,7 @@ export function RespondentsDrilldown({
   if (isLoading) {
     return (
       <div
-        className="mt-4 rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6"
+        className="mt-4 rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6"
         aria-busy="true"
       >
         <div className="mb-4 flex items-center gap-2.5">
@@ -186,7 +183,7 @@ export function RespondentsDrilldown({
   };
 
   return (
-    <div className="mt-4 rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
+    <div className="mt-4 rounded-xl border border-[color:var(--border-primary)] bg-white p-5 shadow-[0_1px_3px_-1px_rgba(16,18,24,0.07),0_7px_16px_-6px_rgba(16,18,24,0.11)] sm:p-6">
       <div className="mb-4 flex items-center gap-2.5">
         <Users size={16} className="text-[color:var(--text-tertiary)]" aria-hidden="true" />
         <h3 className="text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">

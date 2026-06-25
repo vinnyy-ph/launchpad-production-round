@@ -39,7 +39,7 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
   const className = cn(
     "relative block overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white px-5 py-[18px]",
     interactive &&
-      "group transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      "group transition-colors hover:border-[color:var(--border-secondary)]",
   );
   const body = (
     <>
@@ -65,7 +65,7 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
                 <button
                   type="button"
                   aria-label={`About ${label}`}
-                  className="rounded-sm text-[color:var(--text-tertiary)] outline-none transition-colors hover:text-[color:var(--text-secondary)] focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded-sm text-[color:var(--text-tertiary)] transition-colors hover:text-[color:var(--text-secondary)]"
                 >
                   <Info className="h-[13px] w-[13px]" />
                 </button>
@@ -110,7 +110,7 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
           <span
             className={cn(
               "inline-flex items-center gap-[3px] rounded-full py-0.5 pl-[5px] pr-[7px] text-[12px] font-semibold",
-              delta.direction === "up" ? "bg-[#ECFDF3] text-[#067647]" : "bg-[#FEF3F2] text-[#B42318]",
+              delta.direction === "up" ? "bg-[color:var(--color-success-50)] text-[color:var(--color-success-700)]" : "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)]",
             )}
           >
             {delta.direction === "up" ? (
