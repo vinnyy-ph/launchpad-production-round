@@ -217,6 +217,14 @@ export class SurveysController {
           });
         }
 
+        if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_RELEASE_DATE_FUTURE) {
+          return res.status(HTTP_STATUS_CODES.CONFLICT).json({
+            success: false,
+            message: SURVEY_ERROR_MESSAGES.SURVEY_RELEASE_DATE_FUTURE,
+            errorCode: API_ERROR_CODES.SURVEY_RELEASE_DATE_FUTURE,
+          });
+        }
+
         if (error.message === SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED) {
           return res.status(HTTP_STATUS_CODES.CONFLICT).json({
             success: false,
