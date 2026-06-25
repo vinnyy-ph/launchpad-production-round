@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useDashboard } from "@/modules/dashboard/hooks/use-dashboard";
+import { useMySurveys } from "@/modules/performance/surveys/hooks/use-my-surveys";
 import { visibleSections, WORKSPACE_NAME } from "./nav-config";
 import { ManageJiaLogo } from "@/shared/components/brand/manage-jia-logo";
 import { cn } from "@/shared/lib/utils";
@@ -22,9 +23,12 @@ export function Sidebar({
   const sections = visibleSections(appUser);
 
   // Live count on the employee Performance item: pulses still to answer + evaluations still to
-  // acknowledge. Shares the React-Query dashboard cache, so this adds no extra fetch.
+  // acknowledge. The survey count comes from the same to-answer list the Performance page shows
+  // (useMySurveys), NOT the dashboard's broader "open surveys" stat, so the badge matches the
+  // page's "Surveys" tab exactly. pendingAcknowledgements already matches the "Evaluations" tab.
   const { stats } = useDashboard();
-  const performanceBadge = (stats?.unreadSurveys ?? 0) + (stats?.pendingAcknowledgements ?? 0);
+  const { data: mySurveys } = useMySurveys();
+  const performanceBadge = (mySurveys?.length ?? 0) + (stats?.pendingAcknowledgements ?? 0);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -91,7 +95,7 @@ export function Sidebar({
                       <Icon
                         size={18}
                         strokeWidth={1.75}
-                        className={active ? "text-[color:var(--gray-neutral-700)]" : "text-[color:var(--gray-neutral-500)]"}
+                        className={active ? "text-[color:var(--gray-neutral-700)]" : "text-[color:var(--gray-neutral-400)]"}
                         aria-hidden="true"
                       />
                     </span>
