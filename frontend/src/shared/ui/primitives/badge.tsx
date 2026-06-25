@@ -22,9 +22,12 @@ const badgeVariants = cva(
         outline:     "text-foreground",
       },
       size: {
-        sm: "px-2 py-[2px] text-[12px]",                 // ~22px / 6r
-        md: "px-2 py-[3px] text-xs",                      // 24px / 6r (= base)
-        lg: "px-2.5 py-[5px] text-[14px] rounded-md",     // 28px / 8r
+        // Brandbook defines a single badge size; sm and md are identical so every badge
+        // is one consistent height. (text-xs carries the Jia 12/18 size+leading; the old
+        // sm used an arbitrary text-[12px] with no paired leading → context-dependent height.)
+        sm: "px-2 py-[3px] text-xs",
+        md: "px-2 py-[3px] text-xs",
+        lg: "px-2.5 py-[5px] text-sm rounded-md",
       },
       pill: {
         true: "rounded-full",
