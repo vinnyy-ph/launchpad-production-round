@@ -769,7 +769,12 @@ export function EmployeeDetailsModal({
                       shakeUnsavedAlert ? "employee-unsaved-alert-shake" : ""
                   }`}
                   onAnimationEnd={() => setShakeUnsavedAlert(false)}
-                  onInteractOutside={(event) => event.preventDefault()}
+                  onInteractOutside={(event) => {
+                      if (hasUnsavedChanges) {
+                          event.preventDefault();
+                          alertUnsavedChanges();
+                      }
+                  }}
               >
                   <DialogTitle className="sr-only">
                       Employee details

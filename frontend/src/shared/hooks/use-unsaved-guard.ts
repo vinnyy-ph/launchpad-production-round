@@ -109,10 +109,13 @@ export function useUnsavedGuard({
         nudge();
       }
     },
-    /** `<DialogContent onInteractOutside>` — backdrop never dismisses a form; nudge when dirty. */
+    /** `<DialogContent onInteractOutside>` — a dirty form nudges instead of dismissing;
+     *  a clean one dismisses on backdrop normally (mirrors onEscapeKeyDown). */
     onInteractOutside: (event: { preventDefault: () => void }) => {
-      event.preventDefault();
-      if (hasUnsavedChanges) nudge();
+      if (hasUnsavedChanges) {
+        event.preventDefault();
+        nudge();
+      }
     },
   };
 }
