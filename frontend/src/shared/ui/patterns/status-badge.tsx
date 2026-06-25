@@ -9,9 +9,9 @@ const TONE_CLASS: Record<Tone, string> = {
   success: "bg-[color:var(--color-success-50)] text-[color:var(--color-success-700)] border-[color:var(--color-success-200)]",
   warning: "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]",
   error: "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]",
-  brand: "bg-[#EEF4FF] text-[#3538CD] border-[#C7D7FE]",
-  // "info" is an alias kept for back-compat — maps to the brand colorway.
-  info: "bg-[#EEF4FF] text-[#3538CD] border-[#C7D7FE]",
+  brand: "bg-gradient-badge-brand text-[color:var(--text-primary)] border-transparent shadow-[inset_0_0_0_1px_rgba(24,29,39,0.06)]",
+  // Brandbook has no blue/info badge — "info" maps to the neutral colorway.
+  info: "bg-[color:var(--gray-neutral-50)] text-[color:var(--text-secondary)] border-[color:var(--gray-neutral-200)]",
 };
 
 const SHAPE_CLASS: Record<Shape, string> = {

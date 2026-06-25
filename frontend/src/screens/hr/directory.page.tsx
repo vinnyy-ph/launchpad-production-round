@@ -88,13 +88,12 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
   const overflowTeams = teams.slice(MAX_VISIBLE_TEAMS);
   const overflowCount = overflowTeams.length;
 
-  const teamBadgeClassName =
-    "max-w-[110px] truncate rounded-full border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]";
+  const teamBadgeClassName = "max-w-[110px] truncate font-semibold";
 
   return (
     <div className="inline-flex max-w-[260px] flex-wrap items-center justify-center gap-1.5">
       {visibleTeams.map((team) => (
-        <Badge key={team.id} variant="outline" pill className={teamBadgeClassName}>
+        <Badge key={team.id} variant="brand" pill className={teamBadgeClassName}>
           {team.name}
         </Badge>
       ))}
@@ -126,7 +125,7 @@ function TeamsCell({ teams }: { teams: EmployeeListItem["teams"] }) {
               <p className="mb-2 text-xs font-bold text-[color:var(--text-primary)]">More Teams:</p>
               <div className="flex flex-wrap gap-2">
                 {overflowTeams.map((team) => (
-                  <Badge key={team.id} variant="outline" pill className={teamBadgeClassName}>
+                  <Badge key={team.id} variant="brand" pill className={teamBadgeClassName}>
                     {team.name}
                   </Badge>
                 ))}

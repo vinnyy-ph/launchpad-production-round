@@ -168,9 +168,9 @@ export function ClearancesPanel() {
                   </h2>
                   {template.isDefault ? (
                     <Badge
-                      variant="outline"
+                      variant="brand"
                       pill
-                      className="border-[#B2DDFF] bg-[#EFF8FF] font-semibold text-[#175CD3]"
+                      className="font-semibold"
                     >
                       <Star className="mr-1 h-3 w-3 fill-current" aria-hidden="true" />
                       Default

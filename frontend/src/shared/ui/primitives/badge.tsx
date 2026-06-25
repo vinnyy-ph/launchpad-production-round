@@ -13,7 +13,7 @@ const badgeVariants = cva(
         success: "bg-[color:var(--color-success-50)] border-[color:var(--color-success-200)] text-[color:var(--color-success-700)]",
         warning: "bg-[color:var(--color-warning-50)] border-[color:var(--color-warning-200)] text-[color:var(--color-warning-700)]",
         error:   "bg-[color:var(--color-error-50)] border-[color:var(--color-error-200)] text-[color:var(--color-error-700)]",
-        brand:   "bg-[#EEF4FF] border-[#C7D7FE] text-[#3538CD]",
+        brand:   "bg-gradient-badge-brand border-transparent text-[color:var(--text-primary)] shadow-[inset_0_0_0_1px_rgba(24,29,39,0.06)]",
         modern:  "bg-white border-[color:var(--gray-neutral-300)] text-[color:var(--text-secondary)]",
         // Deprecated aliases — keep so existing kit/page call-sites still compile
         default:     "border-transparent bg-primary text-primary-foreground",

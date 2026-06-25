@@ -98,6 +98,11 @@
       var(--brand-blue) 100%
     );
 
+  /* Brandbook .badge.brand — the brand gradient under a 62% white veil (soft tint for badges). */
+  --gradient-badge-brand:
+    linear-gradient(rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.62)),
+    var(--gradient-jia);
+
   /* 45° variant — the brandbook's `--grad`. Used where the book renders the
      gradient at 45° (progress fill, card brand-scrim, gradient-border ring). */
   --gradient-jia-45:

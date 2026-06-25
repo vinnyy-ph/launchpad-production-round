@@ -153,6 +153,7 @@ const config: Config = {
   		backgroundImage: {
   			// B1-7: brand gradient utilities
   			'gradient-jia':      'var(--gradient-jia)',
+  			'gradient-badge-brand': 'var(--gradient-badge-brand)',
   			'gradient-jia-45':   'var(--gradient-jia-45)',
   			'gradient-jia-dark': 'var(--gradient-jia-dark)',
   			'scrim-brand-20':    'var(--scrim-brand-20)',
