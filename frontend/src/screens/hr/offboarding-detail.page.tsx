@@ -25,6 +25,7 @@ import {
   FormField,
   Skeleton,
   UserAvatar,
+  Badge,
 } from "@/shared/ui";
 import {
   useOffboarding,
@@ -540,12 +541,14 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
           <CollapsibleGroup title="View teams">
             <div className="flex flex-wrap gap-2">
               {profile?.ledTeams.map((team) => (
-                <span
+                <Badge
                   key={team.id}
-                  className="max-w-[160px] truncate rounded-full border border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] px-2.5 py-0.5 text-xs font-semibold text-[color:var(--color-success-700)]"
+                  variant="success"
+                  pill
+                  className="max-w-[160px] truncate font-semibold"
                 >
                   {team.name}
-                </span>
+                </Badge>
               ))}
             </div>
           </CollapsibleGroup>

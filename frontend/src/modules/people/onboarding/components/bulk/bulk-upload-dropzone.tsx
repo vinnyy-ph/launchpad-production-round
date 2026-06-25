@@ -11,6 +11,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Badge,
 } from "@/shared/ui";
 import {
   downloadBulkOnboardingTemplate,
@@ -464,9 +465,9 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                       <p className="text-sm font-semibold text-[color:var(--text-primary)]">
                         Row {group.rowNumber}
                       </p>
-                      <span className="rounded-full bg-[color:var(--color-error-50)] px-2 py-0.5 text-xs font-semibold text-[color:var(--color-error-700)]">
+                      <Badge variant="error" pill className="font-semibold">
                         {group.errors.length} issue{group.errors.length === 1 ? "" : "s"}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="space-y-2">
                       {group.errors.map((error, index) => (
@@ -474,9 +475,9 @@ export function BulkUploadDropzone({ open, onOpenChange }: BulkUploadDropzonePro
                           key={`${error.rowNumber}-${error.field}-${index}`}
                           className="flex flex-col gap-1 text-xs sm:flex-row sm:items-start"
                         >
-                          <span className="inline-flex w-fit rounded-full bg-[color:var(--color-error-50)] px-2 py-0.5 font-semibold text-[color:var(--color-error-700)]">
+                          <Badge variant="error" pill className="w-fit font-semibold">
                             {fieldLabel(error.field)}
-                          </span>
+                          </Badge>
                           <span className="min-w-0 break-words text-[color:var(--color-error-900)]">
                             {error.message}
                           </span>
