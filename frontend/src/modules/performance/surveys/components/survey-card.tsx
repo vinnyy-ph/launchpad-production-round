@@ -30,7 +30,7 @@ export function SurveyCard({ survey, onTake }: { survey: PendingSurvey; onTake: 
 
   return (
     <div
-      className="flex flex-col gap-4 rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)] sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-4 rounded-xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)] sm:flex-row sm:items-center sm:justify-between"
       style={{ boxShadow: "var(--shadow-xs)" }}
     >
       <div className="flex min-w-0 items-start gap-3.5">
