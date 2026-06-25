@@ -732,6 +732,32 @@
   }
 }
 
+/* Jia diamond loader — the brand gradient shimmering across the DS gem silhouette
+   (finance/diamond-01). For standalone / full-surface branded waits; button-level
+   waits use the monochrome Spinner, content waits use a skeleton. */
+@keyframes jia-diamond-shimmer {
+  0%, 100% { background-position: 0% 0%; }
+  50%      { background-position: 100% 100%; }
+}
+
+@layer components {
+  .jia-diamond-loader {
+    display: inline-block;
+    background: var(--gradient-jia);
+    background-size: 220% 220%;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M7.4%203H16.6L21.5%209L12%2020.5L2.5%209Z'%20fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M7.4%203H16.6L21.5%209L12%2020.5L2.5%209Z'%20fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+    animation: jia-diamond-shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jia-diamond-loader {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
+
 /* Smooth scroll for programmatic/anchor jumps (scroll-to-top, jump-to-section,
    scrollIntoView). Wheel/trackpad scrolling is unchanged. Scoped behind the
    reduced-motion guard since scroll-behavior doesn't honor it on its own. The app
