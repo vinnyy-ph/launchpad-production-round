@@ -266,10 +266,10 @@ export default function DirectoryPage() {
             }}
           />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+            <p title={fullName(employee)} className="truncate text-sm font-medium text-[color:var(--text-primary)]">
               {fullName(employee)}
             </p>
-            <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+            <p title={employee.companyEmail} className="truncate text-xs text-[color:var(--text-tertiary)]">
               {employee.companyEmail}
             </p>
           </div>
