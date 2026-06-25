@@ -3,9 +3,10 @@ import type { AudiencePreviewInput } from "./dto";
 import type { CreateSurveyInput } from "./dto";
 import type { ListSurveysQuery } from "./dto";
 import type { UpdateSurveyInput } from "./dto";
-import { SURVEY_ERROR_MESSAGES, SURVEY_TEXT_LIMITS } from "./surveys.constants";
+import { AI_QUESTION_COUNT, SURVEY_ERROR_MESSAGES, SURVEY_TEXT_LIMITS } from "./surveys.constants";
 import { validateSchedule } from "./rules/recurrence";
 import { assertSafeText } from "../../../core/validation/text-input";
+import type { GenerateQuestionsInput, GeneratedQuestion } from "./ai-questions/ai-questions.types";
 
 const VALID_RECURRING_TYPES = new Set<string>([
   "ONE_TIME",
@@ -121,6 +122,49 @@ export class SurveysValidation {
       ...(typeof qObj.scaleMaxLabel === "string" && { scaleMaxLabel: qObj.scaleMaxLabel }),
       orderIndex: qObj.orderIndex as number,
     };
+  }
+
+  /**
+   * Validates AI-generated questions against the same 5-type rules as parseQuestion. Injects a
+   * synthetic orderIndex so the shared check passes, then strips it — generated questions carry
+   * no orderIndex over the wire (the frontend assigns one on append). Throws on the first invalid
+   * question, reusing the existing SURVEY_ERROR_MESSAGES.
+   */
+  validateGeneratedQuestions(raw: unknown): GeneratedQuestion[] {
+    if (!Array.isArray(raw) || raw.length === 0) {
+      throw new Error(SURVEY_ERROR_MESSAGES.QUESTIONS_REQUIRED);
+    }
+    return raw.map((q, idx) => {
+      const withOrder =
+        q && typeof q === "object" ? { ...(q as Record<string, unknown>), orderIndex: idx } : q;
+      const parsed = this.parseQuestion(withOrder, idx);
+      const { orderIndex: _orderIndex, ...rest } = parsed;
+      return rest;
+    });
+  }
+
+  /** Validates the AI generate-questions request body (goal text + bounded integer count). */
+  parseGenerateQuestionsBody(body: unknown): GenerateQuestionsInput {
+    if (!body || typeof body !== "object") {
+      throw new Error("Request body is required");
+    }
+    const b = body as Record<string, unknown>;
+
+    if (typeof b.goal !== "string" || b.goal.trim().length === 0) {
+      throw new Error("goal is required");
+    }
+    assertSafeText(b.goal, "goal", SURVEY_TEXT_LIMITS.AI_GOAL);
+
+    if (
+      typeof b.count !== "number" ||
+      !Number.isInteger(b.count) ||
+      b.count < AI_QUESTION_COUNT.MIN ||
+      b.count > AI_QUESTION_COUNT.MAX
+    ) {
+      throw new Error(`count must be an integer between ${AI_QUESTION_COUNT.MIN} and ${AI_QUESTION_COUNT.MAX}`);
+    }
+
+    return { goal: b.goal.trim(), count: b.count };
   }
 
   parseListQuery(query: Record<string, unknown>): ListSurveysQuery {

@@ -84,8 +84,10 @@ import type {
   QuestionInput,
   AudienceConfigInput,
   VisibilityConfigInput,
+  GeneratedQuestion,
 } from "../types/surveys.types";
 import { RECURRING_TYPE_LABEL, QUESTION_TYPE_LABEL } from "../types/surveys.types";
+import { AiQuestionGeneratorPanel } from "./ai-question-generator-panel";
 
 // ─── Local builder state ──────────────────────────────────────────────────────
 
@@ -626,6 +628,25 @@ export function SurveyBuilderDialog({
   // ── Question helpers ──
   const addQuestion = (type: QuestionType) =>
     setForm((f) => ({ ...f, questions: [...f.questions, defaultQuestion(type)] }));
+
+  const appendGeneratedQuestions = (generated: GeneratedQuestion[]) =>
+    setForm((f) => ({
+      ...f,
+      questions: [
+        ...f.questions,
+        ...generated.map((g) => ({
+          id: uid(),
+          type: g.type,
+          questionText: g.questionText,
+          isRequired: g.isRequired,
+          options: g.options ?? [],
+          scaleMin: g.scaleMin ?? 1,
+          scaleMax: g.scaleMax ?? 5,
+          scaleMinLabel: g.scaleMinLabel ?? "",
+          scaleMaxLabel: g.scaleMaxLabel ?? "",
+        })),
+      ],
+    }));
 
   const updateQuestion = (qid: string, patch: Partial<DraftQuestion>) =>
     setForm((f) => ({
@@ -1290,6 +1311,10 @@ export function SurveyBuilderDialog({
                   <p className="flex items-center gap-1.5 text-sm text-[color:var(--color-error-500)]">
                     <AlertCircle size={14} /> {errors.questions}
                   </p>
+                )}
+
+                {!isLocked && (
+                  <AiQuestionGeneratorPanel onGenerated={appendGeneratedQuestions} disabled={isLocked} />
                 )}
 
                 {form.questions.length === 0 && (
