@@ -17,6 +17,7 @@ import {
   useAddUser,
   useUpdateRole,
   useDeactivateUser,
+  useActivateUser,
   UserRoleBadge,
   roleLabel,
   formatLastLogin,
@@ -152,6 +153,7 @@ function UsersPageInner() {
   const { addUserAsync, isAdding } = useAddUser();
   const { updateRoleAsync, isUpdating } = useUpdateRole();
   const { deactivateUserAsync, isDeactivating } = useDeactivateUser();
+  const { activateUserAsync, isActivating } = useActivateUser();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -209,6 +211,22 @@ function UsersPageInner() {
       });
     },
     [confirm, isOnlyActiveAdmin, isSelf, updateRoleAsync],
+  );
+
+  const handleActivate = useCallback(
+    async (user: UserListItem) => {
+      if (user.isActive) return;
+
+      await confirm({
+        title: "Activate user",
+        description: `Are you sure you want to reactivate ${displayName(user)}? They will regain access immediately.`,
+        confirmLabel: "Activate",
+        confirmLoadingLabel: "Activating…",
+        cancelLabel: "Cancel",
+        onConfirm: () => activateUserAsync(user.id),
+      });
+    },
+    [activateUserAsync, confirm],
   );
 
   const handleSort = useCallback(
@@ -295,8 +313,10 @@ function UsersPageInner() {
           isOnlyActiveAdmin={isOnlyActiveAdmin(user)}
           isUpdating={isUpdating}
           isDeactivating={isDeactivating}
+          isActivating={isActivating}
           onRoleChange={handleRoleChange}
           onDeactivate={handleDeactivate}
+          onActivate={handleActivate}
         />
       ),
     },
@@ -526,8 +546,10 @@ function UserRowActions({
   isOnlyActiveAdmin,
   isUpdating,
   isDeactivating,
+  isActivating,
   onRoleChange,
   onDeactivate,
+  onActivate,
 }: {
   user: UserListItem;
   displayName: string;
@@ -535,8 +557,10 @@ function UserRowActions({
   isOnlyActiveAdmin: boolean;
   isUpdating: boolean;
   isDeactivating: boolean;
+  isActivating: boolean;
   onRoleChange: (user: UserListItem, role: ChangeableRole) => void | Promise<void>;
   onDeactivate: (user: UserListItem) => void | Promise<void>;
+  onActivate: (user: UserListItem) => void | Promise<void>;
 }) {
   const roleLocked =
     !user.isActive ||
@@ -597,12 +621,17 @@ function UserRowActions({
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
-        disabled={deactivateLocked || isDeactivating}
-        onClick={() => void onDeactivate(user)}
-        aria-label={`Deactivate ${name}`}
-        title={
-          isSelf
+        className={cn(
+          "h-8 w-8",
+          user.isActive
+            ? "text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+            : "text-[#067647] hover:bg-[#ECFDF3] hover:text-[#067647]",
+        )}
+        disabled={user.isActive ? deactivateLocked || isDeactivating : isActivating}
+        onClick={() => (user.isActive ? void onDeactivate(user) : void onActivate(user))}
+        aria-label={`${user.isActive ? "Deactivate" : "Activate"} ${name}`}
+        title={user.isActive
+          ? isSelf
             ? "You cannot deactivate your own account"
             : deactivateLocked
               ? !user.isActive
@@ -611,9 +640,9 @@ function UserRowActions({
                   ? undefined
                   : "Cannot deactivate the only active admin"
               : "Deactivate user"
-        }
+          : "Activate user"}
       >
-        <Ban className="h-4 w-4" />
+        {user.isActive ? <Ban className="h-4 w-4" /> : <Check className="h-4 w-4" />}
       </Button>
     </div>
   );

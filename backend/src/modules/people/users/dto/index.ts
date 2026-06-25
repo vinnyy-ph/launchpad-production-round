@@ -5,6 +5,7 @@ export { ListUsersResponseDto } from "./list-users-response.dto";
 export type { UpdateRoleRequestDto } from "./update-role-request.dto";
 export type { UserListItemDto } from "./user-list-item.dto";
 export {
+  ActivateUserResponseDto,
   CreateUserResponseDto,
   DeactivateUserResponseDto,
   type UserResponseDto,
