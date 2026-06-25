@@ -29,3 +29,9 @@ export class DeactivateUserResponseDto implements ApiSuccessResponseDto<UserResp
   message?: string;
   data!: UserResponseDto;
 }
+
+export class ActivateUserResponseDto implements ApiSuccessResponseDto<UserResponseDto> {
+  success!: true;
+  message?: string;
+  data!: UserResponseDto;
+}
