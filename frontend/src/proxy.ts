@@ -12,7 +12,6 @@ import { NextResponse } from "next/server";
 // API origin (HTTPS + WSS for the notifications socket) so login and realtime keep working.
 export function proxy() {
   const isProd = process.env.NODE_ENV === "production";
-  const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 
   const scriptSrc = [
     "'self'",
@@ -40,10 +39,10 @@ export function proxy() {
   const frameSrc = [
     "'self'",
     "blob:", // Firebase popup sign-in renders its helper in a blob: iframe
-    "https://accounts.google.com",
-    "https://apis.google.com",
-    "https://*.firebaseapp.com",
-    authDomain && `https://${authDomain}`,
+    // Cloudinary upload/media widget + Google/Firebase auth all frame third-party https
+    // origins; enumerating them proved fragile. frame-ancestors 'none' still blocks US
+    // from being framed (the clickjacking protection that matters).
+    "https:",
   ].filter(Boolean);
 
   const csp = [
