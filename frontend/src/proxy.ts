@@ -10,7 +10,7 @@ import { NextResponse, type NextRequest } from "next/server";
 //
 // connect-src / frame-src allowlist Firebase Auth (Google popup sign-in) and the Express
 // API origin (HTTPS + WSS for the notifications socket) so login and realtime keep working.
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = crypto.randomUUID().replace(/-/g, "");
   const isProd = process.env.NODE_ENV === "production";
 

@@ -1,3 +1,6 @@
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
 /** @type {import('next').NextConfig} */
 
 // Same-origin proxy to the Express API so the browser calls /api/* (no CORS) and the
@@ -6,6 +9,10 @@ const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:3001"
 
 const nextConfig = {
   reactStrictMode: true,
+  // Dependencies are hoisted to the monorepo root node_modules (npm workspaces), so pin
+  // Turbopack's root there to silence the multi-lockfile inference warning and keep
+  // package resolution working.
+  turbopack: { root: join(dirname(fileURLToPath(import.meta.url)), "..") },
   // Don't advertise the framework (ZAP: X-Powered-By information leak).
   poweredByHeader: false,
   transpilePackages: ["react-phone-number-input", "libphonenumber-js"],
