@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, RefreshCw, ArrowUpRight } from "lucide-react";
+import { AlertCircle, RefreshCw, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -92,9 +92,22 @@ export default function HomePage() {
                 )}
               </div>
             ) : (
-              <p className="text-base font-semibold text-[color:var(--text-primary)]">
-                You&apos;re all caught up.
-              </p>
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
+                  style={{ background: "var(--color-success-50)" }}
+                >
+                  <CheckCircle2 size={18} style={{ color: "var(--color-success-600)" }} />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                    You&apos;re all caught up
+                  </p>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">
+                    Nothing needs your attention right now.
+                  </p>
+                </div>
+              </div>
             )}
           </motion.div>
 
