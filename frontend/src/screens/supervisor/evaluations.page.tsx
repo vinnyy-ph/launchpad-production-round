@@ -137,7 +137,7 @@ function ackInfo(ev: Evaluation): { status: string; tone: AckTone } | null {
     const ack = ev.acknowledgement;
     if (ack?.acknowledgedAt && !ack.isDeemedAck)
         return { status: "Acknowledged", tone: "success" };
-    if (ack?.isDeemedAck) return { status: "Auto-acknowledged", tone: "info" };
+    if (ack?.isDeemedAck) return { status: "Auto-acknowledged", tone: "warning" };
     return { status: "Pending", tone: "warning" };
 }
 

@@ -333,7 +333,7 @@ function AcknowledgementsTab({
 
         <div className="flex items-center gap-3">
           {isAcknowledged && <Badge variant="success">Acknowledged</Badge>}
-          {isDeemed && <Badge variant="warning">Deemed acknowledged</Badge>}
+          {isDeemed && <Badge variant="warning">Auto-acknowledged</Badge>}
           {pending && <Badge variant="neutral">Pending</Badge>}
           <Button
             variant={pending ? undefined : "secondary"}

@@ -44,8 +44,16 @@ const STATUS_TONE: Record<string, Tone> = {
   DRAFT: "warning",
   SENT: "info",
   ACKNOWLEDGED: "success",
-  DEEMED_ACK: "success",
+  // Auto-acknowledged = resolved passively (deadline lapsed), not actively acked → amber, not green.
+  DEEMED_ACK: "warning",
   OVERDUE: "error",
+};
+
+// Human-facing labels for enums whose sentence-cased form reads as jargon. Single source of
+// truth for status copy; everything else falls back to toSentenceCase (e.g. ACTIVE -> "Active").
+const STATUS_LABEL: Record<string, string> = {
+  DEEMED_ACK: "Auto-acknowledged",
+  FAILED_DELIVERY: "Delivery failed",
 };
 
 function toSentenceCase(s: string): string {
@@ -83,7 +91,7 @@ export function StatusBadge({
           aria-hidden="true"
         />
       )}
-      {toSentenceCase(status)}
+      {STATUS_LABEL[key] ?? toSentenceCase(status)}
     </span>
   );
 }
