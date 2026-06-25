@@ -35,7 +35,7 @@ export function PendingAckBanner() {
   return (
     <div
       role="alert"
-      className="flex items-center gap-3 border-b border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-100)] px-6 py-2.5"
+      className="flex items-center gap-3 border-b border-[color:var(--color-warning-200)] bg-[color:var(--color-warning-50)] px-6 py-2.5"
     >
       <AlertTriangle
         size={15}
