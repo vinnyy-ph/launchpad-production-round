@@ -68,6 +68,8 @@
   --focus-ring-shadow: 0 0 0 3px rgba(24,29,39,.06); /* soft peach glow */
 
   /* Status (Untitled UI defaults; used only in alerts) */
+  --color-error-900:    #7a271a;
+  --color-error-700:    #b42318;
   --color-error-600:    #d92d20;
   --color-error-500:    #f04438;
   --color-error-50:     #fef3f2;
@@ -76,7 +78,9 @@
   --color-warning-200:  #fedf89;
   --color-warning-100:  #fef0c7;
   --color-warning-50:   #fffaeb;
+  --color-success-700:  #067647;
   --color-success-600:  #079455;
+  --color-success-200:  #abefc6;
   --color-success-50:   #ecfdf3;
 
   /* ─── BRAND GRADIENT (the ONE moment of color) ─────────────── */
@@ -93,6 +97,11 @@
       var(--brand-lilac) 66%,
       var(--brand-blue) 100%
     );
+
+  /* Brandbook .badge.brand — the brand gradient under a 62% white veil (soft tint for badges). */
+  --gradient-badge-brand:
+    linear-gradient(rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.62)),
+    var(--gradient-jia);
 
   /* 45° variant — the brandbook's `--grad`. Used where the book renders the
      gradient at 45° (progress fill, card brand-scrim, gradient-border ring). */

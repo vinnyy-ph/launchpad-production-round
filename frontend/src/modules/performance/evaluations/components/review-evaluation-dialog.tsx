@@ -19,6 +19,7 @@ import { StatusBadge } from "@/shared/ui/patterns";
 import type { Evaluation } from "../types/evaluations.types";
 import { downloadSupportingDoc, getSupportingDocUrl } from "../services/evaluations.service";
 import { DocumentViewerModal } from "./document-viewer-modal";
+import { ACK_PRESENTATION, type AckStatus } from "../lib/ack-status";
 
 // Sentence case (Jia), not the Title Case shared map.
 const GRADE_LABELS: Record<number, string> = {
@@ -93,7 +94,7 @@ function NoteList({ items }: { items: string[] }) {
     <ul className="flex flex-col gap-3">
       {items.map((text, i) => (
         <li key={i} className="flex gap-3">
-          <span className="mt-[9px] h-1.5 w-1.5 flex-none rounded-full bg-[#b9c0d4]" />
+          <span className="mt-[9px] h-1.5 w-1.5 flex-none rounded-full bg-[color:var(--gray-300)]" />
           <span className="text-base leading-6 text-[color:var(--text-secondary)] [text-wrap:pretty]">
             {text}
           </span>
@@ -149,11 +150,8 @@ export function ReviewEvaluationDialog({
   const isAutoAck = !isAcknowledged && !!ack?.isDeemedAck;
   const isPending = !isAcknowledged && !isAutoAck;
 
-  const chip = isAcknowledged
-    ? { tone: "success" as const, label: "Acknowledged", dot: false }
-    : isAutoAck
-      ? { tone: "neutral" as const, label: "Auto-acknowledged", dot: true }
-      : { tone: "warning" as const, label: "Pending acknowledgement", dot: true };
+  const ackState: AckStatus = isAcknowledged ? "acknowledged" : isAutoAck ? "auto" : "pending";
+  const chip = ACK_PRESENTATION[ackState];
 
   const subtitle = isAcknowledged
     ? justAcked && !ack?.acknowledgedAt
@@ -171,7 +169,7 @@ export function ReviewEvaluationDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         hideClose
-        className="flex max-h-[92vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-[45rem] sm:rounded-[20px]"
+        className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl sm:rounded-2xl"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
@@ -182,14 +180,14 @@ export function ReviewEvaluationDialog({
               <DialogTitle className="text-lg font-bold leading-7 tracking-tight text-[color:var(--text-primary)]">
                 Evaluation for {revieweeName}
               </DialogTitle>
-              <StatusBadge status={chip.label} tone={chip.tone} dot={chip.dot} />
+              <StatusBadge status={chip.label} tone={chip.tone} />
               {isAutoAck && (
                 <TooltipProvider delayDuration={0}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span
                         tabIndex={0}
-                        className="inline-flex cursor-help text-[color:var(--text-quaternary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="inline-flex cursor-help rounded-sm text-[color:var(--text-quaternary)]"
                       >
                         <Info size={16} aria-label="About auto-acknowledgement" />
                       </span>
@@ -206,13 +204,9 @@ export function ReviewEvaluationDialog({
             </DialogDescription>
           </div>
           <DialogClose asChild>
-            <button
-              type="button"
-              aria-label="Close"
-              className="flex h-9 w-9 flex-none items-center justify-center rounded-lg border border-[color:var(--border-primary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <X size={18} />
-            </button>
+            <Button type="button" variant="outline" size="icon-sm" aria-label="Close" className="flex-none">
+              <X />
+            </Button>
           </DialogClose>
         </div>
 

@@ -20,8 +20,8 @@ function formatDate(iso: string): string {
 }
 
 function ClearanceIcon({ status }: { status: SignatoryStatus }) {
-  if (status === "SIGNED") return <CheckCircle2 size={16} className="text-[#067647]" aria-hidden="true" />;
-  if (status === "REJECTED") return <XCircle size={16} className="text-[#B42318]" aria-hidden="true" />;
+  if (status === "SIGNED") return <CheckCircle2 size={16} className="text-[color:var(--color-success-700)]" aria-hidden="true" />;
+  if (status === "REJECTED") return <XCircle size={16} className="text-[color:var(--color-error-700)]" aria-hidden="true" />;
   return <Clock size={16} className="text-[color:var(--text-tertiary)]" aria-hidden="true" />;
 }
 

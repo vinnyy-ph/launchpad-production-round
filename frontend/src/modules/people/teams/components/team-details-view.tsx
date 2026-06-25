@@ -72,7 +72,6 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
       fallback={initials(name)}
       className="h-9 w-9"
       fallbackClassName="text-[12px] font-bold text-white"
-      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
 }
@@ -92,7 +91,7 @@ function PersonRow({
       type="button"
       onClick={onOpen}
       aria-label={`View ${person.fullName}'s profile`}
-      className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[color:var(--bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-[color:var(--bg-secondary)]"
     >
       <Avatar name={person.fullName} src={person.avatarUrl} />
       <span className="min-w-0">
@@ -171,7 +170,7 @@ function AddMembersDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="dialog-pop grid max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-lg">
+      <DialogContent className="dialog-pop grid max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-lg">
         <DialogDescription className="sr-only">
           Add members to {team.name}.
         </DialogDescription>
@@ -463,7 +462,7 @@ export function TeamDetailsView({
 
         {otherMembers.length === 0 ? (
           <div
-            className="rounded-2xl border border-[color:var(--border-primary)] bg-white px-6 py-8 text-center text-sm text-[color:var(--text-tertiary)]"
+            className="rounded-xl border border-[color:var(--border-primary)] bg-white px-6 py-8 text-center text-sm text-[color:var(--text-tertiary)]"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
             No additional members yet.
@@ -473,7 +472,7 @@ export function TeamDetailsView({
             {otherMembers.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center gap-1 rounded-2xl border border-[color:var(--border-primary)] bg-white pr-1.5 transition-colors hover:border-[color:var(--border-secondary)]"
+                className="flex items-center gap-1 rounded-xl border border-[color:var(--border-primary)] bg-white pr-1.5 transition-colors hover:border-[color:var(--border-secondary)]"
                 style={{ boxShadow: "var(--shadow-xs)" }}
               >
                 <div className="min-w-0 flex-1">
@@ -484,9 +483,9 @@ export function TeamDetailsView({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          variant="ghost"
+                          variant="destructive-ghost"
                           size="icon-sm"
-                          className="flex-shrink-0 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+                          className="flex-shrink-0"
                           onClick={() => void handleRemoveMember(member)}
                           aria-label="Remove Member"
                         >

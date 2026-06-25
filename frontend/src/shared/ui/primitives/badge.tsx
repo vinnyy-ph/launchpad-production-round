@@ -9,12 +9,12 @@ const badgeVariants = cva(
     variants: {
       variant: {
         // New brandbook status variants
-        neutral: "bg-[#FAFAFA] border-[#E9EAEB] text-[color:var(--text-secondary)]",
-        success: "bg-[#ECFDF3] border-[#ABEFC6] text-[#067647]",
-        warning: "bg-[#FFFAEB] border-[#FEDF89] text-[#B54708]",
-        error:   "bg-[#FEF3F2] border-[#FECDCA] text-[#B42318]",
-        brand:   "bg-[#EEF4FF] border-[#C7D7FE] text-[#3538CD]",
-        modern:  "bg-white border-[#D5D7DA] text-[color:var(--text-secondary)]",
+        neutral: "bg-[color:var(--gray-neutral-50)] border-[color:var(--gray-neutral-200)] text-[color:var(--text-secondary)]",
+        success: "bg-[color:var(--color-success-50)] border-[color:var(--color-success-200)] text-[color:var(--color-success-700)]",
+        warning: "bg-[color:var(--color-warning-50)] border-[color:var(--color-warning-200)] text-[color:var(--color-warning-700)]",
+        error:   "bg-[color:var(--color-error-50)] border-[color:var(--color-error-200)] text-[color:var(--color-error-700)]",
+        brand:   "bg-gradient-badge-brand border-transparent text-[color:var(--text-primary)] shadow-[inset_0_0_0_1px_rgba(24,29,39,0.06)]",
+        modern:  "bg-white border-[color:var(--gray-neutral-300)] text-[color:var(--text-secondary)]",
         // Deprecated aliases — keep so existing kit/page call-sites still compile
         default:     "border-transparent bg-primary text-primary-foreground",
         secondary:   "border-transparent bg-secondary text-secondary-foreground",
@@ -22,9 +22,12 @@ const badgeVariants = cva(
         outline:     "text-foreground",
       },
       size: {
-        sm: "px-2 py-[2px] text-[12px]",                 // ~22px / 6r
-        md: "px-2 py-[3px] text-xs",                      // 24px / 6r (= base)
-        lg: "px-2.5 py-[5px] text-[14px] rounded-md",     // 28px / 8r
+        // Brandbook defines a single badge size; sm and md are identical so every badge
+        // is one consistent height. (text-xs carries the Jia 12/18 size+leading; the old
+        // sm used an arbitrary text-[12px] with no paired leading → context-dependent height.)
+        sm: "px-2 py-[3px] text-xs",
+        md: "px-2 py-[3px] text-xs",
+        lg: "px-2.5 py-[5px] text-sm rounded-md",
       },
       pill: {
         true: "rounded-full",

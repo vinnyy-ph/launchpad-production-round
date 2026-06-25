@@ -1,23 +1,21 @@
 import { cn } from "@/shared/lib/utils";
 
-type Tone = "neutral" | "success" | "warning" | "error" | "brand" | "info";
+type Tone = "neutral" | "success" | "warning" | "error" | "brand";
 type Shape = "default" | "pill" | "modern";
 
 // Exact brandbook .badge colorways (match Badge primitive 1:1).
 const TONE_CLASS: Record<Tone, string> = {
-  neutral: "bg-[#FAFAFA] text-[color:var(--text-secondary)] border-[#E9EAEB]",
-  success: "bg-[#ECFDF3] text-[#067647] border-[#ABEFC6]",
-  warning: "bg-[#FFFAEB] text-[#B54708] border-[#FEDF89]",
-  error: "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]",
-  brand: "bg-[#EEF4FF] text-[#3538CD] border-[#C7D7FE]",
-  // "info" is an alias kept for back-compat — maps to the brand colorway.
-  info: "bg-[#EEF4FF] text-[#3538CD] border-[#C7D7FE]",
+  neutral: "bg-[color:var(--gray-neutral-50)] text-[color:var(--text-secondary)] border-[color:var(--gray-neutral-200)]",
+  success: "bg-[color:var(--color-success-50)] text-[color:var(--color-success-700)] border-[color:var(--color-success-200)]",
+  warning: "bg-[color:var(--color-warning-50)] text-[color:var(--color-warning-700)] border-[color:var(--color-warning-200)]",
+  error: "bg-[color:var(--color-error-50)] text-[color:var(--color-error-700)] border-[color:var(--color-error-200)]",
+  brand: "bg-gradient-badge-brand text-[color:var(--text-primary)] border-transparent shadow-[inset_0_0_0_1px_rgba(24,29,39,0.06)]",
 };
 
 const SHAPE_CLASS: Record<Shape, string> = {
   default: "rounded-sm",
   pill: "rounded-full",
-  modern: "rounded-full bg-white text-[color:var(--text-secondary)] border-[#D5D7DA]",
+  modern: "rounded-full bg-white text-[color:var(--text-secondary)] border-[color:var(--gray-neutral-300)]",
 };
 
 // Enum-backed literals (authoritative) + derived literals (no producer yet).
@@ -25,7 +23,7 @@ const STATUS_TONE: Record<string, Tone> = {
   // EmployeeStatus
   ACTIVE: "success",
   ONBOARDING: "warning",
-  OFFBOARDING: "info",
+  OFFBOARDING: "neutral",
   INACTIVE: "error",
   // OffboardingStatus
   IN_PROGRESS: "warning",
@@ -42,10 +40,19 @@ const STATUS_TONE: Record<string, Tone> = {
   FAILED_DELIVERY: "error",
   // Derived (forward-looking; caller translates bool/date -> literal)
   DRAFT: "warning",
-  SENT: "info",
+  SENT: "neutral",
   ACKNOWLEDGED: "success",
-  DEEMED_ACK: "info",
+  // Auto-acknowledged = resolved passively (deadline lapsed) → neutral; distinct from active
+  // "Acknowledged" (green) and still-"Pending" (amber), so it never collides with either.
+  DEEMED_ACK: "neutral",
   OVERDUE: "error",
+};
+
+// Human-facing labels for enums whose sentence-cased form reads as jargon. Single source of
+// truth for status copy; everything else falls back to toSentenceCase (e.g. ACTIVE -> "Active").
+const STATUS_LABEL: Record<string, string> = {
+  DEEMED_ACK: "Auto-acknowledged",
+  FAILED_DELIVERY: "Delivery failed",
 };
 
 function toSentenceCase(s: string): string {
@@ -83,7 +90,7 @@ export function StatusBadge({
           aria-hidden="true"
         />
       )}
-      {toSentenceCase(status)}
+      {STATUS_LABEL[key] ?? toSentenceCase(status)}
     </span>
   );
 }

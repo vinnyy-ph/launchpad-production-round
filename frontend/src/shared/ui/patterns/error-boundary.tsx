@@ -15,13 +15,13 @@ export function ErrorState({
   return (
     <div
       className={cn(
-        "flex flex-col gap-1.5 rounded-[10px] border border-[#FECDCA] bg-[#FEF3F2] p-4",
+        "flex flex-col gap-1.5 rounded-[10px] border border-[color:var(--color-error-200)] bg-[color:var(--color-error-50)] p-4",
         className,
       )}
       role="alert"
     >
-      <p className="text-sm font-bold text-[#B42318]">Something went wrong</p>
-      <p className="text-[12px] font-medium text-[#B42318]">{message}</p>
+      <p className="text-sm font-bold text-[color:var(--color-error-700)]">Something went wrong</p>
+      <p className="text-[12px] font-medium text-[color:var(--color-error-700)]">{message}</p>
       {onRetry && (
         <Button variant="outline" size="sm" className="mt-2 self-start" onClick={onRetry}>
           <RefreshCw /> Try again

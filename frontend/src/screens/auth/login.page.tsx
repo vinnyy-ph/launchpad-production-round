@@ -142,7 +142,7 @@ function LegalDialog({
   const content = doc === "privacy" ? PRIVACY : TERMS;
   return (
     <Dialog open={doc !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 sm:max-w-lg">
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{content.title}</DialogTitle>
           <DialogDescription>Last updated {content.updated}</DialogDescription>
@@ -244,7 +244,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setLegal("terms")}
-              className="rounded-sm font-medium text-[color:var(--text-primary)] underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-sm font-medium text-[color:var(--text-primary)] underline underline-offset-2"
             >
               Terms
             </button>{" "}
@@ -252,7 +252,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setLegal("privacy")}
-              className="rounded-sm font-medium text-[color:var(--text-primary)] underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-sm font-medium text-[color:var(--text-primary)] underline underline-offset-2"
             >
               Privacy Policy
             </button>

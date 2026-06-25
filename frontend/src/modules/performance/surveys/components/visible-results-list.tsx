@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { AlertCircle, BarChart3, ChevronRight, RefreshCw } from "lucide-react";
-import { Badge, Skeleton } from "@/shared/ui";
+import { Badge, Button, Skeleton } from "@/shared/ui";
 import { EmptyState } from "@/shared/ui/patterns";
 import { STATUS_LABEL } from "../types/surveys.types";
 import { useVisibleResultSurveys } from "../hooks/use-visible-result-surveys";
@@ -30,12 +30,9 @@ export function VisibleResultsList() {
         <span className="flex-1 text-sm text-[color:var(--text-secondary)]">
           Could not load results.
         </span>
-        <button
-          onClick={() => void refetch()}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-        >
-          <RefreshCw size={12} /> Retry
-        </button>
+        <Button variant="ghost" size="sm" onClick={() => void refetch()}>
+          <RefreshCw /> Retry
+        </Button>
       </div>
     );
   }

@@ -36,7 +36,7 @@ interface OrgChartCanvasProps {
    * when the caller needs to portal overlays (e.g. a detail drawer) into the canvas so they stay
    * visible in full screen.
    */
-  containerRef?: RefObject<HTMLDivElement>;
+  containerRef?: RefObject<HTMLDivElement | null>;
   /** Notified whenever the canvas enters/exits full screen, so callers can react (e.g. re-portal). */
   onFullscreenChange?: (isFullscreen: boolean) => void;
   /** Expand every subtree. When set, an "Expand all" control appears on the canvas. */
@@ -205,7 +205,7 @@ function CanvasButton({ label, onClick, children, className = "", bare = false }
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`flex h-9 w-9 items-center justify-center rounded-full text-[color:var(--text-secondary)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${chrome} ${className}`}
+      className={`flex h-9 w-9 items-center justify-center rounded-full text-[color:var(--text-secondary)] transition-colors ${chrome} ${className}`}
       style={bare ? undefined : { boxShadow: "var(--shadow-sm)" }}
     >
       {children}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Network, Plus, Workflow } from "lucide-react";
+import { Network, Plus, Users, Workflow } from "lucide-react";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { Button, Skeleton, UserAvatar } from "@/shared/ui";
 import {
@@ -48,7 +48,6 @@ function Avatar({ name, src, size = 7 }: { name: string; src?: string | null; si
       fallback={initials(name)}
       className={`flex-shrink-0 ${dim}`}
       fallbackClassName={`${textSize} font-bold text-white`}
-      fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
 }
@@ -150,7 +149,7 @@ export default function TeamsPage() {
     },
     {
       header: "Members",
-      className: "min-w-[150px] text-center",
+      className: "min-w-[150px] text-right tabular-nums",
       sortable: true,
       sortKey: "members",
       cell: (team) => (
@@ -180,8 +179,8 @@ export default function TeamsPage() {
         value={activeTab}
         onChange={setActiveTab}
         items={[
-          { value: "org-chart", label: "Org Chart" },
-          { value: "teams", label: "Teams" },
+          { value: "org-chart", label: "Org Chart", icon: Network },
+          { value: "teams", label: "Teams", icon: Users },
         ]}
       />
 
@@ -241,9 +240,17 @@ export default function TeamsPage() {
                         : "Teams will appear here once HR sets up the org structure."
                   }
                   action={
-                    !hasFilters && canManage
-                      ? { label: "Create team", onClick: () => setCreateOpen(true) }
-                      : undefined
+                    hasFilters
+                      ? {
+                          label: "Clear filters",
+                          onClick: () => {
+                            setSearch("");
+                            setLeaderIds(new Set());
+                          },
+                        }
+                      : canManage
+                        ? { label: "Create team", onClick: () => setCreateOpen(true) }
+                        : undefined
                   }
                 />
               }

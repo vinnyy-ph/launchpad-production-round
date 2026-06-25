@@ -106,7 +106,7 @@ export function DepartmentsPanel() {
     },
     {
       header: "Employees",
-      className: "min-w-[140px] text-center",
+      className: "min-w-[140px] text-right tabular-nums",
       sortable: true,
       sortKey: "employeeCount",
       cell: (department) => (
@@ -117,7 +117,7 @@ export function DepartmentsPanel() {
     },
     {
       header: "Created",
-      className: "min-w-[150px] text-center",
+      className: "min-w-[150px]",
       sortable: true,
       sortKey: "createdAt",
       cell: (department) => (
