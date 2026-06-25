@@ -21,6 +21,7 @@ import type {
   AnsweredSurvey,
 } from "@/modules/performance/surveys/types/surveys.types";
 import { VisibleResultsList } from "@/modules/performance/surveys/components/visible-results-list";
+import { ACK_PRESENTATION, type AckStatus } from "@/modules/performance/evaluations/lib/ack-status";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -310,6 +311,8 @@ function AcknowledgementsTab({
     const isAcknowledged = !!ack?.acknowledgedAt;
     const isDeemed = !isAcknowledged && !!ack?.isDeemedAck;
     const pending = !isAcknowledged && !isDeemed;
+    const ackState: AckStatus = isAcknowledged ? "acknowledged" : isDeemed ? "auto" : "pending";
+    const ackChip = ACK_PRESENTATION[ackState];
 
     return (
       <div
@@ -332,9 +335,7 @@ function AcknowledgementsTab({
         </div>
 
         <div className="flex items-center gap-3">
-          {isAcknowledged && <Badge variant="success">Acknowledged</Badge>}
-          {isDeemed && <Badge variant="neutral">Auto-acknowledged</Badge>}
-          {pending && <Badge variant="warning">Pending</Badge>}
+          <Badge variant={ackChip.tone}>{ackChip.label}</Badge>
           <Button
             variant={pending ? undefined : "secondary"}
             size="sm"

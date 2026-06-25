@@ -27,6 +27,7 @@ import {
 } from "@/modules/performance/evaluations";
 import { ReviewEvaluationDialog } from "@/modules/performance/evaluations/components/review-evaluation-dialog";
 import { formatPeriod } from "@/screens/supervisor/evaluations.format";
+import { ACK_PRESENTATION, type AckStatus } from "@/modules/performance/evaluations/lib/ack-status";
 
 const PAGE_SIZE = 10;
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -52,14 +53,16 @@ function formatDate(iso: string): string {
   return format(d, d.getFullYear() === new Date().getFullYear() ? "LLL d" : "LLL d, yyyy");
 }
 
-type AckTone = "warning" | "success" | "info";
+type AckTone = "warning" | "success" | "neutral";
 
-/** Acknowledgement status: Pending / Acknowledged / Auto-acknowledged. */
+/** Acknowledgement status: Pending / Acknowledged / Auto-acknowledged.
+ *  State is derived here; label + tone come from the shared ACK_PRESENTATION map. */
 function ackInfo(ev: Evaluation): { status: string; tone: AckTone } {
   const ack = ev.acknowledgement;
-  if (ack?.acknowledgedAt && !ack.isDeemedAck) return { status: "Acknowledged", tone: "success" };
-  if (ack?.isDeemedAck) return { status: "Auto-acknowledged", tone: "info" };
-  return { status: "Pending", tone: "warning" };
+  const state: AckStatus =
+    ack?.acknowledgedAt && !ack.isDeemedAck ? "acknowledged" : ack?.isDeemedAck ? "auto" : "pending";
+  const { label, tone } = ACK_PRESENTATION[state];
+  return { status: label, tone };
 }
 
 export default function HrEvaluationsPage() {

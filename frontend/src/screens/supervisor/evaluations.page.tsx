@@ -55,6 +55,7 @@ import {
     type Column,
     type DataTableSort,
 } from "@/shared/ui/patterns";
+import { ACK_PRESENTATION, type AckStatus } from "@/modules/performance/evaluations/lib/ack-status";
 import {
     Tooltip,
     TooltipContent,
@@ -129,16 +130,16 @@ function revieweeInitials(name: string): string {
     return letters.toUpperCase() || "—";
 }
 
-type AckTone = "warning" | "success" | "info";
+type AckTone = "warning" | "success" | "neutral";
 
 /** Acknowledgement status for the table: Pending / Acknowledged / Auto-acknowledged (no overdue). */
 function ackInfo(ev: Evaluation): { status: string; tone: AckTone } | null {
     if (!ev.isSent) return null;
     const ack = ev.acknowledgement;
-    if (ack?.acknowledgedAt && !ack.isDeemedAck)
-        return { status: "Acknowledged", tone: "success" };
-    if (ack?.isDeemedAck) return { status: "Auto-acknowledged", tone: "info" };
-    return { status: "Pending", tone: "warning" };
+    const state: AckStatus =
+        ack?.acknowledgedAt && !ack.isDeemedAck ? "acknowledged" : ack?.isDeemedAck ? "auto" : "pending";
+    const { label, tone } = ACK_PRESENTATION[state];
+    return { status: label, tone };
 }
 
 // Overall-rating options — number, label, and a one-line bar for each level.

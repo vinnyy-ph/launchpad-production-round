@@ -19,6 +19,7 @@ import { StatusBadge } from "@/shared/ui/patterns";
 import type { Evaluation } from "../types/evaluations.types";
 import { downloadSupportingDoc, getSupportingDocUrl } from "../services/evaluations.service";
 import { DocumentViewerModal } from "./document-viewer-modal";
+import { ACK_PRESENTATION, type AckStatus } from "../lib/ack-status";
 
 // Sentence case (Jia), not the Title Case shared map.
 const GRADE_LABELS: Record<number, string> = {
@@ -154,11 +155,8 @@ export function ReviewEvaluationDialog({
   const isAutoAck = !isAcknowledged && !!ack?.isDeemedAck;
   const isPending = !isAcknowledged && !isAutoAck;
 
-  const chip = isAcknowledged
-    ? { tone: "success" as const, label: "Acknowledged", dot: false }
-    : isAutoAck
-      ? { tone: "neutral" as const, label: "Auto-acknowledged", dot: true }
-      : { tone: "warning" as const, label: "Pending", dot: true };
+  const ackState: AckStatus = isAcknowledged ? "acknowledged" : isAutoAck ? "auto" : "pending";
+  const chip = { ...ACK_PRESENTATION[ackState], dot: ackState !== "acknowledged" };
 
   const subtitle = isAcknowledged
     ? justAcked && !ack?.acknowledgedAt
