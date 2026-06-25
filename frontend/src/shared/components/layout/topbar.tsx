@@ -39,7 +39,6 @@ function formatTopbarDate(date: Date): string {
     weekday: "long",
     month: "long",
     day: "numeric",
-    year: "numeric",
   });
 }
 
@@ -244,7 +243,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       <div className="flex flex-shrink-0 items-center gap-3">
         <span
           aria-hidden="true"
-          className="hidden whitespace-nowrap text-[14px] font-medium tabular-nums text-[color:var(--text-secondary)] select-none xl:block"
+          className="hidden whitespace-nowrap text-[14px] font-medium tabular-nums text-[color:var(--text-secondary)] select-none lg:block"
         >
           <span className="text-[color:var(--text-primary)] mr-2">{clock.time}</span> {clock.date}
         </span>
