@@ -139,12 +139,14 @@ describe("buildOrgHealth", () => {
   it("is empty for non-HR roles", () => {
     expect(buildOrgHealth("EMPLOYEE", stats({ pendingClearances: 4 }))).toEqual([]);
   });
-  it("surfaces the clearances-in-progress card for HR when the field is present", () => {
-    const cards = buildOrgHealth("HR", stats({ pendingClearances: 4 }));
-    expect(cards.map((c) => c.id)).toEqual(["clearances"]);
-    expect(cards[0]).toMatchObject({ count: 4, unit: "clearances" });
+  it("surfaces active-employees and clearances cards for HR when the fields are present", () => {
+    const cards = buildOrgHealth("HR", stats({ activeEmployees: 42, pendingClearances: 4 }));
+    expect(cards.map((c) => c.id)).toEqual(["active-employees", "clearances"]);
+    expect(cards.find((c) => c.id === "active-employees")).toMatchObject({ count: 42, unit: "people" });
+    expect(cards.find((c) => c.id === "clearances")).toMatchObject({ count: 4, unit: "clearances" });
   });
-  it("uses the singular unit for a count of one", () => {
+  it("uses singular units for a count of one", () => {
+    expect(buildOrgHealth("HR", stats({ activeEmployees: 1 }))[0].unit).toBe("person");
     expect(buildOrgHealth("HR", stats({ pendingClearances: 1 }))[0].unit).toBe("clearance");
   });
   it("omits the card when the field is absent", () => {

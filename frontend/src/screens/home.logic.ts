@@ -154,13 +154,20 @@ export interface OrgHealthCard {
 }
 
 /**
- * Org-health row (HR/Admin). Only "clearances in progress" has a real field today.
- * FLAGGED, not mocked: the onboarding pipeline breakdown (accepted/expired/failed, PEO-21) and
- * the pulse response rate (PER-20) need new dashboard fields before their cards can render.
+ * Org-health cards (HR/Admin) — context metrics with a real DashboardStats field, shown as a
+ * count + a link to where it lives. Actionable counts (onboarding/offboarding) stay in the
+ * attention zones, not duplicated here.
+ *
+ * FLAGGED, not mocked: month-over-month delta pills (no trend field on DashboardStats), the
+ * onboarding pipeline breakdown (accepted/expired/failed, PEO-21) and the pulse response rate
+ * (PER-20) need new dashboard fields before they can render.
  */
 export function buildOrgHealth(role: string | undefined, stats: DashboardStats | null): OrgHealthCard[] {
   if (role !== "HR" && role !== "ADMIN") return [];
   const cards: OrgHealthCard[] = [];
+  if (stats?.activeEmployees != null) {
+    cards.push({ id: "active-employees", label: "Active employees", count: stats.activeEmployees, unit: stats.activeEmployees === 1 ? "person" : "people", action: "View directory", href: "/hr/directory" });
+  }
   if (stats?.pendingClearances != null) {
     cards.push({ id: "clearances", label: "Clearances in progress", count: stats.pendingClearances, unit: stats.pendingClearances === 1 ? "clearance" : "clearances", action: "View clearances", href: "/hr/directory?tab=offboarding" });
   }
