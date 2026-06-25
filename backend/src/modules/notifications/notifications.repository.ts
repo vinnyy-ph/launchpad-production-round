@@ -100,11 +100,24 @@ export class NotificationsRepository {
     });
   }
 
-  /** Returns the most recent notifications for a recipient. */
-  async findByRecipientId(recipientId: string, limit: number) {
+  /**
+   * Returns the recipient's most recent non-archived notifications, pinned ones first
+   * (newest-pinned first), then the rest newest-first. Types in `excludeTypes` are
+   * dropped server-side (the recipient's opted-out categories) before the limit applies,
+   * so an opted-out category never reaches the client.
+   */
+  async findByRecipientId(
+    recipientId: string,
+    limit: number,
+    excludeTypes: NotificationType[] = [],
+  ) {
     return prisma.notification.findMany({
-      where: { recipientId },
-      orderBy: { createdAt: "desc" },
+      where: {
+        recipientId,
+        deletedAt: null,
+        ...(excludeTypes.length > 0 ? { type: { notIn: excludeTypes } } : {}),
+      },
+      orderBy: [{ isPinned: "desc" }, { pinnedAt: "desc" }, { createdAt: "desc" }],
       take: limit,
     });
   }
@@ -127,6 +140,41 @@ export class NotificationsRepository {
         isRead: true,
         readAt: new Date(),
       },
+    });
+  }
+
+  /** Marks every unread, non-archived notification for a recipient as read. Returns the count. */
+  async markAllAsRead(recipientId: string) {
+    return prisma.notification.updateMany({
+      where: { recipientId, isRead: false, deletedAt: null },
+      data: { isRead: true, readAt: new Date() },
+    });
+  }
+
+  /** Pins or unpins a notification, stamping pinnedAt when pinning and clearing it when unpinning. */
+  async setPinned(notificationId: string, isPinned: boolean) {
+    return prisma.notification.update({
+      where: { id: notificationId },
+      data: { isPinned, pinnedAt: isPinned ? new Date() : null },
+    });
+  }
+
+  /** Soft-deletes (archives) one notification so it leaves the list but stays in the dedup ledger. */
+  async softDelete(notificationId: string) {
+    return prisma.notification.update({
+      where: { id: notificationId },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  /**
+   * Soft-deletes every non-archived, non-pinned notification for a recipient (a "clear all" that
+   * spares pinned items). Returns the count.
+   */
+  async softDeleteAllForRecipient(recipientId: string) {
+    return prisma.notification.updateMany({
+      where: { recipientId, deletedAt: null, isPinned: false },
+      data: { deletedAt: new Date() },
     });
   }
 

@@ -299,8 +299,12 @@ export interface SmallTeamShare {
   supervisorName: string | null;
   /** The send action is only allowed once the occurrence is completed (closed or past deadline). */
   occurrenceCompleted: boolean;
-  /** ISO timestamp of the last share, or null if never shared. */
+  /** ISO timestamp of the share, or null if never shared. Once set, the note is locked (immutable). */
   alreadySharedAt: string | null;
+  /** The note HR already sent, shown read-only in the locked state. Null until shared. */
+  sharedMessage: string | null;
+  /** ISO deadline to send the note (occurrence close + 30 days). Null if unknown. */
+  shareDeadline: string | null;
 }
 
 /** Result of sharing small-team results with the supervisor. */
@@ -348,6 +352,18 @@ export interface SurveyInsight {
     themes: { label: string; description: string }[];
     quotes: string[];
   };
+}
+
+/** A question returned by AI generation — no id/orderIndex; the builder assigns those on append. */
+export interface GeneratedQuestion {
+  type: QuestionType;
+  questionText: string;
+  isRequired: boolean;
+  options?: string[];
+  scaleMin?: number;
+  scaleMax?: number;
+  scaleMinLabel?: string;
+  scaleMaxLabel?: string;
 }
 
 // ─── Inputs ───────────────────────────────────────────────────────────────────

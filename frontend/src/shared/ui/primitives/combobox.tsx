@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+import { UserAvatar } from "./user-avatar";
 import { cn } from "@/shared/lib/utils";
 
 export interface ComboboxOption {
@@ -11,7 +12,17 @@ export interface ComboboxOption {
   label: string;
   /** Secondary text shown after the label, in a lighter/thinner gray (e.g. a job title). */
   sublabel?: string;
+  /**
+   * Leading avatar (e.g. employee pickers). When `avatarFallback` is set, a small avatar is
+   * rendered before the label — `avatarUrl` shows the photo and `avatarFallback` the initials.
+   */
+  avatarUrl?: string | null;
+  avatarFallback?: string;
 }
+
+const AVATAR_FALLBACK_STYLE: React.CSSProperties = {
+  background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+};
 
 export interface ComboboxProps {
   options: ComboboxOption[];
@@ -57,9 +68,20 @@ export function Combobox({
           )}
         >
           {selected ? (
-            <span className="flex min-w-0 items-baseline gap-1.5 truncate">
+            <span className="flex min-w-0 items-center gap-2 truncate">
+              {selected.avatarFallback !== undefined && (
+                <UserAvatar
+                  src={selected.avatarUrl ?? null}
+                  fallback={selected.avatarFallback}
+                  className="h-6 w-6 shrink-0"
+                  fallbackClassName="text-[10px] font-semibold text-[color:var(--text-primary)]"
+                  fallbackStyle={AVATAR_FALLBACK_STYLE}
+                />
+              )}
               <span className="truncate">{selected.label}</span>
-              {selected.sublabel && (
+              {/* Avatar options (employees) keep the trigger compact: just avatar + name.
+                  Other comboboxes still show their sublabel inline. */}
+              {selected.avatarFallback === undefined && selected.sublabel && (
                 <span className="truncate font-normal text-[color:var(--text-tertiary)]">
                   {selected.sublabel}
                 </span>
@@ -79,7 +101,8 @@ export function Combobox({
       </PopoverTrigger>
       <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          {/* Drop the global focus ring on the auto-focused search input when the popover opens. */}
+          <CommandInput placeholder={searchPlaceholder} className="focus-visible:shadow-none" />
           {/*
            * Stop wheel/touch from bubbling to the dialog's scroll lock (react-remove-scroll),
            * which otherwise swallows these events on the portaled popover and blocks scrolling
@@ -91,27 +114,56 @@ export function Combobox({
           >
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
-              {options.map((o) => (
-                <CommandItem
-                  key={o.value}
-                  value={o.value}
-                  keywords={[o.label]}
-                  onSelect={() => {
-                    onChange?.(o.value === value ? "" : o.value);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn("mr-2 h-4 w-4 shrink-0", value === o.value ? "opacity-100" : "opacity-0")} aria-hidden="true" />
-                  <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-                    <span className="truncate">{o.label}</span>
-                    {o.sublabel && (
-                      <span className="truncate font-normal text-[color:var(--text-tertiary)]">
-                        {o.sublabel}
-                      </span>
-                    )}
-                  </span>
-                </CommandItem>
-              ))}
+              {options.map((o) =>
+                o.avatarFallback !== undefined ? (
+                  <CommandItem
+                    key={o.value}
+                    value={o.value}
+                    keywords={[o.label, o.sublabel ?? ""]}
+                    onSelect={() => {
+                      onChange?.(o.value === value ? "" : o.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <UserAvatar
+                      src={o.avatarUrl ?? null}
+                      fallback={o.avatarFallback}
+                      className="mr-2 h-7 w-7 shrink-0"
+                      fallbackClassName="text-[11px] font-semibold text-[color:var(--text-primary)]"
+                      fallbackStyle={AVATAR_FALLBACK_STYLE}
+                    />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-[color:var(--text-primary)]">{o.label}</span>
+                      {o.sublabel && (
+                        <span className="truncate text-xs font-normal text-[color:var(--text-tertiary)]">
+                          {o.sublabel}
+                        </span>
+                      )}
+                    </span>
+                    <Check className={cn("ml-2 h-4 w-4 shrink-0", value === o.value ? "opacity-100" : "opacity-0")} aria-hidden="true" />
+                  </CommandItem>
+                ) : (
+                  <CommandItem
+                    key={o.value}
+                    value={o.value}
+                    keywords={[o.label]}
+                    onSelect={() => {
+                      onChange?.(o.value === value ? "" : o.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4 shrink-0", value === o.value ? "opacity-100" : "opacity-0")} aria-hidden="true" />
+                    <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                      <span className="truncate">{o.label}</span>
+                      {o.sublabel && (
+                        <span className="truncate font-normal text-[color:var(--text-tertiary)]">
+                          {o.sublabel}
+                        </span>
+                      )}
+                    </span>
+                  </CommandItem>
+                ),
+              )}
             </CommandGroup>
           </CommandList>
         </Command>

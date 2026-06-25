@@ -1,15 +1,14 @@
 model Team {
-  id        String   @id @default(uuid())
-  name      String
-  leaderId  String
-  leader    Employee @relation("TeamLeader", fields: [leaderId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members                TeamMember[]
+  id                     String                   @id @default(uuid())
+  name                   String
+  leaderId               String
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
   surveyAudienceConfig   SurveyAudienceConfig[]
-  surveyVisibilityConfig SurveyVisibilityConfig[]
   surveyResultShares     SurveyResultShare[]
+  surveyVisibilityConfig SurveyVisibilityConfig[]
+  members                TeamMember[]
+  leader                 Employee                 @relation("TeamLeader", fields: [leaderId], references: [id])
 
   @@map("teams")
 }

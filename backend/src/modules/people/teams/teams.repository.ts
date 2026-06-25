@@ -99,6 +99,17 @@ export class TeamsRepository {
   }
 
   /**
+   * Loads the department id for each given employee, so the service can enforce the
+   * same-department membership rule. Returns one row per existing employee.
+   */
+  async findDepartmentIds(employeeIds: string[]) {
+    return prisma.employee.findMany({
+      where: { id: { in: employeeIds } },
+      select: { id: true, departmentId: true },
+    });
+  }
+
+  /**
    * Creates a team and member rows in one transaction.
    */
   async createTeam(name: string, leaderId: string, memberIds: string[]) {

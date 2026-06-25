@@ -24,7 +24,7 @@ function Avatar({ name, src, className }: { name: string; src?: string | null; c
       src={src}
       fallback={initials(name)}
       className={cn("h-9 w-9", className)}
-      fallbackClassName="text-[11px] font-bold text-white"
+      fallbackClassName="text-[12px] font-bold text-white"
       fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
@@ -42,7 +42,7 @@ function TeamCard({ team }: { team: Team }) {
       style={{ boxShadow: "var(--shadow-xs)" }}
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="min-w-0 truncate text-[15px] font-bold tracking-[-0.01em] text-[color:var(--text-primary)]">
+        <h3 className="min-w-0 truncate text-[16px] font-bold tracking-[-0.01em] text-[color:var(--text-primary)]">
           {team.name}
         </h3>
         <Badge variant="modern" size="sm" pill className="flex-none">
@@ -71,7 +71,7 @@ function TeamCard({ team }: { team: Team }) {
             />
           ))}
           {extra > 0 && (
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--bg-tertiary)] text-[10px] font-semibold text-[color:var(--text-secondary)] ring-2 ring-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--bg-tertiary)] text-[12px] font-semibold text-[color:var(--text-secondary)] ring-2 ring-white">
               +{extra}
             </span>
           )}

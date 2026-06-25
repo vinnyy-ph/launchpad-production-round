@@ -7,6 +7,7 @@ export const MAX_NOTIFICATIONS_LIMIT = 50;
 export const NOTIFICATION_FIELDS = {
   NOTIFICATION_ID: "notificationId",
   LIMIT: "limit",
+  PINNED: "pinned",
 } as const;
 
 /** Socket.IO event name for new in-app notifications. */

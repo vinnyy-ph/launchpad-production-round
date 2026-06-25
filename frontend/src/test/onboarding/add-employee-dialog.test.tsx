@@ -2,9 +2,11 @@ import { useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AddEmployeeDialog } from "@/modules/people/onboarding/components/add-employee-dialog";
+import { PEOPLE_NAME_LANGUAGE_MESSAGE } from "@/modules/people/people-text";
 
 const mockToastError = jest.fn();
 const mockToastDismiss = jest.fn();
+const mockOnboardMutate = jest.fn();
 
 jest.mock("sonner", () => ({
   toast: {
@@ -17,6 +19,7 @@ jest.mock("sonner", () => ({
 
 jest.mock("@/modules/people/employees/hooks/use-employees", () => ({
   useEmployees: () => ({ employees: [], loading: false, error: null, reload: jest.fn() }),
+  useAllEmployees: () => ({ employees: [], loading: false, error: null, reload: jest.fn() }),
 }));
 
 jest.mock("@/modules/people/departments/hooks/use-departments", () => ({
@@ -24,7 +27,7 @@ jest.mock("@/modules/people/departments/hooks/use-departments", () => ({
 }));
 
 jest.mock("@/modules/people/onboarding/hooks/use-onboard-employee", () => ({
-  useOnboardEmployee: () => ({ mutate: jest.fn(), isPending: false }),
+  useOnboardEmployee: () => ({ mutate: mockOnboardMutate, isPending: false }),
 }));
 
 jest.mock("@/modules/people/onboarding/hooks/use-document-configs", () => ({
@@ -51,6 +54,7 @@ describe("AddEmployeeDialog unsaved changes", () => {
   beforeEach(() => {
     mockToastError.mockClear();
     mockToastDismiss.mockClear();
+    mockOnboardMutate.mockClear();
   });
 
   it("closes with Cancel when the form is empty", async () => {
@@ -115,5 +119,19 @@ describe("AddEmployeeDialog unsaved changes", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+  });
+
+  it("blocks offensive language in name fields before sending", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.type(screen.getByLabelText(/first name/i), "f*ck");
+
+    expect(screen.getByText(PEOPLE_NAME_LANGUAGE_MESSAGE)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /send invite/i }));
+
+    expect(screen.getByText(PEOPLE_NAME_LANGUAGE_MESSAGE)).toBeInTheDocument();
+    expect(mockOnboardMutate).not.toHaveBeenCalled();
   });
 });

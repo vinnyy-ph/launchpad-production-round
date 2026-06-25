@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { HTTP_STATUS_CODES, API_ERROR_MESSAGES } from "../../../../core/globals";
+import { HTTP_STATUS_CODES, API_ERROR_MESSAGES, API_ERROR_CODES } from "../../../../core/globals";
 import { SURVEY_ERROR_MESSAGES } from "../surveys.constants";
 import { ResultsService } from "./results.service";
 import { ShareService } from "./share.service";
@@ -281,6 +281,22 @@ export class ResultsController {
         });
         return;
       }
+      if (error.message === SURVEY_ERROR_MESSAGES.SHARE_ALREADY_SENT) {
+        res.status(HTTP_STATUS_CODES.CONFLICT).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.SHARE_ALREADY_SENT,
+          errorCode: "SHARE_ALREADY_SENT",
+        });
+        return;
+      }
+      if (error.message === SURVEY_ERROR_MESSAGES.SHARE_WINDOW_CLOSED) {
+        res.status(HTTP_STATUS_CODES.CONFLICT).json({
+          success: false,
+          message: SURVEY_ERROR_MESSAGES.SHARE_WINDOW_CLOSED,
+          errorCode: "SHARE_WINDOW_CLOSED",
+        });
+        return;
+      }
       if (error.message === SURVEY_ERROR_MESSAGES.SHARE_NO_SUPERVISOR) {
         res.status(HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY).json({
           success: false,
@@ -311,6 +327,21 @@ export class ResultsController {
         });
         return;
       }
+      if (this.isTextValidationError(error.message)) {
+        res.status(HTTP_STATUS_CODES.BAD_REQUEST).json({
+          success: false,
+          message: API_ERROR_MESSAGES.VALIDATION_FAILED,
+          errorCode: API_ERROR_CODES.VALIDATION_FAILED,
+          errors: [
+            {
+              field: "message",
+              message: error.message,
+              code: API_ERROR_CODES.VALIDATION_FAILED,
+            },
+          ],
+        });
+        return;
+      }
       if (error.message === SURVEY_ERROR_MESSAGES.AI_UNAVAILABLE) {
         res.status(HTTP_STATUS_CODES.SERVICE_UNAVAILABLE).json({
           success: false,
@@ -321,5 +352,9 @@ export class ResultsController {
       }
     }
     next(error);
+  }
+
+  private isTextValidationError(message: string): boolean {
+    return message.includes(" must be ") || message.includes(" must not contain ");
   }
 }

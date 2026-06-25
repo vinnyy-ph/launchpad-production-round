@@ -1,16 +1,25 @@
-import type { Notification, User } from "@prisma/client";
+import type { Notification, NotificationType, User } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../core/globals";
 import { InAppChannel } from "./channels/in-app.channel";
+import {
+  isEmailEnabled,
+  resolveEffectivePreferences,
+  suppressedInAppTypes,
+} from "./notification-categories";
+import { NotificationPreferencesRepository } from "./notification-preferences.repository";
 import { EmailService } from "../../core/email/email.service";
 import { buildEvaluationReminderEmailHtml } from "../../core/email/templates/evaluation-reminder.template";
 import { buildOnboardingDocumentRejectedEmailHtml } from "../../core/email/templates/onboarding-document-rejected.template";
 import { buildPulseSurveyReminderEmailHtml } from "../../core/email/templates/pulse-survey-reminder.template";
 import { buildPulseResultsSharedEmailHtml } from "../../core/email/templates/pulse-results-shared.template";
 import type {
+  BulkNotificationResponseDto,
   ListNotificationsQueryDto,
   ListNotificationsResponseDto,
   MarkAsReadResponseDto,
+  MessageResponseDto,
   NotificationResponseDto,
+  SingleNotificationResponseDto,
 } from "./dto";
 import { NotificationsRepository } from "./notifications.repository";
 
@@ -24,6 +33,7 @@ export class NotificationsService {
     private readonly notificationsRepository = new NotificationsRepository(),
     private readonly inAppChannel = new InAppChannel(),
     private readonly emailService = new EmailService(),
+    private readonly preferencesRepository = new NotificationPreferencesRepository(),
   ) {}
 
   /** First configured app origin, used to build deep links in emails. */
@@ -31,6 +41,20 @@ export class NotificationsService {
     return (
       process.env.CORS_ORIGIN?.split(",")[0]?.trim() ?? "http://localhost:3000"
     );
+  }
+
+  /**
+   * Whether an email of the given type should be sent to the recipient, per their
+   * notification preferences (and the global "pause all email" switch). Used to gate
+   * every email send so opted-out recipients are never emailed. Defaults to all-on when
+   * no preferences row exists.
+   */
+  private async shouldSendEmail(
+    employeeId: string,
+    type: NotificationType,
+  ): Promise<boolean> {
+    const row = await this.preferencesRepository.findByEmployeeId(employeeId);
+    return isEmailEnabled(resolveEffectivePreferences(row), type);
   }
 
   /**
@@ -180,17 +204,19 @@ export class NotificationsService {
         this.toNotificationDto(notification),
       );
 
-      await this.emailService.sendEmail({
-        to: employee.companyEmail,
-        subject: "Document needs changes",
-        html: buildOnboardingDocumentRejectedEmailHtml({
-          firstName: employee.firstName,
-          lastName: employee.lastName,
-          documentName,
-          rejectionNote: note,
-          onboardingUrl: `${this.resolveAppUrl()}/employee/onboarding`,
-        }),
-      });
+      if (await this.shouldSendEmail(employee.id, "ONBOARDING_STATUS")) {
+        await this.emailService.sendEmail({
+          to: employee.companyEmail,
+          subject: "Document needs changes",
+          html: buildOnboardingDocumentRejectedEmailHtml({
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            documentName,
+            rejectionNote: note,
+            onboardingUrl: `${this.resolveAppUrl()}/employee/onboarding`,
+          }),
+        });
+      }
     } catch {
       // Fire-and-forget: the review action must succeed even if notification delivery fails.
     }
@@ -604,18 +630,20 @@ export class NotificationsService {
         this.toNotificationDto(notification),
       );
 
-      await this.emailService.sendEmail({
-        to: supervisor.companyEmail,
-        subject: "Pulse results shared with you",
-        html: buildPulseResultsSharedEmailHtml({
-          firstName: supervisor.firstName,
-          lastName: supervisor.lastName,
-          surveyName,
-          teamName,
-          message,
-          resultsUrl: `${this.resolveAppUrl()}${linkUrl}`,
-        }),
-      });
+      if (await this.shouldSendEmail(supervisor.id, "PULSE_RESULTS_SHARED")) {
+        await this.emailService.sendEmail({
+          to: supervisor.companyEmail,
+          subject: "Pulse results shared with you",
+          html: buildPulseResultsSharedEmailHtml({
+            firstName: supervisor.firstName,
+            lastName: supervisor.lastName,
+            surveyName,
+            teamName,
+            message,
+            resultsUrl: `${this.resolveAppUrl()}${linkUrl}`,
+          }),
+        });
+      }
     } catch {
       // Fire-and-forget: the share action must succeed even if notification delivery fails.
     }
@@ -670,16 +698,18 @@ export class NotificationsService {
 
       // Email travels on the same throttle as the in-app reminder: only sent when one is
       // actually created above. Fire-and-forget — delivery failure must not break the sweep.
-      await this.emailService.sendEmail({
-        to: recipient.companyEmail,
-        subject: "Reminder: complete your pulse survey",
-        html: buildPulseSurveyReminderEmailHtml({
-          firstName: recipient.firstName,
-          lastName: recipient.lastName,
-          surveyName,
-          surveyUrl: `${this.resolveAppUrl()}/employee/surveys?tab=survey&pulse=${occurrenceId}`,
-        }),
-      });
+      if (await this.shouldSendEmail(recipient.id, "PULSE_REMINDER")) {
+        await this.emailService.sendEmail({
+          to: recipient.companyEmail,
+          subject: "Reminder: complete your pulse survey",
+          html: buildPulseSurveyReminderEmailHtml({
+            firstName: recipient.firstName,
+            lastName: recipient.lastName,
+            surveyName,
+            surveyUrl: `${this.resolveAppUrl()}/employee/surveys?tab=survey&pulse=${occurrenceId}`,
+          }),
+        });
+      }
     } catch {
       // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
     }
@@ -731,15 +761,17 @@ export class NotificationsService {
 
       // Email travels on the same throttle as the in-app reminder: only sent when one is
       // actually created above. Fire-and-forget — delivery failure must not break the sweep.
-      await this.emailService.sendEmail({
-        to: recipient.companyEmail,
-        subject: "Reminder: acknowledge your evaluation",
-        html: buildEvaluationReminderEmailHtml({
-          firstName: recipient.firstName,
-          lastName: recipient.lastName,
-          evaluationUrl: `${this.resolveAppUrl()}/employee/surveys?tab=acknowledgements&eval=${evaluationId}`,
-        }),
-      });
+      if (await this.shouldSendEmail(recipient.id, "EVAL_ACK_REMINDER")) {
+        await this.emailService.sendEmail({
+          to: recipient.companyEmail,
+          subject: "Reminder: acknowledge your evaluation",
+          html: buildEvaluationReminderEmailHtml({
+            firstName: recipient.firstName,
+            lastName: recipient.lastName,
+            evaluationUrl: `${this.resolveAppUrl()}/employee/surveys?tab=acknowledgements&eval=${evaluationId}`,
+          }),
+        });
+      }
     } catch {
       // Fire-and-forget: a reminder sweep must never break the read path that triggered it.
     }
@@ -758,9 +790,19 @@ export class NotificationsService {
       throw new Error("Employee profile not found");
     }
 
+    // Drop the recipient's opted-out categories server-side before the limit applies,
+    // so an in-app-disabled category never reaches the bell, the badge, or a socket refetch.
+    const prefsRow = await this.preferencesRepository.findByEmployeeId(
+      employee.id,
+    );
+    const excludeTypes = suppressedInAppTypes(
+      resolveEffectivePreferences(prefsRow),
+    );
+
     const notifications = await this.notificationsRepository.findByRecipientId(
       employee.id,
       query.limit,
+      excludeTypes,
     );
 
     return {
@@ -801,6 +843,104 @@ export class NotificationsService {
     };
   }
 
+  /** Marks all of the authenticated user's unread notifications as read. */
+  async markAllAsRead(user: User): Promise<BulkNotificationResponseDto> {
+    const employee = await this.notificationsRepository.findEmployeeByUserId(
+      user.id,
+    );
+
+    if (!employee) {
+      throw new Error("Employee profile not found");
+    }
+
+    const { count } = await this.notificationsRepository.markAllAsRead(
+      employee.id,
+    );
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.ALL_NOTIFICATIONS_MARKED_AS_READ,
+      data: { count },
+    };
+  }
+
+  /** Pins or unpins one notification owned by the authenticated user. */
+  async setPinned(
+    user: User,
+    notificationId: string,
+    pinned: boolean,
+  ): Promise<SingleNotificationResponseDto> {
+    const notification = await this.findOwnedNotification(user, notificationId);
+    const updated = await this.notificationsRepository.setPinned(
+      notification.id,
+      pinned,
+    );
+
+    return {
+      success: true,
+      message: pinned
+        ? API_SUCCESS_MESSAGES.NOTIFICATION_PINNED
+        : API_SUCCESS_MESSAGES.NOTIFICATION_UNPINNED,
+      data: this.toNotificationDto(updated),
+    };
+  }
+
+  /** Soft-deletes (clears) one notification owned by the authenticated user. */
+  async clearOne(
+    user: User,
+    notificationId: string,
+  ): Promise<MessageResponseDto> {
+    const notification = await this.findOwnedNotification(user, notificationId);
+    await this.notificationsRepository.softDelete(notification.id);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.NOTIFICATION_CLEARED,
+    };
+  }
+
+  /** Clears all of the authenticated user's notifications except pinned ones. */
+  async clearAll(user: User): Promise<BulkNotificationResponseDto> {
+    const employee = await this.notificationsRepository.findEmployeeByUserId(
+      user.id,
+    );
+
+    if (!employee) {
+      throw new Error("Employee profile not found");
+    }
+
+    const { count } =
+      await this.notificationsRepository.softDeleteAllForRecipient(employee.id);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.NOTIFICATIONS_CLEARED,
+      data: { count },
+    };
+  }
+
+  /** Resolves a notification owned by the user, throwing the standard not-found errors otherwise. */
+  private async findOwnedNotification(user: User, notificationId: string) {
+    const employee = await this.notificationsRepository.findEmployeeByUserId(
+      user.id,
+    );
+
+    if (!employee) {
+      throw new Error("Employee profile not found");
+    }
+
+    const notification = await this.notificationsRepository.findByIdForRecipient(
+      notificationId,
+      employee.id,
+    );
+
+    if (!notification) {
+      throw new Error("Notification not found");
+    }
+
+    return notification;
+  }
+
   /** Maps a Prisma notification row to the API response shape. */
   private toNotificationDto(notification: Notification): NotificationResponseDto {
     return {
@@ -810,6 +950,10 @@ export class NotificationsService {
       body: notification.body,
       linkUrl: notification.linkUrl,
       isRead: notification.isRead,
+      isPinned: notification.isPinned,
+      pinnedAt: notification.pinnedAt
+        ? notification.pinnedAt.toISOString()
+        : null,
       createdAt: notification.createdAt.toISOString(),
     };
   }

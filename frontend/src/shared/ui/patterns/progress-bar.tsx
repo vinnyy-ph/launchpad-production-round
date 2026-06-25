@@ -19,8 +19,8 @@ export function ProgressBar({ value, label, counter, className }: ProgressBarPro
     <div className={cn("flex flex-col gap-1.5", className)}>
       {(label || counter) && (
         <div className="flex items-center justify-between gap-2">
-          {label && <span className="text-[13px] font-bold text-[color:var(--text-primary)]">{label}</span>}
-          {counter && <span className="text-[13px] text-[color:var(--text-tertiary)]">{counter}</span>}
+          {label && <span className="text-[14px] font-bold text-[color:var(--text-primary)]">{label}</span>}
+          {counter && <span className="text-[14px] text-[color:var(--text-tertiary)]">{counter}</span>}
         </div>
       )}
       <div

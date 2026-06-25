@@ -12,8 +12,15 @@ import type {
   OffboardingListResponseDto,
   ReassignResponseDto,
 } from "./dto";
+import { validateOnboardingUploadFile } from "../onboarding/employee-onboarding/onboarding-file-validation";
 import { OffboardingService } from "./offboarding.service";
 import { OffboardingValidation } from "./offboarding.validation";
+
+/**
+ * Offboarding attachments accept the same file types as onboarding documents.
+ * Used to re-validate uploads (extension + MIME + magic bytes) beyond multer's MIME gate.
+ */
+const OFFBOARDING_ATTACHMENT_ALLOWED_TYPES = "pdf,jpg,jpeg,png";
 
 /**
  * HTTP controller for the offboarding lifecycle endpoints.
@@ -34,13 +41,24 @@ export class OffboardingController {
   ) => {
     try {
       const body = this.offboardingValidation.parseInitiateBody(req.body);
-      if (req.file) {
-        body.attachmentUrl =
-          await this.cloudinaryService.uploadOnboardingDocument(
-            req.file.buffer,
-            req.file.originalname,
-            req.file.mimetype,
-          );
+      const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+      if (files.length > 0) {
+        body.attachments = await Promise.all(
+          files.map(async (file) => {
+            // Re-validate beyond multer's coarse MIME gate: extension + declared MIME +
+            // magic bytes, mirroring the onboarding document upload's defense against
+            // spoofed file types. Throws "Invalid file type" → mapped to 400 by the router.
+            validateOnboardingUploadFile(file, OFFBOARDING_ATTACHMENT_ALLOWED_TYPES);
+            return {
+              url: await this.cloudinaryService.uploadOnboardingDocument(
+                file.buffer,
+                file.originalname,
+                file.mimetype,
+              ),
+              fileName: file.originalname,
+            };
+          }),
+        );
       }
       const result = await this.offboardingService.initiateOffboarding(
         req.user!,
@@ -240,6 +258,28 @@ export class OffboardingController {
         code: API_ERROR_CODES.FORBIDDEN,
         topMessage: API_ERROR_MESSAGES.FORBIDDEN,
         topCode: API_ERROR_CODES.FORBIDDEN,
+      });
+    }
+
+    // Same-department reassignment rule: the chosen supervisor/leader does not share the
+    // department of the reports/team members being moved. Surface as a field validation error.
+    if (error.message.startsWith("The new supervisor must belong")) {
+      return this.fail(res, HTTP_STATUS_CODES.BAD_REQUEST, {
+        field: "newSupervisorId",
+        message: error.message,
+        code: API_ERROR_CODES.VALIDATION_FAILED,
+        topMessage: API_ERROR_MESSAGES.VALIDATION_FAILED,
+        topCode: API_ERROR_CODES.VALIDATION_FAILED,
+      });
+    }
+
+    if (error.message.startsWith("The new team leader must belong")) {
+      return this.fail(res, HTTP_STATUS_CODES.BAD_REQUEST, {
+        field: "newTeamLeaderId",
+        message: error.message,
+        code: API_ERROR_CODES.VALIDATION_FAILED,
+        topMessage: API_ERROR_MESSAGES.VALIDATION_FAILED,
+        topCode: API_ERROR_CODES.VALIDATION_FAILED,
       });
     }
 

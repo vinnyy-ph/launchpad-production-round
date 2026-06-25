@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
   Badge,
+  Skeleton,
 } from "@/shared/ui";
 import { useMyAnswers } from "../hooks/use-my-answers";
 import type { AnsweredSurvey, MyAnswer } from "../types/surveys.types";
@@ -114,8 +115,8 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
             <div className="space-y-4">
               {[0, 1].map((i) => (
                 <div key={i}>
-                  <div className="h-3.5 w-48 rounded bg-[color:var(--bg-tertiary)]" />
-                  <div className="mt-2 h-3 w-32 rounded bg-[color:var(--bg-tertiary)]" />
+                  <Skeleton className="h-3.5 w-48" />
+                  <Skeleton className="mt-2 h-3 w-32" />
                 </div>
               ))}
             </div>
@@ -140,7 +141,7 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
           )}
 
           {data && !data.submitted && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[13px] text-[color:var(--text-secondary)]">
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[14px] text-[color:var(--text-secondary)]">
               <AlertCircle
                 size={17}
                 className="mt-0.5 flex-none text-[color:var(--text-tertiary)]"
@@ -150,19 +151,36 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
             </div>
           )}
 
-          {data && data.submitted && isAnonymous && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-[#C7D7FE] bg-[#EEF4FF] px-4 py-3 text-[13px] text-[#3538CD]">
+          {/* Anonymous + recoverable: anonymity protects your answers from OTHERS, not from
+              you — reassure, then show them. */}
+          {data && data.submitted && isAnonymous && data.answers.length > 0 && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-[#C7D7FE] bg-[#EEF4FF] px-4 py-3 text-[14px] text-[#3538CD]">
               <ShieldCheck size={17} className="mt-0.5 flex-none" aria-hidden="true" />
               <span>
-                This pulse was anonymous. To protect anonymity, your answers aren&apos;t linked
-                to you — so they can&apos;t be shown back here. Others only ever see aggregates.
+                This pulse is anonymous. Only you can see your own responses here — others only
+                ever see aggregates, never who answered what.
+              </span>
+            </div>
+          )}
+
+          {/* Anonymous response submitted before private self-view existed — its author link
+              was never stored, so it is unrecoverable by design. */}
+          {data && data.submitted && isAnonymous && data.answers.length === 0 && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--border-primary)] bg-white px-4 py-3 text-[14px] text-[color:var(--text-secondary)]">
+              <ShieldCheck
+                size={17}
+                className="mt-0.5 flex-none text-[color:var(--text-tertiary)]"
+                aria-hidden="true"
+              />
+              <span>
+                This anonymous response was submitted before private self-view was available, so
+                it can&apos;t be shown back here. Others only ever see aggregates.
               </span>
             </div>
           )}
 
           {data &&
             data.submitted &&
-            !isAnonymous &&
             data.answers.map((a) => (
               <div key={a.questionId}>
                 <p className="mb-1.5 text-sm font-semibold text-[color:var(--text-primary)]">

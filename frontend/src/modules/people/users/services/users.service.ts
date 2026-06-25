@@ -39,6 +39,12 @@ export async function deactivateUser(userId: string): Promise<UserResponse> {
   });
 }
 
+export async function activateUser(userId: string): Promise<UserResponse> {
+  return authFetch<UserResponse>(`/api/v1/users/${userId}/activate`, {
+    method: "PATCH",
+  });
+}
+
 export async function updateUserRole(
   userId: string,
   body: UpdateRoleRequest

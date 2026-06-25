@@ -218,6 +218,11 @@ export class SurveysService {
     if (survey._count.occurrences > 0) {
       throw new Error(SURVEY_ERROR_MESSAGES.SURVEY_ALREADY_ACTIVATED);
     }
+    // A future start date means the survey isn't due yet — refuse to open the first
+    // occurrence (and fire its notifications/emails) until the release date arrives.
+    if (survey.releaseDate.getTime() > Date.now()) {
+      throw new Error(SURVEY_ERROR_MESSAGES.SURVEY_RELEASE_DATE_FUTURE);
+    }
 
     // Resolve the audience using the same adapter + spec mapping the preview endpoint
     // uses, so "who will receive this" is identical before and at activation.

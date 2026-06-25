@@ -14,7 +14,11 @@ import {
   Input,
 } from "@/shared/ui";
 import { ApiError } from "@/shared/lib/api-client";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleFieldText,
+  mapPeopleFieldTextError,
+} from "@/modules/people/people-text";
 import { useDepartmentMutations } from "../hooks/use-department-mutations";
 import type { DepartmentListItem } from "../types/departments.types";
 
@@ -25,6 +29,24 @@ interface DepartmentFormDialogProps {
   department?: DepartmentListItem | null;
   /** Called after a successful create or rename. */
   onSaved: () => void;
+}
+
+const DEPARTMENT_NAME_ERROR = {
+  required: "Department name is required.",
+  invalid: "Please enter a valid department name.",
+  duplicate: "A department with this name already exists.",
+  saveFailed: "Could not save the department. Please try again.",
+} as const;
+
+function validateDepartmentName(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return DEPARTMENT_NAME_ERROR.required;
+
+  const textError = mapPeopleFieldTextError(
+    validatePeopleFieldText(trimmed, "Department name", PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME),
+    DEPARTMENT_NAME_ERROR.invalid,
+  );
+  return textError ?? null;
 }
 
 /** Add/edit dialog for a department. A single name field drives both create and rename. */
@@ -51,15 +73,7 @@ export function DepartmentFormDialog({
 
   async function handleSubmit() {
     const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Department name is required.");
-      return;
-    }
-    const textError = validatePeopleText(
-      trimmed,
-      "Department name",
-      PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME,
-    );
+    const textError = validateDepartmentName(name);
     if (textError) {
       setError(textError);
       return;
@@ -82,12 +96,10 @@ export function DepartmentFormDialog({
     } catch (err) {
       // Surface a duplicate-name conflict on the field; fall back to a generic message.
       if (err instanceof ApiError && err.errorCode === "DEPARTMENT_ALREADY_EXISTS") {
-        setError("A department with this name already exists.");
+        setError(DEPARTMENT_NAME_ERROR.duplicate);
         return;
       }
-      setError(
-        err instanceof Error ? err.message : "Could not save the department.",
-      );
+      setError(DEPARTMENT_NAME_ERROR.saveFailed);
     }
   }
 
@@ -114,8 +126,9 @@ export function DepartmentFormDialog({
               id="department-name"
               value={name}
               onChange={(event) => {
-                setName(event.target.value);
-                setError(null);
+                const nextName = event.target.value;
+                setName(nextName);
+                setError(validateDepartmentName(nextName));
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -134,7 +147,7 @@ export function DepartmentFormDialog({
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => void handleSubmit()} disabled={saving}>
+          <Button onClick={() => void handleSubmit()} disabled={saving} loading={saving}>
             {saving
               ? isEdit
                 ? "Saving…"

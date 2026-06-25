@@ -24,6 +24,10 @@ const detailInclude = {
       signatory: { select: { id: true, firstName: true, lastName: true } },
     },
   },
+  attachments: {
+    orderBy: { createdAt: "asc" as const },
+    select: { id: true, url: true, fileName: true },
+  },
 } as const;
 
 /**
@@ -45,6 +49,38 @@ export class OffboardingRepository {
       where: { id: employeeId },
       select: { id: true, firstName: true, lastName: true, status: true },
     });
+  }
+
+  /** Loads one employee's department id (null when unassigned), or null when absent. */
+  async findEmployeeDepartmentId(employeeId: string): Promise<string | null | undefined> {
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { departmentId: true },
+    });
+
+    return employee?.departmentId;
+  }
+
+  /** Department id of each direct report of the offboardee, for the reassignment scope check. */
+  async findDirectReportDepartmentIds(offboardeeId: string) {
+    return prisma.employee.findMany({
+      where: { supervisorId: offboardeeId },
+      select: { id: true, departmentId: true },
+    });
+  }
+
+  /**
+   * Department id of every member across the teams led by the offboardee, for the team-leader
+   * reassignment scope check. De-duplicated by employee id.
+   */
+  async findLedTeamMemberDepartmentIds(offboardeeId: string) {
+    const memberships = await prisma.teamMember.findMany({
+      where: { team: { leaderId: offboardeeId } },
+      select: { employee: { select: { id: true, departmentId: true } } },
+    });
+
+    const byId = new Map(memberships.map((m) => [m.employee.id, m.employee.departmentId]));
+    return Array.from(byId, ([id, departmentId]) => ({ id, departmentId }));
   }
 
   /** Counts direct reports and led teams that must be reassigned before offboarding. */
@@ -117,10 +153,19 @@ export class OffboardingRepository {
           initiatedById,
           tenderDate: new Date(dto.tenderDate),
           effectiveDate: new Date(dto.effectiveDate),
-          attachmentUrl: dto.attachmentUrl,
           status: "IN_PROGRESS",
         },
       });
+
+      if (dto.attachments && dto.attachments.length > 0) {
+        await tx.offboardingAttachment.createMany({
+          data: dto.attachments.map((attachment) => ({
+            offboardingId: record.id,
+            url: attachment.url,
+            fileName: attachment.fileName,
+          })),
+        });
+      }
 
       for (const signatory of signatories) {
         await tx.clearanceSignatureRequest.create({

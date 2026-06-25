@@ -53,12 +53,12 @@ export function AiInsightsPanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-[color:var(--brand-blue)]" />
-          <h2 className="text-[16.5px] font-bold tracking-tight text-[color:var(--text-primary)]">
+          <h2 className="text-[16px] font-bold tracking-tight text-[color:var(--text-primary)]">
             AI insights
           </h2>
         </div>
         {data?.insight && (
-          <Button variant="ghost" size="sm" onClick={handleRegenerate} disabled={regenerating}>
+          <Button variant="ghost" size="sm" onClick={handleRegenerate} disabled={regenerating} loading={regenerating}>
             <RefreshCw size={14} className={cn(regenerating && "animate-spin")} />
             Regenerate
           </Button>
@@ -68,7 +68,7 @@ export function AiInsightsPanel({
       {/* Initial CTA */}
       {!enabled && (
         <div className="mt-4 flex flex-col items-start gap-3">
-          <p className="text-[13.5px] text-[color:var(--text-tertiary)]">
+          <p className="text-[14px] text-[color:var(--text-tertiary)]">
             Summarize the written responses into key themes, overall sentiment
             {isAnonymous ? "" : ", and notable quotes"}.
           </p>
@@ -81,10 +81,19 @@ export function AiInsightsPanel({
 
       {/* Loading */}
       {enabled && (q.isLoading || regenerating) && (
-        <div className="mt-4 space-y-3">
-          <div className="h-5 w-3/4 rounded-md bg-[color:var(--bg-secondary)]" />
-          <div className="h-16 rounded-xl bg-[color:var(--bg-secondary)]" />
-          <div className="h-16 rounded-xl bg-[color:var(--bg-secondary)]" />
+        <div className="mt-4 flex flex-col items-center gap-1 py-4">
+          <img
+            src="/brand/ai-analysis-loading.gif?v=2"
+            alt=""
+            aria-hidden="true"
+            className="h-[120px] w-auto"
+          />
+          <p
+            className="text-[13px] font-medium text-[color:var(--text-tertiary)]"
+            aria-live="polite"
+          >
+            Analyzing responses…
+          </p>
         </div>
       )}
 
@@ -106,7 +115,7 @@ export function AiInsightsPanel({
 
       {/* Unavailable / suppressed */}
       {data && !data.insight && (
-        <p className="mt-4 rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[13.5px] text-[color:var(--text-tertiary)]">
+        <p className="mt-4 rounded-xl border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-4 py-3 text-[14px] text-[color:var(--text-tertiary)]">
           {data.reason === "no_responses"
             ? "No written responses yet — the summary will appear once people answer."
             : data.suppressed
@@ -128,10 +137,10 @@ export function AiInsightsPanel({
             <span className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
               Sentiment
             </span>
-            <Badge variant={SENTIMENT_VARIANT[data.insight.sentiment.overall]} pill>
+            <Badge variant={SENTIMENT_VARIANT[data.insight.sentiment.overall]} pill animateIn>
               {SENTIMENT_LABEL[data.insight.sentiment.overall]}
             </Badge>
-            <span className="text-[13px] text-[color:var(--text-tertiary)]">
+            <span className="text-[14px] text-[color:var(--text-tertiary)]">
               {data.insight.sentiment.rationale}
             </span>
           </div>
@@ -144,7 +153,7 @@ export function AiInsightsPanel({
               {data.insight.themes.map((t, i) => (
                 <div key={i} className="rounded-xl border border-[color:var(--border-primary)] px-4 py-3">
                   <div className="text-[14px] font-semibold text-[color:var(--text-primary)]">{t.label}</div>
-                  <div className="mt-0.5 text-[13.5px] text-[color:var(--text-tertiary)]">{t.description}</div>
+                  <div className="mt-0.5 text-[14px] text-[color:var(--text-tertiary)]">{t.description}</div>
                 </div>
               ))}
             </div>

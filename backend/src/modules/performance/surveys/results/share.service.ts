@@ -1,6 +1,7 @@
 import { prisma } from "../../../../core/database/prisma.service";
+import { assertSafeText } from "../../../../core/validation/text-input";
 import { SURVEY_ERROR_MESSAGES, SURVEY_TEXT_LIMITS } from "../surveys.constants";
-import { MIN_TEAM_SIZE } from "../rules/results";
+import { MIN_TEAM_SIZE, shareWindowEnd } from "../rules/results";
 import { NotificationsService } from "../../../notifications/notifications.service";
 import { ResultsRepository } from "./results.repository";
 
@@ -41,6 +42,7 @@ export class ShareService {
     if (note.length > SURVEY_TEXT_LIMITS.SHARE_MESSAGE) {
       throw new Error(SURVEY_ERROR_MESSAGES.SHARE_MESSAGE_TOO_LONG);
     }
+    assertSafeText(note, "message", SURVEY_TEXT_LIMITS.SHARE_MESSAGE);
 
     // The HR actor (route is HR-gated; we still resolve their employee row to record sharedBy).
     const actor = await prisma.employee.findUnique({
@@ -79,6 +81,11 @@ export class ShareService {
       throw new Error(SURVEY_ERROR_MESSAGES.SHARE_NOT_COMPLETED);
     }
 
+    // Window gate — the note can only be sent within SHARE_WINDOW_DAYS of the survey closing.
+    if (Date.now() > shareWindowEnd(occurrence.deadline).getTime()) {
+      throw new Error(SURVEY_ERROR_MESSAGES.SHARE_WINDOW_CLOSED);
+    }
+
     const team = await this.repo.findTeamForShare(teamId);
     if (!team) {
       throw new Error(SURVEY_ERROR_MESSAGES.TEAM_NOT_FOUND);
@@ -89,6 +96,13 @@ export class ShareService {
     // Recipient is resolved from the org graph (the team's leader) — never free choice.
     if (!team.leaderId || !team.leader) {
       throw new Error(SURVEY_ERROR_MESSAGES.SHARE_NO_SUPERVISOR);
+    }
+
+    // Immutability — once a note has been sent for this occurrence + team, it cannot be changed
+    // or re-sent (the supervisor has already read it; this mirrors evaluation immutability).
+    const existing = await this.repo.findResultShare(occurrence.id, team.id);
+    if (existing) {
+      throw new Error(SURVEY_ERROR_MESSAGES.SHARE_ALREADY_SENT);
     }
 
     const share = await this.repo.upsertResultShare({

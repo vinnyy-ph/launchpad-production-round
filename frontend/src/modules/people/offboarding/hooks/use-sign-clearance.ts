@@ -38,12 +38,12 @@ function invalidateAfterAction(queryClient: QueryClient, action: ClearanceAction
   }
 }
 
-/** Signs a clearance request (optional note). */
+/** Signs a clearance request with a captured signature image and optional note. */
 export function useSignClearance() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (vars: { requestId: string; note?: string }) =>
-      signClearance(vars.requestId, vars.note),
+    mutationFn: (vars: { requestId: string; signatureImage: string; note?: string }) =>
+      signClearance(vars.requestId, vars.signatureImage, vars.note),
     onSuccess: (action) => invalidateAfterAction(queryClient, action),
   });
   return {

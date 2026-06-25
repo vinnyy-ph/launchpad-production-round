@@ -97,7 +97,7 @@ function OrgChartNode({ node, expanded, onToggle, onOpenProfile, matchedIds }: O
           ? `Collapse ${node.kind === "department" ? node.label : node.employee.fullName}`
           : `Expand ${node.kind === "department" ? node.label : node.employee.fullName}`
       }
-      className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--border-primary)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--border-primary)] px-2 py-0.5 text-[12px] font-semibold text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
       {node.children.length}

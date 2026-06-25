@@ -1,6 +1,7 @@
 import type { EmployeeStatus } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import type {
+  ActivateUserResponseDto,
   AddUserRequestDto,
   CreateUserResponseDto,
   DeactivateUserResponseDto,
@@ -78,6 +79,29 @@ export class UsersService {
       success: true,
       message: API_SUCCESS_MESSAGES.USER_DEACTIVATED,
       data: this.toUserResponse(deactivatedUser),
+    };
+  }
+
+  /**
+   * Re-activates a previously deactivated user account.
+   */
+  async activateUser(userId: string): Promise<ActivateUserResponseDto> {
+    const user = await this.usersRepository.findById(userId);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (user.isActive) {
+      throw new Error("User already active");
+    }
+
+    const activatedUser = await this.usersRepository.setActive(userId, true);
+
+    return {
+      success: true,
+      message: API_SUCCESS_MESSAGES.USER_ACTIVATED,
+      data: this.toUserResponse(activatedUser),
     };
   }
 

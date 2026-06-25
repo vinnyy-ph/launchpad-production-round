@@ -1,21 +1,19 @@
 model OffboardingRecord {
-  id                  String            @id @default(uuid())
-  employeeId          String            @unique
-  employee            Employee          @relation("OffboardingSubject", fields: [employeeId], references: [id])
+  id                  String                      @id @default(uuid())
+  employeeId          String                      @unique
   clearanceTemplateId String
-  clearanceTemplate   ClearanceTemplate @relation(fields: [clearanceTemplateId], references: [id])
   initiatedById       String
-  initiatedBy         Employee          @relation("OffboardingInitiator", fields: [initiatedById], references: [id])
   tenderDate          DateTime
   effectiveDate       DateTime
-  attachmentUrl       String?
-  status              OffboardingStatus @default(IN_PROGRESS)
-  createdAt           DateTime          @default(now())
+  status              OffboardingStatus           @default(IN_PROGRESS)
+  createdAt           DateTime                    @default(now())
   completedAt         DateTime?
-
-  signatureRequests ClearanceSignatureRequest[]
-
-  updatedAt DateTime @updatedAt
+  updatedAt           DateTime                    @updatedAt
+  attachments         OffboardingAttachment[]
+  signatureRequests   ClearanceSignatureRequest[]
+  clearanceTemplate   ClearanceTemplate           @relation(fields: [clearanceTemplateId], references: [id])
+  employee            Employee                    @relation("OffboardingSubject", fields: [employeeId], references: [id])
+  initiatedBy         Employee                    @relation("OffboardingInitiator", fields: [initiatedById], references: [id])
 
   @@map("offboarding_records")
 }

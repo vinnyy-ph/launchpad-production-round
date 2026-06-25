@@ -10,9 +10,11 @@ export function useEmployeeStatusCounts() {
   const onboarding = useEmployees({ status: "onboarding", limit: 1 });
   const offboarding = useEmployees({ status: "offboarding", limit: 1 });
 
+  // Undefined while a count is still loading so the tab badge stays hidden
+  // instead of flashing a misleading 0 before the real total resolves.
   return {
-    all: all.meta?.total ?? 0,
-    onboarding: onboarding.meta?.total ?? 0,
-    offboarding: offboarding.meta?.total ?? 0,
+    all: all.loading ? undefined : (all.meta?.total ?? 0),
+    onboarding: onboarding.loading ? undefined : (onboarding.meta?.total ?? 0),
+    offboarding: offboarding.loading ? undefined : (offboarding.meta?.total ?? 0),
   };
 }

@@ -18,7 +18,7 @@ export function PageSection({ title, description, action, level = "section", chi
           <h2
             className={cn(
               "text-[color:var(--text-primary)]",
-              level === "page" ? "text-[22px] font-bold tracking-tight" : "text-sm font-bold",
+              level === "page" ? "text-[24px] font-bold tracking-tight" : "text-sm font-bold",
             )}
           >
             {title}

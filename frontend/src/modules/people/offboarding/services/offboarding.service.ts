@@ -47,8 +47,9 @@ export async function getOffboarding(id: string): Promise<OffboardingDetail> {
 export async function initiateOffboarding(
   input: InitiateOffboardingInput,
 ): Promise<OffboardingDetail> {
-  const { attachment, ...jsonInput } = input;
-  const body = attachment ? buildOffboardingFormData(input) : JSON.stringify(jsonInput);
+  const { attachments, ...jsonInput } = input;
+  const hasAttachments = Boolean(attachments && attachments.length > 0);
+  const body = hasAttachments ? buildOffboardingFormData(input) : JSON.stringify(jsonInput);
   const res = await apiFetch<Envelope<OffboardingDetail>>(OFFBOARDING_BASE, {
     method: "POST",
     body,
@@ -70,8 +71,8 @@ function buildOffboardingFormData(input: InitiateOffboardingInput): FormData {
   if (input.newTeamLeaderId) {
     formData.append("newTeamLeaderId", input.newTeamLeaderId);
   }
-  if (input.attachment) {
-    formData.append("attachment", input.attachment);
+  for (const file of input.attachments ?? []) {
+    formData.append("attachments", file);
   }
   return formData;
 }
@@ -106,11 +107,12 @@ export async function getAssignedClearances(): Promise<AssignedClearance[]> {
 /** Signs a clearance request (optional note). */
 export async function signClearance(
   requestId: string,
+  signatureImage: string,
   note?: string,
 ): Promise<ClearanceAction> {
   const res = await apiFetch<Envelope<ClearanceAction>>(`${CLEARANCE_BASE}/${requestId}/sign`, {
     method: "POST",
-    body: JSON.stringify(note ? { note } : {}),
+    body: JSON.stringify({ signatureImage, ...(note ? { note } : {}) }),
   });
   return res.data;
 }

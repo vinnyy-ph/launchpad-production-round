@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 import { NotificationDropdown } from "./notification-dropdown";
 import { useNotifications } from "../hooks/use-notifications";
 import { useMarkRead } from "../hooks/use-mark-read";
+import { useNotificationActions } from "../hooks/use-notification-actions";
 import { useNotificationSocket } from "../hooks/use-notification-socket";
 
 export function NotificationBell() {
@@ -12,6 +13,7 @@ export function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null);
   const { notifications, loading, unreadCount } = useNotifications(10);
   const { markRead } = useMarkRead();
+  const { markAllRead, setPinned, clear, clearAll } = useNotificationActions();
 
   // Live-refresh the badge/list when the server pushes a new notification.
   useNotificationSocket();
@@ -35,7 +37,7 @@ export function NotificationBell() {
       >
         <Bell size={16} />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[9px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--gray-neutral-900)] text-[12px] font-bold text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -44,7 +46,12 @@ export function NotificationBell() {
         <NotificationDropdown
           notifications={notifications}
           loading={loading}
+          unreadCount={unreadCount}
           onRead={markRead}
+          onPin={setPinned}
+          onClear={clear}
+          onMarkAllRead={markAllRead}
+          onClearAll={clearAll}
         />
       )}
     </div>

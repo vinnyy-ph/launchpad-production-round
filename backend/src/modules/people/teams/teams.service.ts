@@ -1,6 +1,7 @@
 
 import type { Role } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
+import { crossesDepartment } from "../../shared/departments";
 import { TeamsRepository } from "./teams.repository";
 import type {
   AddTeamMembersRequestDto,
@@ -79,6 +80,7 @@ export class TeamsService {
   async createTeam(input: CreateTeamRequestDto): Promise<TeamResponseDto> {
     const memberIds = this.ensureLeaderMembership(input.leaderId, input.memberIds);
     await this.assertEmployeesExist(memberIds);
+    await this.assertMembersShareLeaderDepartment(input.leaderId, memberIds);
 
     const team = await this.teamsRepository.createTeam(input.name, input.leaderId, memberIds);
 
@@ -125,6 +127,7 @@ export class TeamsService {
     }
 
     await this.assertEmployeesExist(input.memberIds);
+    await this.assertMembersShareLeaderDepartment(existingTeam.leaderId, input.memberIds);
     const team = await this.teamsRepository.addMembers(params.teamId, input.memberIds);
 
     if (!team) {
@@ -210,6 +213,7 @@ export class TeamsService {
 
     const memberIds = this.ensureLeaderMembership(existingTeam.leaderId, input.memberIds);
     await this.assertEmployeesExist(memberIds);
+    await this.assertMembersShareLeaderDepartment(existingTeam.leaderId, memberIds);
 
     const team = await this.teamsRepository.replaceMembers(params.teamId, memberIds);
 
@@ -235,6 +239,27 @@ export class TeamsService {
 
     if (foundCount !== employeeIds.length) {
       throw new Error("One or more employees were not found");
+    }
+  }
+
+  /**
+   * Enforces the same-department membership rule: every member must belong to the team
+   * leader's department. Members or a leader with no department are exempt (see
+   * `crossesDepartment`). Throws when any member crosses a department boundary.
+   */
+  private async assertMembersShareLeaderDepartment(leaderId: string, memberIds: string[]) {
+    const rows = await this.teamsRepository.findDepartmentIds(
+      Array.from(new Set([leaderId, ...memberIds])),
+    );
+    const departmentById = new Map(rows.map((row) => [row.id, row.departmentId]));
+    const leaderDepartmentId = departmentById.get(leaderId) ?? null;
+
+    const offending = memberIds.filter((memberId) =>
+      crossesDepartment(departmentById.get(memberId) ?? null, leaderDepartmentId),
+    );
+
+    if (offending.length > 0) {
+      throw new Error("Team members must belong to the team leader's department");
     }
   }
 

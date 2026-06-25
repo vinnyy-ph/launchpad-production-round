@@ -79,10 +79,12 @@ export function buildOffboardingRecord(overrides: Record<string, unknown> = {}) 
         requirements: "Confirm no assets remain.",
         status: "PENDING",
         note: null,
+        signatureImage: null,
         actionAt: null,
         signatory: { id: "kurt-id", firstName: "Kurt", lastName: "Exec" },
       },
     ],
+    attachments: [],
     ...overrides,
   };
 }

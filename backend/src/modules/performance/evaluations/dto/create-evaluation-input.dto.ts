@@ -1,3 +1,5 @@
+import type { SupportingDoc } from "../supporting-doc.types";
+
 export interface CreateEvaluationInput {
   revieweeId: string;
   periodStart: Date;
@@ -7,6 +9,6 @@ export interface CreateEvaluationInput {
   lowlights?: string[];
   evaluation?: string;
   recommendation?: string;
-  supportingDocUrls?: string[];
+  supportingDocs?: SupportingDoc[];
   send?: boolean;
 }

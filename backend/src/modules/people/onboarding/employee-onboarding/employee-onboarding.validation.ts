@@ -1,4 +1,8 @@
 import { formatPhilippineMobileE164, parseEmergencyContact } from "../../../shared/phone";
+import {
+  EMPLOYEE_BIRTHDAY_TOO_YOUNG_MESSAGE,
+  assertValidEmployeeBirthday,
+} from "../../../shared/employees/birthday.util";
 import { assertSafeText } from "../../../../core/validation/text-input";
 import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 import type {
@@ -254,12 +258,12 @@ export class EmployeeOnboardingValidation {
       throw new Error("Invalid birthday");
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const birthdayDate = new Date(parsed);
-    birthdayDate.setHours(0, 0, 0, 0);
-
-    if (birthdayDate > today) {
+    try {
+      assertValidEmployeeBirthday(parsed);
+    } catch (error) {
+      if (error instanceof Error && error.message === EMPLOYEE_BIRTHDAY_TOO_YOUNG_MESSAGE) {
+        throw error;
+      }
       throw new Error("Invalid birthday");
     }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Check, User, Calendar, Clock, Eye, Download, Info, X } from "lucide-react";
+import { Check, User, Calendar, Clock, Eye, Download, Info, X, Link as LinkIcon, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -67,13 +67,8 @@ function fmtRelative(iso?: string | null): string {
   return fmtDate(iso);
 }
 
-function extractFilename(value: string): string {
-  const last = value.split("/").pop() ?? value;
-  try {
-    return decodeURIComponent(last);
-  } catch {
-    return last;
-  }
+function linkHost(url: string): string {
+  try { return new URL(url).hostname; } catch { return url; }
 }
 
 async function openDoc(evaluationId: string, docIndex: number): Promise<void> {
@@ -194,7 +189,7 @@ export function ReviewEvaluationDialog({
                     <TooltipTrigger asChild>
                       <span
                         tabIndex={0}
-                        className="inline-flex cursor-help text-[color:var(--text-quaternary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="inline-flex cursor-help text-[color:var(--text-quaternary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Info size={16} aria-label="About auto-acknowledgement" />
                       </span>
@@ -214,7 +209,7 @@ export function ReviewEvaluationDialog({
             <button
               type="button"
               aria-label="Close"
-              className="flex h-9 w-9 flex-none items-center justify-center rounded-lg border border-[color:var(--border-primary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-9 w-9 flex-none items-center justify-center rounded-lg border border-[color:var(--border-primary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X size={18} />
             </button>
@@ -300,50 +295,71 @@ export function ReviewEvaluationDialog({
             </div>
           )}
 
-          {ev.supportingDocUrls.length > 0 && (
+          {ev.supportingDocs.length > 0 && (
             <div className="flex flex-col gap-3.5">
               <SectionHeading>Supporting documents</SectionHeading>
               <div className="flex flex-col gap-2.5">
-                {ev.supportingDocUrls.map((publicId, index) => (
-                  <div
-                    key={publicId}
-                    className="flex items-center gap-3.5 rounded-xl border border-[color:var(--border-primary)] bg-white p-3"
-                  >
-                    {/* Faux page thumbnail */}
-                    <span className="flex h-[58px] w-[46px] flex-none flex-col gap-[3.5px] overflow-hidden rounded-md border border-[#e1e3e8] bg-white px-[7px] py-2 shadow-sm" aria-hidden="true">
-                      <span className="h-[5px] w-[68%] rounded-sm bg-[#c9cdd6]" />
-                      <span className="mt-0.5 h-[3px] w-full rounded-sm bg-[#e7e9ee]" />
-                      <span className="h-[3px] w-full rounded-sm bg-[#e7e9ee]" />
-                      <span className="h-[3px] w-[90%] rounded-sm bg-[#e7e9ee]" />
-                      <span className="h-[3px] w-full rounded-sm bg-[#e7e9ee]" />
-                      <span className="h-[3px] w-[55%] rounded-sm bg-[#e7e9ee]" />
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                      <span className="truncate text-[15px] font-semibold leading-5 text-[color:var(--text-primary)]">
-                        {extractFilename(publicId)}
+                {ev.supportingDocs.map((doc, index) =>
+                  doc.kind === "file" ? (
+                    <div
+                      key={`${doc.url}-${index}`}
+                      className="flex items-center gap-3.5 rounded-xl border border-[color:var(--border-primary)] bg-white p-3"
+                    >
+                      {/* Faux page thumbnail */}
+                      <span className="flex h-[58px] w-[46px] flex-none flex-col gap-[3.5px] overflow-hidden rounded-md border border-[#e1e3e8] bg-white px-[7px] py-2 shadow-sm" aria-hidden="true">
+                        <span className="h-[5px] w-[68%] rounded-sm bg-[#c9cdd6]" />
+                        <span className="mt-0.5 h-[3px] w-full rounded-sm bg-[#e7e9ee]" />
+                        <span className="h-[3px] w-full rounded-sm bg-[#e7e9ee]" />
+                        <span className="h-[3px] w-[90%] rounded-sm bg-[#e7e9ee]" />
+                        <span className="h-[3px] w-full rounded-sm bg-[#e7e9ee]" />
+                        <span className="h-[3px] w-[55%] rounded-sm bg-[#e7e9ee]" />
                       </span>
-                      <span className="text-[13px] leading-[18px] text-[color:var(--text-tertiary)]">PDF</span>
-                    </span>
-                    <div className="flex flex-none items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => previewDoc(index, extractFilename(publicId))}
-                        aria-label={`Preview ${extractFilename(publicId)}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border-secondary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openDoc(ev.id, index)}
-                        aria-label={`Download ${extractFilename(publicId)}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border-secondary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      >
-                        <Download size={18} />
-                      </button>
+                      <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                        <span className="truncate text-[16px] font-semibold leading-5 text-[color:var(--text-primary)]">
+                          {doc.label}
+                        </span>
+                        <span className="text-[14px] leading-[18px] text-[color:var(--text-tertiary)]">PDF</span>
+                      </span>
+                      <div className="flex flex-none items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => previewDoc(index, doc.label)}
+                          aria-label={`Preview ${doc.label}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border-secondary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <Eye size={18} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openDoc(ev.id, index)}
+                          aria-label={`Download ${doc.label}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-[color:var(--border-secondary)] bg-white text-[color:var(--text-tertiary)] transition-colors hover:bg-[color:var(--bg-secondary)] hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <Download size={18} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ) : (
+                    <a
+                      key={`${doc.url}-${index}`}
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3.5 rounded-xl border border-[color:var(--border-primary)] bg-white p-3 transition-colors hover:bg-[color:var(--bg-secondary)]"
+                    >
+                      <span className="flex h-[58px] w-[46px] flex-none items-center justify-center rounded-md border border-[#e1e3e8] bg-white text-[color:var(--text-tertiary)]" aria-hidden="true">
+                        <LinkIcon size={18} />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                        <span className="truncate text-[16px] font-semibold leading-5 text-[color:var(--text-primary)]">{doc.label}</span>
+                        <span className="truncate text-[14px] leading-[18px] text-[color:var(--text-tertiary)]">{linkHost(doc.url)}</span>
+                      </span>
+                      <span className="flex flex-none items-center gap-1.5 text-[14px] font-medium text-[color:hsl(var(--primary))]">
+                        Open <ExternalLink size={16} />
+                      </span>
+                    </a>
+                  ),
+                )}
               </div>
             </div>
           )}

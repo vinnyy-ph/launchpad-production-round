@@ -52,6 +52,7 @@ import {
   TabsTrigger,
   Checkbox,
   DatePicker,
+  Skeleton,
 } from "@/shared/ui";
 import { FormField, SearchInput } from "@/shared/ui/patterns";
 import { cn } from "@/shared/lib/utils";
@@ -62,12 +63,16 @@ import { useTeams } from "@/modules/people/teams";
 import { useAutosave } from "@/modules/performance/shared/use-autosave";
 import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
 import {
-  surveyNameSchema,
-  questionTextSchema,
-  optionSchema,
-  scaleLabelSchema,
-  SURVEY_TEXT_LIMITS,
-} from "../schemas/survey-form.schema";
+  surveyNameSubmitError,
+  surveyOptionsSubmitError,
+  surveyQuestionSubmitError,
+  surveyScaleLabelsSubmitError,
+  surveyNameChangeError,
+  surveyQuestionChangeError,
+  surveyOptionChangeError,
+  surveyScaleLabelChangeError,
+} from "../lib/survey-builder-text";
+import { SURVEY_TEXT_LIMITS } from "../schemas/survey-form.schema";
 import type {
   SurveyDetail,
   QuestionType,
@@ -79,8 +84,10 @@ import type {
   QuestionInput,
   AudienceConfigInput,
   VisibilityConfigInput,
+  GeneratedQuestion,
 } from "../types/surveys.types";
 import { RECURRING_TYPE_LABEL, QUESTION_TYPE_LABEL } from "../types/surveys.types";
+import { AiQuestionGeneratorPanel } from "./ai-question-generator-panel";
 
 // ─── Local builder state ──────────────────────────────────────────────────────
 
@@ -236,12 +243,8 @@ function buildVisibilityConfigs(state: BuilderState): VisibilityConfigInput[] {
 // the backend create requirements (name, future deadline, ≥1 valid question, named audience).
 function computeBuilderErrors(form: BuilderState): Record<string, string> {
   const errs: Record<string, string> = {};
-  if (!form.name.trim()) {
-    errs.name = "Name is required.";
-  } else {
-    const nameCheck = surveyNameSchema.safeParse(form.name);
-    if (!nameCheck.success) errs.name = nameCheck.error.issues[0].message;
-  }
+  const nameError = surveyNameSubmitError(form.name);
+  if (nameError) errs.name = nameError;
   if (!form.deadline) {
     errs.deadline = "Deadline is required.";
   } else if (form.releaseDate && form.deadline <= form.releaseDate) {
@@ -258,32 +261,16 @@ function computeBuilderErrors(form: BuilderState): Record<string, string> {
     errs.visibility = "Select at least one team that can see results.";
   }
   form.questions.forEach((q, i) => {
-    if (!q.questionText.trim()) {
-      errs[`q_${q.id}`] = `Question ${i + 1} needs a prompt.`;
-    } else {
-      const textCheck = questionTextSchema.safeParse(q.questionText);
-      if (!textCheck.success) errs[`q_${q.id}`] = `Question ${i + 1}: ${textCheck.error.issues[0].message}`;
+    const questionError = surveyQuestionSubmitError(q.questionText, i);
+    if (questionError) errs[`q_${q.id}`] = questionError;
+    if (q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") {
+      const optionsError = surveyOptionsSubmitError(q.options, i);
+      if (optionsError) errs[`q_opts_${q.id}`] = optionsError;
     }
-    if (
-      (q.type === "MULTIPLE_CHOICE" || q.type === "CHECKBOX") &&
-      q.options.filter((o) => o.trim()).length < 1
-    ) {
-      errs[`q_opts_${q.id}`] = `Question ${i + 1} needs at least one option.`;
-    } else {
-      const badOption = q.options.find((o) => !optionSchema.safeParse(o).success);
-      if (badOption !== undefined) {
-        errs[`q_opts_${q.id}`] =
-          `Question ${i + 1}: ${optionSchema.safeParse(badOption).error!.issues[0].message}`;
-      }
-    }
-    for (const labelValue of [q.scaleMinLabel, q.scaleMaxLabel]) {
-      if (labelValue && !scaleLabelSchema.safeParse(labelValue).success) {
-        errs[`q_scale_${q.id}`] =
-          `Question ${i + 1}: ${scaleLabelSchema.safeParse(labelValue).error!.issues[0].message}`;
-        break;
-      }
-    }
-    if (q.type === "LINEAR_SCALE" && q.scaleMax <= q.scaleMin) {
+    const scaleLabelsError = surveyScaleLabelsSubmitError(q.scaleMinLabel, q.scaleMaxLabel, i);
+    if (scaleLabelsError) {
+      errs[`q_scale_${q.id}`] = scaleLabelsError;
+    } else if (q.type === "LINEAR_SCALE" && q.scaleMax <= q.scaleMin) {
       errs[`q_scale_${q.id}`] = `Question ${i + 1} max must be greater than min.`;
     }
   });
@@ -607,6 +594,20 @@ export function SurveyBuilderDialog({
   const set = <K extends keyof BuilderState>(key: K, value: BuilderState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const setFieldError = (key: string, error: string | undefined) => {
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (error) next[key] = error;
+      else delete next[key];
+      return next;
+    });
+  };
+
+  const handleNameChange = (value: string) => {
+    set("name", value);
+    setFieldError("name", surveyNameChangeError(value));
+  };
+
   // ── Recurrence + reminders (UI splits the single enums into mode + cadence) ──
   const isRecurring = form.recurringType !== "ONE_TIME";
   const remindersOn = form.reminderFrequency !== "NONE";
@@ -627,6 +628,25 @@ export function SurveyBuilderDialog({
   // ── Question helpers ──
   const addQuestion = (type: QuestionType) =>
     setForm((f) => ({ ...f, questions: [...f.questions, defaultQuestion(type)] }));
+
+  const appendGeneratedQuestions = (generated: GeneratedQuestion[]) =>
+    setForm((f) => ({
+      ...f,
+      questions: [
+        ...f.questions,
+        ...generated.map((g) => ({
+          id: uid(),
+          type: g.type,
+          questionText: g.questionText,
+          isRequired: g.isRequired,
+          options: g.options ?? [],
+          scaleMin: g.scaleMin ?? 1,
+          scaleMax: g.scaleMax ?? 5,
+          scaleMinLabel: g.scaleMinLabel ?? "",
+          scaleMaxLabel: g.scaleMaxLabel ?? "",
+        })),
+      ],
+    }));
 
   const updateQuestion = (qid: string, patch: Partial<DraftQuestion>) =>
     setForm((f) => ({
@@ -654,6 +674,25 @@ export function SurveyBuilderDialog({
           : q,
       ),
     }));
+
+  const handleQuestionTextChange = (qid: string, value: string) => {
+    updateQuestion(qid, { questionText: value });
+    setFieldError(`q_${qid}`, surveyQuestionChangeError(value));
+  };
+
+  const handleOptionChange = (qid: string, idx: number, value: string) => {
+    updateOption(qid, idx, value);
+    setFieldError(`q_opts_${qid}`, surveyOptionChangeError(value));
+  };
+
+  const handleScaleLabelChange = (
+    qid: string,
+    field: "scaleMinLabel" | "scaleMaxLabel",
+    value: string,
+  ) => {
+    updateQuestion(qid, { [field]: value });
+    setFieldError(`q_scale_${qid}`, surveyScaleLabelChangeError(value));
+  };
 
   const removeOption = (qid: string, idx: number) =>
     setForm((f) => ({
@@ -860,7 +899,7 @@ export function SurveyBuilderDialog({
         {loading && !hydratedRef.current ? (
           <div className="space-y-3 p-6">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-10 w-full rounded-lg bg-[color:var(--bg-tertiary)]" />
+              <Skeleton key={i} className="h-10 w-full rounded-lg" />
             ))}
           </div>
         ) : (
@@ -925,7 +964,7 @@ export function SurveyBuilderDialog({
                       id="sv-name"
                       placeholder="e.g. Q3 engagement pulse"
                       value={form.name}
-                      onChange={(e) => set("name", e.target.value)}
+                      onChange={(e) => handleNameChange(e.target.value)}
                       maxLength={SURVEY_TEXT_LIMITS.NAME}
                       error={!!errors.name}
                     />
@@ -1274,6 +1313,10 @@ export function SurveyBuilderDialog({
                   </p>
                 )}
 
+                {!isLocked && (
+                  <AiQuestionGeneratorPanel onGenerated={appendGeneratedQuestions} disabled={isLocked} />
+                )}
+
                 {form.questions.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-[color:var(--border-strong)] py-10 text-center">
                     <p className="text-sm text-[color:var(--text-tertiary)]">
@@ -1360,7 +1403,7 @@ export function SurveyBuilderDialog({
                     <Input
                       placeholder="Type your question"
                       value={q.questionText}
-                      onChange={(e) => updateQuestion(q.id, { questionText: e.target.value })}
+                      onChange={(e) => handleQuestionTextChange(q.id, e.target.value)}
                       maxLength={SURVEY_TEXT_LIMITS.QUESTION_TEXT}
                       error={!!errors[`q_${q.id}`]}
                       disabled={isLocked}
@@ -1433,7 +1476,7 @@ export function SurveyBuilderDialog({
                                 placeholder="e.g. Not at all"
                                 value={q.scaleMinLabel}
                                 onChange={(e) =>
-                                  updateQuestion(q.id, { scaleMinLabel: e.target.value })
+                                  handleScaleLabelChange(q.id, "scaleMinLabel", e.target.value)
                                 }
                                 maxLength={SURVEY_TEXT_LIMITS.SCALE_LABEL}
                                 disabled={isLocked}
@@ -1445,7 +1488,7 @@ export function SurveyBuilderDialog({
                                 placeholder="e.g. Completely"
                                 value={q.scaleMaxLabel}
                                 onChange={(e) =>
-                                  updateQuestion(q.id, { scaleMaxLabel: e.target.value })
+                                  handleScaleLabelChange(q.id, "scaleMaxLabel", e.target.value)
                                 }
                                 maxLength={SURVEY_TEXT_LIMITS.SCALE_LABEL}
                                 disabled={isLocked}
@@ -1475,7 +1518,7 @@ export function SurveyBuilderDialog({
                               <Input
                                 placeholder={`Option ${oi + 1}`}
                                 value={opt}
-                                onChange={(e) => updateOption(q.id, oi, e.target.value)}
+                                onChange={(e) => handleOptionChange(q.id, oi, e.target.value)}
                                 className="flex-1"
                                 maxLength={SURVEY_TEXT_LIMITS.OPTION}
                                 disabled={isLocked}
@@ -1588,13 +1631,13 @@ export function SurveyBuilderDialog({
                 <Button variant="secondary" onClick={onClose} disabled={saving}>
                   Close
                 </Button>
-                <Button onClick={() => submit(false)} disabled={saving}>
+                <Button onClick={() => submit(false)} disabled={saving} loading={saving}>
                   {saving ? "Saving…" : "Save changes"}
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="secondary" onClick={() => submit(false)} disabled={saving || loading}>
+                <Button variant="secondary" onClick={() => submit(false)} disabled={saving || loading} loading={saving}>
                   Save as draft
                 </Button>
                 <Button onClick={openLaunch} disabled={saving || loading}>

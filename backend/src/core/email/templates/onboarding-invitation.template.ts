@@ -18,6 +18,7 @@ export interface OnboardingInvitationEmailParams {
   firstName: string;
   lastName: string;
   email: string;
+  hrEmail?: string | null;
   appUrl: string;
 }
 
@@ -43,6 +44,7 @@ export function buildOnboardingInvitationEmailHtml(
 ): string {
   const name = escapeHtml(displayName(params.firstName, params.lastName));
   const email = escapeHtml(params.email);
+  const hrEmail = params.hrEmail ? escapeHtml(params.hrEmail) : null;
   const appUrl = escapeHtml(params.appUrl);
   const logoSrc = getJiaLogoSrc();
   const year = new Date().getFullYear();
@@ -73,6 +75,13 @@ export function buildOnboardingInvitationEmailHtml(
                 Your HR team has invited you to join <strong style="color:${BRAND.textPrimary};">${BRAND.appName}</strong> and complete your employee onboarding.
                 Click the button below to sign in with Google using <strong style="color:${BRAND.textPrimary};">${email}</strong> and get started.
               </p>
+              ${
+                hrEmail
+                  ? `<p style="margin:0;font-size:16px;line-height:24px;color:${BRAND.textSecondary};">
+                This invite was sent by <strong style="color:${BRAND.textPrimary};">${hrEmail}</strong>.
+              </p>`
+                  : ""
+              }
             </td>
           </tr>
           <tr>

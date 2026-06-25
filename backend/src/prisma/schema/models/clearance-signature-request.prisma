@@ -1,19 +1,19 @@
 model ClearanceSignatureRequest {
   id            String            @id @default(uuid())
   offboardingId String
-  offboarding   OffboardingRecord @relation(fields: [offboardingId], references: [id])
   signatoryId   String
-  signatory     Employee          @relation(fields: [signatoryId], references: [id])
   /// Snapshot copied from the template at offboarding initiation — later edits
   /// to the template must NOT mutate an in-flight clearance.
   purpose       String
   requirements  String
   status        SignatoryStatus   @default(PENDING)
   note          String? // optional on sign, required on reject
+  signatureImage String? // PNG data URL captured on sign (draw/type/upload); null until signed
   actionAt      DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  offboarding   OffboardingRecord @relation(fields: [offboardingId], references: [id])
+  signatory     Employee          @relation(fields: [signatoryId], references: [id])
 
   @@unique([offboardingId, signatoryId])
   @@map("clearance_signature_requests")

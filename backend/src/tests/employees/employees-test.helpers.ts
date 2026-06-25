@@ -121,6 +121,34 @@ export function buildEmployeeProfileRecord() {
       emergencyContactName: "Jamie Reed",
       emergencyContactNumber: "+1 555 0100",
     },
+    onboardingRecord: {
+      template: {
+        customFields: [
+          {
+            id: "custom-shirt-size",
+            fieldLabel: "Shirt size",
+            isRequired: true,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+          {
+            id: "custom-food-allergies",
+            fieldLabel: "Food allergies",
+            isRequired: false,
+            createdAt: new Date("2026-01-02T00:00:00.000Z"),
+          },
+        ],
+      },
+      customFieldValues: [
+        {
+          id: "custom-value-shirt-size",
+          recordId: "onboarding-record-1",
+          fieldId: "custom-shirt-size",
+          value: "Medium",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ],
+    },
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     user: {

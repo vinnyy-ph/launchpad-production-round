@@ -181,13 +181,35 @@ export class MeRepository {
   }
 
   /** The employee's own answers for an occurrence. Returns nothing for anonymous surveys
-   *  (the response carries no employee link), so callers must gate on anonymity first. */
+   *  (the response carries no employee link), so callers must gate on anonymity first.
+   *  For anonymous self-view use findMyAnonymousAnswers instead. */
   async findMyAnswers(
     occurrenceId: string,
     employeeId: string,
   ): Promise<{ questionId: string; answerText: string | null; answerData: unknown }[]> {
     return prisma.surveyAnswer.findMany({
       where: { response: { occurrenceId, employeeId } },
+      select: { questionId: true, answerText: true, answerData: true },
+    });
+  }
+
+  /** The caller's OWN answers to an ANONYMOUS occurrence, recovered via their completion's
+   *  response link. The response carries no employeeId (anonymity firewall), so this is the
+   *  only self-view path for anonymous surveys. It is keyed by the session employee's own
+   *  completion — one employee can never reach another's answers through it, and no other
+   *  reader (results, drill-down, insights) traverses this link. Returns [] for responses
+   *  submitted before the link existed (unrecoverable by design). */
+  async findMyAnonymousAnswers(
+    occurrenceId: string,
+    employeeId: string,
+  ): Promise<{ questionId: string; answerText: string | null; answerData: unknown }[]> {
+    const completion = await prisma.surveyCompletion.findUnique({
+      where: { occurrenceId_employeeId: { occurrenceId, employeeId } },
+      select: { responseId: true },
+    });
+    if (!completion?.responseId) return [];
+    return prisma.surveyAnswer.findMany({
+      where: { responseId: completion.responseId },
       select: { questionId: true, answerText: true, answerData: true },
     });
   }

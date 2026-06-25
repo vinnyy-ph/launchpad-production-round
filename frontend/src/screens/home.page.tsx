@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import {
   AlertCircle,
   RefreshCw,
-  Bell,
   Users,
   ClipboardCheck,
   CheckCircle2,
@@ -17,11 +16,9 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { useDashboard, type DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
-import { useNotifications } from "@/modules/notifications/hooks/use-notifications";
-import { useMarkRead } from "@/modules/notifications/hooks/use-mark-read";
-import { NotificationItem } from "@/modules/notifications/components/notification-item";
 import { useAssignedClearances, AssignedClearancesSection } from "@/modules/people/offboarding";
 import { KpiCard } from "@/shared/ui/patterns";
+import { Skeleton } from "@/shared/ui";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { RedactedProfileSheet } from "@/modules/people/employees/components/redacted-profile-sheet";
 import { cn } from "@/shared/lib/utils";
@@ -48,9 +45,6 @@ export default function HomePage() {
   const { appUser } = useAuth();
   const { stats, loading: statsLoading, error: statsError, reload: loadStats } = useDashboard();
 
-  const { notifications, loading: notifLoading, error: notifError, reload: reloadNotifs } = useNotifications(5);
-  const { markRead } = useMarkRead(() => void reloadNotifs());
-
   // Clearances the signed-in user must sign — surfaced only when something is pending.
   const { clearances: assignedClearances } = useAssignedClearances(Boolean(appUser?.employeeId));
   const hasPendingSignatures = assignedClearances.some((c) => c.status === "PENDING");
@@ -68,7 +62,6 @@ export default function HomePage() {
   }, []);
 
   const firstName = getFirstName(appUser);
-  const summary = buildSummary(appUser?.role, appUser?.isSupervisor, stats);
   const attention = buildDashboardAttention({
     role: appUser?.role,
     isSupervisor: appUser?.isSupervisor,
@@ -76,6 +69,7 @@ export default function HomePage() {
     stats,
   });
   const primary = dashboardPrimaryAction(attention);
+  const summary = buildSummary(attention.length, stats != null);
   const glance = buildGlanceCards({
     role: appUser?.role,
     isSupervisor: appUser?.isSupervisor,
@@ -91,7 +85,7 @@ export default function HomePage() {
         style={{ background: "var(--gradient-jia)", boxShadow: "var(--shadow-inset-brand)" }}
       >
         <span className="text-base font-bold text-[color:var(--text-secondary)]" aria-hidden="true">✦</span>
-        <h1 className="mt-2 text-[26px] font-bold leading-tight tracking-[-0.02em] text-[color:var(--text-primary)] sm:text-[32px]">
+        <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-[-0.02em] text-[color:var(--text-primary)] sm:text-[30px]">
           {greeting}
           {firstName ? `, ${firstName}` : ""}
         </h1>
@@ -99,7 +93,7 @@ export default function HomePage() {
         {primary && !statsLoading && (
           <Link
             href={primary.href}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[color:hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[color:hsl(var(--primary))] px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {primary.cta}
             <ArrowRight size={15} aria-hidden="true" />
@@ -171,53 +165,6 @@ export default function HomePage() {
         teams={myTeams}
         loading={statsLoading || teamsLoading}
       />
-
-      {/* Recent notifications */}
-      <section>
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
-          Recent notifications
-        </h2>
-        <div
-          className="overflow-hidden rounded-xl border border-[color:var(--border-primary)] bg-white"
-          style={{ boxShadow: "var(--shadow-xs)" }}
-        >
-          {notifLoading ? (
-            <div>
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="flex gap-3 px-4 py-3 border-b border-[color:var(--border-primary)] last:border-0">
-                  <div className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-3/4 rounded bg-[color:var(--bg-tertiary)]" />
-                    <div className="h-2.5 w-1/2 rounded bg-[color:var(--bg-tertiary)]" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : notifError ? (
-            <div className="flex items-center gap-3 p-4">
-              <AlertCircle size={16} className="flex-shrink-0 text-[color:var(--color-error-500)]" />
-              <span className="flex-1 text-sm text-[color:var(--text-secondary)]">{notifError}</span>
-              <button
-                onClick={() => void reloadNotifs()}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-secondary)]"
-              >
-                <RefreshCw size={12} /> Retry
-              </button>
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10">
-              <Bell size={20} className="text-[color:var(--text-quaternary)]" />
-              <p className="text-sm text-[color:var(--text-tertiary)]">No notifications yet</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[color:var(--border-primary)]">
-              {notifications.map((n) => (
-                <NotificationItem key={n.id} notification={n} onRead={markRead} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
     </div>
   );
 }
@@ -272,13 +219,13 @@ function AttentionBand({ items, loading }: { items: DashAttentionItem[]; loading
             href={item.href}
             className="group flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[color:var(--bg-secondary)]"
           >
-            <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-[color:var(--bg-tertiary)] px-1.5 text-xs font-bold tabular-nums text-[color:var(--text-secondary)]">
-              {item.count}
-            </span>
             <span className="flex-1 text-sm text-[color:var(--text-primary)]">{item.label}</span>
+            <span className="hidden flex-shrink-0 text-xs font-semibold text-[color:var(--text-tertiary)] transition-colors group-hover:text-[color:var(--text-secondary)] sm:inline">
+              {item.cta}
+            </span>
             <ArrowUpRight
               size={15}
-              className="flex-shrink-0 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
+              className="flex-shrink-0 text-[color:var(--text-quaternary)] transition-transform group-hover:translate-x-0.5"
             />
           </Link>
         ))}
@@ -301,7 +248,7 @@ function Avatar({ name, src, className }: { name: string; src?: string | null; c
       src={src}
       fallback={initials(name)}
       className={cn("h-9 w-9", className)}
-      fallbackClassName="text-[11px] font-bold text-white"
+      fallbackClassName="text-[12px] font-bold text-white"
       fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
     />
   );
@@ -338,7 +285,7 @@ function PeopleSection({
             className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 text-left transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
               Your supervisor
             </p>
             <div className="mt-3 flex items-center justify-between gap-2">
@@ -365,13 +312,13 @@ function PeopleSection({
             className="rounded-2xl border border-[color:var(--border-primary)] bg-white p-5"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
               Your supervisor
             </p>
             {loading ? (
               <div className="mt-3 flex items-center gap-2.5">
-                <span className="h-9 w-9 flex-shrink-0 rounded-full bg-[color:var(--bg-tertiary)]" />
-                <span className="h-3.5 w-28 rounded bg-[color:var(--bg-tertiary)]" />
+                <Skeleton className="h-9 w-9 flex-shrink-0 rounded-full" />
+                <Skeleton className="h-3.5 w-28" />
               </div>
             ) : (
               <p className="mt-3 text-sm text-[color:var(--text-tertiary)]">
@@ -388,7 +335,7 @@ function PeopleSection({
             className="group rounded-2xl border border-[color:var(--border-primary)] bg-white p-5 transition-colors hover:border-[color:var(--border-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             style={{ boxShadow: "var(--shadow-xs)" }}
           >
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-[color:var(--text-quaternary)]">
               Team
             </p>
             <div className="mt-3 flex items-center justify-between gap-2">

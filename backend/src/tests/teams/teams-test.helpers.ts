@@ -11,6 +11,7 @@ export const teamUpdateMock = mockedPrisma.team.update as jest.Mock;
 export const teamMemberCreateManyMock = mockedPrisma.teamMember.createMany as jest.Mock;
 export const teamMemberDeleteManyMock = mockedPrisma.teamMember.deleteMany as jest.Mock;
 export const employeeCountMock = mockedPrisma.employee.count as jest.Mock;
+export const employeeFindManyMock = mockedPrisma.employee.findMany as jest.Mock;
 export const transactionMock = mockedPrisma.$transaction as jest.Mock;
 
 /**
@@ -40,6 +41,10 @@ export function resetTeamMocks() {
   teamMemberCreateManyMock.mockReset();
   teamMemberDeleteManyMock.mockReset();
   employeeCountMock.mockReset();
+  employeeFindManyMock.mockReset();
+  // Default: no department rows -> the same-department rule treats everyone as exempt,
+  // so membership tests focus on their own behavior. Scenarios override as needed.
+  employeeFindManyMock.mockResolvedValue([]);
   transactionMock.mockReset();
   transactionMock.mockResolvedValue([]);
 }

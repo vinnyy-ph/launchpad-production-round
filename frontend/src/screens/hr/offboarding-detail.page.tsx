@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { RotateCcw, LogOut, UserCog } from "lucide-react";
+import { AlertCircle, ChevronDown, Eye, FileText, RotateCcw, LogOut, UserCog } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/shared/lib/utils";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { usePageBreadcrumb } from "@/shared/components/layout/breadcrumb-context";
 import {
@@ -31,8 +32,17 @@ import {
   useReplaceClearanceSignatory,
   useResetClearance,
 } from "@/modules/people/offboarding";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
-import type { OffboardingDetail, SignatureRequest } from "@/modules/people/offboarding";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
+import { DocumentViewerModal } from "@/modules/people/onboarding/components/documents/document-viewer-modal";
+import { buildClearancePdf } from "@/modules/people/offboarding/utils/clearance-pdf";
+import { ClearancePdfPreviewModal } from "@/modules/people/offboarding/components/clearance-pdf-preview-modal";
+import type {
+  OffboardingAttachment,
+  OffboardingDetail,
+  SignatureRequest,
+} from "@/modules/people/offboarding";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +69,31 @@ function initials(name: string): string {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+/** A titled section whose body can be collapsed and expanded (collapsed by default). */
+function CollapsibleGroup({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <span className="text-xs font-semibold text-[color:var(--text-secondary)]">{title}</span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 flex-shrink-0 text-[color:var(--text-tertiary)] transition-transform",
+            open && "rotate-180",
+          )}
+          aria-hidden="true"
+        />
+      </button>
+      {open ? <div className="mt-2">{children}</div> : null}
+    </div>
+  );
 }
 
 // ─── loading skeleton ─────────────────────────────────────────────────────────
@@ -103,6 +138,12 @@ function OffboardingDetailInner() {
   const { reset, resetting } = useResetClearance();
   const confirm = useConfirm();
   const [replaceTarget, setReplaceTarget] = useState<SignatureRequest | null>(null);
+  // The attachment currently shown in the document preview modal (null when closed).
+  const [previewAttachment, setPreviewAttachment] = useState<OffboardingAttachment | null>(null);
+  // The generated clearance-form PDF awaiting preview/download (null when the modal is closed).
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string } | null>(null);
+  // True while the clearance-form PDF is being generated (signature images are preloaded).
+  const [preparingPdf, setPreparingPdf] = useState(false);
 
   // Topbar breadcrumb: Organization › People › Offboarding › {employee}.
   usePageBreadcrumb(offboarding ? [fullName(offboarding.employee)] : []);
@@ -161,6 +202,37 @@ function OffboardingDetailInner() {
     }
   }
 
+  // Generates the PDF and opens it in the preview modal; the download happens from there.
+  async function handleOpenPdfPreview() {
+    if (!offboarding) return;
+    setPreparingPdf(true);
+    try {
+      const { blob, filename } = await buildClearancePdf(offboarding);
+      setPdfPreview({ url: URL.createObjectURL(blob), filename });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate the clearance form.");
+    } finally {
+      setPreparingPdf(false);
+    }
+  }
+
+  function closePdfPreview() {
+    setPdfPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  }
+
+  function downloadPreviewedPdf() {
+    if (!pdfPreview) return;
+    const link = document.createElement("a");
+    link.href = pdfPreview.url;
+    link.download = pdfPreview.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
   return (
     <div>
       {/* Header */}
@@ -176,16 +248,30 @@ function OffboardingDetailInner() {
             }}
           />
           <div>
-            <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
-              {employeeName}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
+                {employeeName}
+              </h1>
+              <StatusBadge status={offboarding.status} />
+            </div>
             <p className="text-sm text-[color:var(--text-tertiary)]">
               {employee.jobTitle ?? "—"}
               {employee.department ? ` · ${employee.department}` : ""}
             </p>
           </div>
         </div>
-        <StatusBadge status={offboarding.status} />
+        <div className="flex items-center gap-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void handleOpenPdfPreview()}
+            disabled={preparingPdf}
+            loading={preparingPdf}
+          >
+            <Eye className="h-4 w-4" />
+            {preparingPdf ? "Preparing…" : "View form"}
+          </Button>
+        </div>
       </div>
 
       {/* Meta card */}
@@ -228,6 +314,52 @@ function OffboardingDetailInner() {
           </div>
         </div>
       </div>
+
+      {/* Attachments section (only when HR uploaded supporting documents) */}
+      {offboarding.attachments.length > 0 && (
+        <div
+          className="mb-6 rounded-xl border border-[color:var(--border-primary)] bg-white"
+          style={{ boxShadow: "var(--shadow-xs)" }}
+        >
+          <div className="px-5 py-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[color:var(--text-tertiary)]">
+              Attachments
+            </p>
+          </div>
+          <Separator />
+          <ul className="divide-y divide-[color:var(--border-primary)]">
+            {offboarding.attachments.map((attachment) => (
+              <li
+                key={attachment.id}
+                className="flex items-center justify-between gap-3 px-5 py-4"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <FileText
+                    className="h-5 w-5 flex-shrink-0 text-[color:var(--text-tertiary)]"
+                    strokeWidth={1.7}
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="truncate text-sm font-medium text-[color:var(--text-primary)]"
+                    title={attachment.fileName}
+                  >
+                    {attachment.fileName}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-shrink-0"
+                  onClick={() => setPreviewAttachment(attachment)}
+                >
+                  <Eye className="h-4 w-4" />
+                  View
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Clearances section */}
       <div
@@ -285,6 +417,7 @@ function OffboardingDetailInner() {
                         size="sm"
                         disabled={resetting}
                         onClick={() => void handleReset(req)}
+                        loading={resetting}
                       >
                         <RotateCcw className="h-4 w-4" />
                         Reset
@@ -308,6 +441,21 @@ function OffboardingDetailInner() {
         offboardeeId={employee.id}
         onClose={() => setReplaceTarget(null)}
       />
+
+      <DocumentViewerModal
+        open={previewAttachment !== null}
+        onClose={() => setPreviewAttachment(null)}
+        fileUrl={previewAttachment?.url ?? null}
+        documentName={previewAttachment?.fileName}
+      />
+
+      <ClearancePdfPreviewModal
+        open={pdfPreview !== null}
+        onClose={closePdfPreview}
+        fileUrl={pdfPreview?.url ?? null}
+        fileName={pdfPreview?.filename ?? "Clearance form"}
+        onDownload={downloadPreviewedPdf}
+      />
     </div>
   );
 }
@@ -330,13 +478,13 @@ function ReplaceSignatoryDialog({
 }) {
   const [newSignatoryId, setNewSignatoryId] = useState<string>("");
   const { replace, replacing } = useReplaceClearanceSignatory();
-  const { employees } = useEmployees({ status: "active", limit: 200 });
+  const { employees } = useAllEmployees({ status: "active" });
 
   const open = request !== null;
 
   const options = employees
     .filter((e) => e.id !== offboardeeId && e.id !== request?.signatory.id)
-    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+    .map(toEmployeeOption);
 
   async function handleReplace() {
     if (!request || !newSignatoryId) return;
@@ -385,7 +533,7 @@ function ReplaceSignatoryDialog({
           <Button variant="secondary" onClick={onClose} disabled={replacing}>
             Cancel
           </Button>
-          <Button onClick={() => void handleReplace()} disabled={!newSignatoryId || replacing}>
+          <Button onClick={() => void handleReplace()} disabled={!newSignatoryId || replacing} loading={replacing}>
             {replacing ? "Replacing…" : "Replace signatory"}
           </Button>
         </DialogFooter>
@@ -399,11 +547,29 @@ function ReplaceSignatoryDialog({
 function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
   const [newSupervisorId, setNewSupervisorId] = useState<string>("");
   const { reassign, reassigning } = useReassignOffboarding(offboarding.id);
-  const { employees } = useEmployees({ status: "active", limit: 200 });
+  const { employees } = useAllEmployees({ status: "active" });
+  const {
+    employee: profile,
+    loading: profileLoading,
+    error: profileError,
+  } = useEmployeeProfile(offboarding.employee.id);
 
+  // Mirror the initiate dialog: only offer reassignment when the offboardee actually
+  // manages people (direct reports) or leads teams; otherwise there is nothing to move.
+  const directReportCount = profile?.directReports?.length ?? 0;
+  const ledTeamCount = profile?.ledTeams.length ?? 0;
+  const needsReassignment = directReportCount > 0 || ledTeamCount > 0;
+
+  // Reassignment targets must share the offboardee's department (null department = exempt),
+  // mirroring the backend rule; the backend stays authoritative for per-report enforcement.
+  const offboardeeDepartment = profile?.department ?? offboarding.employee.department ?? null;
   const options = employees
-    .filter((e) => e.id !== offboarding.employee.id)
-    .map((e) => ({ value: e.id, label: `${e.fullName}${e.jobTitle ? ` · ${e.jobTitle}` : ""}` }));
+    .filter(
+      (e) =>
+        e.id !== offboarding.employee.id &&
+        (!e.department || !offboardeeDepartment || e.department === offboardeeDepartment),
+    )
+    .map(toEmployeeOption);
 
   async function handleReassign() {
     if (!newSupervisorId) return;
@@ -418,6 +584,32 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
     }
   }
 
+  if (profileLoading) {
+    return (
+      <div
+        className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
+        style={{ boxShadow: "var(--shadow-xs)" }}
+      >
+        <p className="text-sm text-[color:var(--text-tertiary)]">
+          Checking whether this employee has reports or led teams…
+        </p>
+      </div>
+    );
+  }
+
+  if (!needsReassignment) {
+    return (
+      <div className="rounded-lg border border-[#FEDF89] bg-[#FFFAEB] p-3">
+        <div className="flex items-start gap-2">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#B54708]" aria-hidden="true" />
+          <p className="text-xs text-[#B54708]">
+            {profileError ?? "This employee has no direct reports or led teams to reassign."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="rounded-xl border border-[color:var(--border-primary)] bg-white p-5"
@@ -429,6 +621,57 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
       <p className="mb-4 text-sm text-[color:var(--text-secondary)]">
         Move this employee&apos;s direct reports and any teams they lead to another supervisor.
       </p>
+
+      {directReportCount > 0 && (
+        <div className="mb-4">
+          <CollapsibleGroup title="View members">
+          <ul className="space-y-2">
+            {profile?.directReports?.map((report) => (
+              <li
+                key={report.id}
+                className="flex items-center gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3 py-2"
+              >
+                <UserAvatar
+                  src={null}
+                  fallback={initials(report.fullName)}
+                  className="h-8 w-8 flex-shrink-0"
+                  fallbackClassName="text-xs font-bold text-[color:var(--text-primary)]"
+                  fallbackStyle={{
+                    background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                  }}
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">
+                    {report.fullName}
+                  </p>
+                  <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                    {report.jobTitle ?? "—"}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          </CollapsibleGroup>
+        </div>
+      )}
+
+      {ledTeamCount > 0 && (
+        <div className="mb-4">
+          <CollapsibleGroup title="View teams">
+            <div className="flex flex-wrap gap-2">
+              {profile?.ledTeams.map((team) => (
+                <span
+                  key={team.id}
+                  className="max-w-[160px] truncate rounded-full border border-[#ABEFC6] bg-[#ECFDF3] px-2.5 py-0.5 text-xs font-semibold text-[#067647]"
+                >
+                  {team.name}
+                </span>
+              ))}
+            </div>
+          </CollapsibleGroup>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <FormField label="New supervisor" className="flex-1">
           <Combobox
@@ -444,6 +687,7 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
           onClick={() => void handleReassign()}
           disabled={!newSupervisorId || reassigning}
           className="flex-shrink-0"
+          loading={reassigning}
         >
           {reassigning ? "Reassigning…" : "Reassign reports"}
         </Button>

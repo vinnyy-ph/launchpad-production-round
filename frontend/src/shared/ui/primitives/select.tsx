@@ -124,7 +124,7 @@ const SelectItem = React.forwardRef<
     className={cn(
       // Brandbook .dd-item: 9/12 padding, 13.5px weight 500, hover gc-50,
       // selected gc-50 + semibold, right-aligned check.
-      "relative flex w-full cursor-default select-none items-center gap-2 px-3 py-[9px] text-[13.5px] font-medium text-[color:var(--text-primary)] outline-none focus:bg-gray-50 data-[state=checked]:bg-gray-50 data-[state=checked]:font-semibold data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex w-full cursor-default select-none items-center gap-2 px-3 py-[9px] text-[14px] font-medium text-[color:var(--text-primary)] outline-none focus:bg-gray-50 data-[state=checked]:bg-gray-50 data-[state=checked]:font-semibold data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
     {...props}

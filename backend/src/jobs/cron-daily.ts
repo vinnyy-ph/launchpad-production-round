@@ -3,6 +3,7 @@ import { prisma } from "../core/database/prisma.service";
 import { advanceDueOccurrences } from "../modules/performance/surveys/occurrences/occurrence-scheduler";
 import { runDeemedAckSweep } from "./deemed-ack.job";
 import { runEvalAckReminderSweep } from "./eval-ack-reminder.job";
+import { runOffboardingInactivationSweep } from "./offboarding-inactivation.job";
 import { runSurveyReminderSweep } from "./survey-reminder.job";
 
 /** Every daily-cadence sweep, run from a single cron. Add new daily jobs as one line each. */
@@ -13,6 +14,8 @@ const DAILY_JOBS: ReadonlyArray<{ name: string; run: () => Promise<unknown> }> =
   // current occurrence even when no one has loaded the surveys page (the on-read path).
   { name: "advance-occurrences", run: () => advanceDueOccurrences() },
   { name: "survey-reminder", run: () => runSurveyReminderSweep() },
+  // Inactivate offboarded employees once their effective date arrives (all signed earlier).
+  { name: "offboarding-inactivation", run: () => runOffboardingInactivationSweep() },
 ];
 
 /**

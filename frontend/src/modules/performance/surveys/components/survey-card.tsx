@@ -38,7 +38,7 @@ export function SurveyCard({ survey, onTake }: { survey: PendingSurvey; onTake: 
           <ClipboardList size={18} className="text-[color:var(--text-secondary)]" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <h3 className="truncate text-[15px] font-bold tracking-[-0.01em] text-[color:var(--text-primary)]">
+          <h3 className="truncate text-[16px] font-bold tracking-[-0.01em] text-[color:var(--text-primary)]">
             {survey.surveyName}
           </h3>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">

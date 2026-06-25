@@ -25,3 +25,27 @@ export async function fetchNotifications(_employeeId: string, limit = 10): Promi
 export async function markNotificationRead(id: string): Promise<void> {
   await apiFetch<MarkAsReadResponse>(`${BASE}/${id}/read`, { method: "PATCH" });
 }
+
+interface MessageResponse {
+  success: true;
+  message: string;
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await apiFetch<MessageResponse>(`${BASE}/read-all`, { method: "PATCH" });
+}
+
+export async function setNotificationPinned(id: string, pinned: boolean): Promise<void> {
+  await apiFetch<MarkAsReadResponse>(`${BASE}/${id}/pin`, {
+    method: "PATCH",
+    body: JSON.stringify({ pinned }),
+  });
+}
+
+export async function clearNotification(id: string): Promise<void> {
+  await apiFetch<MessageResponse>(`${BASE}/${id}`, { method: "DELETE" });
+}
+
+export async function clearAllNotifications(): Promise<void> {
+  await apiFetch<MessageResponse>(BASE, { method: "DELETE" });
+}

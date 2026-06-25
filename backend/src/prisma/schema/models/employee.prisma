@@ -1,53 +1,49 @@
 /// HR/People data for a user
 model Employee {
-  id     String @id @default(uuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
-
-  companyEmail     String      @unique
-  firstName        String
-  lastName         String
-  middleName       String?
-  personalEmail    String?
-  birthday         DateTime?
-  jobTitle         String?
-  departmentId     String?
-  department       Department? @relation(fields: [departmentId], references: [id])
-
+  id                         String                         @id @default(uuid())
+  userId                     String                         @unique
+  companyEmail               String                         @unique
+  firstName                  String
+  lastName                   String
+  middleName                 String?
+  personalEmail              String?
+  birthday                   DateTime?
+  jobTitle                   String?
+  departmentId               String?
   /// Self-referential supervisor tree
-  supervisorId  String?
-  supervisor    Employee?  @relation("SupervisorTree", fields: [supervisorId], references: [id])
-  directReports Employee[] @relation("SupervisorTree")
-
-  status    EmployeeStatus @default(ONBOARDING)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-
-  // ── Relations ──
-  address                    EmployeeAddress?
-  emergencyContact           EmployeeEmergencyContact?
-  teamMemberships            TeamMember[]
-  ledTeams                   Team[]                         @relation("TeamLeader")
+  supervisorId               String?
+  status                     EmployeeStatus                 @default(ONBOARDING)
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
   editsPerformed             ActivityLog[]                  @relation("Editor")
   editsReceived              ActivityLog[]                  @relation("Target")
-  onboardingRecord           OnboardingRecord?
   bulkOnboardingJobs         BulkOnboardingJob[]
-  reviewedDocuments          OnboardingDocumentSubmission[]
-  offboardingRecord          OffboardingRecord?             @relation("OffboardingSubject")
-  offboardingsInitiated      OffboardingRecord[]            @relation("OffboardingInitiator")
   clearanceSignatories       ClearanceSignatory[]
   clearanceSignatures        ClearanceSignatureRequest[]
-  evaluationsGiven           PerformanceEvaluation[]        @relation("Reviewer")
-  evaluationsReceived        PerformanceEvaluation[]        @relation("Reviewee")
+  address                    EmployeeAddress?
+  emergencyContact           EmployeeEmergencyContact?
+  notificationPreference     NotificationPreference?
+  department                 Department?                    @relation(fields: [departmentId], references: [id])
+  supervisor                 Employee?                      @relation("SupervisorTree", fields: [supervisorId], references: [id])
+  directReports              Employee[]                     @relation("SupervisorTree")
+  user                       User                           @relation(fields: [userId], references: [id])
   evaluationAcknowledgements EvaluationAcknowledgement[]
+  notifications              Notification[]
+  offboardingRecord          OffboardingRecord?             @relation("OffboardingSubject")
+  offboardingsInitiated      OffboardingRecord[]            @relation("OffboardingInitiator")
+  reviewedDocuments          OnboardingDocumentSubmission[]
+  onboardingRecord           OnboardingRecord?
+  evaluationsReceived        PerformanceEvaluation[]        @relation("Reviewee")
+  evaluationsGiven           PerformanceEvaluation[]        @relation("Reviewer")
   surveysCreated             PulseSurvey[]
-  surveyResponses            SurveyResponse[]
-  surveyCompletions          SurveyCompletion[]
-  surveyAudienceMemberships  SurveyAudienceMember[]
   surveyAudienceTargets      SurveyAudienceConfig[]
+  surveyAudienceMemberships  SurveyAudienceMember[]
+  surveyCompletions          SurveyCompletion[]
+  surveyResponses            SurveyResponse[]
   surveyResultsShared        SurveyResultShare[]            @relation("SurveyResultShareSharedBy")
   surveyResultsReceived      SurveyResultShare[]            @relation("SurveyResultShareSupervisor")
-  notifications              Notification[]
+  teamMemberships            TeamMember[]
+  ledTeams                   Team[]                         @relation("TeamLeader")
 
   @@map("employees")
 }
@@ -56,30 +52,26 @@ model Employee {
 model EmployeeAddress {
   id         String   @id @default(uuid())
   employeeId String   @unique
+  address    String?
+  city       String?
+  province   String?
+  country    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  address  String?
-  city     String?
-  province String?
-  country  String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@map("employee_addresses")
 }
 
 /// Emergency contact details associated with one employee profile.
 model EmployeeEmergencyContact {
-  id         String   @id @default(uuid())
-  employeeId String   @unique
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
+  id                     String   @id @default(uuid())
+  employeeId             String   @unique
   emergencyContactName   String?
   emergencyContactNumber String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  employee               Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@map("employee_emergency_contacts")
 }

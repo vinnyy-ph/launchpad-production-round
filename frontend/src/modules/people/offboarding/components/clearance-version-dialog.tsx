@@ -16,8 +16,13 @@ import {
   Input,
   Textarea,
 } from "@/shared/ui";
-import { useEmployees } from "@/modules/people/employees/hooks/use-employees";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
+import { toEmployeeOption } from "@/modules/people/employees/employee-options";
+import {
+  PEOPLE_NAME_LANGUAGE_MESSAGE,
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleFieldText,
+} from "@/modules/people/people-text";
 import type {
   ClearanceSignatoryInput,
   ClearanceTemplate,
@@ -63,7 +68,12 @@ function validateClearanceText(
   field: keyof typeof CLEARANCE_FIELD_MESSAGES,
   maxLen: number,
 ): string | undefined {
-  if (validatePeopleText(value, field, maxLen)) return CLEARANCE_FIELD_MESSAGES[field];
+  const textError = validatePeopleFieldText(value, field, maxLen);
+  if (textError) {
+    if (textError === PEOPLE_NAME_LANGUAGE_MESSAGE) return textError;
+    if (textError.includes("characters or fewer")) return textError;
+    return CLEARANCE_FIELD_MESSAGES[field];
+  }
   if (value && !CLEARANCE_TEXT_RE.test(value)) return CLEARANCE_FIELD_MESSAGES[field];
   return undefined;
 }
@@ -80,9 +90,10 @@ export function ClearanceVersionDialog({
   onSubmit,
 }: ClearanceVersionDialogProps) {
   const isEdit = Boolean(template);
-  const { employees, loading: employeesLoading } = useEmployees(
-    open ? { status: "active", limit: 200 } : {},
-  );
+  const { employees, loading: employeesLoading } = useAllEmployees({
+    status: "active",
+    enabled: open,
+  });
 
   const [name, setName] = useState("");
   const [isDefault, setIsDefault] = useState(false);
@@ -113,10 +124,7 @@ export function ClearanceVersionDialog({
     setRowErrors({});
   }, [open, template]);
 
-  const employeeOptions = employees.map((employee) => ({
-    value: employee.id,
-    label: `${employee.fullName}${employee.jobTitle ? ` · ${employee.jobTitle}` : ""}`,
-  }));
+  const employeeOptions = employees.map(toEmployeeOption);
 
   function updateRow(key: string, patch: Partial<ClearanceSignatoryInput>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -344,7 +352,7 @@ export function ClearanceVersionDialog({
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={saving}>
+          <Button onClick={handleSubmit} disabled={saving} loading={saving}>
             {saving ? "Saving…" : isEdit ? "Save changes" : "Create version"}
           </Button>
         </DialogFooter>

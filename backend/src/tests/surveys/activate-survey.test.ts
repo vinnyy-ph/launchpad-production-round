@@ -124,6 +124,25 @@ describe("PATCH /api/v1/pulse/surveys/:id/activate", () => {
     });
   });
 
+  it("returns 409 when the survey's start date is in the future", async () => {
+    const survey = buildSurveyDetail({
+      isActive: false,
+      occurrenceCount: 0,
+      releaseDate: new Date("2099-01-01T00:00:00.000Z"),
+    });
+    surveyFindFirstMock.mockResolvedValue(survey);
+
+    const response = await request(app).patch(`${URL}/${survey.id}/activate`).expect(409);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      errorCode: "SURVEY_RELEASE_DATE_FUTURE",
+    });
+
+    // No occurrence created and no notifications/emails are sent.
+    expect(occurrenceCreateMock).not.toHaveBeenCalled();
+  });
+
   it("successfully activates a draft survey and snapshots target employees", async () => {
     const survey = buildSurveyDetail({ isActive: false, occurrenceCount: 0 });
     surveyFindFirstMock.mockResolvedValue(survey);

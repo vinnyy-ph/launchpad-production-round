@@ -14,6 +14,10 @@ import {
 } from "@/shared/ui";
 import { QuestionField, type AnswerValue } from "./questions/question-field";
 import { useSubmitResponse } from "../hooks/use-submit-response";
+import {
+  isTextAnswerType,
+  validateSurveyAnswerText,
+} from "../lib/survey-answer-text";
 import type { PendingSurvey, AnswerInput, Question } from "../types/surveys.types";
 
 // Per-type "gentle nudge" for an unanswered required question.
@@ -54,6 +58,15 @@ function toAnswerInput(question: Question, value: AnswerValue): AnswerInput | nu
   }
 }
 
+function textAnswerError(question: Question, value: AnswerValue): string | undefined {
+  if (!isTextAnswerType(question.type)) return undefined;
+
+  const text = typeof value === "string" ? value.trim() : "";
+  if (question.isRequired && text === "") return requiredNudge(question.type);
+  if (text === "") return undefined;
+  return validateSurveyAnswerText(text, question.type);
+}
+
 export interface TakeSurveyDialogProps {
   open: boolean;
   survey: PendingSurvey | null;
@@ -86,24 +99,51 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
 
   const setAnswer = (qid: string, value: AnswerValue) => {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
+    const question = survey.questions.find((q) => q.id === qid);
+    if (question && !isTextAnswerType(question.type)) {
+      setErrors((prev) => {
+        if (!prev[qid]) return prev;
+        const next = { ...prev };
+        delete next[qid];
+        return next;
+      });
+    }
+  };
+
+  const setTextAnswerError = (qid: string, error: string | undefined) => {
     setErrors((prev) => {
-      if (!prev[qid]) return prev;
       const next = { ...prev };
-      delete next[qid];
+      if (error) next[qid] = error;
+      else delete next[qid];
       return next;
     });
   };
 
   const validate = () => {
     const errs: Record<string, string> = {};
+    let hasRequiredMissing = false;
+
     for (const q of survey.questions) {
+      if (isTextAnswerType(q.type)) {
+        const fieldError = textAnswerError(q, answers[q.id]);
+        if (fieldError) {
+          errs[q.id] = fieldError;
+          if (fieldError === requiredNudge(q.type)) hasRequiredMissing = true;
+        }
+        continue;
+      }
+
       if (!q.isRequired) continue;
       const a = answers[q.id];
       const empty = a === undefined || a === "" || (Array.isArray(a) && a.length === 0);
-      if (empty) errs[q.id] = requiredNudge(q.type);
+      if (empty) {
+        errs[q.id] = requiredNudge(q.type);
+        hasRequiredMissing = true;
+      }
     }
+
     setErrors(errs);
-    setShowFormError(Object.keys(errs).length > 0);
+    setShowFormError(hasRequiredMissing);
     return Object.keys(errs).length === 0;
   };
 
@@ -183,7 +223,7 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-6 pt-4">
               {/* Anonymity reassurance line */}
               <div
-                className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[13px] ${
+                className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[14px] ${
                   isAnonymous
                     ? "border-[#C7D7FE] bg-[#EEF4FF] text-[#3538CD]"
                     : "border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)]"
@@ -215,18 +255,23 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
                   value={answers[q.id]}
                   error={errors[q.id]}
                   onChange={(v) => setAnswer(q.id, v)}
+                  onErrorChange={
+                    isTextAnswerType(q.type)
+                      ? (error) => setTextAnswerError(q.id, error)
+                      : undefined
+                  }
                   disabled={submit.isPending}
                 />
               ))}
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border-primary)] px-6 py-3.5">
-              <span className="text-[13px] text-[color:var(--text-tertiary)]">
+              <span className="text-[14px] text-[color:var(--text-tertiary)]">
                 {requiredCount > 0
                   ? `${requiredCount} required ${requiredCount === 1 ? "question" : "questions"}`
                   : "All questions optional"}
               </span>
-              <Button onClick={handleSubmit} disabled={submit.isPending}>
+              <Button onClick={handleSubmit} disabled={submit.isPending} loading={submit.isPending}>
                 {submit.isPending ? "Submitting…" : "Submit response"}
               </Button>
             </div>
