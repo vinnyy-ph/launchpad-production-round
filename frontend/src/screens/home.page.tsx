@@ -49,10 +49,15 @@ export default function HomePage() {
 
   return (
     <div className="min-w-0 space-y-7">
-      {/* Greeting — one slim line, not a card. (h1) */}
-      <h1 className="text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
-        {greeting ?? `Welcome${firstName ? `, ${firstName}` : ""}`}
-      </h1>
+      {/* Greeting + generic subtitle — one block so the section gap doesn't split them. */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
+          {greeting ?? `Welcome${firstName ? `, ${firstName}` : ""}`}
+        </h1>
+        <p className="mt-1 text-base text-[color:var(--text-tertiary)]">
+          Here&apos;s an overview of your workspace.
+        </p>
+      </div>
 
       {statsError ? (
         <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
