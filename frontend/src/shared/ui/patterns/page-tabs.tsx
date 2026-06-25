@@ -32,7 +32,7 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="mb-5 flex items-center gap-6 overflow-x-auto overflow-y-hidden scrollbar-none border-b border-[color:var(--border-primary)]"
+      className="mb-5 flex items-stretch gap-6 overflow-x-auto overflow-y-hidden scrollbar-none border-b border-[color:var(--border-primary)]"
     >
       {items.map((item) => {
         const isActive = item.value === value;
