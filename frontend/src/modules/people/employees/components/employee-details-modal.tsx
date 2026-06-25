@@ -304,14 +304,6 @@ function sidebarActionLabel(status: EmployeeStatus): string | null {
   return null;
 }
 
-function sidebarActionStyles(status: EmployeeStatus): string {
-  if (status === "onboarding") {
-    return "border-[#B2DDFF] bg-[#EFF8FF] text-[#175CD3] hover:bg-[#D1E9FF]";
-  }
-
-  return "border-[color:var(--color-error-200)] bg-white text-[color:var(--color-error-700)] hover:bg-[color:var(--color-error-50)]";
-}
-
 function blankDraft(): EditDraft {
   return {
     firstName: "",
@@ -870,8 +862,8 @@ export function EmployeeDetailsModal({
                                       <div className="border-t border-[color:var(--border-primary)] p-4">
                                           <Button
                                               type="button"
-                                              variant="secondary"
-                                              className={`w-full ${sidebarActionStyles(profile.status)}`}
+                                              variant={profile.status === "onboarding" ? "secondary" : "destructive"}
+                                              className="w-full"
                                           >
                                               {profile.status ===
                                               "onboarding" ? (

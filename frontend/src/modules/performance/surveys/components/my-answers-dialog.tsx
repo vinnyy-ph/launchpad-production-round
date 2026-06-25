@@ -150,7 +150,7 @@ export function MyAnswersDialog({ open, answered, onClose }: MyAnswersDialogProp
           )}
 
           {data && data.submitted && isAnonymous && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-[#C7D7FE] bg-[#EEF4FF] px-4 py-3 text-[14px] text-[#3538CD]">
+            <div className="flex items-start gap-2.5 rounded-xl border border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] px-4 py-3 text-[14px] text-[color:var(--color-success-700)]">
               <ShieldCheck size={17} className="mt-0.5 flex-none" aria-hidden="true" />
               <span>
                 This pulse was anonymous. To protect anonymity, your answers aren&apos;t linked

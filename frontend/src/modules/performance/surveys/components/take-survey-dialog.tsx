@@ -202,7 +202,7 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
               <div
                 className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 text-[14px] ${
                   isAnonymous
-                    ? "border-[#C7D7FE] bg-[#EEF4FF] text-[#3538CD]"
+                    ? "border-[color:var(--color-success-200)] bg-[color:var(--color-success-50)] text-[color:var(--color-success-700)]"
                     : "border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)]"
                 }`}
               >
