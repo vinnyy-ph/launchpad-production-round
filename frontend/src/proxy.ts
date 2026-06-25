@@ -20,6 +20,8 @@ export function proxy() {
   const scriptSrc = [
     "'self'",
     "'unsafe-inline'",
+    "https://apis.google.com", // Firebase Google sign-in injects the gapi loader (apis.google.com/js/api.js)
+    "https://www.gstatic.com", // Firebase auth helper scripts
     !isProd && "'unsafe-eval'", // next dev fast-refresh evaluates code via eval
   ].filter(Boolean);
 
