@@ -111,4 +111,17 @@ describe("PATCH /api/v1/onboarding/invitations/:invitationId/email", () => {
       errorCode: "INVALID_EMAIL",
     });
   });
+
+  it("returns 400 for unsafe email content", async () => {
+    const response = await request(app)
+      .patch(`/api/v1/onboarding/invitations/${INVITATION_ID}/email`)
+      .send({ email: "x<script>@test.com" })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      errorCode: "VALIDATION_FAILED",
+    });
+    expect(response.body.errors[0].message).toMatch(/must not contain HTML/);
+  });
 });

@@ -6,6 +6,7 @@ import {
   OFFBOARDEE_ID,
   OFFBOARDING_ID,
   REQUEST_ID,
+  SIGNATURE_IMAGE,
   SIGNATORY_EMPLOYEE_ID,
 } from "./clearance-test.helpers";
 
@@ -48,13 +49,18 @@ describe("POST /api/v1/clearance/:requestId/sign", () => {
     prisma.clearanceSignatureRequest.findUnique.mockResolvedValue(buildSignatureRequest());
     prisma.employee.findUnique.mockResolvedValue({ id: SIGNATORY_EMPLOYEE_ID });
     prisma.clearanceSignatureRequest.update.mockResolvedValue(
-      buildSignatureRequest({ status: "SIGNED", note: null, actionAt: new Date() }),
+      buildSignatureRequest({
+        status: "SIGNED",
+        note: null,
+        signatureImage: SIGNATURE_IMAGE,
+        actionAt: new Date(),
+      }),
     );
     prisma.clearanceSignatureRequest.count.mockResolvedValue(1); // one still unsigned
 
     const response = await request(app)
       .post(`/api/v1/clearance/${REQUEST_ID}/sign`)
-      .send({})
+      .send({ signatureImage: SIGNATURE_IMAGE })
       .expect(200);
 
     expect(response.body).toMatchObject({
@@ -64,11 +70,17 @@ describe("POST /api/v1/clearance/:requestId/sign", () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("AUTO-COMPLETES the offboarding and sets the employee INACTIVE when all requests are signed", async () => {
+  it("completes the offboarding and sets the employee INACTIVE when all requests are signed and the effective date has passed", async () => {
     prisma.clearanceSignatureRequest.findUnique.mockResolvedValue(buildSignatureRequest());
     prisma.employee.findUnique.mockResolvedValue({ id: SIGNATORY_EMPLOYEE_ID });
     prisma.clearanceSignatureRequest.update.mockResolvedValue(
-      buildSignatureRequest({ status: "SIGNED", note: null, actionAt: new Date() }),
+      buildSignatureRequest({
+        status: "SIGNED",
+        note: null,
+        signatureImage: SIGNATURE_IMAGE,
+        actionAt: new Date(),
+        offboarding: { effectiveDate: new Date("2000-01-01T00:00:00.000Z") }, // already passed
+      }),
     );
     prisma.clearanceSignatureRequest.count.mockResolvedValue(0); // none unsigned
     prisma.$transaction.mockResolvedValue([{}, {}]);
@@ -78,7 +90,7 @@ describe("POST /api/v1/clearance/:requestId/sign", () => {
 
     const response = await request(app)
       .post(`/api/v1/clearance/${REQUEST_ID}/sign`)
-      .send({ note: "All clear" })
+      .send({ note: "All clear", signatureImage: SIGNATURE_IMAGE })
       .expect(200);
 
     expect(response.body).toMatchObject({
@@ -97,15 +109,64 @@ describe("POST /api/v1/clearance/:requestId/sign", () => {
     });
   });
 
+  it("completes the offboarding but keeps the employee ACTIVE when all signed before the effective date", async () => {
+    prisma.clearanceSignatureRequest.findUnique.mockResolvedValue(buildSignatureRequest());
+    prisma.employee.findUnique.mockResolvedValue({ id: SIGNATORY_EMPLOYEE_ID });
+    prisma.clearanceSignatureRequest.update.mockResolvedValue(
+      buildSignatureRequest({
+        status: "SIGNED",
+        note: null,
+        signatureImage: SIGNATURE_IMAGE,
+        actionAt: new Date(),
+        offboarding: { effectiveDate: new Date("2999-01-01T00:00:00.000Z") }, // not yet reached
+      }),
+    );
+    prisma.clearanceSignatureRequest.count.mockResolvedValue(0); // none unsigned
+    prisma.$transaction.mockResolvedValue([{}]);
+    prisma.offboardingRecord.update.mockReturnValue({ __op: "record-complete" });
+
+    const response = await request(app)
+      .post(`/api/v1/clearance/${REQUEST_ID}/sign`)
+      .send({ signatureImage: SIGNATURE_IMAGE })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      success: true,
+      data: { status: "SIGNED", offboardingCompleted: true, employeeInactivated: false },
+    });
+    expect(prisma.offboardingRecord.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: OFFBOARDING_ID },
+        data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+    // The employee is not deactivated until the effective date arrives.
+    expect(prisma.employee.update).not.toHaveBeenCalled();
+  });
+
   it("returns 403 when the caller is not the request's signatory", async () => {
     prisma.clearanceSignatureRequest.findUnique.mockResolvedValue(buildSignatureRequest());
     prisma.employee.findUnique.mockResolvedValue({ id: "someone-else-id" });
 
     const response = await request(app)
       .post(`/api/v1/clearance/${REQUEST_ID}/sign`)
-      .send({})
+      .send({ signatureImage: SIGNATURE_IMAGE })
       .expect(403);
 
     expect(response.body).toMatchObject({ errorCode: "NOT_CLEARANCE_SIGNATORY" });
+  });
+
+  it("returns 400 when signatureImage is missing or invalid", async () => {
+    await request(app)
+      .post(`/api/v1/clearance/${REQUEST_ID}/sign`)
+      .send({})
+      .expect(400);
+
+    const response = await request(app)
+      .post(`/api/v1/clearance/${REQUEST_ID}/sign`)
+      .send({ signatureImage: "typed:Blake" })
+      .expect(400);
+
+    expect(response.body).toMatchObject({ errorCode: "VALIDATION_FAILED" });
   });
 });

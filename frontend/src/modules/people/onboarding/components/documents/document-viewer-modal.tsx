@@ -108,10 +108,11 @@ export function DocumentViewerModal({
                     className="border-[#FECDCA] text-[#B42318] hover:bg-[#FEF3F2]"
                     onClick={onReject}
                     disabled={rejectPending}
+                    loading={rejectPending}
                   >
                     Reject
                   </Button>
-                  <Button onClick={onApprove} disabled={approvePending}>
+                  <Button onClick={onApprove} disabled={approvePending} loading={approvePending}>
                     <CheckCircle2 aria-hidden="true" />
                     {approvePending ? "Approving…" : "Approve"}
                   </Button>

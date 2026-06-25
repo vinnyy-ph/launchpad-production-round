@@ -22,6 +22,11 @@ import {
   UserAvatar,
 } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
+import {
+  ONBOARDING_ALLOWED_FILE_TYPES,
+  fileAcceptAttribute,
+  validateOnboardingFile,
+} from "@/modules/people/onboarding/constants/allowed-file-types";
 import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
@@ -34,6 +39,8 @@ interface InitiateOffboardingDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Called with the new case id after offboarding is initiated. */
   onInitiated: (caseId: string) => void;
+  /** When set, the employee is pre-selected and cannot be changed (e.g. from the profile modal). */
+  employeeId?: string;
 }
 
 function todayIso(): string {
@@ -58,10 +65,12 @@ function dateToIso(date?: Date): string {
 }
 
 // Attachment upload limits — kept in sync with the backend offboarding upload middleware.
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENTS = 10;
-const ALLOWED_ATTACHMENT_TYPES = ["image/png", "image/jpeg", "application/pdf"];
-const ATTACHMENT_ACCEPT = ".png,.jpg,.jpeg,.pdf";
+// File-type security mirrors the onboarding document upload: each file is validated for
+// extension, declared MIME type, and magic-byte signature (size capped inside
+// validateOnboardingFile) so spoofed file types are rejected before upload.
+const ATTACHMENT_ALLOWED_TYPES = ONBOARDING_ALLOWED_FILE_TYPES.map((type) => type.value);
+const ATTACHMENT_ACCEPT = fileAcceptAttribute(ATTACHMENT_ALLOWED_TYPES.join(","));
 
 /** Formats a byte count into a short human-readable size (e.g. "1.2 MB"). */
 function formatFileSize(bytes: number): string {
@@ -125,6 +134,7 @@ export function InitiateOffboardingDialog({
   open,
   onOpenChange,
   onInitiated,
+  employeeId: lockedEmployeeId,
 }: InitiateOffboardingDialogProps) {
   // Only fetch employees while the dialog is open.
   const { employees, loading: employeesLoading } = useAllEmployees({
@@ -174,6 +184,12 @@ export function InitiateOffboardingDialog({
   const needsTeamLeaderReassignment = ledTeamCount > 0;
 
   useEffect(() => {
+    if (open && lockedEmployeeId) {
+      setEmpId(lockedEmployeeId);
+    }
+  }, [open, lockedEmployeeId]);
+
+  useEffect(() => {
     if (!open || clearanceTemplateId || templates.length === 0) return;
     const defaultTemplate = templates.find((template) => template.isDefault) ?? templates[0];
     setClearanceTemplateId(defaultTemplate.id);
@@ -197,7 +213,7 @@ export function InitiateOffboardingDialog({
   }, [attachments]);
 
   function reset() {
-    setEmpId("");
+    setEmpId(lockedEmployeeId ?? "");
     setTenderDate(todayIso());
     setEffectiveDate("");
     setClearanceTemplateId("");
@@ -211,20 +227,20 @@ export function InitiateOffboardingDialog({
   }
 
   /**
-   * Validates newly picked files (type + size + count), appends the valid ones to the
-   * current selection (de-duplicated by name + size), and surfaces a message for any rejects.
+   * Validates newly picked files (extension + MIME + magic bytes + size + count), appends the
+   * valid ones to the current selection (de-duplicated by name + size), and surfaces a message
+   * for any rejects. Validation mirrors the onboarding document upload to block spoofed files.
    */
-  function handleFilesSelected(fileList: FileList | null) {
+  async function handleFilesSelected(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
 
     const rejected: string[] = [];
     const accepted: File[] = [];
 
     for (const file of Array.from(fileList)) {
-      if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
-        rejected.push(`${file.name} (unsupported type)`);
-      } else if (file.size > MAX_ATTACHMENT_BYTES) {
-        rejected.push(`${file.name} (over 5 MB)`);
+      const validationError = await validateOnboardingFile(file, ATTACHMENT_ALLOWED_TYPES);
+      if (validationError) {
+        rejected.push(`${file.name} (${validationError})`);
       } else {
         accepted.push(file);
       }
@@ -326,12 +342,17 @@ export function InitiateOffboardingDialog({
 
   const previewFileUrl = previewFile ? previewUrls[fileKey(previewFile)] : undefined;
   const previewIsImage = previewFile?.type.startsWith("image/") ?? false;
+  const lockedEmployee = lockedEmployeeId
+    ? (employees.find((e) => e.id === lockedEmployeeId) ?? selectedEmployeeProfile)
+    : null;
+  const dialogTitle = lockedEmployeeId ? "Process offboarding" : "Initiate offboarding";
+  const submitLabel = lockedEmployeeId ? "Process offboarding" : "Initiate offboarding";
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Initiate offboarding</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>
             Set the tender and effective dates, then run the clearance process.
           </DialogDescription>
@@ -339,14 +360,42 @@ export function InitiateOffboardingDialog({
 
         <div className="min-w-0 space-y-4 py-2">
           <FormField label="Employee" required error={errors.emp}>
-            <Combobox
-              options={empOptions}
-              value={empId}
-              onChange={(v) => setEmpId(v)}
-              placeholder={employeesLoading ? "Loading employees…" : "Select an active employee…"}
-              searchPlaceholder="Search employees…"
-              emptyText="No active employees available."
-            />
+            {lockedEmployeeId ? (
+              lockedEmployee ? (
+                <div className="flex items-center gap-3 rounded-lg border border-[color:var(--border-primary)] bg-[color:var(--bg-secondary)] px-3 py-2.5">
+                  <UserAvatar
+                    src={lockedEmployee.avatarUrl}
+                    fallback={initials(lockedEmployee.fullName)}
+                    className="h-9 w-9 shrink-0"
+                    fallbackClassName="text-xs font-bold text-[color:var(--text-primary)]"
+                    fallbackStyle={{
+                      background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))",
+                    }}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[color:var(--text-primary)]">
+                      {lockedEmployee.fullName}
+                    </p>
+                    <p className="truncate text-xs text-[color:var(--text-tertiary)]">
+                      {lockedEmployee.companyEmail}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-[color:var(--text-tertiary)]">
+                  {employeesLoading || profileLoading ? "Loading employee…" : "Employee not found."}
+                </p>
+              )
+            ) : (
+              <Combobox
+                options={empOptions}
+                value={empId}
+                onChange={(v) => setEmpId(v)}
+                placeholder={employeesLoading ? "Loading employees…" : "Select an active employee…"}
+                searchPlaceholder="Search employees…"
+                emptyText="No active employees available."
+              />
+            )}
           </FormField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -409,7 +458,7 @@ export function InitiateOffboardingDialog({
                 multiple
                 accept={ATTACHMENT_ACCEPT}
                 className="sr-only"
-                onChange={(event) => handleFilesSelected(event.target.files)}
+                onChange={(event) => void handleFilesSelected(event.target.files)}
               />
 
               {attachments.length < MAX_ATTACHMENTS ? (
@@ -435,7 +484,7 @@ export function InitiateOffboardingDialog({
                   onDrop={(event) => {
                     event.preventDefault();
                     setDragActive(false);
-                    handleFilesSelected(event.dataTransfer.files);
+                    void handleFilesSelected(event.dataTransfer.files);
                   }}
                 >
                   <span className="flex items-center justify-center gap-2 text-sm text-[color:var(--text-tertiary)]">
@@ -625,8 +674,9 @@ export function InitiateOffboardingDialog({
           <Button
             onClick={() => void handleSubmit()}
             disabled={creating || profileLoading || templatesLoading || templates.length === 0}
+            loading={creating}
           >
-            {creating ? "Initiating…" : "Initiate offboarding"}
+            {creating ? (lockedEmployeeId ? "Processing…" : "Initiating…") : submitLabel}
           </Button>
         </DialogFooter>
 

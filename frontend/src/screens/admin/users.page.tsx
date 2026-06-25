@@ -7,12 +7,17 @@ import { PageHeader } from "@/shared/components/layout/page-header";
 import { ApiError } from "@/shared/lib/api-client";
 import { cn } from "@/shared/lib/utils";
 import { useAuth } from "@/modules/auth";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleNameLanguage,
+  validatePeopleText,
+} from "@/modules/people/people-text";
 import {
   useUsers,
   useAddUser,
   useUpdateRole,
   useDeactivateUser,
+  useActivateUser,
   UserRoleBadge,
   roleLabel,
   formatLastLogin,
@@ -148,6 +153,7 @@ function UsersPageInner() {
   const { addUserAsync, isAdding } = useAddUser();
   const { updateRoleAsync, isUpdating } = useUpdateRole();
   const { deactivateUserAsync, isDeactivating } = useDeactivateUser();
+  const { activateUserAsync, isActivating } = useActivateUser();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -205,6 +211,22 @@ function UsersPageInner() {
       });
     },
     [confirm, isOnlyActiveAdmin, isSelf, updateRoleAsync],
+  );
+
+  const handleActivate = useCallback(
+    async (user: UserListItem) => {
+      if (user.isActive) return;
+
+      await confirm({
+        title: "Activate user",
+        description: `Are you sure you want to reactivate ${displayName(user)}? They will regain access immediately.`,
+        confirmLabel: "Activate",
+        confirmLoadingLabel: "Activating…",
+        cancelLabel: "Cancel",
+        onConfirm: () => activateUserAsync(user.id),
+      });
+    },
+    [activateUserAsync, confirm],
   );
 
   const handleSort = useCallback(
@@ -291,8 +313,10 @@ function UsersPageInner() {
           isOnlyActiveAdmin={isOnlyActiveAdmin(user)}
           isUpdating={isUpdating}
           isDeactivating={isDeactivating}
+          isActivating={isActivating}
           onRoleChange={handleRoleChange}
           onDeactivate={handleDeactivate}
+          onActivate={handleActivate}
         />
       ),
     },
@@ -522,8 +546,10 @@ function UserRowActions({
   isOnlyActiveAdmin,
   isUpdating,
   isDeactivating,
+  isActivating,
   onRoleChange,
   onDeactivate,
+  onActivate,
 }: {
   user: UserListItem;
   displayName: string;
@@ -531,8 +557,10 @@ function UserRowActions({
   isOnlyActiveAdmin: boolean;
   isUpdating: boolean;
   isDeactivating: boolean;
+  isActivating: boolean;
   onRoleChange: (user: UserListItem, role: ChangeableRole) => void | Promise<void>;
   onDeactivate: (user: UserListItem) => void | Promise<void>;
+  onActivate: (user: UserListItem) => void | Promise<void>;
 }) {
   const roleLocked =
     !user.isActive ||
@@ -593,12 +621,17 @@ function UserRowActions({
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
-        disabled={deactivateLocked || isDeactivating}
-        onClick={() => void onDeactivate(user)}
-        aria-label={`Deactivate ${name}`}
-        title={
-          isSelf
+        className={cn(
+          "h-8 w-8",
+          user.isActive
+            ? "text-[#D92D20] hover:bg-[#FEF3F2] hover:text-[#D92D20]"
+            : "text-[#067647] hover:bg-[#ECFDF3] hover:text-[#067647]",
+        )}
+        disabled={user.isActive ? deactivateLocked || isDeactivating : isActivating}
+        onClick={() => (user.isActive ? void onDeactivate(user) : void onActivate(user))}
+        aria-label={`${user.isActive ? "Deactivate" : "Activate"} ${name}`}
+        title={user.isActive
+          ? isSelf
             ? "You cannot deactivate your own account"
             : deactivateLocked
               ? !user.isActive
@@ -607,9 +640,9 @@ function UserRowActions({
                   ? undefined
                   : "Cannot deactivate the only active admin"
               : "Deactivate user"
-        }
+          : "Activate user"}
       >
-        <Ban className="h-4 w-4" />
+        {user.isActive ? <Ban className="h-4 w-4" /> : <Check className="h-4 w-4" />}
       </Button>
     </div>
   );
@@ -674,21 +707,31 @@ function InviteUserDialog({
     const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim();
 
-    if (
-      !trimmedFirstName ||
+    if (!trimmedFirstName) {
+      next.firstName = ADD_USER_FIELD_MESSAGES.firstName;
+    } else if (validatePeopleNameLanguage(trimmedFirstName)) {
+      next.firstName = validatePeopleNameLanguage(trimmedFirstName);
+    } else if (
       !LETTERS_ONLY_RE.test(trimmedFirstName) ||
       validatePeopleText(trimmedFirstName, "First name", PEOPLE_TEXT_LIMITS.NAME)
     ) {
       next.firstName = ADD_USER_FIELD_MESSAGES.firstName;
     }
-    if (
-      !trimmedLastName ||
+    if (!trimmedLastName) {
+      next.lastName = ADD_USER_FIELD_MESSAGES.lastName;
+    } else if (validatePeopleNameLanguage(trimmedLastName)) {
+      next.lastName = validatePeopleNameLanguage(trimmedLastName);
+    } else if (
       !LETTERS_ONLY_RE.test(trimmedLastName) ||
       validatePeopleText(trimmedLastName, "Last name", PEOPLE_TEXT_LIMITS.NAME)
     ) {
       next.lastName = ADD_USER_FIELD_MESSAGES.lastName;
     }
-    if (
+    if (!trimmedEmail) {
+      next.email = ADD_USER_FIELD_MESSAGES.email;
+    } else if (validatePeopleNameLanguage(trimmedEmail)) {
+      next.email = validatePeopleNameLanguage(trimmedEmail);
+    } else if (
       !EMAIL_RE.test(trimmedEmail) ||
       validatePeopleText(trimmedEmail, "Email", PEOPLE_TEXT_LIMITS.EMAIL)
     ) {
@@ -702,22 +745,29 @@ function InviteUserDialog({
     const trimmed = value.trim();
 
     if (field === "firstName") {
-      return !trimmed ||
-        !LETTERS_ONLY_RE.test(trimmed) ||
+      if (!trimmed) return ADD_USER_FIELD_MESSAGES.firstName;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "First name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_USER_FIELD_MESSAGES.firstName
         : undefined;
     }
 
     if (field === "lastName") {
-      return !trimmed ||
-        !LETTERS_ONLY_RE.test(trimmed) ||
+      if (!trimmed) return ADD_USER_FIELD_MESSAGES.lastName;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
+      return !LETTERS_ONLY_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Last name", PEOPLE_TEXT_LIMITS.NAME)
         ? ADD_USER_FIELD_MESSAGES.lastName
         : undefined;
     }
 
     if (field === "email") {
+      if (!trimmed) return ADD_USER_FIELD_MESSAGES.email;
+      const languageError = validatePeopleNameLanguage(trimmed);
+      if (languageError) return languageError;
       return !EMAIL_RE.test(trimmed) ||
         validatePeopleText(trimmed, "Email", PEOPLE_TEXT_LIMITS.EMAIL)
         ? ADD_USER_FIELD_MESSAGES.email

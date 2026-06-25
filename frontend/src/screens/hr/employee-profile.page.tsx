@@ -21,7 +21,11 @@ import { useAllEmployees } from "@/modules/people/employees/hooks/use-employees"
 import { toEmployeeOption } from "@/modules/people/employees/employee-options";
 import { useEmployeeProfile } from "@/modules/people/employees/hooks/use-employee-profile";
 import { useUpdateEmployee } from "@/modules/people/employees/hooks/use-update-employee";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  mapPeopleFieldTextError,
+  validatePeopleText,
+} from "@/modules/people/people-text";
 import type {
   EmployeeProfile,
   EmployeeStatus,
@@ -70,6 +74,8 @@ const STATUS_OPTIONS: { value: EmployeeStatus; label: string }[] = [
   { value: "offboarding", label: "Offboarding" },
   { value: "inactive", label: "Inactive" },
 ];
+const DEPARTMENT_NAME_INVALID_MESSAGE =
+  "Please enter a valid department name.";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -196,7 +202,7 @@ function InlineEditForm({
       </div>
 
       <div className="flex items-center gap-2 pt-2">
-        <Button size="sm" onClick={onSave} disabled={saving}>
+        <Button size="sm" onClick={onSave} disabled={saving} loading={saving}>
           <Check className="mr-1 h-3.5 w-3.5" />
           {saving ? "Saving…" : "Save"}
         </Button>
@@ -257,7 +263,14 @@ export default function EmployeeProfilePage() {
       ? validatePeopleText(trimmedJobTitle, "Job title", PEOPLE_TEXT_LIMITS.JOB_TITLE)
       : undefined;
     const departmentError = trimmedDepartment
-      ? validatePeopleText(trimmedDepartment, "Department", PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME)
+      ? mapPeopleFieldTextError(
+          validatePeopleText(
+            trimmedDepartment,
+            "Department name",
+            PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME,
+          ),
+          DEPARTMENT_NAME_INVALID_MESSAGE,
+        )
       : undefined;
     if (jobTitleError || departmentError) {
       toast.error(jobTitleError ?? departmentError);

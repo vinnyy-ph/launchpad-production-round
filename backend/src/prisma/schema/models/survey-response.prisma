@@ -13,6 +13,9 @@ model SurveyResponse {
   answers                SurveyAnswer[]
   employee               Employee?        @relation(fields: [employeeId], references: [id])
   occurrence             SurveyOccurrence @relation(fields: [occurrenceId], references: [id])
+  /// Back-relation for the author's self-view link (SurveyCompletion.responseId). The author
+  /// is recovered through their completion, never through this response's null employeeId.
+  completion             SurveyCompletion?
 
   @@map("survey_responses")
 }

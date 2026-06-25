@@ -12,6 +12,7 @@ export const API_SUCCESS_MESSAGES = {
   EMPLOYEES_RETRIEVED: "Employees retrieved successfully",
   USER_CREATED: "User created successfully",
   USER_DEACTIVATED: "User deactivated successfully",
+  USER_ACTIVATED: "User activated successfully",
   USER_ROLE_UPDATED: "User role updated successfully",
   USERS_RETRIEVED: "Users retrieved successfully",
   EMPLOYEE_ONBOARDED: "Employee onboarded successfully",

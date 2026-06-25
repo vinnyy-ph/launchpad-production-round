@@ -33,16 +33,17 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
     render(<LoginPage />);
 
+    await user.click(screen.getByRole("checkbox", { name: /remember me/i }));
     await user.click(screen.getByRole("button", { name: /continue with google/i }));
 
     expect(signInWithGoogle).toHaveBeenCalledWith(false);
   });
 
-  it("signs in with local persistence when remember me is checked", async () => {
+  it("signs in with local persistence when remember me is checked by default", async () => {
     const user = userEvent.setup();
     render(<LoginPage />);
 
-    await user.click(screen.getByRole("checkbox", { name: /remember me/i }));
+    expect(screen.getByRole("checkbox", { name: /remember me/i })).toBeChecked();
     await user.click(screen.getByRole("button", { name: /continue with google/i }));
 
     expect(signInWithGoogle).toHaveBeenCalledWith(true);

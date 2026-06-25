@@ -68,6 +68,7 @@ export function CustomFieldBuilder({
                   className="border-[#FECDCA] text-[#B42318] hover:bg-[#FEF3F2]"
                   onClick={() => onDelete(field)}
                   disabled={deletingId === field.id}
+                  loading={deletingId === field.id}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete

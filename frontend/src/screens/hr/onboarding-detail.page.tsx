@@ -32,6 +32,7 @@ import { useOnboardingRecord } from "@/modules/people/onboarding/hooks/use-onboa
 import { useApproveDocument, useRejectDocument } from "@/modules/people/onboarding/hooks/use-review-document";
 import { useCompleteOnboarding } from "@/modules/people/onboarding/hooks/use-complete-onboarding";
 import { useInvitationStatus, useResendInvite, useSendInvite, useUpdateInvitationEmail } from "@/modules/people/onboarding/hooks/use-invitation";
+import { validateInvitationEmail } from "@/modules/people/onboarding/lib/invitation-email-text";
 import type { DocumentReview } from "@/modules/people/onboarding/types/onboarding.types";
 
 function formatDate(iso: string | null | undefined): string {
@@ -47,7 +48,6 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INVITATION_RESEND_COOLDOWN_SECONDS = 60;
 
 function DetailSkeleton() {
@@ -242,8 +242,9 @@ function OnboardingDetailInner() {
       toast.error("No invitation found to update.");
       return;
     }
-    if (!EMAIL_RE.test(inviteEmail.trim())) {
-      setInviteEmailError("Enter a valid email address.");
+    const emailError = validateInvitationEmail(inviteEmail);
+    if (emailError) {
+      setInviteEmailError(emailError);
       return;
     }
     updateEmail.mutate(
@@ -311,7 +312,7 @@ function OnboardingDetailInner() {
         : "Resend invite";
 
   const resendInviteButton = (
-    <Button variant="outline" onClick={handleResendInvite} disabled={resendDisabled}>
+    <Button variant="outline" onClick={handleResendInvite} disabled={resendDisabled} loading={invite.isPending || resend.isPending}>
       <Mail aria-hidden="true" />
       {resendInviteLabel}
     </Button>
@@ -528,7 +529,7 @@ function OnboardingDetailInner() {
 
       {!isComplete && (
         <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
-          <Button onClick={handleComplete} disabled={complete.isPending || !allRequiredDocsApproved}>
+          <Button onClick={handleComplete} disabled={complete.isPending || !allRequiredDocsApproved} loading={complete.isPending}>
             <CheckCircle2 aria-hidden="true" />
             {complete.isPending ? "Completing…" : "Mark complete"}
           </Button>
@@ -577,7 +578,10 @@ function OnboardingDetailInner() {
               id="invite-email"
               type="email"
               value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
+              onChange={(e) => {
+                setInviteEmail(e.target.value);
+                setInviteEmailError(undefined);
+              }}
               placeholder="name@swiftwork.demo"
             />
           </FormField>
@@ -585,7 +589,7 @@ function OnboardingDetailInner() {
             <Button variant="secondary" onClick={() => setEmailDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateInviteEmail} disabled={updateEmail.isPending}>
+            <Button onClick={handleUpdateInviteEmail} disabled={updateEmail.isPending} loading={updateEmail.isPending}>
               <Mail aria-hidden="true" />
               {updateEmail.isPending ? "Sending…" : "Update & resend"}
             </Button>

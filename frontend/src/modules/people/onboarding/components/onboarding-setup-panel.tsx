@@ -43,7 +43,11 @@ import {
   parseAllowedFileTypes,
   serializeAllowedFileTypes,
 } from "@/modules/people/onboarding/constants/allowed-file-types";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleFieldText,
+  mapPeopleFieldTextError,
+} from "@/modules/people/people-text";
 
 const SECTION_TITLE = "Onboarding setup";
 const SECTION_SUBTITLE = "Manage required documents and custom fields for new hires.";
@@ -54,6 +58,12 @@ const DOCUMENT_FORM_MESSAGES = {
   fileTypesRequired: "Choose at least one allowed file type.",
   addFailed: "Could not add the document. Please try again.",
   updateFailed: "Could not update the document. Please try again.",
+} as const;
+
+const CUSTOM_FIELD_FORM_MESSAGES = {
+  labelRequired: "Field label is required.",
+  labelInvalid:
+    "Enter a field label using letters, numbers, spaces, or common punctuation.",
 } as const;
 
 /**
@@ -100,33 +110,28 @@ export function OnboardingSetupPanel() {
   function validateDocName(value: string): string | undefined {
     const trimmed = value.trim();
     if (!trimmed) return DOCUMENT_FORM_MESSAGES.nameRequired;
-    const error = validatePeopleText(
-      trimmed,
-      "Document name",
-      PEOPLE_TEXT_LIMITS.DOCUMENT_NAME,
+    return mapPeopleFieldTextError(
+      validatePeopleFieldText(trimmed, "Document name", PEOPLE_TEXT_LIMITS.DOCUMENT_NAME),
+      DOCUMENT_FORM_MESSAGES.nameInvalid,
     );
-    if (!error) return undefined;
-    return error.includes("characters or fewer") ? error : DOCUMENT_FORM_MESSAGES.nameInvalid;
   }
 
   function validateDocInstructions(value: string): string | undefined {
     const trimmed = value.trim();
     if (!trimmed) return undefined;
-    const error = validatePeopleText(
-      trimmed,
-      "Instructions",
-      PEOPLE_TEXT_LIMITS.DOCUMENT_INSTRUCTIONS,
+    return mapPeopleFieldTextError(
+      validatePeopleFieldText(trimmed, "Instructions", PEOPLE_TEXT_LIMITS.DOCUMENT_INSTRUCTIONS),
+      DOCUMENT_FORM_MESSAGES.instructionsInvalid,
     );
-    if (!error) return undefined;
-    return error.includes("characters or fewer")
-      ? error
-      : DOCUMENT_FORM_MESSAGES.instructionsInvalid;
   }
 
   function validateFieldLabel(value: string): string | undefined {
     const trimmed = value.trim();
-    if (!trimmed) return "Field label is required.";
-    return validatePeopleText(trimmed, "Field label", PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_LABEL);
+    if (!trimmed) return CUSTOM_FIELD_FORM_MESSAGES.labelRequired;
+    return mapPeopleFieldTextError(
+      validatePeopleFieldText(trimmed, "Field label", PEOPLE_TEXT_LIMITS.CUSTOM_FIELD_LABEL),
+      CUSTOM_FIELD_FORM_MESSAGES.labelInvalid,
+    );
   }
 
   function setDocFieldError(field: keyof typeof docErrors, message: string | undefined) {

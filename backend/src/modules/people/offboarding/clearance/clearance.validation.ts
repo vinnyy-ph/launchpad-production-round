@@ -5,6 +5,9 @@ import type {
 import { assertSafeText } from "../../../../core/validation/text-input";
 import { PEOPLE_TEXT_LIMITS } from "../../people-text-limits";
 
+const SIGNATURE_IMAGE_MAX_LENGTH = 1_000_000;
+const PNG_DATA_URL_PATTERN = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+
 /**
  * Parses and validates clearance request bodies and route params.
  * Sign takes an optional note; reject requires a note.
@@ -18,7 +21,8 @@ export class ClearanceValidation {
   /** Validates the sign body — note is optional. */
   parseSignBody(body: Record<string, unknown>): SignClearanceRequestDto {
     const note = this.optionalString(body.note);
-    return note !== undefined ? { note } : {};
+    const signatureImage = this.requireSignatureImage(body.signatureImage);
+    return { signatureImage, ...(note !== undefined ? { note } : {}) };
   }
 
   /** Validates the reject body — note is required. */
@@ -57,5 +61,19 @@ export class ClearanceValidation {
       assertSafeText(trimmed, "note", PEOPLE_TEXT_LIMITS.NOTE);
     }
     return trimmed.length === 0 ? undefined : trimmed;
+  }
+
+  /** Validates the client-generated PNG data URL saved with a signed clearance. */
+  private requireSignatureImage(value: unknown): string {
+    const signatureImage = this.requireString(value, "signatureImage");
+
+    if (
+      signatureImage.length > SIGNATURE_IMAGE_MAX_LENGTH ||
+      !PNG_DATA_URL_PATTERN.test(signatureImage)
+    ) {
+      throw new Error("signatureImage must be a PNG data URL");
+    }
+
+    return signatureImage;
   }
 }

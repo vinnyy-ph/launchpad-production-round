@@ -73,7 +73,7 @@ export class ResponsesRepository implements ResponsesRepositoryPort {
   }): Promise<void> {
     const { row, answers, employeeId } = args;
     await prisma.$transaction(async (tx) => {
-      await tx.surveyResponse.create({
+      const response = await tx.surveyResponse.create({
         data: {
           occurrenceId: row.occurrenceId,
           employeeId: row.employeeId,
@@ -90,7 +90,12 @@ export class ResponsesRepository implements ResponsesRepositoryPort {
           },
         },
       });
-      await tx.surveyCompletion.create({ data: { occurrenceId: row.occurrenceId, employeeId } });
+      // Link the completion to its response so the author can later recover their own answers
+      // — even for anonymous responses, whose employeeId is null on the response itself. The
+      // link lives only here and is read only by the self-scoped anonymous self-view path.
+      await tx.surveyCompletion.create({
+        data: { occurrenceId: row.occurrenceId, employeeId, responseId: response.id },
+      });
     });
   }
 }

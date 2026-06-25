@@ -64,6 +64,17 @@ describe("User management authorization", () => {
     });
   });
 
+  it("returns 403 for non-admin callers on PATCH /api/v1/users/:userId/activate", async () => {
+    const response = await request(app)
+      .patch(`/api/v1/users/${TARGET_USER_ID}/activate`)
+      .expect(403);
+
+    expect(response.body).toEqual({
+      success: false,
+      message: "You do not have permission to perform this action",
+    });
+  });
+
   it("returns 403 for non-admin callers on PATCH /api/v1/users/:userId/role", async () => {
     const response = await request(app)
       .patch(`/api/v1/users/${TARGET_USER_ID}/role`)

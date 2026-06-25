@@ -41,6 +41,11 @@ import { useSurveyResults } from "../hooks/use-survey-results";
 import { useSurveyOccurrences } from "../hooks/use-survey-occurrences";
 import { useShareResults } from "../hooks/use-share-results";
 import { useNoteSuggestions } from "../hooks/use-note-suggestions";
+import {
+  surveyShareMessageChangeError,
+  surveyShareMessageSubmitError,
+} from "../lib/survey-share-message-text";
+import { SURVEY_TEXT_LIMITS } from "../schemas/survey-form.schema";
 import type {
   QuestionResult,
   ResultsFilter,
@@ -419,7 +424,7 @@ function OpenTextBody({
   );
 }
 
-const NOTE_MAX = 2000;
+const NOTE_MAX = SURVEY_TEXT_LIMITS.SHARE_MESSAGE;
 
 /**
  * HR-only: compose and send the team's supervisor an open-text NOTE about their small anonymous
@@ -441,6 +446,7 @@ export function ShareToSupervisorCard({
   const shareMutation = useShareResults(surveyId);
   const suggestMutation = useNoteSuggestions(surveyId);
   const [message, setMessage] = useState("");
+  const [messageError, setMessageError] = useState<string | undefined>();
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestFailed, setSuggestFailed] = useState(false);
 
@@ -448,8 +454,8 @@ export function ShareToSupervisorCard({
   const supervisorLabel = share.supervisorName ?? "the team's supervisor";
   const isLocked = !!share.alreadySharedAt;
   const trimmed = message.trim();
-  const canSend =
-    hasSupervisor && share.occurrenceCompleted && trimmed.length > 0 && trimmed.length <= NOTE_MAX;
+  const submitError = surveyShareMessageSubmitError(message);
+  const canSend = hasSupervisor && share.occurrenceCompleted && !submitError;
   // The empty-note case just disables the button (self-evident); only surface the non-obvious blocks.
   const sendReason = !hasSupervisor
     ? "This team has no supervisor to send a note to."
@@ -482,6 +488,12 @@ export function ShareToSupervisorCard({
   }, [isLocked, hasSupervisor, share.occurrenceId]);
 
   const handleSend = () => {
+    const error = surveyShareMessageSubmitError(message);
+    if (error) {
+      setMessageError(error);
+      return;
+    }
+    setMessageError(undefined);
     void confirm({
       title: `Send your note to ${supervisorLabel}?`,
       description: `We'll send your note about ${surveyName} for ${share.teamName} to ${supervisorLabel} — in the app and by email. They'll see your note, not the individual anonymous responses. Once sent, it can't be changed.`,
@@ -544,13 +556,21 @@ export function ShareToSupervisorCard({
       <div>
         <Textarea
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setMessage(next);
+            setMessageError(surveyShareMessageChangeError(next));
+          }}
           maxLength={NOTE_MAX}
           rows={4}
           placeholder="What should the supervisor know about this team's feedback?"
           className="bg-white"
           aria-label="Note to the supervisor"
+          aria-invalid={!!messageError}
         />
+        {messageError && (
+          <p className="mt-1 text-[12px] text-[#D92D20]">{messageError}</p>
+        )}
         <div className="mt-1 text-right text-[12px] text-[color:var(--text-quaternary)]">
           {trimmed.length}/{NOTE_MAX}
         </div>
@@ -578,7 +598,10 @@ export function ShareToSupervisorCard({
                   <button
                     key={i}
                     type="button"
-                    onClick={() => setMessage(s)}
+                    onClick={() => {
+                      setMessage(s);
+                      setMessageError(surveyShareMessageChangeError(s));
+                    }}
                     aria-pressed={active}
                     className={cn(
                       "cursor-pointer rounded-xl border px-4 py-2.5 text-left text-[14px] leading-relaxed transition-colors",

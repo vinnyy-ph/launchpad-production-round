@@ -178,6 +178,16 @@ describe("POST /api/v1/pulse/surveys/:id/results/share", () => {
     expect(upsertMock).not.toHaveBeenCalled();
   });
 
+  it("400s when the note contains unsafe HTML", async () => {
+    const res = await request(app)
+      .post(`${URL}/survey-1/results/share`)
+      .send({ teamId: "team-1", message: "<script>x</script>" })
+      .expect(400);
+    expect(res.body.errorCode).toBe("VALIDATION_FAILED");
+    expect(res.body.errors[0].message).toMatch(/must not contain HTML/);
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+
   it("uses the explicit occurrenceId when provided", async () => {
     occUniqueMock.mockResolvedValue({ ...completedOccurrence, id: "occ-7" });
     await request(app)

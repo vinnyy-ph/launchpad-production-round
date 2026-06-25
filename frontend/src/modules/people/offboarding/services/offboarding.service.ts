@@ -107,11 +107,12 @@ export async function getAssignedClearances(): Promise<AssignedClearance[]> {
 /** Signs a clearance request (optional note). */
 export async function signClearance(
   requestId: string,
+  signatureImage: string,
   note?: string,
 ): Promise<ClearanceAction> {
   const res = await apiFetch<Envelope<ClearanceAction>>(`${CLEARANCE_BASE}/${requestId}/sign`, {
     method: "POST",
-    body: JSON.stringify(note ? { note } : {}),
+    body: JSON.stringify({ signatureImage, ...(note ? { note } : {}) }),
   });
   return res.data;
 }

@@ -43,6 +43,28 @@ export class ApiError extends Error {
   }
 }
 
+const ACCESS_CHANGED_MESSAGE =
+  "Your access has changed. Please sign in again to continue.";
+
+async function forceReauth(message: string): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  try {
+    const [{ signOut }, { getFirebaseAuth }, { useAuthStore }] = await Promise.all([
+      import("firebase/auth"),
+      import("./firebase"),
+      import("@/modules/auth/stores/auth.store"),
+    ]);
+
+    // Put the message directly on the login screen. (LoginPage already renders authError.)
+    useAuthStore.setState({ authError: message, loading: false, appUser: null });
+
+    await signOut(getFirebaseAuth());
+  } catch {
+    // Best-effort. If Firebase isn't available, RequireAuth will still route to /login.
+  }
+}
+
 export async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const isFormData = options.body instanceof FormData;
   const token = await getIdToken();
@@ -55,27 +77,34 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}): Promi
     },
   });
   if (!res.ok) {
-    // A revoked/expired credential won't recover on retry — sign out so the auth
-    // listener clears the session and routes back to /login instead of leaving stale UI.
-    if (res.status === 401 && typeof window !== "undefined") {
-      void (async () => {
-        try {
-          const [{ signOut }, { getFirebaseAuth }] = await Promise.all([
-            import("firebase/auth"),
-            import("./firebase"),
-          ]);
-          await signOut(getFirebaseAuth());
-        } catch {
-          // Already signed out or Firebase unavailable — nothing to clean up.
-        }
-      })();
-    }
     const body = (await res.json().catch(() => ({}))) as {
       message?: string;
       error?: string;
       errorCode?: string;
       errors?: ApiFieldError[];
     };
+
+    // If the backend tells us the token is invalid, or the account is blocked, or the
+    // user's permissions changed mid-session, force a clean re-auth with an obvious message.
+    const serverMessage = body.message ?? body.error ?? "";
+    const mustReauth =
+      res.status === 401 ||
+      (res.status === 403 &&
+        typeof serverMessage === "string" &&
+        (serverMessage.includes("Account deactivated") ||
+          serverMessage.includes("Account is inactive") ||
+          serverMessage.includes("No account for this email") ||
+          serverMessage.includes("linked to a different Google identity") ||
+          serverMessage === "You do not have permission to perform this action"));
+
+    if (mustReauth) {
+      void forceReauth(
+        typeof serverMessage === "string" && serverMessage.trim()
+          ? `${ACCESS_CHANGED_MESSAGE} (${serverMessage.trim()})`
+          : ACCESS_CHANGED_MESSAGE,
+      );
+    }
+
     throw new ApiError(
       body.message ?? body.error ?? res.statusText,
       res.status,

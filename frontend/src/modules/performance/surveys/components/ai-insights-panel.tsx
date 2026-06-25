@@ -2,7 +2,7 @@
 
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { Badge, Button, Skeleton } from "@/shared/ui";
+import { Badge, Button } from "@/shared/ui";
 import { cn } from "@/shared/lib/utils";
 import { useSurveyInsights } from "../hooks/use-survey-insights";
 import type { InsightSentiment } from "../types/surveys.types";
@@ -58,7 +58,7 @@ export function AiInsightsPanel({
           </h2>
         </div>
         {data?.insight && (
-          <Button variant="ghost" size="sm" onClick={handleRegenerate} disabled={regenerating}>
+          <Button variant="ghost" size="sm" onClick={handleRegenerate} disabled={regenerating} loading={regenerating}>
             <RefreshCw size={14} className={cn(regenerating && "animate-spin")} />
             Regenerate
           </Button>
@@ -81,10 +81,19 @@ export function AiInsightsPanel({
 
       {/* Loading */}
       {enabled && (q.isLoading || regenerating) && (
-        <div className="mt-4 space-y-3">
-          <Skeleton className="h-5 w-3/4" />
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-16 rounded-xl" />
+        <div className="mt-4 flex flex-col items-center gap-1 py-4">
+          <img
+            src="/brand/ai-analysis-loading.gif?v=2"
+            alt=""
+            aria-hidden="true"
+            className="h-[120px] w-auto"
+          />
+          <p
+            className="text-[13px] font-medium text-[color:var(--text-tertiary)]"
+            aria-live="polite"
+          >
+            Analyzing responses…
+          </p>
         </div>
       )}
 
