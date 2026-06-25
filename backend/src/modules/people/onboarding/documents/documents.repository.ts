@@ -85,11 +85,15 @@ export class DocumentsRepository {
   }
 
   /**
-   * Deletes a required document from the default onboarding template.
+   * Deletes a required document from the default onboarding template, along with
+   * any submissions already uploaded for it on existing onboarding records. Done
+   * in a transaction so the document and its submissions are removed atomically —
+   * without clearing the submissions first the foreign key would block the delete.
    */
   async deleteOnDefaultTemplate(id: string) {
-    return prisma.onboardingDocument.delete({
-      where: { id },
+    return prisma.$transaction(async (tx) => {
+      await tx.onboardingDocumentSubmission.deleteMany({ where: { documentId: id } });
+      return tx.onboardingDocument.delete({ where: { id } });
     });
   }
 }

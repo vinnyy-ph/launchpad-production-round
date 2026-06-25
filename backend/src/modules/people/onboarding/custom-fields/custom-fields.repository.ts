@@ -84,11 +84,15 @@ export class CustomFieldsRepository {
   }
 
   /**
-   * Deletes a custom field from the default onboarding template.
+   * Deletes a custom field from the default onboarding template, along with any
+   * values already collected for it on existing onboarding records. Done in a
+   * transaction so the field and its values are removed atomically — without
+   * clearing the values first the foreign key would block the delete.
    */
   async deleteOnDefaultTemplate(id: string) {
-    return prisma.onboardingCustomField.delete({
-      where: { id },
+    return prisma.$transaction(async (tx) => {
+      await tx.onboardingCustomFieldValue.deleteMany({ where: { fieldId: id } });
+      return tx.onboardingCustomField.delete({ where: { id } });
     });
   }
 }

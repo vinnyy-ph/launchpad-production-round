@@ -15,7 +15,11 @@ function countOpenSurveys(employeeId: string) {
       deadline: { gt: now },
       survey: { isActive: true, deletedAt: null },
       audienceMembers: { some: { employeeId } },
-      responses: { none: { employeeId } },
+      // "Answered" is tracked by SurveyCompletion, not SurveyResponse: anonymous
+      // responses store employeeId = null, so a `responses.none` check would never
+      // match an anonymous submission and would keep counting it as pending. This
+      // mirrors the surveys-list query (me.repository.findPendingSurveys).
+      completions: { none: { employeeId } },
     },
   });
 }
