@@ -50,6 +50,18 @@ describe("validatePeopleNameLanguage", () => {
     expect(validatePeopleNameLanguage("Scunthorpe")).toBeUndefined();
   });
 
+  it("does not flag real English words that share a consonant skeleton with blocked words", () => {
+    expect(
+      validatePeopleNameLanguage(
+        "What is one area where you believe your supervisor could improve their management style?",
+      ),
+    ).toBeUndefined();
+    expect(validatePeopleNameLanguage("where")).toBeUndefined();
+    expect(validatePeopleNameLanguage("shot")).toBeUndefined();
+    expect(validatePeopleNameLanguage("shut")).toBeUndefined();
+    expect(validatePeopleNameLanguage("pass")).toBeUndefined();
+  });
+
   it("blocks direct profanity as whole tokens", () => {
     expect(validatePeopleNameLanguage("Maria fuck Santos")).toBe(PEOPLE_NAME_LANGUAGE_MESSAGE);
     expect(validatePeopleNameLanguage("Dickson")).toBeUndefined();

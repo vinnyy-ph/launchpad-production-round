@@ -90,6 +90,11 @@ function isBlockedNameLanguageToken(token: string): boolean {
   if (tokenVariants.some((variant) => BLOCKED_NAME_LANGUAGE_TOKENS.has(variant))) return true;
   if (token.length < 3) return false;
 
+  // Only apply vowel-free skeleton matching when the token itself has no vowels.
+  // Real words like "where" share a skeleton with blocked words (e.g. "whore") but
+  // are not obfuscation — obfuscated tokens intentionally omit all vowels (e.g. "whr").
+  if (/[aeiou]/.test(token)) return false;
+
   return tokenVariants.some((variant) =>
     [...BLOCKED_NAME_LANGUAGE_TOKENS].some(
       (blockedToken) => withoutVowels(blockedToken) === withoutVowels(variant),
