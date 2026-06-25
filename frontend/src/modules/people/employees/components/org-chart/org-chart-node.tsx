@@ -92,10 +92,16 @@ export function ReportingTreeNode({
             >
               <Avatar name={employee.fullName} src={employee.avatarUrl} size={9} />
               <span className="min-w-0">
-                <span className="block truncate text-sm font-bold text-[color:var(--text-primary)]">
+                <span
+                  title={employee.fullName}
+                  className="block truncate text-sm font-bold text-[color:var(--text-primary)]"
+                >
                   {employee.fullName}
                 </span>
-                <span className="block truncate text-xs text-[color:var(--text-tertiary)]">
+                <span
+                  title={employee.jobTitle ?? undefined}
+                  className="block truncate text-xs text-[color:var(--text-tertiary)]"
+                >
                   {employee.jobTitle ?? "—"}
                 </span>
               </span>

@@ -222,7 +222,7 @@ export function OnboardingSetupPanel() {
     if (!ok) return;
     deleteDoc.mutate(doc.id, {
       onSuccess: () => toast.success("Document deleted."),
-      onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete the document."),
+      onError: () => toast.error("Could not delete the document. Please try again."),
     });
   }
 
@@ -296,8 +296,7 @@ export function OnboardingSetupPanel() {
     if (!ok) return;
     deleteField.mutate(field.id, {
       onSuccess: () => toast.success("Custom field deleted."),
-      onError: (e) =>
-        toast.error(e instanceof Error ? e.message : "Could not delete the custom field."),
+      onError: () => toast.error("Could not delete the custom field. Please try again."),
     });
   }
 

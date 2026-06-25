@@ -16,8 +16,8 @@ jest.mock("../../../core/middleware/auth.middleware", () => ({
   },
 }));
 
-jest.mock("../../../core/database/prisma.service", () => ({
-  prisma: {
+jest.mock("../../../core/database/prisma.service", () => {
+  const prisma: Record<string, unknown> = {
     onboardingTemplate: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -29,8 +29,13 @@ jest.mock("../../../core/database/prisma.service", () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
-  },
-}));
+    onboardingDocumentSubmission: {
+      deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn((callback: (tx: unknown) => unknown) => callback(prisma)),
+  };
+  return { prisma };
+});
 
 describe("DELETE /api/v1/onboarding/documents/:id - delete document", () => {
   beforeEach(() => {

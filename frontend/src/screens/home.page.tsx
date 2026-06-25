@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, RefreshCw, ArrowUpRight } from "lucide-react";
+import { AlertCircle, RefreshCw, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/modules/auth/hooks/use-auth";
@@ -49,10 +49,15 @@ export default function HomePage() {
 
   return (
     <div className="min-w-0 space-y-7">
-      {/* Greeting — one slim line, not a card. (h1) */}
-      <h1 className="text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
-        {greeting ?? `Welcome${firstName ? `, ${firstName}` : ""}`}
-      </h1>
+      {/* Greeting + generic subtitle — one block so the section gap doesn't split them. */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-[-0.02em] text-[color:var(--text-primary)]">
+          {greeting ?? `Welcome${firstName ? `, ${firstName}` : ""}`}
+        </h1>
+        <p className="mt-1 text-base text-[color:var(--text-tertiary)]">
+          Here&apos;s an overview of your workspace.
+        </p>
+      </div>
 
       {statsError ? (
         <div className="flex items-center gap-3 rounded-xl border border-[color:var(--border-primary)] bg-white p-4">
@@ -92,9 +97,22 @@ export default function HomePage() {
                 )}
               </div>
             ) : (
-              <p className="text-base font-semibold text-[color:var(--text-primary)]">
-                You&apos;re all caught up.
-              </p>
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
+                  style={{ background: "var(--color-success-50)" }}
+                >
+                  <CheckCircle2 size={18} style={{ color: "var(--color-success-600)" }} />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-[color:var(--text-primary)]">
+                    You&apos;re all caught up
+                  </p>
+                  <p className="text-xs text-[color:var(--text-tertiary)]">
+                    Nothing needs your attention right now.
+                  </p>
+                </div>
+              </div>
             )}
           </motion.div>
 

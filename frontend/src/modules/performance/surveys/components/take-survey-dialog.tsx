@@ -187,9 +187,19 @@ export function TakeSurveyDialog({ open, survey, onClose, onSubmitted }: TakeSur
       <DialogContent
         className={`flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl ${guard.shakeClass}`}
         onAnimationEnd={guard.onAnimationEnd}
-        onEscapeKeyDown={guard.onEscapeKeyDown}
+        onEscapeKeyDown={(e) => {
+          if (hasUnsavedChanges) {
+            e.preventDefault();
+            guard.handleOpenChange(false);
+          }
+        }}
         onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={guard.onInteractOutside}
+        onInteractOutside={(e) => {
+          if (hasUnsavedChanges) {
+            e.preventDefault();
+            guard.handleOpenChange(false);
+          }
+        }}
       >
         {submitted ? (
           // ── Thank-you state ──
