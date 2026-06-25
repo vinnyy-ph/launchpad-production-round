@@ -212,6 +212,7 @@ export class TeamsController {
           "Team leader cannot be removed",
         ].includes(error.message) ||
         error.message.includes(" must be ") ||
+        error.message.includes(" must belong ") ||
         error.message.includes(" must not contain "))
     );
   }

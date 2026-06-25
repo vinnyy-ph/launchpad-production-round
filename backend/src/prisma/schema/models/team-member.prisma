@@ -1,13 +1,12 @@
 model TeamMember {
   id         String   @id @default(uuid())
   teamId     String
-  team       Team     @relation(fields: [teamId], references: [id])
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
   joinedAt   DateTime @default(now())
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  team       Team     @relation(fields: [teamId], references: [id])
 
   @@unique([teamId, employeeId])
   @@map("team_members")

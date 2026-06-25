@@ -116,14 +116,12 @@ describe("CloudinaryService onboarding documents", () => {
     );
   });
 
-  it("rejects legacy non-Cloudinary public document URLs", () => {
+  it("preserves legacy non-Cloudinary public document URLs", () => {
     const service = new CloudinaryService();
+    const legacyUrl = "https://storage.example.com/onboarding/id-card.pdf";
 
-    expect(() =>
-      service.resolveOnboardingDocumentViewUrl(
-        "https://storage.example.com/onboarding/id-card.pdf",
-      ),
-    ).toThrow("Legacy public document URL cannot be signed");
+    expect(service.resolveOnboardingDocumentViewUrl(legacyUrl)).toBe(legacyUrl);
+    expect(privateDownloadUrlMock).not.toHaveBeenCalled();
   });
 
   it("creates expiring URLs for evaluation supporting documents", () => {

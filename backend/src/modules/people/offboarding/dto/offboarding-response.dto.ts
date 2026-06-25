@@ -13,6 +13,15 @@ export interface OffboardingEmployeeSummaryDto {
   avatarUrl: string | null;
 }
 
+/** One stored offboarding attachment, with a resolved signed view URL. */
+export interface OffboardingAttachmentDto {
+  id: string;
+  /** Short-lived signed URL the client can open to view/download the file. */
+  url: string;
+  /** Original file name as uploaded. */
+  fileName: string;
+}
+
 /** One clearance signature request with its signatory and snapshot context. */
 export interface SignatureRequestDto {
   id: string;
@@ -36,7 +45,7 @@ export interface OffboardingListItemDto {
   status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   tenderDate: string;
   effectiveDate: string;
-  attachmentUrl: string | null;
+  attachments: OffboardingAttachmentDto[];
   signedCount: number;
   totalCount: number;
   createdAt: string;
@@ -56,7 +65,7 @@ export interface OffboardingDetailDto {
   status: "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   tenderDate: string;
   effectiveDate: string;
-  attachmentUrl: string | null;
+  attachments: OffboardingAttachmentDto[];
   createdAt: string;
   completedAt: string | null;
   signatureRequests: SignatureRequestDto[];

@@ -1,14 +1,12 @@
 model OnboardingCustomField {
-  id         String             @id @default(uuid())
+  id         String                       @id @default(uuid())
   templateId String
-  template   OnboardingTemplate @relation(fields: [templateId], references: [id])
   fieldLabel String
-  isRequired Boolean            @default(false)
-  createdAt  DateTime           @default(now())
-
-  values OnboardingCustomFieldValue[]
-
-  updatedAt DateTime @updatedAt
+  isRequired Boolean                      @default(false)
+  createdAt  DateTime                     @default(now())
+  updatedAt  DateTime                     @updatedAt
+  values     OnboardingCustomFieldValue[]
+  template   OnboardingTemplate           @relation(fields: [templateId], references: [id])
 
   @@map("onboarding_custom_fields")
 }

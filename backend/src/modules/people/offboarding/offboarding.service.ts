@@ -2,6 +2,7 @@ import type { User } from "@prisma/client";
 import { API_SUCCESS_MESSAGES } from "../../../core/globals";
 import { CloudinaryService } from "../../../core/cloudinary";
 import { downwardChain, upwardChain } from "../../shared/org";
+import { crossesDepartment } from "../../shared/departments";
 import { NotificationsService } from "../../notifications/notifications.service";
 import type {
   InitiateOffboardingRequestDto,
@@ -17,12 +18,15 @@ import type { OffboardingRecordWithRelations } from "./offboarding.types";
 
 const cloudinaryService = new CloudinaryService();
 
-function resolveAttachmentUrl(url: string | null | undefined): string | null {
-  if (!url) {
-    return null;
-  }
-
-  return cloudinaryService.resolveOnboardingDocumentViewUrl(url);
+/** Resolves stored attachment storage keys into short-lived signed view URLs. */
+function toAttachmentDtos(
+  attachments: ReadonlyArray<{ id: string; url: string; fileName: string }>,
+): OffboardingDetailDto["attachments"] {
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    url: cloudinaryService.resolveOnboardingDocumentViewUrl(attachment.url),
+    fileName: attachment.fileName,
+  }));
 }
 
 /** Maps a persisted offboarding record (with relations) to the detail DTO. */
@@ -50,7 +54,7 @@ export function toOffboardingDetailDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
-    attachmentUrl: resolveAttachmentUrl(record.attachmentUrl),
+    attachments: toAttachmentDtos(record.attachments),
     createdAt: record.createdAt.toISOString(),
     completedAt: record.completedAt?.toISOString() ?? null,
     signatureRequests: record.signatureRequests.map((request) => ({
@@ -93,7 +97,7 @@ function toOffboardingListItemDto(
     status: record.status,
     tenderDate: record.tenderDate.toISOString(),
     effectiveDate: record.effectiveDate.toISOString(),
-    attachmentUrl: resolveAttachmentUrl(record.attachmentUrl),
+    attachments: toAttachmentDtos(record.attachments),
     signedCount,
     totalCount,
     createdAt: record.createdAt.toISOString(),
@@ -194,6 +198,11 @@ export class OffboardingService {
     }
 
     if (dto.newSupervisorId || dto.newTeamLeaderId) {
+      await this.assertReassignmentWithinDepartments(
+        dto.employeeId,
+        dto.newSupervisorId,
+        dto.newTeamLeaderId,
+      );
       await this.offboardingRepository.reassignReportsAndTeams(
         dto.employeeId,
         dto.newSupervisorId,
@@ -361,6 +370,12 @@ export class OffboardingService {
       throw new Error("Reassignment target not found");
     }
 
+    await this.assertReassignmentWithinDepartments(
+      record.employee.id,
+      newSupervisorId,
+      teamLeaderId,
+    );
+
     const result = await this.offboardingRepository.reassignReportsAndTeams(
       record.employee.id,
       newSupervisorId,
@@ -378,5 +393,55 @@ export class OffboardingService {
         newTeamLeaderId: teamLeaderId,
       },
     };
+  }
+
+  /**
+   * Enforces the same-department management rule when reassigning a departing employee's
+   * responsibilities:
+   *  - the new supervisor must share each direct report's own department, and
+   *  - the new team leader must share each led-team member's department.
+   * Employees with no department are exempt (see `crossesDepartment`). Checks are skipped for
+   * a responsibility whose target id is not provided (mirrors the repository's conditional write).
+   */
+  private async assertReassignmentWithinDepartments(
+    offboardeeId: string,
+    newSupervisorId: string | undefined,
+    newTeamLeaderId: string | undefined,
+  ): Promise<void> {
+    if (newSupervisorId) {
+      const [supervisorDepartmentId, reportDepartments] = await Promise.all([
+        this.offboardingRepository.findEmployeeDepartmentId(newSupervisorId),
+        this.offboardingRepository.findDirectReportDepartmentIds(offboardeeId),
+      ]);
+
+      const crosses = reportDepartments.some((report) =>
+        crossesDepartment(report.departmentId, supervisorDepartmentId ?? null),
+      );
+
+      if (crosses) {
+        throw new Error(
+          "The new supervisor must belong to the same department as the reports being reassigned",
+        );
+      }
+    }
+
+    const effectiveTeamLeaderId = newTeamLeaderId ?? newSupervisorId;
+
+    if (effectiveTeamLeaderId) {
+      const [leaderDepartmentId, memberDepartments] = await Promise.all([
+        this.offboardingRepository.findEmployeeDepartmentId(effectiveTeamLeaderId),
+        this.offboardingRepository.findLedTeamMemberDepartmentIds(offboardeeId),
+      ]);
+
+      const crosses = memberDepartments.some((member) =>
+        crossesDepartment(member.departmentId, leaderDepartmentId ?? null),
+      );
+
+      if (crosses) {
+        throw new Error(
+          "The new team leader must belong to the same department as the team members being reassigned",
+        );
+      }
+    }
   }
 }

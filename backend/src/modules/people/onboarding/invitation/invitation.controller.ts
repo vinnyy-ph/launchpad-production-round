@@ -30,7 +30,7 @@ export class InvitationController {
   ) => {
     try {
       const params = this.invitationValidation.parseRecordIdParam(req.params);
-      const result = await this.invitationService.sendInvitation(params);
+      const result = await this.invitationService.sendInvitation(params, req.user?.email);
 
       return res.status(HTTP_STATUS_CODES.CREATED).json(result);
     } catch (error) {
@@ -46,7 +46,7 @@ export class InvitationController {
   ) => {
     try {
       const params = this.invitationValidation.parseInvitationIdParam(req.params);
-      const result = await this.invitationService.resendInvitation(params);
+      const result = await this.invitationService.resendInvitation(params, req.user?.email);
 
       return res.json(result);
     } catch (error) {
@@ -63,7 +63,7 @@ export class InvitationController {
     try {
       const params = this.invitationValidation.parseInvitationIdParam(req.params);
       const body = this.invitationValidation.parseUpdateEmailBody(req.body);
-      const result = await this.invitationService.updateEmail(params, body);
+      const result = await this.invitationService.updateEmail(params, body, req.user?.email);
 
       return res.json(result);
     } catch (error) {
