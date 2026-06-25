@@ -44,8 +44,9 @@ const STATUS_TONE: Record<string, Tone> = {
   DRAFT: "warning",
   SENT: "info",
   ACKNOWLEDGED: "success",
-  // Auto-acknowledged = resolved passively (deadline lapsed), not actively acked → amber, not green.
-  DEEMED_ACK: "warning",
+  // Auto-acknowledged = resolved passively (deadline lapsed) → neutral; distinct from active
+  // "Acknowledged" (green) and still-"Pending" (amber), so it never collides with either.
+  DEEMED_ACK: "neutral",
   OVERDUE: "error",
 };
 

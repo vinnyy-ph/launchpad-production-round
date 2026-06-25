@@ -37,8 +37,8 @@ function gradeVariant(grade: number): BadgeProps["variant"] {
 
 const ACK_BADGE: Record<ReportAckState, { label: string; variant: BadgeProps["variant"] }> = {
   ACKNOWLEDGED: { label: "Acknowledged", variant: "success" },
-  AUTO_ACKNOWLEDGED: { label: "Auto-acknowledged", variant: "modern" },
-  PENDING: { label: "Pending acknowledgement", variant: "warning" },
+  AUTO_ACKNOWLEDGED: { label: "Auto-acknowledged", variant: "neutral" },
+  PENDING: { label: "Pending", variant: "warning" },
   NONE: { label: "Not evaluated", variant: "neutral" },
 };
 

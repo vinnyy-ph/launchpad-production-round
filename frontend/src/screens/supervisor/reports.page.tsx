@@ -239,7 +239,7 @@ function EvaluationBreakdown({
   const ackBreakdown = [
     { name: "Acknowledged", value: summary.acknowledged },
     { name: "Auto-acknowledged", value: summary.autoAcknowledged },
-    { name: "Pending acknowledgement", value: summary.pending },
+    { name: "Pending", value: summary.pending },
   ].filter((d) => d.value > 0);
 
   return (

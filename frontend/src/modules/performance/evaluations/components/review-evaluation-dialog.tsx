@@ -158,7 +158,7 @@ export function ReviewEvaluationDialog({
     ? { tone: "success" as const, label: "Acknowledged", dot: false }
     : isAutoAck
       ? { tone: "neutral" as const, label: "Auto-acknowledged", dot: true }
-      : { tone: "warning" as const, label: "Pending acknowledgement", dot: true };
+      : { tone: "warning" as const, label: "Pending", dot: true };
 
   const subtitle = isAcknowledged
     ? justAcked && !ack?.acknowledgedAt
