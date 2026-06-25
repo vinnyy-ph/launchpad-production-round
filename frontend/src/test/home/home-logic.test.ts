@@ -3,7 +3,6 @@ import {
   computeGreeting,
   buildAttentionZones,
   buildPriority,
-  buildOrgHealth,
   rowAriaLabel,
 } from "@/screens/home.logic";
 import type { DashboardStats } from "@/modules/dashboard/hooks/use-dashboard";
@@ -132,26 +131,6 @@ describe("buildPriority", () => {
   it("has no primary when nothing is pending", () => {
     const empty = { forYou: [], yourTeam: null, organization: null };
     expect(buildPriority(empty)).toEqual({ count: 0, primary: null });
-  });
-});
-
-describe("buildOrgHealth", () => {
-  it("is empty for non-HR roles", () => {
-    expect(buildOrgHealth("EMPLOYEE", stats({ pendingClearances: 4 }))).toEqual([]);
-  });
-  it("surfaces the clearances-in-progress card for HR when the field is present", () => {
-    const cards = buildOrgHealth("HR", stats({ pendingClearances: 4 }));
-    expect(cards.map((c) => c.id)).toEqual(["clearances"]);
-    expect(cards[0]).toMatchObject({ count: 4, unit: "clearances" });
-  });
-  it("excludes org-wide vanity headcounts like active employees", () => {
-    expect(buildOrgHealth("HR", stats({ activeEmployees: 42 }))).toEqual([]);
-  });
-  it("uses the singular unit for a count of one", () => {
-    expect(buildOrgHealth("HR", stats({ pendingClearances: 1 }))[0].unit).toBe("clearance");
-  });
-  it("omits the card when the field is absent", () => {
-    expect(buildOrgHealth("HR", stats())).toEqual([]);
   });
 });
 

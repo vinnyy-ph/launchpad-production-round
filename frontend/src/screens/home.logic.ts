@@ -142,31 +142,3 @@ export function buildPriority(zones: AttentionZones): { count: number; primary: 
   return { count: all.length, primary };
 }
 
-/** A trending / linking org-health card (HR only). Static headcounts are intentionally excluded. */
-export interface OrgHealthCard {
-  id: string;
-  label: string;
-  /** The metric itself, shown big; `unit` labels it (e.g. 4 + "clearances"). */
-  count: number;
-  unit: string;
-  action: string;
-  href: string;
-}
-
-/**
- * Org-health cards (HR/Admin) — context metrics the viewer actually acts on, shown as a count +
- * a link to where the work lives. Only "clearances in progress" qualifies today; org-wide vanity
- * headcounts (e.g. total active employees) are intentionally excluded as not relevant to the user.
- *
- * FLAGGED, not mocked: month-over-month delta pills (no trend field on DashboardStats), the
- * onboarding pipeline breakdown (accepted/expired/failed, PEO-21) and the pulse response rate
- * (PER-20) need new dashboard fields before they can render.
- */
-export function buildOrgHealth(role: string | undefined, stats: DashboardStats | null): OrgHealthCard[] {
-  if (role !== "HR" && role !== "ADMIN") return [];
-  const cards: OrgHealthCard[] = [];
-  if (stats?.pendingClearances != null) {
-    cards.push({ id: "clearances", label: "Clearances in progress", count: stats.pendingClearances, unit: stats.pendingClearances === 1 ? "clearance" : "clearances", action: "View clearances", href: "/hr/directory?tab=offboarding" });
-  }
-  return cards;
-}
