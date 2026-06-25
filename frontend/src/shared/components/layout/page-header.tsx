@@ -1,32 +1,24 @@
 import type { ReactNode } from "react";
-import { cn } from "@/shared/lib/utils";
 
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
   /** Optional right-aligned action (e.g. a primary button). */
   action?: ReactNode;
-  /**
-   * Heading scale. `"default"` (24px) for secondary pages; `"page"` bumps the
-   * h1 to display-sm (30px / 38px lh) for primary list-master pages.
-   */
+  /** Retained for API compatibility; page titles are uniformly display-xs (24px) per the DS PageHeader. */
   level?: "default" | "page";
 }
 
 /**
  * Shared page title for app screens: title + optional subtitle on the left,
- * optional action on the right. Stacks on mobile. Jia display scale, tokenized.
+ * optional action on the right. Stacks on mobile. Matches the DS PageHeader 1:1 —
+ * title display-xs (24px/32px) weight 500, subtitle text-md (16px) weight 400, 4px gap.
  */
-export function PageHeader({ title, subtitle, action, level = "default" }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <h1
-          className={cn(
-            "truncate font-medium tracking-[-0.02em] text-[color:var(--text-primary)]",
-            level === "page" ? "text-[30px] leading-[38px]" : "text-2xl",
-          )}
-        >
+        <h1 className="truncate text-2xl font-medium tracking-[-0.02em] text-[color:var(--text-primary)]">
           {title}
         </h1>
         {subtitle && (
