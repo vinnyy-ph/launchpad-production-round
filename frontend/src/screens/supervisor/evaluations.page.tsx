@@ -74,10 +74,8 @@ import {
 } from "@/modules/performance/evaluations";
 import { useAutosave } from "@/modules/performance/shared/use-autosave";
 import { DraftSaveStatus } from "@/modules/performance/shared/draft-save-status";
-import {
-    evaluationTextSchema,
-    EVAL_TEXT_LIMITS,
-} from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
+import { EVAL_TEXT_LIMITS } from "@/modules/performance/evaluations/schemas/evaluation-form.schema";
+import { validateEvaluationTextFields } from "@/modules/performance/evaluations/lib/evaluation-form-text";
 import { DocumentViewerModal } from "@/modules/performance/evaluations/components/document-viewer-modal";
 import { partitionEvaluationsByScope } from "./evaluations.scope";
 import { formatPeriod, parseStatusFilter } from "./evaluations.format";
@@ -654,26 +652,14 @@ function EvaluationEditorDialog({
     };
 
     /** Required to create/save a draft: reviewee, period, and rating. */
-    /** Length / no-HTML safety on the free-text fields (mirrors backend rules). */
-    const textErrors = (): Record<string, string> => {
-        const errs: Record<string, string> = {};
-        const text = evaluationTextSchema.safeParse({
+    /** Profanity, XSS, and length checks on the free-text fields (mirrors backend rules). */
+    const textErrors = (): Record<string, string> =>
+        validateEvaluationTextFields({
             evaluation: evaluationText,
             recommendation: recommendationText,
             highlights,
             lowlights,
         });
-        if (!text.success) {
-            // The evaluation summary surfaces under the `summary` key in this form.
-            const keyFor: Record<string, string> = { evaluation: "summary" };
-            for (const issue of text.error.issues) {
-                const field = String(issue.path[0] ?? "");
-                const key = keyFor[field] ?? field;
-                if (!errs[key]) errs[key] = issue.message;
-            }
-        }
-        return errs;
-    };
 
     /** The period's own rules once both ends are picked: no future dates, end strictly after start.
      *  Returns the message to show under the period field, or null when the range is valid (or still
