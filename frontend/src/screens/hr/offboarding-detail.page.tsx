@@ -248,9 +248,12 @@ function OffboardingDetailInner() {
             }}
           />
           <div>
-            <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
-              {employeeName}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-[30px] font-bold leading-[38px] tracking-[-0.02em] text-[color:var(--text-primary)]">
+                {employeeName}
+              </h1>
+              <StatusBadge status={offboarding.status} />
+            </div>
             <p className="text-sm text-[color:var(--text-tertiary)]">
               {employee.jobTitle ?? "—"}
               {employee.department ? ` · ${employee.department}` : ""}
@@ -267,7 +270,6 @@ function OffboardingDetailInner() {
             <Eye className="h-4 w-4" />
             {preparingPdf ? "Preparing…" : "View form"}
           </Button>
-          <StatusBadge status={offboarding.status} />
         </div>
       </div>
 
