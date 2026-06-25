@@ -492,7 +492,7 @@ function ReviewDocumentRow({
             <span>{rejectionNote ?? "HR asked for another upload before they can finish reviewing."}</span>
           </div>
           {onReupload ? (
-            <Button type="button" size="sm" disabled={reuploading} onClick={() => inputRef.current?.click()}>
+            <Button type="button" size="sm" disabled={reuploading} loading={reuploading} onClick={() => inputRef.current?.click()}>
               <Upload className="h-4 w-4" strokeWidth={1.7} aria-hidden="true" />
               {reuploading ? "Uploading..." : "Re-upload"}
             </Button>
@@ -1615,6 +1615,7 @@ export default function EmployeeOnboardingPage() {
                 <Button
                   onClick={() => void handleSubmitForReview()}
                   disabled={finishing || submitForReview.isPending}
+                  loading={finishing || submitForReview.isPending}
                 >
                   {finishing || submitForReview.isPending ? "Submitting…" : "Submit for review"}
                 </Button>

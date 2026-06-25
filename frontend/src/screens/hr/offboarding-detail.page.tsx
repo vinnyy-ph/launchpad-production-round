@@ -266,6 +266,7 @@ function OffboardingDetailInner() {
             size="sm"
             onClick={() => void handleOpenPdfPreview()}
             disabled={preparingPdf}
+            loading={preparingPdf}
           >
             <Eye className="h-4 w-4" />
             {preparingPdf ? "Preparing…" : "View form"}
@@ -416,6 +417,7 @@ function OffboardingDetailInner() {
                         size="sm"
                         disabled={resetting}
                         onClick={() => void handleReset(req)}
+                        loading={resetting}
                       >
                         <RotateCcw className="h-4 w-4" />
                         Reset
@@ -531,7 +533,7 @@ function ReplaceSignatoryDialog({
           <Button variant="secondary" onClick={onClose} disabled={replacing}>
             Cancel
           </Button>
-          <Button onClick={() => void handleReplace()} disabled={!newSignatoryId || replacing}>
+          <Button onClick={() => void handleReplace()} disabled={!newSignatoryId || replacing} loading={replacing}>
             {replacing ? "Replacing…" : "Replace signatory"}
           </Button>
         </DialogFooter>
@@ -685,6 +687,7 @@ function ReassignSection({ offboarding }: { offboarding: OffboardingDetail }) {
           onClick={() => void handleReassign()}
           disabled={!newSupervisorId || reassigning}
           className="flex-shrink-0"
+          loading={reassigning}
         >
           {reassigning ? "Reassigning…" : "Reassign reports"}
         </Button>

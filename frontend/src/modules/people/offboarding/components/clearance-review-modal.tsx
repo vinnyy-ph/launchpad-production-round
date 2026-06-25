@@ -293,6 +293,7 @@ export function ClearanceReviewModal({
                     <Button
                       onClick={() => void handleSign()}
                       disabled={!signature || signing || Boolean(signNoteError)}
+                      loading={signing}
                     >
                       <CheckCircle2 size={14} className="mr-1" />
                       {signing ? "Signing…" : "Confirm & sign"}
@@ -308,6 +309,7 @@ export function ClearanceReviewModal({
                       variant="destructive"
                       onClick={() => void handleReject()}
                       disabled={rejectNote.trim() === "" || rejecting || Boolean(rejectNoteError)}
+                      loading={rejecting}
                     >
                       {rejecting ? "Rejecting…" : "Confirm reject"}
                     </Button>

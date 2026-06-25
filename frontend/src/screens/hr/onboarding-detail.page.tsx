@@ -312,7 +312,7 @@ function OnboardingDetailInner() {
         : "Resend invite";
 
   const resendInviteButton = (
-    <Button variant="outline" onClick={handleResendInvite} disabled={resendDisabled}>
+    <Button variant="outline" onClick={handleResendInvite} disabled={resendDisabled} loading={invite.isPending || resend.isPending}>
       <Mail aria-hidden="true" />
       {resendInviteLabel}
     </Button>
@@ -529,7 +529,7 @@ function OnboardingDetailInner() {
 
       {!isComplete && (
         <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
-          <Button onClick={handleComplete} disabled={complete.isPending || !allRequiredDocsApproved}>
+          <Button onClick={handleComplete} disabled={complete.isPending || !allRequiredDocsApproved} loading={complete.isPending}>
             <CheckCircle2 aria-hidden="true" />
             {complete.isPending ? "Completing…" : "Mark complete"}
           </Button>
@@ -589,7 +589,7 @@ function OnboardingDetailInner() {
             <Button variant="secondary" onClick={() => setEmailDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateInviteEmail} disabled={updateEmail.isPending}>
+            <Button onClick={handleUpdateInviteEmail} disabled={updateEmail.isPending} loading={updateEmail.isPending}>
               <Mail aria-hidden="true" />
               {updateEmail.isPending ? "Sending…" : "Update & resend"}
             </Button>

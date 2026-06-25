@@ -188,6 +188,7 @@ export function ClearancesPanel() {
                       variant="outline"
                       onClick={() => void handleSetDefault(template)}
                       disabled={setDefault.isPending}
+                      loading={setDefault.isPending}
                     >
                       <Star className="h-3.5 w-3.5" />
                       Set as default
@@ -203,6 +204,7 @@ export function ClearancesPanel() {
                     className="border-[#FECDCA] text-[#B42318] hover:bg-[#FEF3F2]"
                     onClick={() => void handleDelete(template)}
                     disabled={remove.isPending || template.inUseCount > 0}
+                    loading={remove.isPending}
                     title={
                       template.inUseCount > 0
                         ? "In use by an offboarding case"

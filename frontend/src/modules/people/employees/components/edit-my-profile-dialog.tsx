@@ -360,7 +360,7 @@ export function EditMyProfileDialog({ profile, open, onOpenChange }: EditMyProfi
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => void handleSave()} disabled={saving}>
+          <Button onClick={() => void handleSave()} disabled={saving} loading={saving}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
         </DialogFooter>

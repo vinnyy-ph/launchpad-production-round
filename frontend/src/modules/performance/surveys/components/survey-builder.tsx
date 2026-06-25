@@ -1606,13 +1606,13 @@ export function SurveyBuilderDialog({
                 <Button variant="secondary" onClick={onClose} disabled={saving}>
                   Close
                 </Button>
-                <Button onClick={() => submit(false)} disabled={saving}>
+                <Button onClick={() => submit(false)} disabled={saving} loading={saving}>
                   {saving ? "Saving…" : "Save changes"}
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="secondary" onClick={() => submit(false)} disabled={saving || loading}>
+                <Button variant="secondary" onClick={() => submit(false)} disabled={saving || loading} loading={saving}>
                   Save as draft
                 </Button>
                 <Button onClick={openLaunch} disabled={saving || loading}>

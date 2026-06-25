@@ -202,7 +202,7 @@ function InlineEditForm({
       </div>
 
       <div className="flex items-center gap-2 pt-2">
-        <Button size="sm" onClick={onSave} disabled={saving}>
+        <Button size="sm" onClick={onSave} disabled={saving} loading={saving}>
           <Check className="mr-1 h-3.5 w-3.5" />
           {saving ? "Saving…" : "Save"}
         </Button>

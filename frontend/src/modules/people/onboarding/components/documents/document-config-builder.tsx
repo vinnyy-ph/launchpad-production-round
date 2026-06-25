@@ -71,6 +71,7 @@ export function DocumentConfigBuilder({
                   className="border-[#FECDCA] text-[#B42318] hover:bg-[#FEF3F2]"
                   onClick={() => onDelete(doc)}
                   disabled={deletingId === doc.id}
+                  loading={deletingId === doc.id}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete

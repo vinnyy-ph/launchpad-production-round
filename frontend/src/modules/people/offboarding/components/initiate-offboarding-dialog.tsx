@@ -674,6 +674,7 @@ export function InitiateOffboardingDialog({
           <Button
             onClick={() => void handleSubmit()}
             disabled={creating || profileLoading || templatesLoading || templates.length === 0}
+            loading={creating}
           >
             {creating ? (lockedEmployeeId ? "Processing…" : "Initiating…") : submitLabel}
           </Button>
