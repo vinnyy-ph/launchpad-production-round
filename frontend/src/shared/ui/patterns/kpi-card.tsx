@@ -49,10 +49,10 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
           className="absolute right-4 top-4 h-4 w-4 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
         />
       )}
-      <div className="flex items-center gap-2">
+      <div className="flex min-h-[40px] items-start gap-2">
         {Icon && (
-          <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
-            <Icon size={12} className="text-[color:var(--text-secondary)]" />
+          <span className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--gray-100)]">
+            <Icon size={15} className="text-[color:var(--text-secondary)]" />
           </span>
         )}
         <span className="text-[14px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
@@ -78,16 +78,18 @@ export function KpiCard({ label, value, icon: Icon, period, hint, delta, progres
         )}
       </div>
 
-      {period && (
-        <p className="mt-1 text-[12px] font-medium text-[color:var(--text-tertiary)]">{period}</p>
-      )}
-
       {loading ? (
         <Skeleton className="mt-3.5 h-10 w-16" />
       ) : (
         <p className="mt-3.5 text-[36px] font-bold leading-none tracking-[-0.025em] text-[color:var(--text-primary)]">
           {value}
         </p>
+      )}
+
+      {/* Caption sits BELOW the value so a present/absent period never shifts where the number
+          lands — keeps the big numbers aligned across a row of cards. */}
+      {period && !loading && (
+        <p className="mt-1.5 text-[12px] font-medium text-[color:var(--text-tertiary)]">{period}</p>
       )}
 
       {progress != null && !loading && (

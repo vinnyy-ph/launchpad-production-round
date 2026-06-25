@@ -106,24 +106,7 @@ function AttentionBand({ items, loading }: { items: AttentionItem[]; loading: bo
 
 // ─── Team composition KPI card (clickable → roster) ─────────────────────────
 
-function TeamCard({
-  total,
-  active,
-  onboarding,
-  offboarding,
-  loading,
-}: {
-  total: number;
-  active: number;
-  onboarding: number;
-  offboarding: number;
-  loading: boolean;
-}) {
-  const breakdown = [
-    { label: "Active", count: active, color: "var(--color-success-600)" },
-    { label: "Onboarding", count: onboarding, color: "var(--color-warning-600)" },
-    { label: "Offboarding", count: offboarding, color: "var(--color-error-600)" },
-  ];
+function TeamCard({ total, loading }: { total: number; loading: boolean }) {
   return (
     <Link
       href="/supervisor/roster"
@@ -134,9 +117,9 @@ function TeamCard({
         aria-hidden="true"
         className="absolute right-4 top-4 h-4 w-4 text-[color:var(--text-quaternary)] opacity-0 transition-opacity group-hover:opacity-100"
       />
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[5px] bg-[color:var(--gray-100)]">
-          <Users size={12} className="text-[color:var(--text-secondary)]" />
+      <div className="flex min-h-[40px] items-start gap-2">
+        <span className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--gray-100)]">
+          <Users size={15} className="text-[color:var(--text-secondary)]" />
         </span>
         <span className="text-[14px] font-semibold tracking-[-0.01em] text-[color:var(--text-primary)]">
           Team
@@ -149,18 +132,6 @@ function TeamCard({
           {total}
         </p>
       )}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-        {breakdown.map((b) => (
-          <span
-            key={b.label}
-            className="inline-flex items-center gap-1.5 text-[12px] text-[color:var(--text-tertiary)]"
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: b.color }} aria-hidden="true" />
-            <span className="font-semibold tabular-nums text-[color:var(--text-secondary)]">{b.count}</span>{" "}
-            {b.label}
-          </span>
-        ))}
-      </div>
     </Link>
   );
 }
@@ -360,13 +331,7 @@ export default function ReportsPage() {
 
       {/* At a glance — clickable headline KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <TeamCard
-          total={composition.total}
-          active={composition.active}
-          onboarding={composition.onboarding}
-          offboarding={composition.offboarding}
-          loading={reportsLoading}
-        />
+        <TeamCard total={composition.total} loading={reportsLoading} />
         <KpiCard
           label="Avg. grade"
           value={avgGrade != null ? `${avgGrade.toFixed(1)} / 5` : "—"}
