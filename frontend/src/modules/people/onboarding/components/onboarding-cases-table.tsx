@@ -172,8 +172,8 @@ export function OnboardingCasesTable() {
             }}
           />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[color:var(--text-primary)]">{row.name}</p>
-            <p className="truncate text-xs text-[color:var(--text-tertiary)]">{row.email}</p>
+            <p title={row.name} className="truncate text-sm font-medium text-[color:var(--text-primary)]">{row.name}</p>
+            <p title={row.email} className="truncate text-xs text-[color:var(--text-tertiary)]">{row.email}</p>
           </div>
         </div>
       ),
