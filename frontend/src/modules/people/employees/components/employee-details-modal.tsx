@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   BriefcaseBusiness,
@@ -59,6 +60,7 @@ import { useEmployeeProfile } from "../hooks/use-employee-profile";
 import { useAllEmployees } from "../hooks/use-employees";
 import { toEmployeeOption } from "../employee-options";
 import { useUpdateEmployee } from "../hooks/use-update-employee";
+import { InitiateOffboardingDialog } from "@/modules/people/offboarding";
 import type {
   EmployeeListItem,
   EmployeeProfile,
@@ -584,6 +586,7 @@ export function EmployeeDetailsModal({
   open,
   onOpenChange,
 }: EmployeeDetailsModalProps) {
+  const router = useRouter();
   const sectionRefs = useRef<Record<EmployeeDetailsSection, HTMLDivElement | null>>({
     personal: null,
     employment: null,
@@ -604,6 +607,7 @@ export function EmployeeDetailsModal({
   const [contactNumberError, setContactNumberError] = useState<string | null>(null);
   const [shakeUnsavedAlert, setShakeUnsavedAlert] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<EmployeeDocument | null>(null);
+  const [offboardingOpen, setOffboardingOpen] = useState(false);
   const unsavedToastIdRef = useRef<string | number | null>(null);
   // Scroll container + the section currently in view, so the sidebar can highlight the active tab.
   const scrollContainerRef = useRef<HTMLElement>(null);
@@ -661,6 +665,10 @@ export function EmployeeDetailsModal({
   useEffect(() => {
     if (open) setActiveSection("personal");
   }, [open, employeeId]);
+
+  useEffect(() => {
+    if (!open) setOffboardingOpen(false);
+  }, [open]);
 
   // Track which section is scrolled into view so the sidebar tab highlights it. The top-most
   // intersecting section wins; the bottom rootMargin biases activation toward the upper area.
@@ -905,6 +913,11 @@ export function EmployeeDetailsModal({
                                               type="button"
                                               variant="secondary"
                                               className={`w-full ${sidebarActionStyles(profile.status)}`}
+                                              onClick={() => {
+                                                  if (profile.status === "active") {
+                                                      setOffboardingOpen(true);
+                                                  }
+                                              }}
                                           >
                                               {profile.status ===
                                               "onboarding" ? (
@@ -1673,6 +1686,19 @@ export function EmployeeDetailsModal({
                   </div>
               </DialogContent>
           </Dialog>
+
+          {offboardingOpen ? (
+              <InitiateOffboardingDialog
+                  open={offboardingOpen}
+                  onOpenChange={setOffboardingOpen}
+                  employeeId={employeeId ?? undefined}
+                  onInitiated={(caseId) => {
+                      setOffboardingOpen(false);
+                      onOpenChange(false);
+                      router.push(`/hr/directory/offboarding/${caseId}`);
+                  }}
+              />
+          ) : null}
 
           <Dialog
               open={viewingDocument !== null}
