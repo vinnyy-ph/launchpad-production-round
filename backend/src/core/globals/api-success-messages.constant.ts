@@ -48,6 +48,10 @@ export const API_SUCCESS_MESSAGES = {
   NOTIFICATION_UNPINNED: "Notification unpinned",
   NOTIFICATION_CLEARED: "Notification cleared",
   NOTIFICATIONS_CLEARED: "Notifications cleared",
+  NOTIFICATION_PREFERENCES_RETRIEVED:
+    "Notification preferences retrieved successfully",
+  NOTIFICATION_PREFERENCES_UPDATED:
+    "Notification preferences updated successfully",
   SUPERVISOR_ONBOARDING_STATUSES_RETRIEVED:
     "Supervisor onboarding statuses retrieved successfully",
   EVALUATION_CREATED: "Evaluation created successfully",

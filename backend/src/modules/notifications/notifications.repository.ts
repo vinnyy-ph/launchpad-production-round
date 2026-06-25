@@ -102,11 +102,21 @@ export class NotificationsRepository {
 
   /**
    * Returns the recipient's most recent non-archived notifications, pinned ones first
-   * (newest-pinned first), then the rest newest-first.
+   * (newest-pinned first), then the rest newest-first. Types in `excludeTypes` are
+   * dropped server-side (the recipient's opted-out categories) before the limit applies,
+   * so an opted-out category never reaches the client.
    */
-  async findByRecipientId(recipientId: string, limit: number) {
+  async findByRecipientId(
+    recipientId: string,
+    limit: number,
+    excludeTypes: NotificationType[] = [],
+  ) {
     return prisma.notification.findMany({
-      where: { recipientId, deletedAt: null },
+      where: {
+        recipientId,
+        deletedAt: null,
+        ...(excludeTypes.length > 0 ? { type: { notIn: excludeTypes } } : {}),
+      },
       orderBy: [{ isPinned: "desc" }, { pinnedAt: "desc" }, { createdAt: "desc" }],
       take: limit,
     });

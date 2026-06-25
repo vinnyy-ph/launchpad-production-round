@@ -5,6 +5,8 @@ export const queryKeys = {
   notifications: {
     all: ["notifications"] as const,
     list: (employeeId: string, limit: number) => ["notifications", employeeId, limit] as const,
+    // The signed-in user's notification delivery preferences (channels per category).
+    preferences: ["notifications", "preferences"] as const,
   },
   employees: {
     all: ["employees"] as const,

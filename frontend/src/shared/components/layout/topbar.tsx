@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   Network,
+  Settings,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import { useAuth } from "@/modules/auth/hooks/use-auth";
 import { signOutUser } from "@/modules/auth/services/auth.service";
 import { UserAvatar } from "@/shared/ui/primitives/user-avatar";
 import { NotificationBell } from "@/modules/notifications/components/notification-bell";
+import { useSettingsModal } from "@/modules/settings/stores/use-settings-modal";
 import { breadcrumbForPath, findNav, type NavIcon } from "./nav-config";
 import { useExtraBreadcrumbs } from "./breadcrumb-context";
 
@@ -132,6 +134,7 @@ function useTopbarHistory(pathname: string): { canGoBack: boolean; canGoForward:
 
 export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { appUser } = useAuth();
+  const openSettings = useSettingsModal((state) => state.openSettings);
   const router = useRouter();
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
@@ -310,12 +313,12 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
-                  router.push("/employee/profile");
+                  openSettings("profile");
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--bg-secondary)]"
               >
-                <User size={14} />
-                My profile
+                <Settings size={14} />
+                Settings
               </button>
               <button
                 role="menuitem"
