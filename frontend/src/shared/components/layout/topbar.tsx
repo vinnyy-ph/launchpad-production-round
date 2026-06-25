@@ -261,9 +261,9 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             <UserAvatar
               src={appUser?.avatarUrl}
               fallback={initials}
-              className="h-9 w-9 border-2 border-[#C9D7FF]"
+              className="h-9 w-9"
               fallbackClassName="text-[12px] font-bold tracking-[0.01em] text-white"
-              fallbackStyle={{ background: "linear-gradient(135deg, #1f2a5c 0%, #4f46e5 100%)" }}
+              fallbackStyle={{ background: "linear-gradient(135deg, var(--brand-peach), var(--brand-pink))" }}
             />
             <span className="hidden min-w-0 text-left md:block">
               <span className="block max-w-[180px] truncate text-[14px] font-semibold leading-4 text-[color:var(--text-primary)]">
