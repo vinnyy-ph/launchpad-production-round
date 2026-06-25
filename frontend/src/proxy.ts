@@ -12,9 +12,6 @@ import { NextResponse } from "next/server";
 // API origin (HTTPS + WSS for the notifications socket) so login and realtime keep working.
 export function proxy() {
   const isProd = process.env.NODE_ENV === "production";
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  const wsUrl = apiUrl?.replace(/^http/, "ws"); // http->ws, https->wss
   const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 
   const scriptSrc = [
@@ -27,16 +24,24 @@ export function proxy() {
 
   const connectSrc = [
     "'self'",
-    "https://identitytoolkit.googleapis.com",
-    "https://securetoken.googleapis.com",
-    "https://www.googleapis.com",
-    apiUrl,
-    wsUrl,
+    // Host-level allowlisting proved fragile across Firebase/Google auth, Cloudinary,
+    // the API and the notifications socket — and with script-src already allowing
+    // 'unsafe-inline', a strict connect-src adds little real protection. Allow any HTTPS
+    // /WSS origin (mirrors img-src 'https:'); still blocks http: downgrade + data:/blob: exfil.
+    "https:",
+    "wss:",
+    // dev talks to the local API + socket over http/ws (NEXT_PUBLIC_API_URL is often unset locally).
+    !isProd && "http://localhost:*",
+    !isProd && "ws://localhost:*",
+    !isProd && "http://127.0.0.1:*",
+    !isProd && "ws://127.0.0.1:*",
   ].filter(Boolean);
 
   const frameSrc = [
     "'self'",
+    "blob:", // Firebase popup sign-in renders its helper in a blob: iframe
     "https://accounts.google.com",
+    "https://apis.google.com",
     "https://*.firebaseapp.com",
     authDomain && `https://${authDomain}`,
   ].filter(Boolean);
