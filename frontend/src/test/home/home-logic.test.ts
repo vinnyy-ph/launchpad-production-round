@@ -142,7 +142,10 @@ describe("buildOrgHealth", () => {
   it("surfaces the clearances-in-progress card for HR when the field is present", () => {
     const cards = buildOrgHealth("HR", stats({ pendingClearances: 4 }));
     expect(cards.map((c) => c.id)).toEqual(["clearances"]);
-    expect(cards[0].value).toBe("4 clearances");
+    expect(cards[0]).toMatchObject({ count: 4, unit: "clearances" });
+  });
+  it("uses the singular unit for a count of one", () => {
+    expect(buildOrgHealth("HR", stats({ pendingClearances: 1 }))[0].unit).toBe("clearance");
   });
   it("omits the card when the field is absent", () => {
     expect(buildOrgHealth("HR", stats())).toEqual([]);

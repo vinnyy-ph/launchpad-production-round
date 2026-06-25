@@ -146,7 +146,9 @@ export function buildPriority(zones: AttentionZones): { count: number; primary: 
 export interface OrgHealthCard {
   id: string;
   label: string;
-  value: string;
+  /** The metric itself, shown big; `unit` labels it (e.g. 4 + "clearances"). */
+  count: number;
+  unit: string;
   action: string;
   href: string;
 }
@@ -160,7 +162,7 @@ export function buildOrgHealth(role: string | undefined, stats: DashboardStats |
   if (role !== "HR" && role !== "ADMIN") return [];
   const cards: OrgHealthCard[] = [];
   if (stats?.pendingClearances != null) {
-    cards.push({ id: "clearances", label: "Clearances in progress", value: plural(stats.pendingClearances, "clearance"), action: "View clearances", href: "/hr/directory?tab=offboarding" });
+    cards.push({ id: "clearances", label: "Clearances in progress", count: stats.pendingClearances, unit: stats.pendingClearances === 1 ? "clearance" : "clearances", action: "View clearances", href: "/hr/directory?tab=offboarding" });
   }
   return cards;
 }
