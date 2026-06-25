@@ -56,7 +56,7 @@ export function PageTabs({ items, value, onChange, ariaLabel }: PageTabsProps) {
             {item.count !== undefined && (
               <span
                 className={cn(
-                  "inline-flex min-w-[20px] items-center justify-center rounded-full border bg-[color:var(--bg-tertiary)] px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                  "inline-flex min-w-[20px] items-center justify-center rounded-full border bg-[color:var(--gray-neutral-100)] px-1.5 py-0.5 text-xs font-semibold tabular-nums",
                   isActive
                     ? "border-[color:var(--border-primary)] text-[color:var(--text-secondary)]"
                     : "border-transparent text-[color:var(--text-tertiary)]",
