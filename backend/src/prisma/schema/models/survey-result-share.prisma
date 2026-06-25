@@ -1,0 +1,26 @@
+/// A deliberate HR action: sharing a small (sub-MIN_TEAM_SIZE) anonymous team's pulse
+/// results with that team's supervisor, who is otherwise blocked from the breakdown by the
+/// anonymity / min-group-size firewall. HR conveys the results as an open-text NOTE
+/// (`message`) — the supervisor reads that note, never the raw anonymous breakdown. The
+/// existence of a row grants the supervisor read access to that note for the occurrence.
+/// One row per (occurrence, team) — re-sending updates it (message / sharedAt / sharedBy).
+model SurveyResultShare {
+  id           String           @id @default(uuid())
+  occurrenceId String
+  teamId       String
+  /// Recipient = the team's leader (supervisor) resolved from the org graph at send time.
+  supervisorId String
+  /// The HR user who initiated the share.
+  sharedById   String
+  sharedAt     DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  /// HR's open-text note to the supervisor (what the supervisor reads instead of the breakdown).
+  message      String           @default("")
+  occurrence   SurveyOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  sharedBy     Employee         @relation("SurveyResultShareSharedBy", fields: [sharedById], references: [id])
+  supervisor   Employee         @relation("SurveyResultShareSupervisor", fields: [supervisorId], references: [id])
+  team         Team             @relation(fields: [teamId], references: [id])
+
+  @@unique([occurrenceId, teamId])
+  @@map("survey_result_shares")
+}

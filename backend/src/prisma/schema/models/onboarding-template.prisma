@@ -1,0 +1,12 @@
+model OnboardingTemplate {
+  id           String                  @id @default(uuid())
+  name         String
+  isDefault    Boolean                 @default(false)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  customFields OnboardingCustomField[]
+  documents    OnboardingDocument[]
+  records      OnboardingRecord[]
+
+  @@map("onboarding_templates")
+}

@@ -1,0 +1,26 @@
+model Notification {
+  id          String              @id @default(uuid())
+  recipientId String
+  type        NotificationType
+  channel     NotificationChannel @default(IN_APP)
+  subject     String
+  body        String
+  /// Click-to-land deep link (e.g. "/clearances/123"). Opens the exact item.
+  linkUrl     String?
+  /// Polymorphic source ref — lets the API rebuild/validate the link target.
+  sourceType  String?
+  sourceId    String?
+  isRead      Boolean             @default(false)
+  readAt      DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  /// User-pinned to the top of their notification center.
+  isPinned    Boolean             @default(false)
+  pinnedAt    DateTime?
+  /// Soft-delete (archive): cleared notifications stay as the reminder-dedup ledger but
+  /// are hidden from the list. Null = visible.
+  deletedAt   DateTime?
+  recipient   Employee            @relation(fields: [recipientId], references: [id])
+
+  @@map("notifications")
+}

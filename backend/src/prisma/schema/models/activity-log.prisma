@@ -1,0 +1,15 @@
+model ActivityLog {
+  id               String   @id @default(uuid())
+  editorId         String
+  targetEmployeeId String
+  fieldName        String
+  oldValue         String?
+  newValue         String?
+  timestamp        DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  editor           Employee @relation("Editor", fields: [editorId], references: [id])
+  targetEmployee   Employee @relation("Target", fields: [targetEmployeeId], references: [id])
+
+  @@map("activity_logs")
+}

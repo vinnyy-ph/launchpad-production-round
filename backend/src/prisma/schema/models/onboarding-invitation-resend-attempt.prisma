@@ -1,0 +1,11 @@
+model OnboardingInvitationResendAttempt {
+  id           String               @id @default(uuid())
+  invitationId String
+  attemptedAt  DateTime             @default(now())
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  invitation   OnboardingInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@index([invitationId, attemptedAt], map: "onboarding_invitation_resend_attempts_invitationId_attemptedAt_")
+  @@map("onboarding_invitation_resend_attempts")
+}

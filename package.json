@@ -2,15 +2,27 @@
   "name": "launchpad-production-erp",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["backend", "frontend"],
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,magenta \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "build": "npm run build -w backend && npm run build -w frontend",
+    "test": "npm run test -w backend",
     "db:generate": "npm run db:generate -w backend",
     "db:migrate": "npm run db:migrate -w backend",
     "db:studio": "npm run db:studio -w backend"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@types/node": "^26.0.0",
     "concurrently": "^9.1.0"
+  },
+  "overrides": {
+    "js-yaml": "^4.2.0",
+    "@hono/node-server": "^1.19.13",
+    "uuid": "^11.1.1",
+    "postcss": "^8.5.10"
   }
 }

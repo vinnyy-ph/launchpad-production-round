@@ -1,0 +1,21 @@
+/// Records THAT an employee completed an occurrence — drives reminders and
+/// minimum-group-size counts — WITHOUT linking to response content, so
+/// anonymity holds even while completion is tracked. Separate from SurveyResponse
+/// (whose employeeId is null when anonymous).
+model SurveyCompletion {
+  occurrenceId String
+  employeeId   String
+  completedAt  DateTime         @default(now())
+  /// Links this completion to the response it produced, so the AUTHOR can recover their own
+  /// answers — even for anonymous responses, whose employeeId is null on SurveyResponse.
+  /// Read ONLY by the self-scoped anonymous self-view (MeRepository.findMyAnonymousAnswers);
+  /// no results/drill-down/insights reader traverses it. Nullable for completions recorded
+  /// before this link existed — those responses are unrecoverable by design.
+  responseId   String?          @unique
+  employee     Employee         @relation(fields: [employeeId], references: [id])
+  occurrence   SurveyOccurrence @relation(fields: [occurrenceId], references: [id])
+  response     SurveyResponse?  @relation(fields: [responseId], references: [id])
+
+  @@id([occurrenceId, employeeId])
+  @@map("survey_completions")
+}

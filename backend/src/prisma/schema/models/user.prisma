@@ -1,0 +1,16 @@
+/// Auth-level user — owns login credentials and role
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  googleId    String?   @unique
+  role        Role      @default(EMPLOYEE)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+  /// Google profile picture URL captured from the Firebase token at sign-in; null when the account has no photo.
+  avatarUrl   String?
+  employee    Employee?
+
+  @@map("users")
+}

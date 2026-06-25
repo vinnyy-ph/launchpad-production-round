@@ -1,0 +1,14 @@
+model SurveyInsight {
+  id            String      @id @default(uuid())
+  surveyId      String
+  scopeKey      String
+  payload       Json
+  responseCount Int
+  model         String
+  generatedAt   DateTime    @default(now())
+  survey        PulseSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@unique([surveyId, scopeKey])
+  @@index([surveyId])
+  @@map("survey_insights")
+}

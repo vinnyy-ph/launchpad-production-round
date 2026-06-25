@@ -1,0 +1,11 @@
+model SurveyReminderConfig {
+  id         String            @id @default(uuid())
+  surveyId   String            @unique
+  frequency  ReminderFrequency @default(DAILY)
+  everyXDays Int?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  survey     PulseSurvey       @relation(fields: [surveyId], references: [id])
+
+  @@map("survey_reminder_configs")
+}

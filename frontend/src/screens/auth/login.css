@@ -1,0 +1,58 @@
+/* Swift Work login — layout via Tailwind in login.page.tsx.
+   The Google button's own styles live with the GoogleSignInButton component. */
+
+/* The poster is the one gradient moment: the signature Jia gradient (per the
+   UI-kit login), drifting slowly (the only ambient motion the brand allows).
+   The big display title + the tilted white preview card carry the contrast. */
+.sw-poster {
+  position: relative;
+  overflow: hidden;
+  background: var(--gradient-jia); /* 135deg peach→pink→lilac→blue */
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  animation: sw-drift 22s var(--ease-standard, ease) infinite alternate;
+}
+.sw-poster::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-scrim-bottom);
+  pointer-events: none;
+}
+.sw-poster > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes sw-drift {
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sw-poster { animation: none; }
+}
+
+.sw-thesis {
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.sw-thesis__mark {
+  /* the one sanctioned ✦ — at the end of a display headline on cover art */
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sw-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--color-error-50);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-lg, 10px);
+  padding: 12px 14px;
+  color: var(--color-error-600);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.sw-alert svg { flex: none; margin-top: 1px; }

@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    # Prisma 7 loads prisma.config.ts during generate/build and requires these
+    # vars even though CI never connects to a real database (tests mock Prisma).
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?sslmode=disable
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run db:generate -w backend
+      - run: npm run build
+      - run: npm test

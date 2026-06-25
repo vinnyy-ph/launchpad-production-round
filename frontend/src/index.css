@@ -3,60 +3,770 @@
 @tailwind utilities;
 
 /*
-  shadcn/ui design tokens (slate base). These are sensible defaults.
-
-  === JIA BRANDBOOK ===
-  Replace the values below with the Jia brand palette/radius. Keep the variable
-  NAMES; only change the values so every shadcn component re-themes at once.
+  shadcn/ui design tokens — Jia brandbook applied.
+  Values map to the Jia palette/radius (frontend-swiftwork jia-design-system reference);
+  variable NAMES are kept so every shadcn component re-themes at once.
+  Source palette: src/shared/styles/jia-tokens.css.
+  Light-only by design — the Jia brandbook defines no dark theme (no .dark block).
 */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 100%;            /* #FFFFFF */
+    --foreground: 228 27% 9%;           /* #181D27 — gray-neutral-900 */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 228 27% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-  }
+    --popover-foreground: 228 27% 9%;
+    --primary: 230 33% 10%;             /* #111322 — primary button (brandbook recipe) */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 226 25% 25%;       /* #30374F — primary button hover */
+    --secondary: 220 13% 95%;           /* #EFF1F5 — gray-cool-100 */
+    --secondary-foreground: 228 27% 9%;
+    --muted: 220 13% 95%;
+    --muted-foreground: 220 9% 46%;     /* #717680 — tertiary text */
+    --accent: 220 13% 95%;
+    --accent-foreground: 228 27% 9%;
+    --destructive: 4 86% 58%;           /* #F04438 — error-500 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 7% 92%;               /* #E9EAEB — neutral-200 */
+    --input: 220 5% 84%;                /* #D5D7DA — neutral-300 */
+    --ring: 230 33% 10%;                /* #111322 — DS focus color (matches --primary) */
+    --radius: 0.5rem;                   /* 8px base */
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Chart categorical palette — cool neutrals + one brand accent. */
+    --chart-1: 230 33% 10%;   /* #111322 */
+    --chart-2: 222 25% 38%;   /* #4A5578 */
+    --chart-3: 221 28% 66%;   /* #B9C0D4 */
+    --chart-4: 18 92% 87%;    /* #FCCEC0 — peach (gradient stop) */
+    --chart-5: 327 56% 80%;   /* #EBACC9 — pink */
+    --chart-6: 205 70% 78%;   /* #9FCAED — sky */
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+}
+
+@layer base {
+  /* Brandbook focus: ONE 2px #111322 ring everywhere. A box-shadow ring (not an
+     outline) so it hugs rounded corners and matches the shadcn `ring-2 ring-ring`
+     components 1:1 — all now resolve to --ring = #111322. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  /* On gradient surfaces, switch the ring to white. */
+  .on-gradient :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline-color: #ffffff;
+  }
+
+  /* Disabled baseline (brandbook: 38% opacity, not-allowed). */
+  :where(button, input, select, textarea):disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+
+  /* Selection — cool neutral. */
+  ::selection { background: var(--gray-200); color: var(--text-primary); }
+
+  /* Scrollbar — thin cool-neutral. */
+  * { scrollbar-width: thin; scrollbar-color: var(--gray-300) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb {
+    background: var(--gray-300); border-radius: 9999px;
+    border: 2px solid transparent; background-clip: content-box;
+  }
+  *::-webkit-scrollbar-track { background: transparent; }
+
+  /* Reduced motion — kill ambient gradient drift + long transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Extra-thin scrollbar for dense surfaces like modal bodies. */
+  .scrollbar-thin { scrollbar-width: thin; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--gray-300); border-radius: 9999px;
+    border: 1px solid transparent; background-clip: content-box;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+  /* Hide the scrollbar but keep scrollability — for horizontally-scrollable tab strips. */
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
+
+@layer components {
+  /* The ONE gradient moment for a status pill (pipeline "active/current"). Use sparingly. */
+  .jia-badge-active {
+    background: var(--gradient-jia);
+    color: var(--text-primary);
+    border-color: transparent;
+  }
+
+  /* ── Checkbox — ported verbatim from brandbook .jia-cb, adapted to Radix ──
+     Radix Checkbox Root is a <button>; we drive visuals off [data-state] and
+     draw the mark with ::after (identical geometry to the book). */
+  .jia-cb-root {
+    box-sizing: border-box;
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    border: 1px solid var(--gray-neutral-300);
+    background: #fff;
+    color: #fff; /* the check SVG inherits this via currentColor */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0;
+    cursor: pointer;
+    /* A control isn't text — stop the check/SVG from being selectable, which
+       was painting the browser's blue selection highlight behind the check. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 140ms var(--ease), border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .jia-cb-root[data-state="checked"],
+  .jia-cb-root[data-state="indeterminate"] {
+    background: var(--gradient-jia);   /* 135° — matches book .jia-cb:checked */
+    border-color: transparent;
+    /* No persistent ring on checked — the gradient fill already signals "on".
+       The focus-visible ring below still shows for keyboard users. */
+  }
+  .jia-cb-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* DS rounded-cap SVG marks, 12px for the 16px (sm) box. */
+  .jia-cb-check, .jia-cb-dash { width: 12px; height: 12px; display: none; }
+  .jia-cb-root[data-state="checked"] .jia-cb-check { display: block; }
+  .jia-cb-root[data-state="indeterminate"] .jia-cb-dash { display: block; }
+  .jia-cb-root[data-state="unchecked"]:hover:not(:disabled) {
+    background: var(--gray-50);
+    border-color: var(--gray-neutral-400);
+  }
+  .jia-cb-root:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(152, 162, 179, .35); }
+  .jia-cb-root:disabled { opacity: .38; cursor: not-allowed; }
+
+  /* ── Radio — ported from brandbook .jia-rb ── */
+  .jia-rb-root {
+    box-sizing: border-box;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid var(--gray-neutral-300);
+    background: #fff;
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: background 140ms var(--ease), border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .jia-rb-root[data-state="checked"] {
+    background: var(--gradient-jia);
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(159, 202, 237, .22);
+  }
+  .jia-rb-root[data-state="checked"]::after {
+    content: ""; position: absolute; inset: 3px; border-radius: 50%; background: #fff;
+  }
+  .jia-rb-root:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(159, 202, 237, .38); }
+  .jia-rb-root:disabled { opacity: .38; cursor: not-allowed; }
+
+  /* ── Circular progress — ported verbatim from brandbook .circle-prog ──
+     Showcase-only: size + conic-gradient are passed inline per instance. */
+  .circle-prog { border-radius: 50%; position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .circle-prog::after { content: ""; position: absolute; border-radius: 50%; background: #fff; }
+  .circle-prog.cp-sm::after { inset: 5px; }
+  .circle-prog.cp-md::after { inset: 7px; }
+  .circle-prog.cp-lg::after { inset: 9px; }
+  .cp-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+  .cp-val { font-weight: 700; color: var(--text-primary); }
+  .cp-sub { color: var(--text-tertiary); font-weight: 500; }
+
+  /* Modal appear (DS "Live examples"): fade + slide up 10px, 300ms, ease-standard.
+     `dialog-pop` is the reusable alias shared by all centered dialogs. */
+  .directory-profile-dialog[data-state="open"],
+  .dialog-pop[data-state="open"] {
+    animation: directory-profile-dialog-in 300ms cubic-bezier(0.2, 0, 0, 1) both !important;
+  }
+
+  .directory-profile-dialog[data-state="closed"],
+  .dialog-pop[data-state="closed"] {
+    animation: directory-profile-dialog-out 90ms ease-in both !important;
+  }
+
+  .employee-unsaved-alert-shake {
+    animation: employee-unsaved-alert-shake 420ms cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  .employee-unsaved-toast-shake {
+    animation: employee-unsaved-toast-shake 420ms cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  /* ── Org chart: top-down tree with connector lines (CEO → reports). ──
+     Classic pure-CSS tree: each node connects to a horizontal "bus" via ::before/::after,
+     and each children group drops a vertical line from its parent. Tokens keep it on-brand. */
+  .org-tree,
+  .org-tree ul {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .org-tree ul {
+    position: relative;
+    justify-content: center;
+    padding-top: 22px;
+  }
+  .org-tree li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 22px 14px 0;
+  }
+  /* drop line + half of the horizontal bus for each node.
+     border-image paints the connectors with the brand pink gradient. */
+  .org-tree li::before,
+  .org-tree li::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 50%;
+    width: 50%;
+    height: 22px;
+    border-top: 1.5px solid var(--brand-pink);
+    border-image: linear-gradient(135deg, var(--brand-peach), var(--brand-pink)) 1;
+  }
+  .org-tree li::after {
+    right: auto;
+    left: 50%;
+    border-left: 1.5px solid var(--brand-pink);
+  }
+  /* a lone child needs only a straight line, no bus */
+  .org-tree li:only-child::before,
+  .org-tree li:only-child::after {
+    display: none;
+  }
+  /* trim the bus so it doesn't overhang the outer edges */
+  .org-tree li:first-child::before,
+  .org-tree li:last-child::after {
+    border: 0 none;
+  }
+  .org-tree li:last-child::before {
+    border-right: 1.5px solid var(--brand-pink);
+    border-radius: 0 6px 0 0;
+  }
+  .org-tree li:first-child::after {
+    border-radius: 6px 0 0 0;
+  }
+  /* vertical line from a parent down into its children group */
+  .org-tree ul::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 22px;
+    border-left: 1.5px solid var(--brand-pink);
+    border-image: linear-gradient(135deg, var(--brand-peach), var(--brand-pink)) 1;
+  }
+  /* top-level roots have no parent above them, so no connectors */
+  .org-tree > li {
+    padding-top: 0;
+  }
+  .org-tree > li::before,
+  .org-tree > li::after {
+    display: none;
+  }
+
+  /* Figma-like pan surface: grab on the empty canvas, grabbing while dragging. */
+  .org-canvas-surface {
+    cursor: grab;
+  }
+  .org-canvas-surface:active {
+    cursor: grabbing;
+  }
+}
+
+@keyframes directory-profile-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 10px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes directory-profile-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 6px));
+  }
+}
+
+/* Toast (sonner) — keep sonner's slide, but retune its timing + easing to Jia motion
+   (DS toast spec: ~300ms, ease-standard). Sonner owns the transform distance/stacking,
+   so we only touch duration + curve here. */
+[data-sonner-toast] {
+  transition:
+    transform 300ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 300ms cubic-bezier(0.2, 0, 0, 1),
+    height 300ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+/* Badge pop-in (DS "Live examples") — opt-in via <Badge animateIn>. Scale + fade with a
+   slight overshoot, 200ms. Use only for badges that appear from an action (not static ones). */
+@keyframes badge-pop-in {
+  0%   { opacity: 0; transform: scale(0); }
+  45%  { opacity: 1; transform: scale(1.13); }
+  75%  { transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@layer components {
+  .badge-pop-in {
+    animation: badge-pop-in 200ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-pop-in {
+    animation: none;
+  }
+}
+
+@keyframes employee-unsaved-alert-shake {
+  0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+  15%, 45%, 75% { transform: translate(-50%, -50%) translateX(-6px); }
+  30%, 60%, 90% { transform: translate(-50%, -50%) translateX(6px); }
+}
+
+@keyframes employee-unsaved-toast-shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-6px); }
+  30%, 60%, 90% { transform: translateX(6px); }
+}
+
+/* Employee onboarding — Review step recap */
+@layer components {
+  .ob-review-section-title {
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-field-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-2xl);
+    background: var(--bg-primary);
+    padding: 36px 32px;
+    text-align: center;
+    box-shadow: var(--shadow-inset-brand), var(--shadow-xs);
+  }
+
+  .ob-review-hero--warning {
+    border-color: #fedf89;
+    background: #fffcf5;
+  }
+
+  .ob-review-hero--success {
+    border-color: #abefc6;
+    background: #f6fef9;
+  }
+
+  .ob-review-hero-icon {
+    margin-bottom: 20px;
+    display: inline-flex;
+    width: 56px;
+    height: 56px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xl);
+    border: 1px solid currentColor;
+    background: var(--bg-primary);
+    color: var(--text-tertiary);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .ob-review-hero--warning .ob-review-hero-icon {
+    border-color: #fedf89;
+    background: #fffaeb;
+    color: var(--color-warning-600);
+  }
+
+  .ob-review-hero--success .ob-review-hero-icon {
+    border-color: #abefc6;
+    background: var(--color-success-50);
+    color: var(--color-success-600);
+  }
+
+  .ob-review-hero h1 {
+    width: 100%;
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+
+  .ob-review-hero p {
+    margin-top: 8px;
+    width: 100%;
+    max-width: 460px;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--gray-500);
+    text-wrap: pretty;
+  }
+
+  .ob-review-doc-row {
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xl);
+    background: var(--bg-primary);
+    overflow: hidden;
+  }
+
+  .ob-review-doc-row--changes {
+    border-color: #fedf89;
+    background: #fffefb;
+  }
+
+  .ob-review-doc-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .ob-review-doc-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-doc-name {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .ob-review-doc-file {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--text-tertiary);
+    word-break: break-word;
+  }
+
+  .ob-review-doc-detail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px solid #fde9b8;
+    background: #fffcf5;
+    padding: 14px 16px;
+  }
+
+  .ob-review-doc-reason {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 260px;
+    gap: 8px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #b54708;
+  }
+
+  .ob-review-doc-reason svg {
+    color: var(--color-warning-600);
+  }
+
+  .ob-review-chip {
+    display: inline-flex;
+    height: 24px;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radius-full);
+    padding: 0 10px;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .ob-review-chip--approved {
+    border: 1px solid #abefc6;
+    background: var(--color-success-50);
+    color: #067647;
+  }
+
+  .ob-review-chip--review {
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+  }
+
+  .ob-review-chip--changes {
+    border: 1px solid #fedf89;
+    background: var(--color-warning-50);
+    color: #b54708;
+  }
+
+  .ob-review-chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: currentColor;
+  }
+
+  .ob-review-next-box {
+    border: 1px solid var(--border-primary);
+    border-radius: 0.75rem;
+    background: var(--gray-50);
+    padding: 1rem 1.25rem;
+  }
+
+  .ob-submitted-card {
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
+  }
+
+  .ob-submitted-icon-box {
+    box-shadow: inset 0 0 0 1px rgba(14, 16, 27, 0.04);
+  }
+
+  .ob-submitted-body {
+    color: var(--gray-500);
+  }
+
+  .ob-review-timeline-step {
+    display: flex;
+    gap: 16px;
+  }
+
+  .ob-review-timeline-rail {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .ob-review-timeline-marker {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--bg-primary);
+    color: var(--text-quaternary);
+    box-shadow: inset 0 0 0 1.5px var(--border-secondary);
+  }
+
+  .ob-review-timeline-step--complete .ob-review-timeline-marker {
+    background: var(--color-success-600);
+    color: white;
+    box-shadow: none;
+  }
+
+  .ob-review-timeline-step--active .ob-review-timeline-marker {
+    background: var(--gradient-jia);
+    color: white;
+    box-shadow: 0 0 0 4px var(--gray-100);
+  }
+
+  .ob-review-timeline-step--alert .ob-review-timeline-marker {
+    background: var(--color-warning-50);
+    color: var(--color-warning-600);
+    box-shadow: inset 0 0 0 1.5px #fedf89;
+  }
+
+  .ob-review-timeline-line {
+    margin: 6px 0;
+    width: 2px;
+    min-height: 22px;
+    flex: 1 1 auto;
+    background: var(--border-primary);
+  }
+
+  .ob-review-timeline-step--complete .ob-review-timeline-line {
+    background: var(--color-success-600);
+  }
+
+  .ob-review-timeline-body {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding-bottom: 24px;
+  }
+
+  .ob-review-timeline-step:last-child .ob-review-timeline-body {
+    padding-bottom: 0;
+  }
+
+  .ob-review-timeline-row {
+    display: flex;
+    min-height: 36px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+  }
+
+  .ob-review-timeline-title {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .ob-review-timeline-step--pending .ob-review-timeline-title {
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-timeline-date {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--text-tertiary);
+  }
+
+  .ob-review-timeline-desc {
+    margin-top: 2px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--gray-500);
+    text-wrap: pretty;
+  }
+
+  .ob-review-action-link {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #3538cd;
+    transition: color 140ms var(--ease-standard);
+  }
+
+  .ob-review-action-link:hover {
+    color: #2d31a6;
+  }
+}
+
+/* Phone input — country trigger + number field share one control surface */
+@layer components {
+  .phone-input {
+    width: 100%;
+  }
+
+  .phone-input .PhoneInputInput {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Skeleton shimmer — Jia brandbook "Live examples" demo: 90deg gray-cool sweep
+   (gc-100 → gc-50 → gc-100 at 25/50/75 = --gray-100/--gray-50), 1.4s linear loop.
+   Direction flipped to left-to-right (the conventional sweep) vs the DS's R-to-L. */
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@layer components {
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--gray-100) 25%,
+      var(--gray-50) 50%,
+      var(--gray-100) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* Jia diamond loader — the brand gradient shimmering across the DS gem silhouette
+   (finance/diamond-01). For standalone / full-surface branded waits; button-level
+   waits use the monochrome Spinner, content waits use a skeleton. */
+@keyframes jia-diamond-shimmer {
+  0%, 100% { background-position: 0% 0%; }
+  50%      { background-position: 100% 100%; }
+}
+
+@layer components {
+  .jia-diamond-loader {
+    display: inline-block;
+    background: var(--gradient-jia);
+    background-size: 220% 220%;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%202.5L21%2012L12%2021.5L3%2012Z'%20fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%202.5L21%2012L12%2021.5L3%2012Z'%20fill='black'/%3E%3C/svg%3E") center / contain no-repeat;
+    animation: jia-diamond-shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jia-diamond-loader {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
+
+/* Smooth scroll for programmatic/anchor jumps (scroll-to-top, jump-to-section,
+   scrollIntoView). Wheel/trackpad scrolling is unchanged. Scoped behind the
+   reduced-motion guard since scroll-behavior doesn't honor it on its own. The app
+   scrolls inside <main> (the shells are h-screen/overflow-hidden), so target both. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+  main {
+    scroll-behavior: smooth;
+  }
 }

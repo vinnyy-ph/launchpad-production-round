@@ -1,0 +1,16 @@
+model ClearanceSignatory {
+  id           String            @id @default(uuid())
+  templateId   String
+  employeeId   String
+  /// What this signatory clears, and what they must verify before signing.
+  purpose      String
+  requirements String
+  order        Int
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  employee     Employee          @relation(fields: [employeeId], references: [id])
+  template     ClearanceTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([templateId, order])
+  @@map("clearance_signatories")
+}

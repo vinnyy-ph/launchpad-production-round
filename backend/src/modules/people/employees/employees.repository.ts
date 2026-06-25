@@ -1,0 +1,674 @@
+import type { Prisma, Role } from "@prisma/client";
+import { prisma } from "../../../core/database/prisma.service";
+import {
+  formatPhilippineMobileE164,
+  tryExtractNormalizedPhilippinePhone,
+} from "../../shared/phone";
+import { downwardChain } from "../../shared/org";
+import type {
+  ListEmployeesQueryDto,
+  UpdateEmployeeAddressRequestDto,
+  UpdateEmployeeEmergencyContactRequestDto,
+  UpdateEmployeeProfileRequestDto,
+} from "./dto";
+
+const EMPLOYEE_DIRECTORY_ROLES: Role[] = ["HR", "EMPLOYEE"];
+
+const employeeProfileInclude = {
+  user: {
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isActive: true,
+      avatarUrl: true,
+    },
+  },
+  supervisor: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+    },
+  },
+  department: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  address: {
+    select: {
+      address: true,
+      city: true,
+      province: true,
+      country: true,
+    },
+  },
+  emergencyContact: {
+    select: {
+      emergencyContactName: true,
+      emergencyContactNumber: true,
+    },
+  },
+  onboardingRecord: {
+    include: {
+      template: {
+        include: {
+          customFields: { orderBy: { createdAt: "asc" } },
+        },
+      },
+      customFieldValues: true,
+    },
+  },
+  directReports: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+      status: true,
+    },
+  },
+  ledTeams: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  teamMemberships: {
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.EmployeeInclude;
+
+type EmployeeProfileRecord = Prisma.EmployeeGetPayload<{
+  include: typeof employeeProfileInclude;
+}>;
+
+/**
+ * Relations selected for directory list items (the list table and the org chart).
+ * Shared between the paginated `findMany` and the non-paginated `findAllForDirectory`
+ * so both produce the exact same record shape the service maps from.
+ */
+const employeeListInclude = {
+  // The Google profile picture lives on the linked User; selected so list rows
+  // (directory table, org chart, onboarding cases) can render the avatar.
+  user: {
+    select: {
+      avatarUrl: true,
+    },
+  },
+  department: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  supervisor: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyEmail: true,
+      jobTitle: true,
+    },
+  },
+  address: {
+    select: {
+      address: true,
+      city: true,
+      province: true,
+      country: true,
+    },
+  },
+  emergencyContact: {
+    select: {
+      emergencyContactName: true,
+      emergencyContactNumber: true,
+    },
+  },
+  teamMemberships: {
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.EmployeeInclude;
+
+/**
+ * Handles employee persistence queries and keeps Prisma-specific filtering out of controllers.
+ */
+export class EmployeesRepository {
+  /**
+   * Counts directory employees with no supervisor, optionally excluding one employee.
+   * Used to enforce the single-root-node constraint before clearing a supervisor assignment.
+   */
+  async countRootEmployees(excludeEmployeeId: string): Promise<number> {
+    return prisma.employee.count({
+      where: {
+        supervisorId: null,
+        id: { not: excludeEmployeeId },
+        user: { role: { in: EMPLOYEE_DIRECTORY_ROLES } },
+      },
+    });
+  }
+
+  /**
+   * Returns true if assigning proposedSupervisorId as the supervisor of employeeId would
+   * create a cycle in the supervision tree. Walks upward from the proposed supervisor until
+   * reaching a root (null supervisorId) or detecting employeeId in the chain.
+   */
+  async wouldCreateCycle(employeeId: string, proposedSupervisorId: string): Promise<boolean> {
+    const visited = new Set<string>();
+    let currentId: string | null = proposedSupervisorId;
+
+    while (currentId !== null) {
+      if (currentId === employeeId) {
+        return true;
+      }
+
+      // Guard against infinite loops caused by pre-existing cycles in the data.
+      if (visited.has(currentId)) {
+        return false;
+      }
+      visited.add(currentId);
+
+      const node: { supervisorId: string | null } | null = await prisma.employee.findFirst({
+        where: { id: currentId },
+        select: { supervisorId: true },
+      });
+
+      currentId = node?.supervisorId ?? null;
+    }
+
+    return false;
+  }
+
+  /**
+   * Finds employees matching the list filters and returns the total count for pagination metadata.
+   */
+  async findMany(filters: ListEmployeesQueryDto) {
+    const where = this.buildWhere(filters);
+
+    if (filters.reportingToId) {
+      // Scope to the supervisor's whole downward hierarchy (direct reports + everyone below).
+      // An empty result (no reports) yields `{ in: [] }`, which correctly matches nothing.
+      const descendantIds = await downwardChain(filters.reportingToId);
+      where.id = { in: descendantIds };
+    }
+
+    const skip = (filters.page - 1) * filters.limit;
+    const orderBy = this.buildOrderBy(filters);
+
+    const [employees, total] = await Promise.all([
+      prisma.employee.findMany({
+        where,
+        skip,
+        take: filters.limit,
+        orderBy,
+        include: employeeListInclude,
+      }),
+      prisma.employee.count({ where }),
+    ]);
+
+    return { employees, total };
+  }
+
+  /**
+   * Returns every directory employee (no pagination) with the list-item relations, ordered by
+   * name. Drives the org chart, which needs the whole supervisor hierarchy in one payload —
+   * paginating would drop intermediate supervisors and break the tree.
+   */
+  async findAllForDirectory() {
+    return prisma.employee.findMany({
+      where: { user: { role: { in: EMPLOYEE_DIRECTORY_ROLES } } },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      include: employeeListInclude,
+    });
+  }
+
+  /**
+   * Finds one unredacted employee profile for HR views.
+   */
+  async findById(employeeId: string): Promise<EmployeeProfileRecord | null> {
+    return prisma.employee.findFirst({
+      where: {
+        id: employeeId,
+        user: {
+          role: {
+            in: EMPLOYEE_DIRECTORY_ROLES,
+          },
+        },
+      },
+      include: employeeProfileInclude,
+    });
+  }
+
+  /**
+   * Resolves the caller's own employee identity (id + direct supervisor) from their user id.
+   * Used by profile-visibility checks to compare the viewer against the requested profile.
+   */
+  async findIdentityByUserId(
+    userId: string,
+  ): Promise<{ id: string; supervisorId: string | null } | null> {
+    return prisma.employee.findFirst({
+      where: { userId },
+      select: { id: true, supervisorId: true },
+    });
+  }
+
+  /**
+   * Returns true when the two employees belong to at least one team together — as a leader or a
+   * member on either side. Used to authorize teammate profile access.
+   */
+  async shareTeam(employeeAId: string, employeeBId: string): Promise<boolean> {
+    const team = await prisma.team.findFirst({
+      where: {
+        AND: [
+          { OR: [{ leaderId: employeeAId }, { members: { some: { employeeId: employeeAId } } }] },
+          { OR: [{ leaderId: employeeBId }, { members: { some: { employeeId: employeeBId } } }] },
+        ],
+      },
+      select: { id: true },
+    });
+
+    return team !== null;
+  }
+
+  /**
+   * Updates HR-editable employee profile fields and returns the refreshed unredacted profile.
+   * Also creates ActivityLog entries for each field that changed.
+   */
+  async updateProfile(employeeId: string, update: UpdateEmployeeProfileRequestDto, updatedBy: string) {
+    const existingEmployee = await this.findById(employeeId);
+
+    if (!existingEmployee) {
+      return null;
+    }
+
+    // Resolve the editor's Employee record from the User ID so we can link the audit entry.
+    const editor = await prisma.employee.findFirst({
+      where: { userId: updatedBy },
+      select: { id: true },
+    });
+
+    const effectiveUpdate = this.normalizeEmergencyContactPhone(update);
+
+    const diffs = await this.computeDiffs(existingEmployee, effectiveUpdate);
+
+    const addressUpdate = this.buildAddressRelationUpdate(
+      effectiveUpdate.address,
+      Boolean(existingEmployee.address),
+    );
+    const emergencyContactUpdate = this.buildEmergencyContactRelationUpdate(
+      effectiveUpdate.emergencyContact,
+      Boolean(existingEmployee.emergencyContact),
+    );
+
+    const data: Prisma.EmployeeUpdateInput = {
+      companyEmail: effectiveUpdate.companyEmail,
+      firstName: effectiveUpdate.firstName,
+      lastName: effectiveUpdate.lastName,
+      middleName: effectiveUpdate.middleName,
+      personalEmail: effectiveUpdate.personalEmail,
+      birthday: effectiveUpdate.birthday,
+      jobTitle: effectiveUpdate.jobTitle,
+      status: effectiveUpdate.status,
+      ...(addressUpdate ? { address: addressUpdate } : {}),
+      ...(emergencyContactUpdate ? { emergencyContact: emergencyContactUpdate } : {}),
+      ...(effectiveUpdate.department !== undefined
+        ? {
+            department: effectiveUpdate.department
+              ? {
+                  connectOrCreate: {
+                    where: { name: effectiveUpdate.department },
+                    create: { name: effectiveUpdate.department },
+                  },
+                }
+              : { disconnect: true },
+          }
+        : {}),
+      ...(effectiveUpdate.supervisorId !== undefined
+        ? {
+            supervisor: effectiveUpdate.supervisorId
+              ? { connect: { id: effectiveUpdate.supervisorId } }
+              : { disconnect: true },
+          }
+        : {}),
+      ...(effectiveUpdate.companyEmail
+        ? {
+            user: {
+              update: {
+                email: effectiveUpdate.companyEmail,
+              },
+            },
+          }
+        : {}),
+    };
+
+    // Keep the transaction focused on the writes. The update still performs every nested
+    // write (address, emergency contact, user email, department, supervisor); we just drop
+    // the relation `include` so the ~9 relation SELECTs it triggers no longer run inside the
+    // transaction — those reads are what previously pushed it past the 5s interactive-tx
+    // timeout (P2028). The full profile is re-read after the commit instead.
+    await prisma.$transaction(async (tx) => {
+      await tx.employee.update({
+        where: { id: employeeId },
+        data,
+      });
+
+      if (editor && diffs.length > 0) {
+        await tx.activityLog.createMany({
+          data: diffs.map((diff) => ({
+            editorId: editor.id,
+            targetEmployeeId: employeeId,
+            fieldName: diff.fieldName,
+            oldValue: diff.oldValue,
+            newValue: diff.newValue,
+          })),
+        });
+      }
+    });
+
+    return this.findById(employeeId);
+  }
+
+  /**
+   * Store PH phone values as E.164 (`+639...`). Older rows may still hold display-formatted
+   * numbers; if the incoming value is the same phone, canonicalize the saved value while keeping
+   * activity logs quiet by comparing normalized values in computeDiffs.
+   */
+  private normalizeEmergencyContactPhone(
+    update: UpdateEmployeeProfileRequestDto,
+  ): UpdateEmployeeProfileRequestDto {
+    if (
+      update.emergencyContact === undefined ||
+      update.emergencyContact === null ||
+      update.emergencyContact.emergencyContactNumber === undefined
+    ) {
+      return update;
+    }
+
+    const nextPhone = update.emergencyContact.emergencyContactNumber;
+
+    if (!nextPhone) {
+      return update;
+    }
+
+    const nextNormalized = tryExtractNormalizedPhilippinePhone(nextPhone);
+
+    if (!nextNormalized) {
+      return update;
+    }
+
+    return {
+      ...update,
+      emergencyContact: {
+        ...update.emergencyContact,
+        emergencyContactNumber: formatPhilippineMobileE164(nextNormalized),
+      },
+    };
+  }
+
+  /**
+   * Computes the set of field-level changes between the existing profile and the update payload.
+   * Only fields present in the update (not undefined) are compared.
+   */
+  private async computeDiffs(
+    existing: EmployeeProfileRecord,
+    update: UpdateEmployeeProfileRequestDto,
+  ): Promise<Array<{ fieldName: string; oldValue: string | null; newValue: string | null }>> {
+    const diffs: Array<{ fieldName: string; oldValue: string | null; newValue: string | null }> = [];
+
+    const track = (
+      fieldName: string,
+      oldVal: string | null | undefined,
+      newVal: string | null | undefined,
+    ) => {
+      if (newVal === undefined) return;
+      const oldStr = oldVal ?? null;
+      const newStr = newVal ?? null;
+      if (oldStr !== newStr) {
+        diffs.push({ fieldName, oldValue: oldStr, newValue: newStr });
+      }
+    };
+
+    track("firstName", existing.firstName, update.firstName);
+    track("lastName", existing.lastName, update.lastName);
+    track("middleName", existing.middleName, update.middleName);
+    track("companyEmail", existing.companyEmail, update.companyEmail);
+    track("personalEmail", existing.personalEmail, update.personalEmail);
+    track("jobTitle", existing.jobTitle, update.jobTitle);
+    track("status", existing.status, update.status);
+
+    if (update.birthday !== undefined) {
+      const toDateStr = (d: Date | null): string | null =>
+        d ? d.toISOString().split("T")[0] : null;
+      track("birthday", toDateStr(existing.birthday), update.birthday ? toDateStr(update.birthday) : null);
+    }
+
+    if (update.department !== undefined) {
+      track("department", existing.department?.name ?? null, update.department);
+    }
+
+    if (update.supervisorId !== undefined) {
+      const oldName = existing.supervisor
+        ? `${existing.supervisor.firstName} ${existing.supervisor.lastName}`
+        : null;
+      let newName: string | null = null;
+      if (update.supervisorId) {
+        const newSupervisor = await prisma.employee.findFirst({
+          where: { id: update.supervisorId },
+          select: { firstName: true, lastName: true },
+        });
+        newName = newSupervisor ? `${newSupervisor.firstName} ${newSupervisor.lastName}` : null;
+      }
+      if (oldName !== newName) {
+        diffs.push({ fieldName: "supervisor", oldValue: oldName, newValue: newName });
+      }
+    }
+
+    if (update.address !== undefined) {
+      if (update.address === null) {
+        if (existing.address) {
+          track("address.country", existing.address.country, null);
+          track("address.province", existing.address.province, null);
+          track("address.city", existing.address.city, null);
+          track("address.address", existing.address.address, null);
+        }
+      } else {
+        track("address.country", existing.address?.country ?? null, update.address.country);
+        track("address.province", existing.address?.province ?? null, update.address.province);
+        track("address.city", existing.address?.city ?? null, update.address.city);
+        track("address.address", existing.address?.address ?? null, update.address.address);
+      }
+    }
+
+    if (update.emergencyContact !== undefined) {
+      if (update.emergencyContact === null) {
+        if (existing.emergencyContact) {
+          track("emergencyContact.name", existing.emergencyContact.emergencyContactName, null);
+          track("emergencyContact.phone", existing.emergencyContact.emergencyContactNumber, null);
+        }
+      } else {
+        track("emergencyContact.name", existing.emergencyContact?.emergencyContactName ?? null, update.emergencyContact.emergencyContactName);
+        const existingPhone = existing.emergencyContact?.emergencyContactNumber ?? null;
+        const nextPhone = update.emergencyContact.emergencyContactNumber;
+        const existingNormalized = existingPhone
+          ? tryExtractNormalizedPhilippinePhone(existingPhone)
+          : null;
+        const nextNormalized = nextPhone
+          ? tryExtractNormalizedPhilippinePhone(nextPhone)
+          : null;
+
+        if (!existingNormalized || existingNormalized !== nextNormalized) {
+          track("emergencyContact.phone", existingPhone, nextPhone);
+        }
+      }
+    }
+
+    return diffs;
+  }
+
+  /**
+   * Builds a Prisma where clause for search and filter behavior.
+   */
+  private buildWhere(filters: ListEmployeesQueryDto): Prisma.EmployeeWhereInput {
+    const where: Prisma.EmployeeWhereInput = {
+      user: {
+        role: {
+          in: EMPLOYEE_DIRECTORY_ROLES,
+        },
+      },
+    };
+
+    if (filters.statuses?.length) {
+      // Single status stays a plain match; multiple statuses match any of them.
+      where.status = filters.statuses.length === 1 ? filters.statuses[0] : { in: filters.statuses };
+    } else if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.supervisorIds?.length) {
+      // Single id stays a plain match; multiple ids match any of them.
+      where.supervisorId =
+        filters.supervisorIds.length === 1
+          ? filters.supervisorIds[0]
+          : { in: filters.supervisorIds };
+    }
+
+    if (filters.departmentIds?.length) {
+      // Single id stays a plain match; multiple ids match any of them.
+      where.departmentId =
+        filters.departmentIds.length === 1
+          ? filters.departmentIds[0]
+          : { in: filters.departmentIds };
+    }
+
+    if (filters.search?.trim()) {
+      // Match each whitespace-separated term against any identity / work-profile field, then AND
+      // the terms together. This makes a full-name query like "Jane Smith" match firstName "Jane"
+      // AND lastName "Smith" — no single column contains the whole string — while a single-term
+      // query still matches a name part, email, job title, or department as before.
+      const terms = filters.search.trim().split(/\s+/);
+      where.AND = terms.map((term) => ({
+        OR: [
+          { firstName: { contains: term, mode: "insensitive" } },
+          { middleName: { contains: term, mode: "insensitive" } },
+          { lastName: { contains: term, mode: "insensitive" } },
+          { companyEmail: { contains: term, mode: "insensitive" } },
+          { personalEmail: { contains: term, mode: "insensitive" } },
+          { jobTitle: { contains: term, mode: "insensitive" } },
+          { department: { name: { contains: term, mode: "insensitive" } } },
+        ],
+      }));
+    }
+
+    if (filters.teamIds?.length || filters.teamId || filters.team) {
+      const teamWhere: Prisma.TeamWhereInput = {};
+
+      if (filters.teamIds?.length) {
+        // Single id stays a plain match; multiple ids match any of them.
+        teamWhere.id = filters.teamIds.length === 1 ? filters.teamIds[0] : { in: filters.teamIds };
+      } else if (filters.teamId) {
+        teamWhere.id = filters.teamId;
+      }
+
+      if (filters.team) {
+        teamWhere.name = { contains: filters.team, mode: "insensitive" };
+      }
+
+      where.teamMemberships = { some: { team: teamWhere } };
+    }
+
+    return where;
+  }
+
+  /** Builds the nested Prisma mutation for the optional one-to-one employee address. */
+  private buildAddressRelationUpdate(
+    address: UpdateEmployeeAddressRequestDto | null | undefined,
+    hasExistingAddress: boolean,
+  ): Prisma.EmployeeAddressUpdateOneWithoutEmployeeNestedInput | undefined {
+    if (address === undefined) {
+      return undefined;
+    }
+
+    if (address === null) {
+      return hasExistingAddress ? { delete: true } : undefined;
+    }
+
+    return {
+      upsert: {
+        create: address,
+        update: address,
+      },
+    };
+  }
+
+  /** Builds the nested Prisma mutation for the optional one-to-one emergency contact. */
+  private buildEmergencyContactRelationUpdate(
+    emergencyContact: UpdateEmployeeEmergencyContactRequestDto | null | undefined,
+    hasExistingEmergencyContact: boolean,
+  ): Prisma.EmployeeEmergencyContactUpdateOneWithoutEmployeeNestedInput | undefined {
+    if (emergencyContact === undefined) {
+      return undefined;
+    }
+
+    if (emergencyContact === null) {
+      return hasExistingEmergencyContact ? { delete: true } : undefined;
+    }
+
+    return {
+      upsert: {
+        create: emergencyContact,
+        update: emergencyContact,
+      },
+    };
+  }
+
+  /** Builds a stable order clause for employee directory sort controls. */
+  private buildOrderBy(filters: ListEmployeesQueryDto): Prisma.EmployeeOrderByWithRelationInput[] {
+    const direction = filters.sortDirection ?? "asc";
+    const fallback: Prisma.EmployeeOrderByWithRelationInput[] = [
+      { lastName: "asc" },
+      { firstName: "asc" },
+    ];
+
+    switch (filters.sortBy) {
+      case "jobTitle":
+        return [{ jobTitle: direction }, ...fallback];
+      case "department":
+        return [{ department: { name: direction } }, ...fallback];
+      case "supervisor":
+        return [
+          { supervisor: { lastName: direction } },
+          { supervisor: { firstName: direction } },
+          ...fallback,
+        ];
+      case "teams":
+        return [{ teamMemberships: { _count: direction } }, ...fallback];
+      case "status":
+        return [{ status: direction }, ...fallback];
+      case "employeeName":
+      default:
+        return [
+          { lastName: direction },
+          { firstName: direction },
+        ];
+    }
+  }
+}

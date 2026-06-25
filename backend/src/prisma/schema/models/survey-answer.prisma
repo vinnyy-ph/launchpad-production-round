@@ -1,0 +1,13 @@
+model SurveyAnswer {
+  id         String         @id @default(uuid())
+  responseId String
+  questionId String
+  answerText String?
+  answerData Json?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  question   SurveyQuestion @relation(fields: [questionId], references: [id])
+  response   SurveyResponse @relation(fields: [responseId], references: [id])
+
+  @@map("survey_answers")
+}

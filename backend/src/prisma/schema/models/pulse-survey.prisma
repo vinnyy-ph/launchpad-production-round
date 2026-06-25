@@ -1,0 +1,24 @@
+model PulseSurvey {
+  id                String                   @id @default(uuid())
+  createdBy         String
+  name              String
+  recurringType     RecurringType            @default(ONE_TIME)
+  audienceType      AudienceType             @default(EVERYONE)
+  isAnonymous       Boolean                  @default(false)
+  visibility        SurveyVisibility         @default(EVERYONE)
+  isActive          Boolean                  @default(false)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  deletedAt         DateTime?                @db.Timestamp(6)
+  releaseDate       DateTime                 @db.Timestamp(6)
+  deadline          DateTime                 @db.Timestamp(6)
+  creator           Employee                 @relation(fields: [createdBy], references: [id])
+  audienceConfigs   SurveyAudienceConfig[]
+  insights          SurveyInsight[]
+  occurrences       SurveyOccurrence[]
+  questions         SurveyQuestion[]
+  reminderConfig    SurveyReminderConfig?
+  visibilityConfigs SurveyVisibilityConfig[]
+
+  @@map("pulse_surveys")
+}

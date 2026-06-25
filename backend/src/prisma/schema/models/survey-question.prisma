@@ -1,0 +1,19 @@
+model SurveyQuestion {
+  id            String         @id @default(uuid())
+  surveyId      String
+  type          QuestionType
+  questionText  String
+  isRequired    Boolean        @default(true)
+  options       Json?
+  scaleMin      Int?
+  scaleMax      Int?
+  scaleMinLabel String?
+  scaleMaxLabel String?
+  orderIndex    Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  answers       SurveyAnswer[]
+  survey        PulseSurvey    @relation(fields: [surveyId], references: [id])
+
+  @@map("survey_questions")
+}

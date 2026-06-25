@@ -1,0 +1,13 @@
+model OnboardingCustomFieldValue {
+  id        String                @id @default(uuid())
+  recordId  String
+  fieldId   String
+  value     String
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  field     OnboardingCustomField @relation(fields: [fieldId], references: [id])
+  record    OnboardingRecord      @relation(fields: [recordId], references: [id])
+
+  @@unique([recordId, fieldId])
+  @@map("onboarding_custom_field_values")
+}
