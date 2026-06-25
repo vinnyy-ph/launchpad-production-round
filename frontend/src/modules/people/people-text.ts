@@ -126,6 +126,20 @@ export function validatePeopleFieldText(
   return validatePeopleText(value, label, maxLen);
 }
 
+/**
+ * Maps `validatePeopleFieldText` errors to user-facing copy. Keeps profanity and
+ * length messages as-is; remaps XSS/control-character failures to a friendly fallback.
+ */
+export function mapPeopleFieldTextError(
+  error: string | undefined,
+  unsafeTextFallback: string,
+): string | undefined {
+  if (!error) return undefined;
+  if (error === PEOPLE_NAME_LANGUAGE_MESSAGE) return error;
+  if (error.includes("characters or fewer")) return error;
+  return unsafeTextFallback;
+}
+
 export function validatePeopleText(
   value: string,
   label: string,

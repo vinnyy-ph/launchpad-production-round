@@ -14,7 +14,11 @@ import {
   Input,
 } from "@/shared/ui";
 import { ApiError } from "@/shared/lib/api-client";
-import { PEOPLE_TEXT_LIMITS, validatePeopleText } from "@/modules/people/people-text";
+import {
+  PEOPLE_TEXT_LIMITS,
+  validatePeopleFieldText,
+  mapPeopleFieldTextError,
+} from "@/modules/people/people-text";
 import { useDepartmentMutations } from "../hooks/use-department-mutations";
 import type { DepartmentListItem } from "../types/departments.types";
 
@@ -29,7 +33,7 @@ interface DepartmentFormDialogProps {
 
 const DEPARTMENT_NAME_ERROR = {
   required: "Department name is required.",
-  invalid: "Use a department name without HTML or special characters.",
+  invalid: "Please enter a valid department name.",
   duplicate: "A department with this name already exists.",
   saveFailed: "Could not save the department. Please try again.",
 } as const;
@@ -38,14 +42,11 @@ function validateDepartmentName(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return DEPARTMENT_NAME_ERROR.required;
 
-  const textError = validatePeopleText(
-    trimmed,
-    "Department name",
-    PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME,
+  const textError = mapPeopleFieldTextError(
+    validatePeopleFieldText(trimmed, "Department name", PEOPLE_TEXT_LIMITS.DEPARTMENT_NAME),
+    DEPARTMENT_NAME_ERROR.invalid,
   );
-  if (!textError) return null;
-
-  return textError.includes("characters or fewer") ? textError : DEPARTMENT_NAME_ERROR.invalid;
+  return textError ?? null;
 }
 
 /** Add/edit dialog for a department. A single name field drives both create and rename. */

@@ -2,9 +2,45 @@ import {
   PEOPLE_NAME_LANGUAGE_MESSAGE,
   EMPLOYEE_BIRTHDAY_TOO_YOUNG_MESSAGE,
   getLatestAllowedEmployeeBirthday,
+  mapPeopleFieldTextError,
   validateEmployeeBirthday,
+  validatePeopleFieldText,
   validatePeopleNameLanguage,
 } from "@/modules/people/people-text";
+
+describe("mapPeopleFieldTextError", () => {
+  it("passes through profanity and length errors unchanged", () => {
+    expect(
+      mapPeopleFieldTextError(PEOPLE_NAME_LANGUAGE_MESSAGE, "Please use plain text only."),
+    ).toBe(PEOPLE_NAME_LANGUAGE_MESSAGE);
+    expect(
+      mapPeopleFieldTextError("Name must be 100 characters or fewer.", "Please use plain text only."),
+    ).toBe("Name must be 100 characters or fewer.");
+  });
+
+  it("maps XSS errors to the provided fallback", () => {
+    expect(
+      mapPeopleFieldTextError(
+        "Department name must not contain HTML or special characters.",
+        "Use a department name without HTML or special characters.",
+      ),
+    ).toBe("Use a department name without HTML or special characters.");
+  });
+});
+
+describe("validatePeopleFieldText", () => {
+  it("blocks profanity before unsafe-text checks", () => {
+    expect(validatePeopleFieldText("fuck", "Department name", 100)).toBe(
+      PEOPLE_NAME_LANGUAGE_MESSAGE,
+    );
+  });
+
+  it("blocks HTML-like input", () => {
+    expect(validatePeopleFieldText("<script>", "Document name", 200)).toBe(
+      "Document name must not contain HTML or special characters.",
+    );
+  });
+});
 
 describe("validatePeopleNameLanguage", () => {
   it("allows clean names and allowlisted false-positive examples", () => {
