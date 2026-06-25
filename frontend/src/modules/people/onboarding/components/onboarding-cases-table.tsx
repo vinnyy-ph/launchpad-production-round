@@ -273,6 +273,17 @@ export function OnboardingCasesTable() {
                   ? "Try a different search or filter."
                   : "Add an employee to send their first invite."
               }
+              action={
+                hasFilters
+                  ? {
+                      label: "Clear filters",
+                      onClick: () => {
+                        setSearch("");
+                        setStatusFilter(ALL);
+                      },
+                    }
+                  : undefined
+              }
             />
           }
         />
